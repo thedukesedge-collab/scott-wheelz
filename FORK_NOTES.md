@@ -301,3 +301,7 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   ADC1/ADC2 engaged) is drawn.
 - Removed the flip feature (long-press and the Board Style "Side view"
   option). Side and front views always use the IMU pitch sign as-is.
+
+### Battery % (v1.2.3-rf16)
+- Battery % uses the Exan digital font in light purple with a dark outline
+  and a neon purple Glow behind it.

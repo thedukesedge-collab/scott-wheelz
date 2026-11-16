@@ -6291,15 +6291,29 @@ Item {
                     }
                 }
 
-                SwLText {
+                // Re-RinkFloat: glowing purple digital battery %
+                Text {
                     id: batteryBarValue
                     anchors.centerIn: parent
-                    z: 2
+                    z: 3
 
-                    font.pixelSize: parent.height * 0.7
+                    color: "#d9a6ff"
+                    font.family: "Exan"
+                    font.pixelSize: parent.height * 0.62
+                    font.letterSpacing: 0.04 * unit
                     style: Text.Outline
-                    styleColor: "#000000"
+                    styleColor: "#12051f"
                     text: Math.round(parent.value) + "%"
+                }
+
+                Glow {
+                    anchors.fill: batteryBarValue
+                    source: batteryBarValue
+                    z: 2
+                    radius: Math.round(0.18 * unit)
+                    samples: radius * 2 + 1
+                    spread: 0.45
+                    color: swTheme.neonPurple
                 }
 
                 // Re-RinkFloat: neon fill that fades smoothly from green (full)
