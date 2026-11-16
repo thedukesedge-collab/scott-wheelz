@@ -124,6 +124,11 @@ ApplicationWindow {
     Timer {
         interval: 3000; running: true
         onTriggered: {
+            // hide first-run dialogs / hint overlays so the screen is visible
+            if (l.item) for (var k = 0; k < l.item.children.length; k++) {
+                var ch = l.item.children[k];
+                if (ch.children.length > 0 && /Page|SwipeView/.test("" + ch.children[0])) ch.visible = false;
+            }
             l.item && l.item.parent && l.item.parent.grabToImage(function(r) { r.saveToFile("/tmp/shot.png"); });
             function dump(it, depth) {
                 if (depth > 4 || !it) return;
