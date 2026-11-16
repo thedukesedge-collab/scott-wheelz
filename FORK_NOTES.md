@@ -132,6 +132,8 @@ Vibrate Strength (A, 0-25, default 0 = off). Higher values mean more motor
 current and heat, especially at standstill.
 
 ### Horn sound modes and external beeper (update 5)
+- (Update 6: the mode chip was removed from the app, which now always sends
+  BOTH = the regular haptic horn. The package still accepts the other modes.)
 - Mode chip next to HORN (tap to cycle, remembered): BEEP (audible motor
   tone), BUZZ (vibration), B/B (alternates beep and buzz every 0.125 s),
   BOTH. Sent as byte [3] of command 120 (`HornMode`).
@@ -143,3 +145,18 @@ current and heat, especially at standstill.
   priority (beep_on/off with force = false).
 - All horn limits (0.2 s min, 1 s max, 1 s cooldown, 0.3 s disconnect
   timeout, alerts first) apply to every mode.
+
+### Full-screen main view and pull-up sheet (update 6, v1.2.3-sw6)
+- Horn: one regular haptic horn (tone + vibrate while riding, tone only when
+  idle); no mode chip. The HORN pill is larger (2.4 x 0.8 units).
+- Battery bar fill: green >= 65%, yellow 35-64%, red < 35%. The % and voltage
+  text have a black outline so they stay readable on any fill.
+- The main stats now fill the whole screen (spacers spread the sections).
+- Tunes / Control / Data moved into a pull-up sheet (`bottomSheet`) over the
+  main view. Drag the handle bar to any height, tap it to open/close. Fully
+  up it stops below the board name row, so the HORN stays reachable. Position
+  is remembered in `swSettings.sheetFraction` / `sheetOpenFraction`.
+- The sheet uses the neon theme: dark grid, purple tabs bar, green selected
+  tab / sliders / checkbox (`Material.accent`), purple/green tune buttons.
+  Plots get `neon: true` (dark background, purple axes and labels); series
+  keep their own colors.

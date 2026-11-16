@@ -773,7 +773,7 @@ Item {
         function sendHorn(on) {
             var data = createData(4, c_SW_HORN);
             data.setUint8(2, on ? 1 : 0);
-            data.setUint8(3, swSettings.hornMode);
+            data.setUint8(3, 3); // HORN_MODE_BOTH: tone + vibrate (tone only when idle)
             vescCommands.sendCustomAppData(data.buffer);
         }
 
@@ -980,7 +980,8 @@ Item {
         category: "scottWheelz"
 
         property bool invertPitch: false
-        property int hornMode: 2  // 0 beep, 1 buzz, 2 alternate, 3 both
+        property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
+        property real sheetOpenFraction: 0.5  // where a tap on the handle opens it to
     }
 
     Settings {
@@ -1303,6 +1304,7 @@ Item {
                 if (!uiHintsSettings[key]) {
                     if (key == "plotCursor") {
                         bottomStackTabs.currentIndex = 2;
+                        bottomSheet.open();
                     }
                     value.createObject(container, {settings: uiHintsSettings, settingName: key});
                 }
@@ -1314,6 +1316,7 @@ Item {
                 for (let [key, value] of dataRecordHints) {
                     if (!uiHintsSettings[key]) {
                         bottomStackTabs.currentIndex = 2;
+                        bottomSheet.open();
                         value.createObject(container, {settings: uiHintsSettings, settingName: key});
                     }
                 }
@@ -2255,6 +2258,30 @@ Item {
         }
     }
 
+    // Scott Wheelz: Tron grid used behind the main screen and the bottom sheet
+    component SwGrid : Canvas {
+        contextType: "2d"
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+        onPaint: {
+            var ctx = getContext("2d");
+            ctx.reset();
+            ctx.strokeStyle = swTheme.grid;
+            ctx.lineWidth = 1;
+            var step = Math.max(12, Math.round(0.5 * unit));
+            ctx.beginPath();
+            for (var x = 0; x < width; x += step) {
+                ctx.moveTo(x + 0.5, 0);
+                ctx.lineTo(x + 0.5, height);
+            }
+            for (var y = 0; y < height; y += step) {
+                ctx.moveTo(0, y + 0.5);
+                ctx.lineTo(width, y + 0.5);
+            }
+            ctx.stroke();
+        }
+    }
+
     component SwNText : Text {
         color: swTheme.color("normalText")
     }
@@ -2880,7 +2907,14 @@ Item {
 
     component Plot : Rectangle {
         id: plot
-        color: "#0b0b0b"
+        color: neon ? swTheme.background : "#0b0b0b"
+
+        // Scott Wheelz: neon axes / labels (series keep their own colors)
+        property bool neon: false
+
+        function themeColor(name) {
+            return neon ? swTheme.color(name) : getDarkThemeColor(name);
+        }
 
         property var plotData
         property int ticksPerSecond
@@ -3034,7 +3068,7 @@ Item {
             property real hPadding: 8
             property real vPadding: 4
 
-            color: getDarkThemeColor("darkBackground");
+            color: plot.themeColor("darkBackground");
 
             ScrollView {
                 id: menuScrollView
@@ -3094,7 +3128,7 @@ Item {
                                         y: parent.height / 2 - height / 2
                                         radius: 2
                                         color: "transparent"
-                                        border.color: parent.checked ? getDarkThemeColor("lightText") : getDarkThemeColor("normalText")
+                                        border.color: parent.checked ? plot.themeColor("lightText") : plot.themeColor("normalText")
 
                                         Rectangle {
                                             height: parent.height * 0.5
@@ -3687,7 +3721,7 @@ Item {
                 function paintXAxis(ctx, yMax, yMin) {
                     ctx.beginPath();
                     ctx.lineWidth = 1;
-                    ctx.strokeStyle = getDarkThemeColor("disabledText");
+                    ctx.strokeStyle = plot.themeColor("disabledText");
 
                     ctx.moveTo(-padding, 0);
                     ctx.lineTo(xLength + padding, 0);
@@ -3745,8 +3779,8 @@ Item {
 
                     ctx.beginPath();
                     ctx.textAlign = "center";
-                    ctx.fillStyle = getDarkThemeColor("disabledText");
-                    ctx.strokeStyle = getDarkThemeColor("darkBackground");
+                    ctx.fillStyle = plot.themeColor("disabledText");
+                    ctx.strokeStyle = plot.themeColor("darkBackground");
                     var notch = Math.floor(position / tick) * tick;
                     var maxNotch = Math.ceil((position + window) / tick) * tick;
                     var ticksPerSec = plot.ticksPerSecond;
@@ -3776,7 +3810,7 @@ Item {
 
                     ctx.beginPath();
                     ctx.lineWidth = 1;
-                    ctx.strokeStyle = getDarkThemeColor("normalText");
+                    ctx.strokeStyle = plot.themeColor("normalText");
 
                     var cursorCoord = toCanvasPos(cursor[0]);
                     ctx.moveTo(cursorCoord, -yMax - 3);
@@ -3785,7 +3819,7 @@ Item {
 
                     ctx.textAlign = "center";
                     ctx.textBaseline = "top";
-                    ctx.fillStyle = getDarkThemeColor("normalText");
+                    ctx.fillStyle = plot.themeColor("normalText");
                     var text = timeFormat(time / plot.ticksPerSecond);
                     var rectWidth = ctx.measureText(text).width + 20;
                     var rectHalfWidth = rectWidth / 2;
@@ -3797,7 +3831,7 @@ Item {
                     var pc = plot.color;
                     ctx.fillStyle = Qt.rgba(pc.r, pc.g, pc.b, 0.7);
                     ctx.fill();
-                    ctx.fillStyle = getDarkThemeColor("normalText");
+                    ctx.fillStyle = plot.themeColor("normalText");
                     ctx.fillText(text, xTextCoord, yTextCoord);
                     ctx.textBaseline = "alphabetic";
 
@@ -5939,6 +5973,7 @@ Item {
 
     OverlayPlot {
         id: recordedPlot
+        neon: true
 
         maxWindowMinutes: preferences.plotMaxWindowMinutes
 
@@ -5982,29 +6017,9 @@ Item {
         border.width: 1
         radius: 4
 
-        Canvas {
+        SwGrid {
             anchors.fill: parent
             anchors.margins: 1
-            contextType: "2d"
-            onWidthChanged: requestPaint()
-            onHeightChanged: requestPaint()
-            onPaint: {
-                var ctx = getContext("2d");
-                ctx.reset();
-                ctx.strokeStyle = swTheme.grid;
-                ctx.lineWidth = 1;
-                var step = Math.max(12, Math.round(0.5 * unit));
-                ctx.beginPath();
-                for (var x = 0; x < width; x += step) {
-                    ctx.moveTo(x + 0.5, 0);
-                    ctx.lineTo(x + 0.5, height);
-                }
-                for (var y = 0; y < height; y += step) {
-                    ctx.moveTo(0, y + 0.5);
-                    ctx.lineTo(width, y + 0.5);
-                }
-                ctx.stroke();
-            }
         }
     }
 
@@ -6016,6 +6031,9 @@ Item {
         ColumnLayout {
             id: swHudTop
             Layout.fillWidth: true
+            Layout.fillHeight: true
+            // leave room for the collapsed Tunes / Control / Data sheet
+            Layout.bottomMargin: bottomSheet.minHeight + 0.1 * unit
             spacing: 0
 
             property real centralMargin: 0.08 * unit
@@ -6043,16 +6061,19 @@ Item {
                     z: 2
 
                     font.pixelSize: parent.height * 0.7
+                    style: Text.Outline
+                    styleColor: "#000000"
                     text: Math.round(parent.value) + "%"
                 }
 
+                // Scott Wheelz: green above 65%, yellow 35-64%, red below 35%
                 Rectangle {
                     id: batteryBarFill
                     width: parent.width * clamp(parent.value / 100, 0, 1)
                     height: parent.height
                     z: 1
 
-                    color: swTheme.color("purpleAccent")
+                    color: parent.value >= 65 ? "#1f9e4a" : parent.value >= 35 ? "#c9a800" : "#c62828"
                 }
 
                 SwLText {
@@ -6064,6 +6085,8 @@ Item {
                     z: 2
 
                     font.pixelSize: fontSizeNormal
+                    style: Text.Outline
+                    styleColor: "#000000"
                     text: {
                         var voltageString = "";
 
@@ -6156,8 +6179,8 @@ Item {
                 Rectangle {
                     id: hornFrame
                     Layout.alignment: Qt.AlignVCenter
-                    Layout.preferredWidth: 1.9 * unit
-                    Layout.preferredHeight: 0.62 * unit
+                    Layout.preferredWidth: 2.4 * unit
+                    Layout.preferredHeight: 0.8 * unit
                     radius: height / 2
 
                     property bool available: state.pkgState === state.s_Running || state.pkgState === state.s_Ready
@@ -6217,34 +6240,6 @@ Item {
                     }
                 }
 
-                // Scott Wheelz: horn sound mode, tap to cycle
-                Rectangle {
-                    id: hornModeChip
-                    Layout.alignment: Qt.AlignVCenter
-                    Layout.preferredWidth: 1.25 * unit
-                    Layout.preferredHeight: 0.5 * unit
-                    radius: height / 2
-                    color: "transparent"
-                    border.color: swTheme.neonGreen
-                    border.width: 1
-
-                    readonly property var names: ["BEEP", "BUZZ", "B/B", "BOTH"]
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: hornModeChip.names[swSettings.hornMode] ?? "B/B"
-                        color: swTheme.neonGreen
-                        font.family: "monospace"
-                        font.bold: true
-                        font.pixelSize: fontSizeSuperSmall
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: swSettings.hornMode = (swSettings.hornMode + 1) % 4
-                    }
-                }
-
                 ToolButton {
                     id: editBoardNameButton
                     Layout.alignment: Qt.AlignVCenter
@@ -6278,6 +6273,8 @@ Item {
                     }
                 }
             }
+
+            Item {Layout.fillHeight: true}  // Scott Wheelz: spread out to fill the screen
 
             Item {
                 id: hud
@@ -7149,6 +7146,8 @@ Item {
                 }
             }
 
+            Item {Layout.fillHeight: true}
+
             Item {
                 id: middleRow
 
@@ -7230,420 +7229,447 @@ Item {
                 }
             }
         }
+    }
 
-        TabBar {
-            id: bottomStackTabs
-            Layout.fillWidth: true
-            clip: true
+    // Scott Wheelz: Tunes / Control / Data live in a pull-up sheet over the
+    // full-screen main view. Drag the handle up/down, tap it to open/close.
+    // The position is remembered (swSettings.sheetFraction).
+    Item {
+        id: bottomSheet
+        anchors.left: root.left
+        anchors.right: root.right
+        anchors.bottom: root.bottom
+        height: minHeight + (maxHeight - minHeight) * fraction
+        z: 5
 
-            TabButton {text: "Tunes"}
-            TabButton {text: "Control"}
-            TabButton {text: "Data"}
+        Material.accent: swTheme.neonGreen
+        Material.foreground: swTheme.color("normalText")
+        Material.background: swTheme.color("lightBackground")
 
-            background: Rectangle {
-                color: Utility.getAppHexColor("lightBackground");
-            }
+        property real handleHeight: 0.75 * unit
+        property real minHeight: handleHeight + bottomStackTabs.height + bottomLine.height + 2
+        property real maxHeight: Math.max(minHeight, root.height - batteryBar.height - boardNameRow.height)
+        property real fraction: 0  // 0 = collapsed, 1 = fully up
+        property bool dragging: false
 
-            onCurrentIndexChanged: {
-                bottomStackLayout.currentIndex = currentIndex;
+        Behavior on fraction {
+            enabled: !bottomSheet.dragging
+            NumberAnimation {duration: 220; easing.type: Easing.OutCubic}
+        }
+
+        Component.onCompleted: fraction = clamp(swSettings.sheetFraction, 0, 1)
+
+        function setFraction(f) {
+            fraction = f;
+            swSettings.sheetFraction = f;
+            if (f > 0.05) {
+                swSettings.sheetOpenFraction = f;
             }
         }
 
-        StackLayout {
-            id: bottomStackLayout
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
+        function open() {
+            if (fraction < 0.05) {
+                setFraction(Math.max(0.3, swSettings.sheetOpenFraction));
+            }
+        }
+
+        function toggle() {
+            if (fraction < 0.05) {
+                open();
+            } else {
+                setFraction(0);
+            }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            color: swTheme.background
+            border.color: swTheme.neonPurple
+            border.width: 1
+            radius: 0.2 * unit
+
+            SwGrid {
+                anchors.fill: parent
+                anchors.margins: 1
+            }
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 1
+            spacing: 0
 
             Item {
-                id: tunesPage
+                id: sheetHandle
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.preferredHeight: bottomSheet.handleHeight
 
-                GridLayout {
-                    property int spacing: 0.6 * unit
-                    anchors.fill: parent
-                    anchors.topMargin: spacing
-                    anchors.leftMargin: spacing
-                    anchors.rightMargin: spacing
-                    anchors.bottomMargin: spacing - bottomLine.height - root.spacing
-                    rowSpacing: spacing
-                    columnSpacing: spacing
-                    columns: (preferences.tuneSlotCount === 2 && height > width * 0.6) ? 1 : 2
-
-                    Repeater {
-                        model: preferences.tuneSlotCount
-
-                        Button {
-                            id: button
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            Layout.minimumHeight: buttonItemHeight + 2 * buttonItemMargin
-                            Layout.columnSpan: (slot === preferences.tuneSlotCount && (slot % 2) === 1) ? 2 : 1
-
-                            property int slot: index + 1
-
-                            property var tuneName: tuneManager.tunes[slot] ? tuneManager.tunes[slot].name : ""
-                            property var tuneDiff: tuneManager.tunes[slot] ? packageConfig.diffConfig(tuneManager.tunes[slot]).differs.length : -1
-
-                            property real buttonItemHeight: unit
-                            property real buttonItemMargin: 0.15 * unit
-
-                            padding: 0
-                            leftInset: 0
-                            rightInset: 0
-                            topInset: 0
-                            bottomInset: 0
-
-                            onPressAndHold: {
-                                editTuneDialog.show(slot, tuneName);
-                            }
-
-                            onClicked: {
-                                if (tuneName) {
-                                    var tune = tuneManager.loadTune(slot);
-                                    packageConfig.applyConfig(tune);
-                                }
-                            }
-
-                            contentItem: Item {
-                                anchors.fill: parent
-                                anchors.margins: parent.buttonItemMargin
-                                clip: true
-                                z: 2
-
-                                Item {
-                                    anchors.centerIn: parent
-                                    width: parent.width
-                                    height: button.buttonItemHeight
-
-                                    Text {
-                                        id: tuneButtonText
-                                        width: parent.width
-                                        anchors.centerIn: tuneName ? parent : undefined
-                                        anchors.top: tuneName ? undefined : parent.top
-
-                                        color: tuneName ? Utility.getAppHexColor("lightText") : Utility.getAppHexColor("disabledText")
-                                        font.pixelSize: 0.5 * unit
-                                        horizontalAlignment: Text.AlignHCenter
-                                        wrapMode: Text.WordWrap
-                                        text: tuneName || "empty slot"
-                                    }
-
-                                    DText {
-                                        id: tuneButtonHelpText
-                                        width: parent.width
-                                        anchors.bottom: parent.bottom
-
-                                        font.pixelSize: fontSizeSuperSmall
-                                        visible: !tuneName
-                                        horizontalAlignment: Text.AlignHCenter
-                                        text: "press and hold to set"
-                                    }
-                                }
-
-                                DText {
-                                    id: tuneButtonDiffCount
-                                    anchors.bottom: parent.bottom
-                                    anchors.right: parent.right
-
-                                    font.pixelSize: fontSizeSmall
-                                    visible: preferences.showTuneDiffCount && tuneDiff > 0
-                                    horizontalAlignment: Text.AlignHRight
-                                    text: tuneDiff
-                                }
-                            }
-
-                            background: Rectangle {
-                                id: buttonBg
-                                z: 1
-
-                                border.color: tuneDiff === 0 ? Utility.getAppHexColor("lightAccent") : tuneName ? Utility.getAppHexColor("lightText") : Utility.getAppHexColor("disabledText")
-                                border.width: 2
-                                radius: 3
-
-                                color: Utility.getAppHexColor("normalBackground")
-
-                                states: [
-                                    State {
-                                        name: "change"
-                                        when: button.pressed
-                                        PropertyChanges {target: buttonBg; color: Utility.getAppHexColor("lightestBackground");}
-                                    }
-                                ]
-
-                                transitions: Transition {
-                                    ColorAnimation {property: "color"; duration: 200; easing.type: Easing.InOutCirc;}
-                                }
-                            }
-
-                            Glow {
-                                anchors.fill: buttonBg
-                                radius: Math.round(0.25 * unit)
-                                samples: radius * 2 + 1
-                                opacity: 0.3
-                                color: Utility.getAppHexColor("lightAccent")
-                                visible: tuneDiff === 0
-                                source: buttonBg
-                            }
-                        }
-                    }
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 1.4 * unit
+                    height: 0.12 * unit
+                    radius: height / 2
+                    color: sheetDrag.pressed ? swTheme.neonGreen : swTheme.neonPurple
                 }
 
-                FloatingToolButton {
-                    id: downloadTunesButton
-                    anchors.right: parent.right
-                    anchors.top: parent.top
+                MouseArea {
+                    id: sheetDrag
+                    anchors.fill: parent
+                    preventStealing: true
 
-                    iconPath: Path {
-                        PathSvg {path: "M 43 39 L 16 39 M 38.5 32 L 11.5 32 M 34 25 L 7 25 M 25 2 L 25 18 L 33 11 M 25 18 L 17 11"}
+                    property real startY: 0
+                    property real startFraction: 0
+                    property bool moved: false
+
+                    onPressed: {
+                        startY = mapToItem(mainItem, mouse.x, mouse.y).y;
+                        startFraction = bottomSheet.fraction;
+                        moved = false;
+                        bottomSheet.dragging = true;
                     }
 
-                    onClicked: {
-                        tuneArchiveDialog.show();
+                    onPositionChanged: {
+                        var dy = startY - mapToItem(mainItem, mouse.x, mouse.y).y;
+                        if (Math.abs(dy) > 0.15 * unit) {
+                            moved = true;
+                        }
+                        var range = bottomSheet.maxHeight - bottomSheet.minHeight;
+                        if (moved && range > 0) {
+                            bottomSheet.fraction = clamp(startFraction + dy / range, 0, 1);
+                        }
+                    }
+
+                    onReleased: {
+                        bottomSheet.dragging = false;
+                        if (!moved) {
+                            bottomSheet.toggle();
+                            return;
+                        }
+                        var f = bottomSheet.fraction;
+                        bottomSheet.setFraction(f < 0.05 ? 0 : f > 0.95 ? 1 : f);
+                    }
+
+                    onCanceled: {
+                        bottomSheet.dragging = false;
+                        bottomSheet.setFraction(bottomSheet.fraction);
                     }
                 }
             }
 
-            ScrollView {
-                Layout.fillHeight: true
+            TabBar {
+                id: bottomStackTabs
                 Layout.fillWidth: true
-                contentWidth: availableWidth
                 clip: true
 
-                Column {
-                    anchors.fill: parent
-                    anchors.leftMargin: 0.15 * unit
-                    anchors.rightMargin: 0.15 * unit
-                    spacing: 0.05 * unit
+                TabButton {text: "Tunes"}
+                TabButton {text: "Control"}
+                TabButton {text: "Data"}
 
-                    Item {
+                background: Rectangle {
+                    color: swTheme.color("lightBackground")
+
+                    Rectangle {
+                        anchors.bottom: parent.bottom
                         width: parent.width
-                        height: 0.1 * unit
+                        height: 1
+                        color: swTheme.neonPurple
+                        opacity: 0.6
                     }
+                }
 
-                    LText {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        visible: lights.enabled
+                onCurrentIndexChanged: {
+                    bottomStackLayout.currentIndex = currentIndex;
+                }
+            }
 
-                        font.pixelSize: fontSizeBig
-                        text: "Lights"
-                    }
+            StackLayout {
+                id: bottomStackLayout
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
 
-                    RowLayout {
-                        width: parent.width
-                        visible: lights.enabled
+                Item {
+                    id: tunesPage
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
 
-                        Button {
-                            Layout.preferredWidth: 3 * unit
-                            Layout.alignment: Qt.AlignHCenter
-                            text: lights.on ? "Lights Off" : "Lights On"
-                            onClicked: {
-                                commands.sendLightsControl(!lights.on);
-                            }
-                        }
+                    GridLayout {
+                        property int spacing: 0.6 * unit
+                        anchors.fill: parent
+                        anchors.topMargin: spacing
+                        anchors.leftMargin: spacing
+                        anchors.rightMargin: spacing
+                        anchors.bottomMargin: spacing
+                        rowSpacing: spacing
+                        columnSpacing: spacing
+                        columns: (preferences.tuneSlotCount === 2 && height > width * 0.6) ? 1 : 2
 
-                        Button {
-                            id : headlightsButton
-                            Layout.minimumWidth: 3 * unit
-                            Layout.alignment: Qt.AlignHCenter
-                            text: lights.headlightsOn ? "Headlights Off" : "Headlights On"
-                            onClicked: {
-                                commands.sendLightsControl(undefined, !lights.headlightsOn);
-                            }
-                        }
-                    }
+                        Repeater {
+                            model: preferences.tuneSlotCount
 
-                    LText {
-                        id: movementControlsHeader
-                        anchors.horizontalCenter: parent.horizontalCenter
+                            Button {
+                                id: button
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.minimumHeight: buttonItemHeight + 2 * buttonItemMargin
+                                Layout.columnSpan: (slot === preferences.tuneSlotCount && (slot % 2) === 1) ? 2 : 1
 
-                        font.pixelSize: fontSizeBig
-                        text: "Move"
-                    }
+                                property int slot: index + 1
 
-                    Slider {
-                        id: moveSlider
-                        width: parent.width * 0.9
-                        anchors.horizontalCenter: parent.horizontalCenter
+                                property var tuneName: tuneManager.tunes[slot] ? tuneManager.tunes[slot].name : ""
+                                property var tuneDiff: tuneManager.tunes[slot] ? packageConfig.diffConfig(tuneManager.tunes[slot]).differs.length : -1
 
-                        from: -1
-                        to: 1
-                        value: 0
-                    }
+                                property real buttonItemHeight: unit
+                                property real buttonItemMargin: 0.15 * unit
 
-                    Item {
-                        width: parent.width
-                        implicitHeight: tiltEnabled.implicitHeight
-                        anchors.horizontalCenter: parent.horizontalCenter
+                                padding: 0
+                                leftInset: 0
+                                rightInset: 0
+                                topInset: 0
+                                bottomInset: 0
 
-                        LText {
-                            id: tiltControlsHeader
-                            anchors.centerIn: parent
+                                onPressAndHold: {
+                                    editTuneDialog.show(slot, tuneName);
+                                }
 
-                            font.pixelSize: fontSizeBig
-                            text: "Tilt"
-                        }
+                                onClicked: {
+                                    if (tuneName) {
+                                        var tune = tuneManager.loadTune(slot);
+                                        packageConfig.applyConfig(tune);
+                                    }
+                                }
 
-                        CheckBox {
-                            id: tiltEnabled
-                            anchors.left: tiltControlsHeader.right
-                            anchors.leftMargin: 0.2 * unit
+                                contentItem: Item {
+                                    anchors.fill: parent
+                                    anchors.margins: parent.buttonItemMargin
+                                    clip: true
+                                    z: 2
 
-                            checked: false
-                            font.pixelSize: fontSizeNormal
-                            text: "enable"
+                                    Item {
+                                        anchors.centerIn: parent
+                                        width: parent.width
+                                        height: button.buttonItemHeight
 
-                            onClicked: {
-                                if (checked) {
-                                    packageConfig.setInputTiltRemoteType(1);
+                                        Text {
+                                            id: tuneButtonText
+                                            width: parent.width
+                                            anchors.centerIn: tuneName ? parent : undefined
+                                            anchors.top: tuneName ? undefined : parent.top
+
+                                            color: tuneName ? swTheme.color("lightText") : swTheme.color("disabledText")
+                                            font.pixelSize: 0.5 * unit
+                                            horizontalAlignment: Text.AlignHCenter
+                                            wrapMode: Text.WordWrap
+                                            text: tuneName || "empty slot"
+                                        }
+
+                                        SwDText {
+                                            id: tuneButtonHelpText
+                                            width: parent.width
+                                            anchors.bottom: parent.bottom
+
+                                            font.pixelSize: fontSizeSuperSmall
+                                            visible: !tuneName
+                                            horizontalAlignment: Text.AlignHCenter
+                                            text: "press and hold to set"
+                                        }
+                                    }
+
+                                    SwDText {
+                                        id: tuneButtonDiffCount
+                                        anchors.bottom: parent.bottom
+                                        anchors.right: parent.right
+
+                                        font.pixelSize: fontSizeSmall
+                                        visible: preferences.showTuneDiffCount && tuneDiff > 0
+                                        horizontalAlignment: Text.AlignHRight
+                                        text: tuneDiff
+                                    }
+                                }
+
+                                background: Rectangle {
+                                    id: buttonBg
+                                    z: 1
+
+                                    border.color: tuneDiff === 0 ? swTheme.neonGreen : tuneName ? swTheme.neonPurple : swTheme.color("disabledText")
+                                    border.width: 2
+                                    radius: 3
+
+                                    color: swTheme.color("darkBackground")
+
+                                    states: [
+                                        State {
+                                            name: "change"
+                                            when: button.pressed
+                                            PropertyChanges {target: buttonBg; color: swTheme.color("lightestBackground");}
+                                        }
+                                    ]
+
+                                    transitions: Transition {
+                                        ColorAnimation {property: "color"; duration: 200; easing.type: Easing.InOutCirc;}
+                                    }
+                                }
+
+                                Glow {
+                                    anchors.fill: buttonBg
+                                    radius: Math.round(0.25 * unit)
+                                    samples: radius * 2 + 1
+                                    opacity: 0.3
+                                    color: swTheme.neonGreen
+                                    visible: tuneDiff === 0
+                                    source: buttonBg
                                 }
                             }
                         }
                     }
 
-                    Slider {
-                        id: tiltSlider
-                        width: parent.width * 0.9
-                        anchors.horizontalCenter: parent.horizontalCenter
+                    FloatingToolButton {
+                        id: downloadTunesButton
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        strokeColor: swTheme.neonGreen
+                        bgColor: swTheme.color("lightBackground")
 
-                        enabled: tiltEnabled.checked
-                        from: -1
-                        to: 1
-                        value: 0
-                    }
-
-                    LText {
-                        anchors.horizontalCenter: parent.horizontalCenter
-
-                        font.pixelSize: fontSizeBig
-                        text: "Magic Flywheel"
-                    }
-
-                    LText {
-                        width: parent.width
-                        font.pixelSize: fontSizeNormal
-                        wrapMode: Text.WordWrap
-                        text: "Before enabling flywheel mode make sure that your board is nose up and perfectly balanced. To turn it off, you must disengage the board first."
-                    }
-
-                    Button {
-                        id: flywheelOnButton
-                        anchors.horizontalCenter: parent.horizontalCenter
-
-                        enabled: [state.m_Normal, state.m_Flywheel].includes(state.pkgMode)
-                        text: state.pkgMode === state.m_Flywheel ? "Off" : "On"
-                        onClicked: {
-                            commands.sendFlywheel(state.pkgMode === state.m_Normal);
+                        iconPath: Path {
+                            PathSvg {path: "M 43 39 L 16 39 M 38.5 32 L 11.5 32 M 34 25 L 7 25 M 25 2 L 25 18 L 33 11 M 25 18 L 17 11"}
                         }
-                    }
 
-                    Item {
-                        width: parent.width
-                        height: 0.1 * unit
-                    }
-                }
-            }
-
-            Item {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-
-                ToggleFloatingToolButton {
-                    id: toggleDataPlotButton
-                    anchors.top: parent.top
-                    anchors.right: parent.right
-                    width: 0.8 * unit
-                    height: 0.8 * unit
-                    z: 1
-                    value: true
-
-                    trueIconPath: Path {
-                        PathSvg {path: "M 6 13 L 31 13 M 6 21 L 21 21 M 6 29 L 21 29 M 6 37 L 21 37 M 29 21 L 44 21 M 29 29 L 44 29 M 29 37 L 44 37"}
-                    }
-
-                    falseIconPath: Path {
-                        PathSvg {path: "M 10 12 L 10 38 L 42 38 M 10 30 L 22 22 L 32 28 L 39 18"}
+                        onClicked: {
+                            tuneArchiveDialog.show();
+                        }
                     }
                 }
 
                 ScrollView {
-                    anchors.fill: parent
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
                     contentWidth: availableWidth
                     clip: true
-                    visible: !toggleDataPlotButton.value
 
                     Column {
-                        id: debugColumn
                         anchors.fill: parent
                         anchors.leftMargin: 0.15 * unit
                         anchors.rightMargin: 0.15 * unit
-                        spacing: 5
-
-                        property real itemWidth: width * 0.5
-                        property real labelWidth: itemWidth * 0.7
-
-                        component Value : Item {
-                            implicitHeight: label.implicitHeight
-                            implicitWidth: debugColumn.itemWidth
-
-                            property string label
-                            property string value
-                            property string unit: ""
-
-                            NText {
-                                id: label
-                                width: debugColumn.labelWidth
-                                anchors.left: parent.left
-                                anchors.top: parent.top
-                                font.pixelSize: fontSizeNormal
-                                text: "%1:".arg(parent.label)
-                            }
-
-                            LText {
-                                anchors.left: label.right
-                                anchors.top: parent.top
-                                font.pixelSize: fontSizeNormal
-                                text: parent.value + parent.unit
-                            }
-                        }
+                        spacing: 0.05 * unit
 
                         Item {
                             width: parent.width
                             height: 0.1 * unit
                         }
 
-                        Item {
-                            width: parent.width
-                            height: 0.1 * unit
+                        SwLText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            visible: lights.enabled
+
+                            font.pixelSize: fontSizeBig
+                            text: "Lights"
                         }
 
-                        Row {
+                        RowLayout {
                             width: parent.width
+                            visible: lights.enabled
 
-                            Column {
-                                width: parent.width / 2
-                                spacing: 5
-                                clip: true
-
-                                Value {label: "Requested current"; unit: "A"; value: toFixed2Zero(state.rtData["balance_current"]);}
-                                Value {label: "Filtered current"; unit: "A"; value: toFixed2Zero(state.rtData["motor.filt_current"]);}
-                                Value {label: "ATR Accel. diff."; value: toFixed2Zero(state.rtData["atr.accel_diff"]);}
-                                Value {label: "ATR Speed Boost"; unit: "%"; value: round(state.rtData["atr.speed_boost"] * 100);}
-                                Value {label: "Booster current"; unit: "A"; value: toFixed2Zero(state.rtData["booster.current"]);}
-                                Value {label: "Remote input"; unit: "%"; value: round(state.rtData["remote.input"] * 100);}
+                            Button {
+                                Layout.preferredWidth: 3 * unit
+                                Layout.alignment: Qt.AlignHCenter
+                                text: lights.on ? "Lights Off" : "Lights On"
+                                onClicked: {
+                                    commands.sendLightsControl(!lights.on);
+                                }
                             }
 
-                            Column {
-                                width: parent.width / 2
-                                spacing: 5
-                                clip: true
+                            Button {
+                                id : headlightsButton
+                                Layout.minimumWidth: 3 * unit
+                                Layout.alignment: Qt.AlignHCenter
+                                text: lights.headlightsOn ? "Headlights Off" : "Headlights On"
+                                onClicked: {
+                                    commands.sendLightsControl(undefined, !lights.headlightsOn);
+                                }
+                            }
+                        }
 
-                                Value {label: "ATR setpoint"; unit: "°"; value: toFixed2Zero(state.rtData["atr.setpoint"]);}
-                                Value {label: "Brake Tilt setpoint"; unit: "°"; value: toFixed2Zero(state.rtData["brake_tilt.setpoint"]);}
-                                Value {label: "Torque Tilt setpoint"; unit: "°"; value: toFixed2Zero(state.rtData["torque_tilt.setpoint"]);}
-                                Value {label: "Turn Tilt setpoint"; unit: "°"; value: toFixed2Zero(state.rtData["turn_tilt.setpoint"]);}
-                                Value {label: "Remote Tilt setpoint"; unit: "°"; value: toFixed2Zero(state.rtData["remote.setpoint"]);}
+                        SwLText {
+                            id: movementControlsHeader
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            font.pixelSize: fontSizeBig
+                            text: "Move"
+                        }
+
+                        Slider {
+                            id: moveSlider
+                            width: parent.width * 0.9
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            from: -1
+                            to: 1
+                            value: 0
+                        }
+
+                        Item {
+                            width: parent.width
+                            implicitHeight: tiltEnabled.implicitHeight
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            SwLText {
+                                id: tiltControlsHeader
+                                anchors.centerIn: parent
+
+                                font.pixelSize: fontSizeBig
+                                text: "Tilt"
+                            }
+
+                            CheckBox {
+                                id: tiltEnabled
+                                anchors.left: tiltControlsHeader.right
+                                anchors.leftMargin: 0.2 * unit
+
+                                checked: false
+                                font.pixelSize: fontSizeNormal
+                                text: "enable"
+
+                                onClicked: {
+                                    if (checked) {
+                                        packageConfig.setInputTiltRemoteType(1);
+                                    }
+                                }
+                            }
+                        }
+
+                        Slider {
+                            id: tiltSlider
+                            width: parent.width * 0.9
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            enabled: tiltEnabled.checked
+                            from: -1
+                            to: 1
+                            value: 0
+                        }
+
+                        SwLText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            font.pixelSize: fontSizeBig
+                            text: "Magic Flywheel"
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            font.pixelSize: fontSizeNormal
+                            wrapMode: Text.WordWrap
+                            text: "Before enabling flywheel mode make sure that your board is nose up and perfectly balanced. To turn it off, you must disengage the board first."
+                        }
+
+                        Button {
+                            id: flywheelOnButton
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            enabled: [state.m_Normal, state.m_Flywheel].includes(state.pkgMode)
+                            text: state.pkgMode === state.m_Flywheel ? "Off" : "On"
+                            onClicked: {
+                                commands.sendFlywheel(state.pkgMode === state.m_Normal);
                             }
                         }
 
@@ -7654,40 +7680,153 @@ Item {
                     }
                 }
 
-                Plot {
-                    id: rtPlot
-                    anchors.fill: parent
-                    visible: toggleDataPlotButton.value
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
 
-                    followEnd: true
-                    maxWindowMinutes: preferences.plotMaxWindowMinutes
+                    ToggleFloatingToolButton {
+                        id: toggleDataPlotButton
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        width: 0.8 * unit
+                        height: 0.8 * unit
+                        z: 1
+                        value: true
+                        strokeColor: swTheme.neonGreen
+                        bgColor: swTheme.color("lightBackground")
 
-                    showRecordDownload: state.capDataRecord
+                        trueIconPath: Path {
+                            PathSvg {path: "M 6 13 L 31 13 M 6 21 L 21 21 M 6 29 L 21 29 M 6 37 L 21 37 M 29 21 L 44 21 M 29 29 L 44 29 M 29 37 L 44 37"}
+                        }
 
-                    plotData: PlotData {
-                        id: rtPlotData
-                        seriesMetaData: plotSeriesMetaData
-                        seriesExtraColors: plotSeriesExtraColors
+                        falseIconPath: Path {
+                            PathSvg {path: "M 10 12 L 10 38 L 42 38 M 10 30 L 22 22 L 32 28 L 39 18"}
+                        }
                     }
 
-                    Connections {
-                        target: state
+                    ScrollView {
+                        anchors.fill: parent
+                        contentWidth: availableWidth
+                        clip: true
+                        visible: !toggleDataPlotButton.value
 
-                        function onCommsInitialized() {
-                            rtPlotData.init(state.rtDataAllItems, state.ticksPerSecond);
-                            rtPlot.init(state.ticksPerSecond);
+                        Column {
+                            id: debugColumn
+                            anchors.fill: parent
+                            anchors.leftMargin: 0.15 * unit
+                            anchors.rightMargin: 0.15 * unit
+                            spacing: 5
+
+                            property real itemWidth: width * 0.5
+                            property real labelWidth: itemWidth * 0.7
+
+                            component Value : Item {
+                                implicitHeight: label.implicitHeight
+                                implicitWidth: debugColumn.itemWidth
+
+                                property string label
+                                property string value
+                                property string unit: ""
+
+                                SwNText {
+                                    id: label
+                                    width: debugColumn.labelWidth
+                                    anchors.left: parent.left
+                                    anchors.top: parent.top
+                                    font.pixelSize: fontSizeNormal
+                                    text: "%1:".arg(parent.label)
+                                }
+
+                                SwLText {
+                                    anchors.left: label.right
+                                    anchors.top: parent.top
+                                    font.pixelSize: fontSizeNormal
+                                    text: parent.value + parent.unit
+                                }
+                            }
+
+                            Item {
+                                width: parent.width
+                                height: 0.1 * unit
+                            }
+
+                            Item {
+                                width: parent.width
+                                height: 0.1 * unit
+                            }
+
+                            Row {
+                                width: parent.width
+
+                                Column {
+                                    width: parent.width / 2
+                                    spacing: 5
+                                    clip: true
+
+                                    Value {label: "Requested current"; unit: "A"; value: toFixed2Zero(state.rtData["balance_current"]);}
+                                    Value {label: "Filtered current"; unit: "A"; value: toFixed2Zero(state.rtData["motor.filt_current"]);}
+                                    Value {label: "ATR Accel. diff."; value: toFixed2Zero(state.rtData["atr.accel_diff"]);}
+                                    Value {label: "ATR Speed Boost"; unit: "%"; value: round(state.rtData["atr.speed_boost"] * 100);}
+                                    Value {label: "Booster current"; unit: "A"; value: toFixed2Zero(state.rtData["booster.current"]);}
+                                    Value {label: "Remote input"; unit: "%"; value: round(state.rtData["remote.input"] * 100);}
+                                }
+
+                                Column {
+                                    width: parent.width / 2
+                                    spacing: 5
+                                    clip: true
+
+                                    Value {label: "ATR setpoint"; unit: "°"; value: toFixed2Zero(state.rtData["atr.setpoint"]);}
+                                    Value {label: "Brake Tilt setpoint"; unit: "°"; value: toFixed2Zero(state.rtData["brake_tilt.setpoint"]);}
+                                    Value {label: "Torque Tilt setpoint"; unit: "°"; value: toFixed2Zero(state.rtData["torque_tilt.setpoint"]);}
+                                    Value {label: "Turn Tilt setpoint"; unit: "°"; value: toFixed2Zero(state.rtData["turn_tilt.setpoint"]);}
+                                    Value {label: "Remote Tilt setpoint"; unit: "°"; value: toFixed2Zero(state.rtData["remote.setpoint"]);}
+                                }
+                            }
+
+                            Item {
+                                width: parent.width
+                                height: 0.1 * unit
+                            }
+                        }
+                    }
+
+                    Plot {
+                        id: rtPlot
+                        anchors.fill: parent
+                        visible: toggleDataPlotButton.value
+                        neon: true
+
+                        followEnd: true
+                        maxWindowMinutes: preferences.plotMaxWindowMinutes
+
+                        showRecordDownload: state.capDataRecord
+
+                        plotData: PlotData {
+                            id: rtPlotData
+                            seriesMetaData: plotSeriesMetaData
+                            seriesExtraColors: plotSeriesExtraColors
+                        }
+
+                        Connections {
+                            target: state
+
+                            function onCommsInitialized() {
+                                rtPlotData.init(state.rtDataAllItems, state.ticksPerSecond);
+                                rtPlot.init(state.ticksPerSecond);
+                            }
                         }
                     }
                 }
             }
-        }
 
-        NText {
-            id: bottomLine
-            Layout.fillWidth: true
-            font.pixelSize: 0.2 * unit
-            horizontalAlignment: Text.AlignHCenter
-            text: "{{PACKAGE_NAME}} {{VERSION}}"
+            SwNText {
+                id: bottomLine
+                Layout.fillWidth: true
+                font.pixelSize: 0.2 * unit
+                horizontalAlignment: Text.AlignHCenter
+                text: "{{PACKAGE_NAME}} {{VERSION}}"
+            }
         }
     }
 }
