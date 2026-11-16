@@ -49,5 +49,5 @@ jobs:
           gh release create latest-build rinkfloat.vescpkg \
             --prerelease \
             --title "Latest build" \
-            --notes "Re-RinkFloat built from commit ${GITHUB_SHA::7}. Tap rinkfloat.vescpkg below to download." \
+            --notes "Re-Float Rink-Mixed built from commit ${GITHUB_SHA::7}. Tap rinkfloat.vescpkg below to download." \
             --target "$GITHUB_SHA"
