@@ -2316,7 +2316,7 @@ Item {
     component SwNeonLabel : Text {
         color: "#c98bff"
         font.family: "Exan"
-        font.pixelSize: 0.24 * unit
+        font.pixelSize: 0.3 * unit
         font.letterSpacing: 0.02 * unit
         fontSizeMode: width > 0 ? Text.HorizontalFit : Text.FixedSize
         minimumPixelSize: 0.14 * unit
@@ -2327,7 +2327,7 @@ Item {
 
     component SwNeonValue : SwNeonLabel {
         color: "#ead6ff"
-        font.pixelSize: 0.38 * unit
+        font.pixelSize: 0.42 * unit
         minimumPixelSize: 0.2 * unit
     }
 
@@ -2381,7 +2381,7 @@ Item {
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
             color: parent.warn ? swTheme.color("red") : "#ead6ff"
-            font.pixelSize: 0.36 * unit
+            font.pixelSize: 0.4 * unit
             text: toFixed1Zero(parent.value) + parent.unitText
         }
 
