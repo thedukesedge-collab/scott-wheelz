@@ -2311,6 +2311,102 @@ Item {
         color: swTheme.color("disabledText")
     }
 
+    // Re-RinkFloat: home-screen labels/values in the speedo's digital font,
+    // neon purple with a soft glow
+    component SwNeonLabel : Text {
+        color: "#c98bff"
+        font.family: "Exan"
+        font.pixelSize: 0.24 * unit
+        font.letterSpacing: 0.02 * unit
+        fontSizeMode: width > 0 ? Text.HorizontalFit : Text.FixedSize
+        minimumPixelSize: 0.14 * unit
+        layer.enabled: true
+        layer.effect: Glow {
+            radius: Math.round(0.08 * unit)
+            samples: 2 * radius + 1
+            spread: 0.3
+            color: swTheme.neonPurple
+        }
+    }
+
+    component SwNeonValue : SwNeonLabel {
+        color: "#ead6ff"
+        font.pixelSize: 0.38 * unit
+        minimumPixelSize: 0.2 * unit
+    }
+
+    // Re-RinkFloat: "check engine" style motor symbol (outline after the
+    // Material Design "engine" icon, Apache 2.0)
+    component SwEngineIcon : Canvas {
+        id: engineIcon
+        property color color: "#c98bff"
+        onColorChanged: requestPaint()
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+        contextType: "2d"
+        onPaint: {
+            var pts = [[14,8],[14,12],[20,12],[20,16],[14,16],[10,20],[10,26],[6,26],[6,20],[2,20],[2,36],[6,36],
+                       [6,30],[10,30],[10,36],[16,36],[20,40],[36,40],[36,32],[40,32],[40,38],[46,38],[46,18],
+                       [40,18],[40,24],[36,24],[36,16],[24,16],[24,12],[30,12],[30,8]];
+            var ctx = getContext("2d");
+            ctx.reset();
+            var s = Math.min(width / 48, height / 48);
+            ctx.translate((width - 48 * s) / 2, (height - 48 * s) / 2);
+            ctx.scale(s, s);
+            ctx.shadowColor = swTheme.neonPurple;
+            ctx.shadowBlur = 6;
+            ctx.strokeStyle = engineIcon.color;
+            ctx.lineWidth = 3;
+            ctx.lineJoin = "round";
+            ctx.beginPath();
+            ctx.moveTo(pts[0][0], pts[0][1]);
+            for (var i = 1; i < pts.length; i++) {
+                ctx.lineTo(pts[i][0], pts[i][1]);
+            }
+            ctx.closePath();
+            ctx.stroke();
+        }
+    }
+
+    // Re-RinkFloat: value over a neon label (or the engine symbol)
+    component SwStat : Item {
+        width: 1.7 * unit
+        height: 0.95 * unit
+
+        property string labelText
+        property bool engineIcon: false
+        property string unitText: ""
+        property real value
+        property real warningThreshold: 0
+        property bool warn: !!warningThreshold && value > warningThreshold
+
+        SwNeonValue {
+            anchors.top: parent.top
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            color: parent.warn ? swTheme.color("red") : "#ead6ff"
+            font.pixelSize: 0.36 * unit
+            text: toFixed1Zero(parent.value) + parent.unitText
+        }
+
+        SwNeonLabel {
+            anchors.bottom: parent.bottom
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            visible: !parent.engineIcon
+            text: parent.labelText
+        }
+
+        SwEngineIcon {
+            anchors.bottom: parent.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 0.5 * unit
+            height: 0.42 * unit
+            visible: parent.engineIcon
+            color: parent.warn ? swTheme.color("red") : "#c98bff"
+        }
+    }
+
     component FloatingToolButton : RoundButton {
         id: button
         anchors.margins: 4
@@ -6536,6 +6632,25 @@ Item {
                 erpm: Math.abs(state.rtData["motor.erpm"])
                 wheelslip: state.wheelslip
 
+                // Re-RinkFloat: trip (left) and lifetime (right) mileage over the speedo
+                SwStat {
+                    id: tachometer
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.leftMargin: 0.1 * unit
+                    labelText: "TRIP"
+                    unitText: vescConfig.distanceUnit
+                }
+
+                SwStat {
+                    id: odometer
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.rightMargin: 0.1 * unit
+                    labelText: "LIFE"
+                    unitText: vescConfig.distanceUnit
+                }
+
                 Item {
                     id: hudDials  // Re-RinkFloat: current / duty dials flank the speedo
                     anchors.bottom: parent.bottom
@@ -7031,13 +7146,14 @@ Item {
                         anchors.right: parent.right
                         width: parent.width - consumption.width
 
-                        SwNText {
+                        SwNeonLabel {
                             id: batteryCurrentLabel
                             anchors.bottom: parent.bottom
                             anchors.horizontalCenter: parent.horizontalCenter
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
 
-                            font.pixelSize: fontSizeSmall
-                            text: "battery current"
+                            text: "BATTERY AMPS"
                         }
 
                         Rectangle {
@@ -7081,23 +7197,21 @@ Item {
                             }
                         }
 
-                        SwLText {
+                        SwNeonValue {
                             id: batteryCurrentValue
                             anchors.bottom: batteryCurrentBar.top
                             anchors.bottomMargin: 0.06 * unit
                             anchors.horizontalCenter: parent.horizontalCenter
 
-                            font.pixelSize: hudLeft.fontSizeBars
                             text: toFixed1Zero(parent.value)
                         }
 
-                        SwDText {
+                        SwNeonLabel {
                             id: batteryCurrentValueUnit
                             anchors.left: batteryCurrentValue.right
                             anchors.baseline: batteryCurrentValue.baseline
-                            anchors.leftMargin: font.pixelSize * 0.1
+                            anchors.leftMargin: 0.04 * unit
 
-                            font.pixelSize: fontSizeSmall
                             text: "A"
                         }
                     }
@@ -7439,46 +7553,42 @@ Item {
                             ]
                         }
 
-                        SwNText {
+                        SwNeonLabel {
                             id: pitchPitchLabel
                             anchors.bottom: parent.bottom
                             anchors.left: parent.left
                             width: parent.textWidth
 
-                            font.pixelSize: fontSizeSmall
                             horizontalAlignment: Text.AlignHCenter
-                            text: "pitch"
+                            text: "PITCH"
                         }
 
-                        SwLText {
+                        SwNeonValue {
                             id: pitchPitchValue
                             anchors.bottom: pitchPitchLabel.top
                             width: parent.textWidth
 
-                            font.pixelSize: fontSizeNormal
                             horizontalAlignment: Text.AlignHCenter
                             text: "%1°".arg(toFixed1Zero(parent.pitchValue))
                         }
 
-                        SwNText {
+                        SwNeonLabel {
                             id: pitchBalancePitchLabel
                             anchors.bottom: parent.bottom
                             anchors.right: parent.right
                             width: parent.textWidth
 
-                            font.pixelSize: fontSizeSmall
                             horizontalAlignment: Text.AlignHCenter
-                            text: "balance"
+                            text: "BALANCE"
                         }
 
-                        Text {
+                        SwNeonValue {
                             id: pitchBalancePitchValue
                             anchors.bottom: pitchBalancePitchLabel.top
                             anchors.right: parent.right
                             width: parent.textWidth
 
                             color: swTheme.color("swPurple")
-                            font.pixelSize: fontSizeNormal
                             horizontalAlignment: Text.AlignHCenter
                             text: "%1°".arg(toFixed1Zero(parent.balancePitchValue))
                         }
@@ -7523,48 +7633,22 @@ Item {
                 Layout.preferredHeight: 1.3 * unit
                 Layout.topMargin: parent.centralMargin
 
-                component VerticalValue : Item {
-                    height: parent.verticalValueItemHeight
-                    width: parent.verticalValueItemWidth
-                    anchors.verticalCenter: parent.verticalCenter
-
-                    property string labelText
-                    property string unit: ""
-                    property int decimals: 1
-                    property real value
-                    property real warningThreshold: 0
-
-                    property string format: "%1" + unit
-
-                    SwNText {
-                        anchors.bottom: parent.bottom
-                        width: parent.width
-                        font.pixelSize: 0.33 * unit
-                        horizontalAlignment: Text.AlignHCenter
-                        text: labelText
-                    }
-
-                    Text {
-                        width: parent.width
-                        color: !!warningThreshold && value > warningThreshold ? swTheme.color("red") : swTheme.color("lightText")
-                        font.pixelSize: 0.42 * unit
-                        horizontalAlignment: Text.AlignHCenter
-                        text: format.arg(toFixed1Zero(value))
-                    }
-                }
-
-                VerticalValue {
+                SwStat {
                     id: motorTemp
-                    labelText: "motor"
-                    unit: "°C"
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    engineIcon: true
+                    unitText: "°C"
                     warningThreshold: motorConfig.tempMotorStart - preferences.tempWarningOffset
                     value: state.rtData["motor.motor_temp"]
                 }
 
-                VerticalValue {
-                    anchors.left: motorTemp.right
-                    labelText: "controller"
-                    unit: "°C"
+                SwStat {
+                    id: escTemp
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    labelText: "ESC"
+                    unitText: "°C"
                     warningThreshold: motorConfig.tempFetStart - preferences.tempWarningOffset
                     value: state.rtData["motor.mosfet_temp"]
                 }
@@ -7573,24 +7657,9 @@ Item {
                     id: statusText
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.horizontalCenter: parent.horizontalCenter
-                    width: parent.width - 4 * parent.verticalValueItemWidth
+                    width: parent.width - 2 * motorTemp.width - 0.4 * unit
                     height: parent.height * 0.83
                     globState: state
-                }
-
-                VerticalValue {
-                    id: odometer
-                    anchors.right: parent.right
-                    labelText: "life"
-                    decimals: 0
-                    unit: vescConfig.distanceUnit
-                }
-
-                VerticalValue {
-                    id: tachometer
-                    anchors.right: odometer.left
-                    labelText: "trip"
-                    unit: vescConfig.distanceUnit
                 }
             }
 
