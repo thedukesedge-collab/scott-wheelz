@@ -771,8 +771,9 @@ Item {
         // Scott Wheelz: haptic horn. on=true starts / keeps it alive (resend
         // at least every 300ms), on=false stops it immediately.
         function sendHorn(on) {
-            var data = createData(3, c_SW_HORN);
+            var data = createData(4, c_SW_HORN);
             data.setUint8(2, on ? 1 : 0);
+            data.setUint8(3, swSettings.hornMode);
             vescCommands.sendCustomAppData(data.buffer);
         }
 
@@ -979,6 +980,7 @@ Item {
         category: "scottWheelz"
 
         property bool invertPitch: false
+        property int hornMode: 2  // 0 beep, 1 buzz, 2 alternate, 3 both
     }
 
     Settings {
@@ -6212,6 +6214,34 @@ Item {
                             hornCooldownTimer.restart();
                         }
                         expired = false;
+                    }
+                }
+
+                // Scott Wheelz: horn sound mode, tap to cycle
+                Rectangle {
+                    id: hornModeChip
+                    Layout.alignment: Qt.AlignVCenter
+                    Layout.preferredWidth: 1.25 * unit
+                    Layout.preferredHeight: 0.5 * unit
+                    radius: height / 2
+                    color: "transparent"
+                    border.color: swTheme.neonGreen
+                    border.width: 1
+
+                    readonly property var names: ["BEEP", "BUZZ", "B/B", "BOTH"]
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: hornModeChip.names[swSettings.hornMode] ?? "B/B"
+                        color: swTheme.neonGreen
+                        font.family: "monospace"
+                        font.bold: true
+                        font.pixelSize: fontSizeSuperSmall
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: swSettings.hornMode = (swSettings.hornMode + 1) % 4
                     }
                 }
 

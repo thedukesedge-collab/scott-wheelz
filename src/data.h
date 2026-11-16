@@ -88,6 +88,7 @@ typedef struct {
     time_t beeper_timer;
     int beep_reason;
     bool beeper_enabled;
+    bool sw_horn_beeping;  // Scott Wheelz: external beeper is on because of the horn
 
     // Config values
     uint32_t loop_time_us;

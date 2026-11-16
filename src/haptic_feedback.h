@@ -33,6 +33,14 @@ typedef enum {
     HAPTIC_FEEDBACK_HORN,  // Scott Wheelz: manual horn from the app
 } HapticFeedbackType;
 
+// Scott Wheelz horn sound modes (sent by the app with each press)
+typedef enum {
+    HORN_MODE_BEEP = 0,  // audible motor tone only
+    HORN_MODE_BUZZ = 1,  // vibration (current) only; tone when idle or vibrate is off
+    HORN_MODE_ALT = 2,  // alternates beep and buzz every HORN_ALT_STEP
+    HORN_MODE_BOTH = 3,  // beep and buzz together
+} HornMode;
+
 typedef struct {
     const CfgHapticFeedback *cfg;
     float duty_solid_threshold;
@@ -53,6 +61,7 @@ typedef struct {
     volatile time_t horn_end;  // release of the previous press
     volatile bool horn_on;  // button currently held
     volatile bool horn_used;  // at least one press since boot
+    volatile uint8_t horn_mode;  // HornMode of the current press
 } HapticFeedback;
 
 void haptic_feedback_init(HapticFeedback *hf);
@@ -60,7 +69,11 @@ void haptic_feedback_init(HapticFeedback *hf);
 void haptic_feedback_configure(HapticFeedback *hf, const RefloatConfig *cfg);
 
 // Scott Wheelz: request (on=true) or cancel (on=false) the haptic horn.
-void haptic_feedback_horn(HapticFeedback *hf, const Time *time, bool on);
+void haptic_feedback_horn(HapticFeedback *hf, const Time *time, bool on, uint8_t mode);
+
+// Scott Wheelz: true while the horn is actually sounding (drives the optional
+// external beeper on the PPM pin).
+bool haptic_feedback_horn_playing(const HapticFeedback *hf);
 
 void haptic_feedback_update(
     HapticFeedback *hf,

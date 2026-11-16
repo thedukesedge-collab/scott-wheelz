@@ -130,3 +130,16 @@ Enforced in the package (`src/haptic_feedback.c`), mirrored in the UI:
 Settings it uses: Warning Audible Strength (V, 0-12, default 3) and
 Vibrate Strength (A, 0-25, default 0 = off). Higher values mean more motor
 current and heat, especially at standstill.
+
+### Horn sound modes and external beeper (update 5)
+- Mode chip next to HORN (tap to cycle, remembered): BEEP (audible motor
+  tone), BUZZ (vibration), B/B (alternates beep and buzz every 0.125 s),
+  BOTH. Sent as byte [3] of command 120 (`HornMode`).
+- Buzz is current-based, so it only plays while riding and only if Vibrate
+  Strength > 0 (default is 0 = off). Otherwise BUZZ falls back to the beep and
+  B/B becomes beep-pause-beep.
+- If an external beeper is installed on the Servo/PPM pin and "Beeper" is
+  enabled in settings, it sounds along with the horn. Real beeper alerts keep
+  priority (beep_on/off with force = false).
+- All horn limits (0.2 s min, 1 s max, 1 s cooldown, 0.3 s disconnect
+  timeout, alerts first) apply to every mode.

@@ -35,6 +35,8 @@
 //   HORN_MAX_TIME this caps the horn at ~50% duty, which matters most when
 //   idle: the tone then runs at standstill with no airflow cooling.
 #define HORN_COOLDOWN 1.0f
+// - in ALT mode, beep and buzz swap this often
+#define HORN_ALT_STEP 0.125f
 
 void haptic_feedback_init(HapticFeedback *hf) {
     hf->type_playing = HAPTIC_FEEDBACK_NONE;
@@ -46,9 +48,10 @@ void haptic_feedback_init(HapticFeedback *hf) {
     hf->horn_end = 0;
     hf->horn_on = false;
     hf->horn_used = false;
+    hf->horn_mode = HORN_MODE_BOTH;
 }
 
-void haptic_feedback_horn(HapticFeedback *hf, const Time *time, bool on) {
+void haptic_feedback_horn(HapticFeedback *hf, const Time *time, bool on, uint8_t mode) {
     // A press whose keepalives stopped arriving counts as released now.
     if (hf->horn_on && timer_older(time, hf->horn_timer, HORN_TIMEOUT)) {
         hf->horn_on = false;
@@ -74,6 +77,7 @@ void haptic_feedback_horn(HapticFeedback *hf, const Time *time, bool on) {
         return;
     }
 
+    hf->horn_mode = mode <= HORN_MODE_BOTH ? mode : HORN_MODE_BOTH;
     hf->horn_used = true;
     hf->horn_start = time->now;
     hf->horn_timer = time->now;
@@ -260,20 +264,56 @@ void haptic_feedback_update(
         float scale =
             hf->type_playing == HAPTIC_FEEDBACK_HORN ? 1.0f : strength_scale(hf, fabsf(md->speed));
 
-        if (tone->strength > 0.0f) {
-            foc_play_tone(0, tone->frequency, tone->strength * scale);
+        bool play_beep = tone->strength > 0.0f;
+        bool play_buzz = hf->cfg->vibrate.strength > 0.0f;
+
+        if (hf->type_playing == HAPTIC_FEEDBACK_HORN) {
+            // Scott Wheelz: no current-based vibration when the board isn't
+            // running, so an idle horn never moves the wheel.
+            bool can_buzz = play_buzz && state->state == STATE_RUNNING;
+            switch (hf->horn_mode) {
+            case HORN_MODE_BEEP:
+                play_buzz = false;
+                break;
+            case HORN_MODE_BUZZ:
+                // fall back to the beep if buzzing isn't possible
+                play_buzz = can_buzz;
+                play_beep = play_beep && !can_buzz;
+                break;
+            case HORN_MODE_ALT: {
+                uint32_t step = (uint32_t) (timer_age(time, hf->horn_start) / HORN_ALT_STEP);
+                bool beep_step = (step % 2) == 0;
+                // idle / no vibrate: beep, pause, beep, ...
+                play_buzz = can_buzz && !beep_step;
+                play_beep = play_beep && beep_step;
+                break;
+            }
+            default:
+                play_buzz = can_buzz;
+                break;
+            }
         }
 
-        // Scott Wheelz: no current-based vibration when the board isn't
-        // running, so an idle horn never moves the wheel.
-        bool idle_horn = hf->type_playing == HAPTIC_FEEDBACK_HORN && state->state != STATE_RUNNING;
+        bool horn = hf->type_playing == HAPTIC_FEEDBACK_HORN;
 
-        if (hf->cfg->vibrate.strength > 0.0f && !idle_horn) {
+        if (play_beep) {
+            foc_play_tone(0, tone->frequency, tone->strength * scale);
+        } else if (horn) {
+            foc_play_tone(0, 1, 0.0f);
+        }
+
+        if (play_buzz) {
             motor_control_play_tone(
                 mc, hf->cfg->vibrate.frequency, hf->cfg->vibrate.strength * scale
             );
+        } else if (horn) {
+            motor_control_stop_tone(mc);
         }
 
         hf->is_playing = true;
     }
+}
+
+bool haptic_feedback_horn_playing(const HapticFeedback *hf) {
+    return hf->type_playing == HAPTIC_FEEDBACK_HORN && hf->is_playing;
 }

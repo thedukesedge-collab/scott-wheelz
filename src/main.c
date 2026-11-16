@@ -817,6 +817,19 @@ static void refloat_thd(void *arg) {
             &d->time
         );
 
+        // Scott Wheelz: if an external beeper is installed and enabled
+        // (Servo/PPM pin), it sounds together with the horn. Real alerts keep
+        // control of the beeper: beep_on/off(force = false) don't interrupt a
+        // running multi-beep alert.
+        bool horn_beep = d->beeper_enabled && haptic_feedback_horn_playing(&d->haptic_feedback);
+        if (horn_beep && !d->sw_horn_beeping) {
+            beep_on(d, false);
+            d->sw_horn_beeping = true;
+        } else if (!horn_beep && d->sw_horn_beeping) {
+            beep_off(d, false);
+            d->sw_horn_beeping = false;
+        }
+
         bms_update(&d->bms, &d->float_conf.bms, &d->time);
 
         motor_data_evaluate_alerts(&d->motor, &d->alert_tracker, &d->time);
@@ -1232,6 +1245,7 @@ static void data_init(Data *d) {
     d->odometer = VESC_IF->mc_get_odometer();
 
     d->beep_num_left = 0;
+    d->sw_horn_beeping = false;
     d->beep_duration = 0.0f;
     d->beeper_timer = 0;
 }
@@ -2342,8 +2356,10 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
         return;
     }
     case COMMAND_SW_HORN: {
-        if (len == 3) {
-            haptic_feedback_horn(&d->haptic_feedback, &d->time, buffer[2] != 0);
+        // [2] = on/off, optional [3] = HornMode (default: beep + buzz)
+        if (len == 3 || len == 4) {
+            uint8_t mode = len == 4 ? buffer[3] : HORN_MODE_BOTH;
+            haptic_feedback_horn(&d->haptic_feedback, &d->time, buffer[2] != 0, mode);
         } else {
             log_error("Command data length incorrect: %u", len);
         }
