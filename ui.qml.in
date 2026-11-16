@@ -6154,7 +6154,8 @@ Item {
                     Layout.preferredWidth: 1.9 * unit
                     Layout.preferredHeight: 0.62 * unit
                     radius: height / 2
-                    property bool riding: state.pkgState === state.s_Running
+                    // works riding (full haptics) or idle/ready (tone only)
+                    property bool riding: state.pkgState === state.s_Running || state.pkgState === state.s_Ready
                     color: hornButton.pressed ? swTheme.neonPurple : "transparent"
                     border.color: swTheme.neonPurple
                     border.width: 2

@@ -58,7 +58,8 @@ screen, restyled:
   plus the stock balance-pitch outline (dim purple) and setpoint (orange).
   Long-press it to flip direction (saved in `swSettings.invertPitch`).
 - Footpad: neon outline, ADC1/ADC2 halves glow green and pulse when engaged.
-- HORN pill next to the board name (hold; riding only).
+- HORN pill next to the board name (hold). Riding: full haptics. Idle
+  (READY): tone only, via foc_play_tone at 0 A, no vibration current.
 
 ### Haptic horn
 - App: **HORN** pill next to the board name (hold). Enabled only while riding.
@@ -70,7 +71,9 @@ screen, restyled:
   settings at full scale (1.0 = the strength normally reached at Max Strength
   Speed), ignoring current speed. If both strengths are 0, the horn is silent.
 - Lowest priority: pushback, voltage/temperature and fatal-error haptics
-  always override it. Not active when idle or in Handtest.
+  always override it. Idle (READY) plays the Duty tone only, never the
+  current-based vibrate, so the wheel isn't pushed. Not active in Handtest
+  or when the package is disabled.
 - Code: `src/haptic_feedback.c/.h` (HAPTIC_FEEDBACK_HORN), `src/main.c`
   (command handler), `ui.qml.in` (`sendHorn`, hornButton, 10 Hz timer).
 

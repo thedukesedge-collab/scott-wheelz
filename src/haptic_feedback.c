@@ -63,6 +63,13 @@ static HapticFeedbackType haptic_feedback_get_type(
     const AlertTracker *at,
     const Time *time
 ) {
+    // Scott Wheelz: the horn also works while the board is idle (READY).
+    // update() then plays only the foc_play_tone part, which runs the motor
+    // at 0 A with an audio signal on top, so the wheel isn't pushed.
+    if (state->state == STATE_READY && horn_active(hf, time)) {
+        return HAPTIC_FEEDBACK_HORN;
+    }
+
     // TODO: Ideally we don't even do pushback in handtest, as it can be confusing
     if (state->state != STATE_RUNNING || state->mode == MODE_HANDTEST) {
         return HAPTIC_FEEDBACK_NONE;
@@ -209,7 +216,11 @@ void haptic_feedback_update(
             foc_play_tone(0, tone->frequency, tone->strength * scale);
         }
 
-        if (hf->cfg->vibrate.strength > 0.0f) {
+        // Scott Wheelz: no current-based vibration when the board isn't
+        // running, so an idle horn never moves the wheel.
+        bool idle_horn = hf->type_playing == HAPTIC_FEEDBACK_HORN && state->state != STATE_RUNNING;
+
+        if (hf->cfg->vibrate.strength > 0.0f && !idle_horn) {
             motor_control_play_tone(
                 mc, hf->cfg->vibrate.frequency, hf->cfg->vibrate.strength * scale
             );
