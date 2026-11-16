@@ -175,7 +175,7 @@ Item {
                 commands.sendRcMove(moveSlider.value);
             }
 
-            // Scott Wheelz: keep the horn alive while the button is held
+            // Rink-Float: keep the horn alive while the button is held
             if (hornFrame.honking) {
                 commands.sendHorn(true);
             }
@@ -649,7 +649,7 @@ Item {
         readonly property int c_DATA_RECORD_REQUEST: 41
         readonly property int c_DATA_RECORD_HEADER: 42
         readonly property int c_DATA_RECORD_DATA: 43
-        readonly property int c_SW_HORN: 120  // Scott Wheelz
+        readonly property int c_SW_HORN: 120  // Rink-Float
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
         // Dynamic range: +-131008.0
@@ -768,7 +768,7 @@ Item {
             vescCommands.sendCustomAppData(data.buffer);
         }
 
-        // Scott Wheelz: haptic horn. on=true starts / keeps it alive (resend
+        // Rink-Float: haptic horn. on=true starts / keeps it alive (resend
         // at least every 300ms), on=false stops it immediately.
         function sendHorn(on) {
             var data = createData(4, c_SW_HORN);
@@ -974,10 +974,10 @@ Item {
         property alias checkForNewVersions: prefCheckForNewVersions.checked
     }
 
-    // Scott Wheelz: long-press the side view on the main screen to flip it
+    // Rink-Float: long-press the side view on the main screen to flip it
     Settings {
         id: swSettings
-        category: "scottWheelz"
+        category: "scottWheelz"  // old name kept so saved settings survive the rename
 
         property bool invertPitch: false
         property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
@@ -2219,7 +2219,7 @@ Item {
         color: Utility.getAppHexColor("disabledText")
     }
 
-    // Scott Wheelz: neon green + purple theme for the main screen.
+    // Rink-Float: neon green + purple theme for the main screen.
     // Warning colors (red, orange) are kept so alerts still read as alerts.
     QtObject {
         id: swTheme
@@ -2258,7 +2258,7 @@ Item {
         }
     }
 
-    // Scott Wheelz: Tron grid used behind the main screen and the bottom sheet
+    // Rink-Float: Tron grid used behind the main screen and the bottom sheet
     component SwGrid : Canvas {
         contextType: "2d"
         onWidthChanged: requestPaint()
@@ -2909,7 +2909,7 @@ Item {
         id: plot
         color: neon ? swTheme.background : "#0b0b0b"
 
-        // Scott Wheelz: neon axes / labels (series keep their own colors)
+        // Rink-Float: neon axes / labels (series keep their own colors)
         property bool neon: false
 
         function themeColor(name) {
@@ -6006,7 +6006,7 @@ Item {
         }
     }
 
-    // Scott Wheelz: Tron grid behind the main screen stats
+    // Rink-Float: Tron grid behind the main screen stats
     Rectangle {
         x: root.x
         y: root.y
@@ -6066,14 +6066,34 @@ Item {
                     text: Math.round(parent.value) + "%"
                 }
 
-                // Scott Wheelz: green above 65%, yellow 35-64%, red below 35%
+                // Rink-Float: neon fill that fades smoothly from green (full)
+                // through yellow/orange to red (empty), glowing harder as it drops
+                property real level: clamp(value / 100, 0, 1)
+                property color fillColor: Qt.hsva(level * 140 / 360, 0.85, 1.0, 1.0)
+
+                Behavior on fillColor {
+                    ColorAnimation {duration: 1500}
+                }
+
                 Rectangle {
                     id: batteryBarFill
-                    width: parent.width * clamp(parent.value / 100, 0, 1)
+                    width: parent.width * parent.level
                     height: parent.height
                     z: 1
 
-                    color: parent.value >= 65 ? "#1f9e4a" : parent.value >= 35 ? "#c9a800" : "#c62828"
+                    color: parent.fillColor
+                }
+
+                Glow {
+                    anchors.fill: batteryBarFill
+                    source: batteryBarFill
+                    z: 1
+                    radius: Math.round(0.25 * unit)
+                    samples: radius * 2 + 1
+                    spread: 0.35
+                    color: parent.fillColor
+                    opacity: 0.45 + 0.55 * (1 - parent.level)
+                    visible: parent.level > 0
                 }
 
                 SwLText {
@@ -6172,7 +6192,7 @@ Item {
                     Component.onCompleted: load();
                 }
 
-                // Scott Wheelz: haptic horn (hold). Riding: full haptics; idle: tone only.
+                // Rink-Float: haptic horn (hold). Riding: full haptics; idle: tone only.
                 // Mirrors the package's limits (haptic_feedback.c): max 1 s per
                 // press, then 1 s cooldown after release. The package enforces
                 // them; this only shows the state.
@@ -6274,7 +6294,7 @@ Item {
                 }
             }
 
-            Item {Layout.fillHeight: true}  // Scott Wheelz: spread out to fill the screen
+            Item {Layout.fillHeight: true}  // Rink-Float: spread out to fill the screen
 
             Item {
                 id: hud
@@ -6583,7 +6603,7 @@ Item {
                             property real leftVoltage: state.rtData["footpad.adc1"]
                             property real rightVoltage: state.rtData["footpad.adc2"]
 
-                            // Scott Wheelz: breathing glow while either half is engaged
+                            // Rink-Float: breathing glow while either half is engaged
                             property real pulse: 0
                             SequentialAnimation on pulse {
                                 running: leftSensor.on || rightSensor.on
@@ -6697,7 +6717,7 @@ Item {
                                 source: rightSensor
                             }
 
-                            // Scott Wheelz: ADC labels on each half
+                            // Rink-Float: ADC labels on each half
                             component AdcLabel : Text {
                                 property bool on: false
                                 anchors.centerIn: footpadCanvas
@@ -6915,7 +6935,7 @@ Item {
                                 context.restore();
                             }
 
-                            // Scott Wheelz: neon side view (green tire + footpads, purple
+                            // Rink-Float: neon side view (green tire + footpads, purple
                             // rails/fender/hub) with NOSE/TAIL. Nose is on the left. The
                             // front pad brightens when ADC1 or ADC2 is engaged.
                             // Long-press the drawing to flip it if it tilts the wrong way.
@@ -7231,7 +7251,7 @@ Item {
         }
     }
 
-    // Scott Wheelz: Tunes / Control / Data live in a pull-up sheet over the
+    // Rink-Float: Tunes / Control / Data live in a pull-up sheet over the
     // full-screen main view. Drag the handle up/down, tap it to open/close.
     // The position is remembered (swSettings.sheetFraction).
     Item {

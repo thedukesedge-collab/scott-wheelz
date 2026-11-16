@@ -34,10 +34,10 @@ jobs:
         if: always() && steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: scottwheelz-vescpkg
-          path: scottwheelz.vescpkg
+          name: rinkfloat-vescpkg
+          path: rinkfloat.vescpkg
 
-      # Scott Wheelz: publish each main-branch build as a direct download
+      # Rink-Float: publish each main-branch build as a direct download
       # (Releases > "Latest build"), so phones get the .vescpkg itself
       # instead of a zip.
       - name: Publish latest build
@@ -46,8 +46,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest-build --yes --cleanup-tag || true
-          gh release create latest-build scottwheelz.vescpkg \
+          gh release create latest-build rinkfloat.vescpkg \
             --prerelease \
             --title "Latest build" \
-            --notes "Scott Wheelz built from commit ${GITHUB_SHA::7}. Tap scottwheelz.vescpkg below to download." \
+            --notes "Rink-Float built from commit ${GITHUB_SHA::7}. Tap rinkfloat.vescpkg below to download." \
             --target "$GITHUB_SHA"

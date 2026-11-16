@@ -1,6 +1,6 @@
-# Scott Wheelz
+# Rink-Float
 
-Scott Wheelz is a fork of [Refloat](https://github.com/lukash/refloat) 1.2.3 (Lukas Hrazky, based on Float by Mitch Lustig and Benjamin Vedder), licensed under GPL-3.0.
+Rink-Float is a fork of [Refloat](https://github.com/lukash/refloat) 1.2.3 (Lukas Hrazky, based on Float by Mitch Lustig and Benjamin Vedder), licensed under GPL-3.0.
 
 
 A full-featured self-balancing skateboard package.

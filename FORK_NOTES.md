@@ -1,4 +1,8 @@
-# Scott Wheelz fork notes
+# Rink-Float fork notes
+
+(Renamed from "Scott Wheelz" in v1.2.3-rf1. The GitHub repo is still
+`scott-wheelz`, the output is now `rinkfloat.vescpkg`, and the app's saved
+settings category is still `scottWheelz` so nothing is lost.)
 
 Base: Refloat v1.2.3 (latest 1.2.x tag, commit 800a46b) — branch `scottwheelz`.
 Target firmware: VESC 6.05.
@@ -160,3 +164,12 @@ current and heat, especially at standstill.
   tab / sliders / checkbox (`Material.accent`), purple/green tune buttons.
   Plots get `neon: true` (dark background, purple axes and labels); series
   keep their own colors.
+
+### Rename and neon battery bar (v1.2.3-rf1)
+- Package renamed to **Rink-Float** (`package_name`, `pkgdesc.qml`,
+  `Makefile`, `settings.xml` -> "Rink-Float Cfg", `lisp/package.lisp`, CI
+  workflows, README, code comments). Output: `rinkfloat.vescpkg`.
+- Battery bar: neon fill whose hue fades smoothly from green (100%) through
+  yellow/orange to red (0%), `Qt.hsva(level * 140/360, ...)`, with a Glow that
+  gets stronger as the level drops. Color changes animate over 1.5 s.
+  (Replaces the 3-step green/yellow/red from update 6.)

@@ -10,8 +10,8 @@
         (progn
             (import "bms.lisp" 'bms)
             (read-eval-program bms)
-            (spawn "Scott Wheelz BMS" 50 bms-loop)
+            (spawn "Rink-Float BMS" 50 bms-loop)
         )
-        (print "[scottwheelz] BMS Integration: Unsupported firmware version, 6.05+ required.")
+        (print "[rinkfloat] BMS Integration: Unsupported firmware version, 6.05+ required.")
     )
 )

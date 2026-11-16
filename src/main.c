@@ -817,7 +817,7 @@ static void refloat_thd(void *arg) {
             &d->time
         );
 
-        // Scott Wheelz: if an external beeper is installed and enabled
+        // Rink-Float: if an external beeper is installed and enabled
         // (Servo/PPM pin), it sounds together with the horn. Real alerts keep
         // control of the beeper: beep_on/off(force = false) don't interrupt a
         // running multi-beep alert.
@@ -1277,7 +1277,7 @@ enum {
     COMMAND_ALERTS_CONTROL = 36,
     COMMAND_DATA_RECORD_REQUEST = 41,
 
-    // Scott Wheelz custom commands (kept far from upstream's range)
+    // Rink-Float custom commands (kept far from upstream's range)
     COMMAND_SW_HORN = 120,  // haptic horn: 1 byte, 1 = on/keepalive, 0 = off
 
     // commands above 200 are unstable and can change protocol at any time

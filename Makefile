@@ -5,11 +5,11 @@ MINIFY_QML ?= 1
 # use `make OLDVT=1` to build with old vesc_tool which doesn't support pkgdesc.qml
 OLDVT ?= 0
 
-all: scottwheelz.vescpkg
+all: rinkfloat.vescpkg
 
-scottwheelz.vescpkg: src lisp/package.lisp package_README-gen.md ui.qml
+rinkfloat.vescpkg: src lisp/package.lisp package_README-gen.md ui.qml
 ifeq ($(OLDVT), 1)
-	"$(VESC_TOOL)" --buildPkg "scottwheelz.vescpkg:lisp/package.lisp:ui.qml:0:package_README-gen.md:Scott Wheelz"
+	"$(VESC_TOOL)" --buildPkg "rinkfloat.vescpkg:lisp/package.lisp:ui.qml:0:package_README-gen.md:Rink-Float"
 else
 	"$(VESC_TOOL)" --buildPkgFromDesc pkgdesc.qml
 endif
@@ -41,7 +41,7 @@ ui.qml: ui.qml.in package_name version
 	${MINIFY_CMD} > $@
 
 clean:
-	rm -f scottwheelz.vescpkg package_README-gen.md ui.qml
+	rm -f rinkfloat.vescpkg package_README-gen.md ui.qml
 	$(MAKE) -C src clean
 
 .PHONY: all clean src

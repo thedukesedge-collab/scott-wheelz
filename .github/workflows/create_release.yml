@@ -56,8 +56,8 @@ jobs:
 
       - name: Rename Package File
         run: |
-          mv scottwheelz.vescpkg scottwheelz-${{env.VERSION}}.vescpkg
-          mv src/package_lib.elf scottwheelz-${{env.VERSION}}.elf
+          mv rinkfloat.vescpkg rinkfloat-${{env.VERSION}}.vescpkg
+          mv src/package_lib.elf rinkfloat-${{env.VERSION}}.elf
 
       - name: Install Changelog Generation Dependencies
         run: sudo apt-get install python3-git
@@ -77,9 +77,9 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: ${{github.ref}}
-          name: Scott Wheelz ${{env.VERSION}}
+          name: Rink-Float ${{env.VERSION}}
           draft: true
-          artifacts: "scottwheelz-${{env.VERSION}}.vescpkg,scottwheelz-${{env.VERSION}}.elf,config_signature.txt"
+          artifacts: "rinkfloat-${{env.VERSION}}.vescpkg,rinkfloat-${{env.VERSION}}.elf,config_signature.txt"
           bodyFile: "release_notes.md"
           prerelease: ${{env.PRERELEASE}}
           allowUpdates: true

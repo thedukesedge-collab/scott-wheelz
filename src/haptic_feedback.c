@@ -24,7 +24,7 @@
 #include <math.h>
 
 #define TONE_LENGTH 0.1f
-// Scott Wheelz horn safety limits (seconds)
+// Rink-Float horn safety limits (seconds)
 // - stops this long after the last keepalive from the app (app disconnects)
 #define HORN_TIMEOUT 0.3f
 // - a tap plays at least this long, so it's noticeable
@@ -115,7 +115,7 @@ static HapticFeedbackType haptic_feedback_get_type(
     const AlertTracker *at,
     const Time *time
 ) {
-    // Scott Wheelz: the horn also works while the board is idle (READY).
+    // Rink-Float: the horn also works while the board is idle (READY).
     // update() then plays only the foc_play_tone part, which runs the motor
     // at 0 A with an audio signal on top, so the wheel isn't pushed.
     if (state->state == STATE_READY && horn_active(hf, time)) {
@@ -155,7 +155,7 @@ static HapticFeedbackType haptic_feedback_get_type(
         return HAPTIC_FEEDBACK_DUTY_CONTINUOUS;
     }
 
-    // Scott Wheelz: the horn has the lowest priority, so real pushback and
+    // Rink-Float: the horn has the lowest priority, so real pushback and
     // error alerts are never masked by it.
     if (horn_active(hf, time)) {
         return HAPTIC_FEEDBACK_HORN;
@@ -258,7 +258,7 @@ void haptic_feedback_update(
         hf->is_playing = false;
     } else if (should_be_playing) {
         const CfgHapticTone *tone = get_haptic_tone(hf);
-        // Scott Wheelz: the horn always plays at the configured maximum
+        // Rink-Float: the horn always plays at the configured maximum
         // strength (the strength reached at Max Strength Speed), regardless of
         // the current speed.
         float scale =
@@ -268,7 +268,7 @@ void haptic_feedback_update(
         bool play_buzz = hf->cfg->vibrate.strength > 0.0f;
 
         if (hf->type_playing == HAPTIC_FEEDBACK_HORN) {
-            // Scott Wheelz: no current-based vibration when the board isn't
+            // Rink-Float: no current-based vibration when the board isn't
             // running, so an idle horn never moves the wheel.
             bool can_buzz = play_buzz && state->state == STATE_RUNNING;
             switch (hf->horn_mode) {

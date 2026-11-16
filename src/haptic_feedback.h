@@ -30,10 +30,10 @@ typedef enum {
     HAPTIC_FEEDBACK_ERROR_TEMPERATURE,
     HAPTIC_FEEDBACK_ERROR_VOLTAGE,
     HAPTIC_FEEDBACK_ERROR_FATAL,
-    HAPTIC_FEEDBACK_HORN,  // Scott Wheelz: manual horn from the app
+    HAPTIC_FEEDBACK_HORN,  // Rink-Float: manual horn from the app
 } HapticFeedbackType;
 
-// Scott Wheelz horn sound modes (sent by the app with each press)
+// Rink-Float horn sound modes (sent by the app with each press)
 typedef enum {
     HORN_MODE_BEEP = 0,  // audible motor tone only
     HORN_MODE_BUZZ = 1,  // vibration (current) only; tone when idle or vibrate is off
@@ -52,7 +52,7 @@ typedef struct {
     bool is_playing;
     bool can_change_type;
 
-    // Scott Wheelz horn: set from the command thread, read in the main loop.
+    // Rink-Float horn: set from the command thread, read in the main loop.
     // A press plays for at least HORN_MIN_TIME and at most HORN_MAX_TIME,
     // stops HORN_TIMEOUT after the last keepalive (e.g. app disconnects), and
     // a new press is ignored until HORN_COOLDOWN after the previous release.
@@ -68,10 +68,10 @@ void haptic_feedback_init(HapticFeedback *hf);
 
 void haptic_feedback_configure(HapticFeedback *hf, const RefloatConfig *cfg);
 
-// Scott Wheelz: request (on=true) or cancel (on=false) the haptic horn.
+// Rink-Float: request (on=true) or cancel (on=false) the haptic horn.
 void haptic_feedback_horn(HapticFeedback *hf, const Time *time, bool on, uint8_t mode);
 
-// Scott Wheelz: true while the horn is actually sounding (drives the optional
+// Rink-Float: true while the horn is actually sounding (drives the optional
 // external beeper on the PPM pin).
 bool haptic_feedback_horn_playing(const HapticFeedback *hf);
 
