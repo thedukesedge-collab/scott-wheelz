@@ -173,3 +173,24 @@ current and heat, especially at standstill.
   yellow/orange to red (0%), `Qt.hsva(level * 140/360, ...)`, with a Glow that
   gets stronger as the level drops. Color changes animate over 1.5 s.
   (Replaces the 3-step green/yellow/red from update 6.)
+
+### Tron speedo, TILT slider, big HORN bar (v1.2.3-rf2)
+- Main screen order: battery bar, name row (bigger edit/settings buttons),
+  Tron speedo, footpad + roll | side view, temps/status row, TILT slider,
+  HORN bar, pull-up sheet.
+- `TronSpeedo` component: 40-segment neon arc for speed (green to 70%,
+  purple to 90%, red above, lit segments glow), thin inner duty arc
+  (purple, orange >= 80%, red >= 90%), scale labels, big glowing "Exan"
+  digits with unit, ERPM and DUTY readouts, WHEELSLIP flash. The current and
+  duty dials sit in its bottom corners (`hudDials`). Its height takes what's
+  left on the screen (2.6-5.5 units).
+- Left column: footpad + roll (bigger), Wh/mi, battery current. Right
+  column: side view (bigger).
+- HORN is now a full-width bar at the bottom (hold), same limits as before,
+  faint neon glow that brightens while honking.
+- TILT slider (`swTiltSlider`): +-4 deg, springs back to 0 on release, sent
+  as `(set-remote-state x 0 0 0 0)` at 10 Hz like the Control tab's tilt
+  (one final 0 after release). On first touch while not riding it sets
+  Remote Tilt input to UART (config write). Firmware also hard-caps remote
+  tilt at +-4 deg (`REMOTE_TILT_SAFE_MAX` in `src/remote.c`), whatever
+  Tiltback Angle Limit says.

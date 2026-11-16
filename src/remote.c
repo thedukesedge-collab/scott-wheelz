@@ -72,8 +72,14 @@ void remote_input(Remote *remote, const RefloatConfig *config) {
     remote->input = value;
 }
 
+// Rink-Float: hard cap on remote tilt (app TILT slider or any remote), no
+// matter what Tiltback Angle Limit is set to, so the setpoint can never be
+// tilted far enough to drag or dive the nose. Degrees, both directions.
+#define REMOTE_TILT_SAFE_MAX 4.0f
+
 void remote_update(Remote *remote, const State *state, const RefloatConfig *config) {
     float target = remote->input * config->inputtilt_angle_limit;
+    target = clampf(target, -REMOTE_TILT_SAFE_MAX, REMOTE_TILT_SAFE_MAX);
 
     if (state->darkride) {
         target = -target;

@@ -180,7 +180,13 @@ Item {
                 commands.sendHorn(true);
             }
 
-            if (tiltEnabled.checked) {
+            // Rink-Float: main-screen TILT slider wins while it's in use; one
+            // final 0 is sent after it springs back
+            var swTiltActive = swTiltSlider.pressed || swTiltSlider.value != 0;
+            if (swTiltActive || swTiltSlider.sentNonZero) {
+                vescCommands.lispSendReplCmd("(set-remote-state " + swTiltSlider.input().toFixed(3) + " 0 0 0 0)");
+                swTiltSlider.sentNonZero = swTiltActive;
+            } else if (tiltEnabled.checked) {
                 vescCommands.lispSendReplCmd("(set-remote-state " + tiltSlider.value + " 0 0 0 0)");
             }
         }
@@ -217,6 +223,15 @@ Item {
                     } else {
                         moveSlider.value += stepSize;
                     }
+                }
+            }
+
+            if (!swTiltSlider.pressed) {
+                var stepSize = 0.05;
+                if (swTiltSlider.value > 0) {
+                    swTiltSlider.value = swTiltSlider.value < stepSize ? 0 : swTiltSlider.value - stepSize;
+                } else if (swTiltSlider.value < 0) {
+                    swTiltSlider.value = swTiltSlider.value > -stepSize ? 0 : swTiltSlider.value + stepSize;
                 }
             }
 
@@ -2556,6 +2571,214 @@ Item {
             text: toFixed1Zero(topValue)
         }
     }
+
+    // Rink-Float: digital "Tron" speedometer. Segmented neon arc for speed
+    // (green, then purple, red at the top end), thin inner arc for duty, and
+    // a big glowing digital readout in the middle.
+    component TronSpeedo : Item {
+        id: speedo
+
+        property real value: 0
+        property real maxValue: 30
+        property real duty: 0  // 0..1
+        property real dutyWarn: 0.8
+        property real erpm: 0
+        property string unitText: ""
+        property bool wheelslip: false
+
+        property int segments: 40
+        property real sweepDeg: 240
+        property real radius: Math.max(unit, Math.min(width * 0.44, (height - 0.45 * unit) / 1.58))
+        property real centerY: radius * 1.08 + 0.05 * unit
+
+        Behavior on value {
+            NumberAnimation {easing.type: Easing.OutCirc; duration: 100}
+        }
+
+        Behavior on duty {
+            NumberAnimation {easing.type: Easing.OutCirc; duration: 100}
+        }
+
+        onValueChanged: speedoCanvas.requestPaint()
+        onDutyChanged: speedoCanvas.requestPaint()
+        onMaxValueChanged: speedoCanvas.requestPaint()
+
+        Canvas {
+            id: speedoCanvas
+            anchors.fill: parent
+            contextType: "2d"
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+
+            onPaint: {
+                var ctx = getContext("2d");
+                ctx.reset();
+
+                var green = "#39ff7a";
+                var purple = "#b14cff";
+                var red = "#ff2b4f";
+                var orange = "#ff8a1f";
+                var dim = "#1d1238";
+
+                var cx = width / 2;
+                var cy = speedo.centerY;
+                var R = speedo.radius;
+                var sweep = speedo.sweepDeg * Math.PI / 180;
+                var start = Math.PI / 2 + (2 * Math.PI - sweep) / 2;
+                var n = speedo.segments;
+                var frac = speedo.maxValue > 0 ? Math.max(0, Math.min(1, speedo.value / speedo.maxValue)) : 0;
+                if (frac !== frac) frac = 0;
+
+                var t = R * 0.17;
+                var rSeg = R - t / 2;
+                var gap = sweep / n * 0.25;
+                var rDuty = R - t - R * 0.07;
+                var rLabel = rDuty - R * 0.14;
+
+                // outer guide line + ticks every 10%
+                ctx.lineWidth = Math.max(1, R * 0.014);
+                ctx.strokeStyle = purple;
+                ctx.globalAlpha = 0.85;
+                ctx.beginPath();
+                ctx.arc(cx, cy, R * 1.05, start, start + sweep, false);
+                ctx.stroke();
+                for (var k = 0; k <= 10; k++) {
+                    var ak = start + sweep * k / 10;
+                    var r0 = R * 1.05;
+                    var r1 = R * (k % 5 === 0 ? 1.13 : 1.09);
+                    ctx.beginPath();
+                    ctx.moveTo(cx + Math.cos(ak) * r0, cy + Math.sin(ak) * r0);
+                    ctx.lineTo(cx + Math.cos(ak) * r1, cy + Math.sin(ak) * r1);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+
+                // speed segments
+                ctx.lineWidth = t;
+                for (var i = 0; i < n; i++) {
+                    var a0 = start + sweep * i / n + gap / 2;
+                    var a1 = start + sweep * (i + 1) / n - gap / 2;
+                    var pos = (i + 0.5) / n;
+                    var col = pos < 0.7 ? green : pos < 0.9 ? purple : red;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, rSeg, a0, a1, false);
+                    if (pos <= frac) {
+                        ctx.strokeStyle = col;
+                        ctx.shadowColor = col;
+                        ctx.shadowBlur = R * 0.09;
+                    } else {
+                        ctx.strokeStyle = dim;
+                        ctx.shadowBlur = 0;
+                    }
+                    ctx.stroke();
+                }
+                ctx.shadowBlur = 0;
+
+                // duty arc
+                ctx.lineWidth = Math.max(2, R * 0.045);
+                ctx.strokeStyle = dim;
+                ctx.beginPath();
+                ctx.arc(cx, cy, rDuty, start, start + sweep, false);
+                ctx.stroke();
+                var d = Math.max(0, Math.min(1, speedo.duty));
+                if (d === d && d > 0.002) {
+                    var dcol = d >= 0.9 ? red : d >= speedo.dutyWarn ? orange : purple;
+                    ctx.strokeStyle = dcol;
+                    ctx.shadowColor = dcol;
+                    ctx.shadowBlur = R * 0.06;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, rDuty, start, start + sweep * d, false);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                }
+
+                // inner guide line
+                ctx.lineWidth = Math.max(1, R * 0.01);
+                ctx.strokeStyle = purple;
+                ctx.globalAlpha = 0.35;
+                ctx.beginPath();
+                ctx.arc(cx, cy, rDuty - R * 0.06, start, start + sweep, false);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+
+                // scale labels at 0, 25, 50, 75, 100 %
+                ctx.fillStyle = "#7d68ab";
+                ctx.font = Math.round(Math.max(9, R * 0.1)) + "px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                for (var j = 0; j <= 4; j++) {
+                    var aj = start + sweep * j / 4;
+                    ctx.fillText(Math.round(speedo.maxValue * j / 4), cx + Math.cos(aj) * rLabel, cy + Math.sin(aj) * rLabel);
+                }
+            }
+        }
+
+        Text {
+            id: speedoWheelslip
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: speedoDigits.top
+            color: swTheme.color("red")
+            font.family: "Exan"
+            font.pixelSize: Math.max(fontSizeSuperSmall, speedo.radius * 0.11)
+            text: "WHEELSLIP"
+            opacity: speedo.wheelslip ? 1 : 0
+
+            Behavior on opacity {
+                NumberAnimation {duration: speedo.wheelslip ? 200 : 1000; easing.type: Easing.OutExpo}
+            }
+        }
+
+        Text {
+            id: speedoDigits
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.verticalCenter: parent.top
+            anchors.verticalCenterOffset: speedo.centerY - speedo.radius * 0.08
+            color: "#d6ffe4"
+            font.family: "Exan"
+            font.pixelSize: speedo.radius * 0.5
+            text: round(speedo.value)
+        }
+
+        Glow {
+            anchors.fill: speedoDigits
+            source: speedoDigits
+            radius: Math.round(0.2 * unit)
+            samples: 2 * radius + 1
+            spread: 0.2
+            color: swTheme.neonGreen
+            opacity: 0.7
+        }
+
+        Column {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: speedoDigits.bottom
+            spacing: 0
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                color: swTheme.neonGreen
+                font.family: "Exan"
+                font.pixelSize: Math.max(fontSizeSuperSmall, speedo.radius * 0.12)
+                text: speedo.unitText.toUpperCase()
+            }
+
+            SwDText {
+                anchors.horizontalCenter: parent.horizontalCenter
+                font.family: "monospace"
+                font.pixelSize: Math.max(fontSizeSuperSmall, speedo.radius * 0.095)
+                text: "%1 ERPM".arg(round(speedo.erpm))
+            }
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                color: speedo.duty >= 0.9 ? "#ff2b4f" : speedo.duty >= speedo.dutyWarn ? "#ff8a1f" : swTheme.neonPurple
+                font.family: "monospace"
+                font.pixelSize: Math.max(fontSizeSuperSmall, speedo.radius * 0.095)
+                text: "DUTY %1%".arg(round(speedo.duty * 100))
+            }
+        }
+    }
+
 
     component BaseDialog : Dialog {
         x: 10
@@ -6179,7 +6402,7 @@ Item {
                     property string nameOrId
 
                     color: name ? swTheme.color("lightText") : swTheme.color("normalText")
-                    font.pixelSize: 0.45 * unit
+                    font.pixelSize: 0.55 * unit
                     clip: true
                     text: nameOrId
 
@@ -6192,80 +6415,12 @@ Item {
                     Component.onCompleted: load();
                 }
 
-                // Rink-Float: haptic horn (hold). Riding: full haptics; idle: tone only.
-                // Mirrors the package's limits (haptic_feedback.c): max 1 s per
-                // press, then 1 s cooldown after release. The package enforces
-                // them; this only shows the state.
-                Rectangle {
-                    id: hornFrame
-                    Layout.alignment: Qt.AlignVCenter
-                    Layout.preferredWidth: 2.4 * unit
-                    Layout.preferredHeight: 0.8 * unit
-                    radius: height / 2
-
-                    property bool available: state.pkgState === state.s_Running || state.pkgState === state.s_Ready
-                    property bool expired: false   // held past the 1 s limit
-                    property bool cooling: false   // 1 s cooldown after release
-                    property bool honking: hornButton.pressed && !expired && !cooling
-
-                    color: honking ? swTheme.neonPurple : "transparent"
-                    border.color: swTheme.neonPurple
-                    border.width: 2
-                    opacity: available && !cooling && !expired ? 1.0 : 0.4
-
-                    Timer {
-                        id: hornMaxTimer
-                        interval: 1000
-                        onTriggered: hornFrame.expired = true
-                    }
-
-                    Timer {
-                        id: hornCooldownTimer
-                        interval: 1000
-                        onTriggered: hornFrame.cooling = false
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: hornFrame.honking ? "HONK" : hornFrame.cooling ? "WAIT" : hornFrame.expired ? "MAX" : "HORN"
-                        color: hornFrame.honking ? swTheme.background : swTheme.neonPurple
-                        font.family: "monospace"
-                        font.bold: true
-                        font.pixelSize: fontSizeSmall
-                        font.letterSpacing: 0.03 * unit
-                    }
-
-                    MouseArea {
-                        id: hornButton
-                        anchors.fill: parent
-                        enabled: parent.available
-                        onPressed: {
-                            if (hornFrame.cooling) return;
-                            hornFrame.expired = false;
-                            hornMaxTimer.restart();
-                            commands.sendHorn(true);
-                        }
-                        onReleased: hornFrame.release()
-                        onCanceled: hornFrame.release()
-                    }
-
-                    function release() {
-                        commands.sendHorn(false);
-                        hornMaxTimer.stop();
-                        if (!cooling) {
-                            cooling = true;
-                            hornCooldownTimer.restart();
-                        }
-                        expired = false;
-                    }
-                }
-
                 ToolButton {
                     id: editBoardNameButton
                     Layout.alignment: Qt.AlignVCenter
-                    Layout.preferredWidth: 0.8 * unit
-                    Layout.preferredHeight: 0.8 * unit
-                    height: 0.8 * unit
+                    Layout.preferredWidth: 1.1 * unit
+                    Layout.preferredHeight: 1.1 * unit
+                    height: 1.1 * unit
 
                     iconPath: Path {
                         PathSvg {path: "M 10.59 24 L 17.63 32.42 L 6 35 L 10.59 24 M 10.59 24 L 34.39 4 L 41.49 12.42 L 17.69 32.42 M 4 42 L 46 42"}
@@ -6279,9 +6434,9 @@ Item {
                 ToolButton {
                     id: settingsButton
                     Layout.alignment: Qt.AlignVCenter
-                    Layout.preferredWidth: 0.8 * unit
-                    Layout.preferredHeight: 0.8 * unit
-                    height: 0.8 * unit
+                    Layout.preferredWidth: 1.1 * unit
+                    Layout.preferredHeight: 1.1 * unit
+                    height: 1.1 * unit
 
                     iconPath: Path {
                         PathSvg {path: "M 14.25 37.81 L 10.59 39.42 A 3 3 0 0 1 6.98 38.47 22.5 22.5 0 0 1 4.32 33.87 A 3 3 0 0 1 5.30 30.27 L 8.53 27.9 A 3.6 3.6 0 0 0 8.53 22.1 L 5.30 19.73 A 3 3 0 0 1 4.32 16.13 A 22.5 22.5 0 0 1 6.98 11.53 A 3 3 0 0 1 10.59 10.58 L 14.25 12.19 A 3.6 3.6 0 0 0 19.28 9.29 L 19.79 5.31 A 3 3 0 0 1 22.35 2.66 A 22.5 22.5 0 0 1 27.65 2.66 A 3 3 0 0 1 30.28 5.31 L 30.72 9.29 A 3.6 3.6 0 0 0 35.75 12.19 L 39.41 10.58 A 3 3 0 0 1 43.02 11.53 A 22.5 22.5 0 0 1 45.67 16.13 A 3 3 0 0 1 44.7 19.73 L 41.47 22.1 A 3.6 3.6 0 0 0 41.47 27.9 L 44.7 30.27 A 3 3 0 0 1 45.68 33.87 A 22.5 22.5 0 0 1 43.02 38.47 A 3 3 0 0 1 39.41 39.42 L 35.75 37.81 A 3.6 3.6 0 0 0 30.72 40.71 L 30.28 44.69 A 3 3 0 0 1 27.65 47.34 A 22.5 22.5 0 0 1 22.35 47.34 A 3 3 0 0 1 19.72 44.69 L 19.28 40.71 A 3.6 3.6 0 0 0 14.25 37.81"}
@@ -6296,10 +6451,85 @@ Item {
 
             Item {Layout.fillHeight: true}  // Rink-Float: spread out to fill the screen
 
+            // Rink-Float: digital Tron speedometer, takes whatever height is left
+            TronSpeedo {
+                id: tronSpeedo
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.max(2.6 * unit, Math.min(5.5 * unit,
+                    root.height - bottomSheet.minHeight - batteryBar.height - boardNameRow.height
+                    - hud.height - middleRow.height - swTiltRow.height - hornFrame.height - 1.2 * unit))
+
+                maxValue: preferences.speedDialMax
+                unitText: vescConfig.speedUnit
+                value: Math.abs(state.rtData["motor.speed"]) * vescConfig.imperialFactor
+                duty: Math.abs(state.rtData["motor.duty_cycle"])
+                erpm: Math.abs(state.rtData["motor.erpm"])
+                wheelslip: state.wheelslip
+
+                Item {
+                    id: hudDials  // Rink-Float: current / duty dials flank the speedo
+                    anchors.bottom: parent.bottom
+                    width: parent.width
+                    height: 1.9 * unit
+
+                    SwNText {
+                        id: currentDialLabel
+                        anchors.bottom: parent.bottom
+                        width: parent.height
+
+                        font.pixelSize: fontSizeSmall
+                        horizontalAlignment: Text.AlignHCenter
+                        text: "current"
+                    }
+
+                    Dial {
+                        anchors.bottom: currentDialLabel.top
+                        anchors.bottomMargin: -0.15 * unit
+                        width: parent.height
+                        height: width
+
+                        value: state.rtData["motor.current"]
+
+                        allowNegative: true
+                        minValue: motorConfig.currentMin;
+                        maxValue: motorConfig.currentMax;
+                        valueUnit: "A"
+                    }
+
+                    SwNText {
+                        id: dutyDialLabel
+                        anchors.bottom: parent.bottom
+                        anchors.right: parent.right
+                        width: parent.height
+
+                        font.pixelSize: fontSizeSmall
+                        horizontalAlignment: Text.AlignHCenter
+                        text: "duty"
+                    }
+
+                    Dial {
+                        anchors.bottom: currentDialLabel.top
+                        anchors.bottomMargin: -0.15 * unit
+                        anchors.right: parent.right
+                        width: parent.height
+                        height: width
+
+                        value: state.rtData["motor.duty_cycle"] * 100
+
+                        maxValue: 100
+                        warnThresholdAbs: 80
+                        valueUnit: "%"
+                    }
+
+                }
+            }
+
+            Item {Layout.fillHeight: true}
+
             Item {
                 id: hud
                 Layout.fillWidth: true
-                Layout.preferredHeight: hudRight.height
+                Layout.preferredHeight: Math.max(hudLeft.contentHeight, pitch.height)
                 Layout.bottomMargin: parent.centralMargin
 
                 Item {
@@ -6311,285 +6541,14 @@ Item {
                     width: parent.width  / 2
                     height: parent.height
 
-                    Item {
-                        id: speedDialFrame
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.top: parent.top
-                        anchors.topMargin: -width * 0.09
-                        width: parent.width * 0.9
-                        height: width
-
-                        Dial {
-                            id: speedDial
-                            anchors.fill: parent
-
-                            maxValue: preferences.speedDialMax
-                            valueUnit: vescConfig.speedUnit
-                            valueFontSize: width * 0.18
-                            lineWidth: 0.25 * unit
-
-                            value: Math.abs(state.rtData["motor.speed"]) * vescConfig.imperialFactor
-                            property int erpm: Math.abs(state.rtData["motor.erpm"])
-
-                            Behavior on erpm {
-                                NumberAnimation {
-                                    easing.type: Easing.OutCirc
-                                    duration: 100
-                                }
-                            }
-
-                            SwNText {
-                                id: speedDialValueErpm
-                                anchors.top: parent.verticalCenter
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.topMargin: font.pixelSize * 1.25
-
-                                font.pixelSize: fontSizeNormal
-                                text: parent.erpm
-                            }
-
-                            SwDText {
-                                id: speedDialValueErpmLabel
-                                anchors.top: speedDialValueErpm.bottom
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.topMargin: -font.pixelSize * 0.25
-
-                                font.pixelSize: fontSizeSmall
-                                text: "erpm"
-                            }
-
-                            Text {
-                                id: speedDialWheelslip
-                                anchors.bottom: parent.verticalCenter
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                anchors.bottomMargin: 0.5 * unit
-
-                                color: swTheme.color("red")
-                                font.family: "Exan"
-                                font.pixelSize: fontSizeSmall
-                                opacity: 0
-                                text: "WHEELSLIP"
-
-                                states: State {
-                                    name: "shown";
-                                    when: state.wheelslip
-                                    PropertyChanges {target: speedDialWheelslip; opacity: 1;}
-                                }
-
-                                transitions: [
-                                    Transition {
-                                        to: "shown"
-                                        PropertyAnimation {target: speedDialWheelslip; property: "opacity"; duration: 200; easing.type: Easing.OutExpo;}
-                                    },
-                                    Transition {
-                                        from: "shown"
-                                        PropertyAnimation {target: speedDialWheelslip; property: "opacity"; duration: 1000; easing.type: Easing.OutExpo;}
-                                    }
-                                ]
-                            }
-
-                            Glow {
-                                anchors.fill: speedDialWheelslip
-                                radius: Math.round(0.09 * unit)
-                                samples: 2 * radius + 1
-                                opacity: 0.6 * speedDialWheelslip.opacity
-                                color: swTheme.color("red")
-                                visible: state.wheelslip
-                                source: speedDialWheelslip
-                            }
-                        }
-                    }
-
-                    Item {
-                        anchors.top: speedDialFrame.bottom
-                        anchors.topMargin: -speedDialFrame.width * 0.125
-                        width: parent.width
-                        height: 1.8 * unit
-
-                        SwNText {
-                            id: currentDialLabel
-                            anchors.bottom: parent.bottom
-                            width: parent.height
-
-                            font.pixelSize: fontSizeSmall
-                            horizontalAlignment: Text.AlignHCenter
-                            text: "current"
-                        }
-
-                        Dial {
-                            anchors.bottom: currentDialLabel.top
-                            anchors.bottomMargin: -0.15 * unit
-                            width: parent.height
-                            height: width
-
-                            value: state.rtData["motor.current"]
-
-                            allowNegative: true
-                            minValue: motorConfig.currentMin;
-                            maxValue: motorConfig.currentMax;
-                            valueUnit: "A"
-                        }
-
-                        SwNText {
-                            id: dutyDialLabel
-                            anchors.bottom: parent.bottom
-                            anchors.right: parent.right
-                            width: parent.height
-
-                            font.pixelSize: fontSizeSmall
-                            horizontalAlignment: Text.AlignHCenter
-                            text: "duty"
-                        }
-
-                        Dial {
-                            anchors.bottom: currentDialLabel.top
-                            anchors.bottomMargin: -0.15 * unit
-                            anchors.right: parent.right
-                            width: parent.height
-                            height: width
-
-                            value: state.rtData["motor.duty_cycle"] * 100
-
-                            maxValue: 100
-                            warnThresholdAbs: 80
-                            valueUnit: "%"
-                        }
-
-                        Item {
-                            id: consumption
-                            anchors.centerIn: parent
-                            width: unit
-                            height: 0.8 * unit
-
-                            readonly property real alpha: 0.05;
-                            property real value: 0;
-
-                            SwLText {
-                                width: parent.width
-
-                                font.pixelSize: hudLeft.fontSizeBars
-                                horizontalAlignment: Text.AlignHCenter
-                                text: (toFixed1Zero(parent.value))
-                            }
-
-                            SwDText {
-                                width: parent.width
-                                anchors.bottom: parent.bottom
-
-                                font.pixelSize: fontSizeSmall
-                                horizontalAlignment: Text.AlignHCenter
-                                text: "Wh/%1".arg(vescConfig.distanceUnit)
-                            }
-
-                            function add(v) {
-                                value = (1.0 - alpha) * value + alpha * v;
-                            }
-                        }
-                    }
-
-                    Item {
-                        id: batteryCurrent
-
-                        property var value: state.rtData["motor.batt_current"]
-                        property var minValue: preferences.battCurrentLog ? -Math.log(-motorConfig.inCurrentMin + 1) : motorConfig.inCurrentMin
-                        property var maxValue: preferences.battCurrentLog ? Math.log(motorConfig.inCurrentMax + 1) : motorConfig.inCurrentMax
-
-                        property var positiveWidth: value > 0 ? (preferences.battCurrentLog ? Math.log(value + 1) : value) / maxValue : 0
-                        property var negativeWidth: value < 0 ? (preferences.battCurrentLog ? -Math.log(-value + 1) : value) / minValue : 0
-
-                        Behavior on value {
-                            NumberAnimation {
-                                easing.type: Easing.OutCirc
-                                duration: 100
-                            }
-                        }
-
-                        anchors.bottom: parent.bottom
-                        width: parent.width
-
-                        SwNText {
-                            id: batteryCurrentLabel
-                            anchors.bottom: parent.bottom
-                            anchors.horizontalCenter: parent.horizontalCenter
-
-                            font.pixelSize: fontSizeSmall
-                            text: "battery current"
-                        }
-
-                        Rectangle {
-                            id: batteryCurrentBar
-                            anchors.bottom: batteryCurrentLabel.top
-                            anchors.bottomMargin: 0.06 * unit
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            width: sideWidth * 2
-                            height: hudLeft.barThicknessSmall
-
-                            property var sideWidth: 1.5 * unit
-
-                            color: swTheme.color("lightBackground")
-
-                            Rectangle {
-                                anchors.bottom: parent.bottom
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                width: 1
-                                height: hudLeft.barThicknessSmall * 1.2
-                                z: 2
-
-                                color: swTheme.color("lightText")
-                            }
-
-                            Rectangle {
-                                anchors.left: parent.horizontalCenter
-                                width: batteryCurrent.positiveWidth * parent.sideWidth
-                                height: hudLeft.barThicknessSmall
-                                z: 1
-
-                                color: swTheme.color("lightAccent")
-                            }
-
-                            Rectangle {
-                                anchors.right: parent.horizontalCenter
-                                width: batteryCurrent.negativeWidth * parent.sideWidth
-                                height: hudLeft.barThicknessSmall
-                                z: 1
-
-                                color: swTheme.color("green")
-                            }
-                        }
-
-                        SwLText {
-                            id: batteryCurrentValue
-                            anchors.bottom: batteryCurrentBar.top
-                            anchors.bottomMargin: 0.06 * unit
-                            anchors.horizontalCenter: parent.horizontalCenter
-
-                            font.pixelSize: hudLeft.fontSizeBars
-                            text: toFixed1Zero(parent.value)
-                        }
-
-                        SwDText {
-                            id: batteryCurrentValueUnit
-                            anchors.left: batteryCurrentValue.right
-                            anchors.baseline: batteryCurrentValue.baseline
-                            anchors.leftMargin: font.pixelSize * 0.1
-
-                            font.pixelSize: fontSizeSmall
-                            text: "A"
-                        }
-                    }
-                }
-
-                Item {
-                    id: hudRight
-
-                    anchors.right: parent.right
-                    width: parent.width / 2
-                    height: hudRightTop.height + pitch.height + pitch.anchors.topMargin
+                    // Rink-Float: footpad + roll on top, then the small dials and
+                    // battery current; the side view gets the whole right column
+                    property real contentHeight: hudRightTop.height + 1.5 * unit
 
                     Item {
                         id: hudRightTop
                         width: parent.width
-                        height: width * 0.4
+                        height: width * 0.46
 
                         property real sidePadding: (width - 2 * height) / 4
 
@@ -6834,11 +6793,143 @@ Item {
                     }
 
                     Item {
+                        id: consumption
+                        anchors.left: parent.left
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 0.1 * unit
+                        width: 1.3 * unit
+                        height: 0.8 * unit
+
+                        readonly property real alpha: 0.05;
+                        property real value: 0;
+
+                        SwLText {
+                            width: parent.width
+
+                            font.pixelSize: hudLeft.fontSizeBars
+                            horizontalAlignment: Text.AlignHCenter
+                            text: (toFixed1Zero(parent.value))
+                        }
+
+                        SwDText {
+                            width: parent.width
+                            anchors.bottom: parent.bottom
+
+                            font.pixelSize: fontSizeSmall
+                            horizontalAlignment: Text.AlignHCenter
+                            text: "Wh/%1".arg(vescConfig.distanceUnit)
+                        }
+
+                        function add(v) {
+                            value = (1.0 - alpha) * value + alpha * v;
+                        }
+                    }
+
+                    Item {
+                        id: batteryCurrent
+
+                        property var value: state.rtData["motor.batt_current"]
+                        property var minValue: preferences.battCurrentLog ? -Math.log(-motorConfig.inCurrentMin + 1) : motorConfig.inCurrentMin
+                        property var maxValue: preferences.battCurrentLog ? Math.log(motorConfig.inCurrentMax + 1) : motorConfig.inCurrentMax
+
+                        property var positiveWidth: value > 0 ? (preferences.battCurrentLog ? Math.log(value + 1) : value) / maxValue : 0
+                        property var negativeWidth: value < 0 ? (preferences.battCurrentLog ? -Math.log(-value + 1) : value) / minValue : 0
+
+                        Behavior on value {
+                            NumberAnimation {
+                                easing.type: Easing.OutCirc
+                                duration: 100
+                            }
+                        }
+
+                        anchors.bottom: parent.bottom
+                        anchors.right: parent.right
+                        width: parent.width - consumption.width
+
+                        SwNText {
+                            id: batteryCurrentLabel
+                            anchors.bottom: parent.bottom
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            font.pixelSize: fontSizeSmall
+                            text: "battery current"
+                        }
+
+                        Rectangle {
+                            id: batteryCurrentBar
+                            anchors.bottom: batteryCurrentLabel.top
+                            anchors.bottomMargin: 0.06 * unit
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: sideWidth * 2
+                            height: hudLeft.barThicknessSmall
+
+                            property var sideWidth: 1.4 * unit
+
+                            color: swTheme.color("lightBackground")
+
+                            Rectangle {
+                                anchors.bottom: parent.bottom
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                width: 1
+                                height: hudLeft.barThicknessSmall * 1.2
+                                z: 2
+
+                                color: swTheme.color("lightText")
+                            }
+
+                            Rectangle {
+                                anchors.left: parent.horizontalCenter
+                                width: batteryCurrent.positiveWidth * parent.sideWidth
+                                height: hudLeft.barThicknessSmall
+                                z: 1
+
+                                color: swTheme.color("lightAccent")
+                            }
+
+                            Rectangle {
+                                anchors.right: parent.horizontalCenter
+                                width: batteryCurrent.negativeWidth * parent.sideWidth
+                                height: hudLeft.barThicknessSmall
+                                z: 1
+
+                                color: swTheme.color("green")
+                            }
+                        }
+
+                        SwLText {
+                            id: batteryCurrentValue
+                            anchors.bottom: batteryCurrentBar.top
+                            anchors.bottomMargin: 0.06 * unit
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            font.pixelSize: hudLeft.fontSizeBars
+                            text: toFixed1Zero(parent.value)
+                        }
+
+                        SwDText {
+                            id: batteryCurrentValueUnit
+                            anchors.left: batteryCurrentValue.right
+                            anchors.baseline: batteryCurrentValue.baseline
+                            anchors.leftMargin: font.pixelSize * 0.1
+
+                            font.pixelSize: fontSizeSmall
+                            text: "A"
+                        }
+                    }
+                }
+
+                Item {
+                    id: hudRight
+
+                    anchors.right: parent.right
+                    width: parent.width / 2
+                    height: parent.height
+
+                    Item {
                         id: pitch
-                        anchors.top: hudRightTop.bottom
-                        anchors.topMargin: 0.15 * unit
+                        anchors.verticalCenter: parent.verticalCenter
                         width: parent.width
-                        height: width * 0.83
+                        height: width * 0.85
 
                         property real textWidth: 1.4 * unit
 
@@ -7172,10 +7263,10 @@ Item {
                 id: middleRow
 
                 property var verticalValueItemWidth: 1.7 * unit
-                property var verticalValueItemHeight: 0.8 * unit
+                property var verticalValueItemHeight: 0.95 * unit
 
                 Layout.fillWidth: true
-                Layout.preferredHeight: 1.2 * unit
+                Layout.preferredHeight: 1.3 * unit
                 Layout.topMargin: parent.centralMargin
 
                 component VerticalValue : Item {
@@ -7194,7 +7285,7 @@ Item {
                     SwNText {
                         anchors.bottom: parent.bottom
                         width: parent.width
-                        font.pixelSize: fontSizeSmall
+                        font.pixelSize: 0.33 * unit
                         horizontalAlignment: Text.AlignHCenter
                         text: labelText
                     }
@@ -7202,7 +7293,7 @@ Item {
                     Text {
                         width: parent.width
                         color: !!warningThreshold && value > warningThreshold ? swTheme.color("red") : swTheme.color("lightText")
-                        font.pixelSize: fontSizeNormal
+                        font.pixelSize: 0.42 * unit
                         horizontalAlignment: Text.AlignHCenter
                         text: format.arg(toFixed1Zero(value))
                     }
@@ -7246,6 +7337,194 @@ Item {
                     anchors.right: odometer.left
                     labelText: "trip"
                     unit: vescConfig.distanceUnit
+                }
+            }
+
+            // Rink-Float: TILT slider. Springs back to 0 when released. Range is
+            // +-4 deg (the package also hard-caps remote tilt at 4 deg), so it
+            // can't tilt the nose far enough to drag or dive.
+            RowLayout {
+                id: swTiltRow
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1.0 * unit
+                Layout.leftMargin: 0.2 * unit
+                Layout.rightMargin: 0.2 * unit
+                Layout.topMargin: 0.2 * unit
+                spacing: 0.2 * unit
+
+                Text {
+                    Layout.preferredWidth: 1.3 * unit
+                    Layout.alignment: Qt.AlignVCenter
+                    color: swTiltSlider.value !== 0 ? swTheme.neonGreen : swTheme.color("normalText")
+                    font.family: "Exan"
+                    font.pixelSize: 0.38 * unit
+                    text: "TILT"
+                }
+
+                Slider {
+                    id: swTiltSlider
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: unit
+                    Layout.alignment: Qt.AlignVCenter
+
+                    from: -1
+                    to: 1
+                    value: 0
+                    enabled: hornFrame.available
+                    opacity: enabled ? 1 : 0.4
+
+                    readonly property real maxDeg: 4
+                    property real angleLimit: 10  // Tiltback Angle Limit, read on press
+                    property bool sentNonZero: false
+                    readonly property real degrees: value * Math.min(maxDeg, angleLimit)
+
+                    // value for (set-remote-state ...), scaled so full slider = maxDeg
+                    function input() {
+                        return angleLimit > 0 ? clamp(degrees / angleLimit, -1, 1) : 0;
+                    }
+
+                    onPressedChanged: {
+                        if (!pressed) return;
+                        var lim = packageConfig.getParamValue("inputtilt_angle_limit");
+                        if (lim > 0) {
+                            angleLimit = lim;
+                        }
+                        // Remote tilt input must be UART (one-time config write,
+                        // same as the Control tab's enable box). Only while not
+                        // riding, so the config is never rewritten mid-ride.
+                        if (state.pkgState !== state.s_Running) {
+                            packageConfig.setInputTiltRemoteType(1);
+                        }
+                    }
+
+                    background: Rectangle {
+                        x: swTiltSlider.leftPadding
+                        y: swTiltSlider.topPadding + swTiltSlider.availableHeight / 2 - height / 2
+                        width: swTiltSlider.availableWidth
+                        height: 0.16 * unit
+                        radius: height / 2
+                        color: "#1d1238"
+                        border.color: swTheme.neonPurple
+                        border.width: 1
+
+                        Rectangle {
+                            property real mid: parent.width / 2
+                            property real pos: swTiltSlider.visualPosition * parent.width
+                            x: Math.min(mid, pos)
+                            width: Math.abs(pos - mid)
+                            height: parent.height
+                            radius: height / 2
+                            color: swTheme.neonGreen
+                        }
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 2
+                            height: parent.height * 2.4
+                            color: swTheme.color("lightText")
+                        }
+                    }
+
+                    handle: Rectangle {
+                        x: swTiltSlider.leftPadding + swTiltSlider.visualPosition * (swTiltSlider.availableWidth - width)
+                        y: swTiltSlider.topPadding + swTiltSlider.availableHeight / 2 - height / 2
+                        width: 0.62 * unit
+                        height: width
+                        radius: width / 2
+                        color: swTiltSlider.pressed ? swTheme.neonGreen : swTheme.background
+                        border.color: swTheme.neonGreen
+                        border.width: 3
+                    }
+                }
+
+                Text {
+                    Layout.preferredWidth: 1.5 * unit
+                    Layout.alignment: Qt.AlignVCenter
+                    horizontalAlignment: Text.AlignRight
+                    color: swTiltSlider.value !== 0 ? swTheme.neonGreen : swTheme.color("normalText")
+                    font.family: "Exan"
+                    font.pixelSize: 0.36 * unit
+                    text: (swTiltSlider.degrees > 0 ? "+" : "") + swTiltSlider.degrees.toFixed(1) + "°"
+                }
+            }
+
+            // Rink-Float: big HORN bar across the bottom (hold). Riding: full haptics; idle: tone only.
+            // Mirrors the package's limits (haptic_feedback.c): max 1 s per
+            // press, then 1 s cooldown after release. The package enforces
+            // them; this only shows the state.
+            Rectangle {
+                id: hornFrame
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1.35 * unit
+                Layout.leftMargin: 0.15 * unit
+                Layout.rightMargin: 0.15 * unit
+                Layout.topMargin: 0.15 * unit
+                Layout.bottomMargin: 0.15 * unit
+                radius: 0.3 * unit
+
+                property bool available: state.pkgState === state.s_Running || state.pkgState === state.s_Ready
+                property bool expired: false   // held past the 1 s limit
+                property bool cooling: false   // 1 s cooldown after release
+                property bool honking: hornButton.pressed && !expired && !cooling
+
+                color: honking ? swTheme.neonPurple : "#140a26"
+                border.color: swTheme.neonPurple
+                border.width: 3
+
+                RectangularGlow {
+                    anchors.fill: parent
+                    z: -1
+                    glowRadius: 0.25 * unit
+                    spread: 0.2
+                    cornerRadius: parent.radius + glowRadius
+                    color: swTheme.neonPurple
+                    opacity: hornFrame.honking ? 0.9 : 0.3
+                }
+                opacity: available && !cooling && !expired ? 1.0 : 0.4
+
+                Timer {
+                    id: hornMaxTimer
+                    interval: 1000
+                    onTriggered: hornFrame.expired = true
+                }
+
+                Timer {
+                    id: hornCooldownTimer
+                    interval: 1000
+                    onTriggered: hornFrame.cooling = false
+                }
+
+                Text {
+                    anchors.centerIn: parent
+                    text: hornFrame.honking ? "HONK" : hornFrame.cooling ? "WAIT" : hornFrame.expired ? "MAX" : "HORN"
+                    color: hornFrame.honking ? swTheme.background : swTheme.neonPurple
+                    font.family: "Exan"
+                    font.pixelSize: 0.62 * unit
+                    font.letterSpacing: 0.2 * unit
+                }
+
+                MouseArea {
+                    id: hornButton
+                    anchors.fill: parent
+                    enabled: parent.available
+                    onPressed: {
+                        if (hornFrame.cooling) return;
+                        hornFrame.expired = false;
+                        hornMaxTimer.restart();
+                        commands.sendHorn(true);
+                    }
+                    onReleased: hornFrame.release()
+                    onCanceled: hornFrame.release()
+                }
+
+                function release() {
+                    commands.sendHorn(false);
+                    hornMaxTimer.stop();
+                    if (!cooling) {
+                        cooling = true;
+                        hornCooldownTimer.restart();
+                    }
+                    expired = false;
                 }
             }
         }
