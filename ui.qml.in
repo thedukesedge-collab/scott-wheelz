@@ -997,6 +997,7 @@ Item {
 
         property bool invertPitch: false
         property int railStyle: 0  // 0 stock, 1 WTF, 2 dub tail, 3 double kick
+        property int tireStyle: 0  // 0 treaded, 1 slick
         property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
     }
 
@@ -6746,6 +6747,8 @@ Item {
                             // Rink-Float: + = nose up (same sign as the side view)
                             property real noseUp: (swSettings.invertPitch ? -1 : 1) * state.rtData["imu.pitch"]
                             onNoseUpChanged: rollCanvas.requestPaint();
+                            property int tireStyle: swSettings.tireStyle
+                            onTireStyleChanged: rollCanvas.requestPaint();
 
                             Behavior on noseUp {
                                 NumberAnimation {easing.type: Easing.OutCirc; duration: 100}
@@ -6850,11 +6853,12 @@ Item {
                                     ctx.fillStyle = green;
                                     ctx.fill();
 
-                                    // tire (front view) + tread
-                                    roundRect(-25, -40, 50, 80, 17);
+                                    // tire (front view) + tread; slick = rounder, no tread
+                                    var slick = swSettings.tireStyle === 1;
+                                    roundRect(-25, -40, 50, 80, slick ? 24 : 17);
                                     glow(green, 2 * u);
                                     ctx.beginPath();
-                                    for (var y = -30; y <= 30; y += 7.5) {
+                                    for (var y = -30; y <= (slick ? -31 : 30); y += 7.5) {
                                         ctx.moveTo(-18, y);
                                         ctx.lineTo(18, y);
                                     }
@@ -7145,6 +7149,8 @@ Item {
                             property bool fpOn: state.fpState !== state.fs_None
                             property real sw_sign: swSettings.invertPitch ? -1 : 1
                             property int sw_rail: swSettings.railStyle
+                            property int sw_tire: swSettings.tireStyle
+                            onSw_tireChanged: requestPaint()
                             onFpOnChanged: requestPaint()
                             onSw_signChanged: requestPaint()
                             onSw_railChanged: requestPaint()
@@ -7242,12 +7248,12 @@ Item {
                                         context.arc(0, 0, 36, a0, Math.PI - a0);
                                     else
                                         context.arc(0, 0, 36, Math.PI + a0, 2 * Math.PI - a0);
-                                    glow(context, green, 2 * u);
+                                    glow(context, green, (sw_tire === 1 ? 3 : 2) * u);
                                 }
 
-                                // tread ticks
+                                // tread ticks (treaded tire only; slick = smooth ring)
                                 context.beginPath();
-                                for (var i = 0; i < 36; i++) {
+                                for (var i = 0; i < (sw_tire === 1 ? 0 : 36); i++) {
                                     var a = i * Math.PI / 18;
                                     var y1 = 31 * Math.sin(a);
                                     if (Math.abs(y1) < 10) continue;
@@ -8200,6 +8206,46 @@ Item {
                                     MouseArea {
                                         anchors.fill: parent
                                         onClicked: swSettings.railStyle = index
+                                    }
+                                }
+                            }
+                        }
+
+                        SwLText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            font.pixelSize: fontSizeBig
+                            text: "Tire"
+                        }
+
+                        // Rink-Float: tire style for the side and front views
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.12 * unit
+
+                            Repeater {
+                                model: ["TREADED", "SLICK"]
+
+                                Rectangle {
+                                    width: 2.6 * unit
+                                    height: 0.75 * unit
+                                    radius: height / 2
+                                    property bool selected: swSettings.tireStyle === index
+                                    color: selected ? swTheme.neonGreen : "transparent"
+                                    border.color: selected ? swTheme.neonGreen : swTheme.neonPurple
+                                    border.width: 2
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData
+                                        color: parent.selected ? swTheme.background : swTheme.neonPurple
+                                        font.family: "Exan"
+                                        font.pixelSize: 0.28 * unit
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onClicked: swSettings.tireStyle = index
                                     }
                                 }
                             }

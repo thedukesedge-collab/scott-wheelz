@@ -232,3 +232,8 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   view, honors the invert setting): level = middle of the tire, nose up
   20 deg or more (tail down at rest) = top of the tire, nose down = lower.
   Everything still rotates with roll.
+
+### Tire style (v1.2.3-rf7)
+- Control tab > Tire: TREADED (tread ticks, the original look) or SLICK
+  (smooth, slightly bolder ring in the side view; rounder, no tread lines in
+  the front view). Saved in `swSettings.tireStyle`. Display only.
