@@ -2382,9 +2382,6 @@ Item {
         font.letterSpacing: 0.02 * unit
         fontSizeMode: width > 0 ? Text.HorizontalFit : Text.FixedSize
         minimumPixelSize: 0.14 * unit
-        // neon-tube edge; a plain text style so it renders everywhere
-        style: Text.Outline
-        styleColor: "#6a22b8"
     }
 
     component SwNeonValue : SwNeonLabel {
@@ -2411,10 +2408,6 @@ Item {
             var s = Math.min(width / 48, height / 48);
             ctx.translate((width - 48 * s) / 2, (height - 48 * s) / 2);
             ctx.scale(s, s);
-            ctx.shadowColor = swTheme.neonPurple;
-            ctx.shadowBlur = 6;
-            ctx.strokeStyle = engineIcon.color;
-            ctx.lineWidth = 3;
             ctx.lineJoin = "round";
             ctx.beginPath();
             ctx.moveTo(pts[0][0], pts[0][1]);
@@ -2422,6 +2415,13 @@ Item {
                 ctx.lineTo(pts[i][0], pts[i][1]);
             }
             ctx.closePath();
+            ctx.strokeStyle = swTheme.neonPurple;
+            ctx.globalAlpha = 0.3;
+            ctx.lineWidth = 8;
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+            ctx.strokeStyle = engineIcon.color;
+            ctx.lineWidth = 3;
             ctx.stroke();
         }
     }
@@ -2503,14 +2503,21 @@ Item {
                 onPaint: {
                     var context = getContext("2d");
                     context.reset();
-                    context.shadowColor = button.iconGlowColor;
-                    context.shadowBlur = button.iconGlowBlur;
                     if (iconPath) {
-                        context.strokeStyle = button.strokeColor;
                         context.lineCap = "round";
                         context.lineJoin = "round";
                         iconPath.scale = Qt.size(iconSize / 50, iconSize / 50);
                         context.path = iconPath;
+                        // Re-RinkFloat: soft halo as a wide translucent stroke (crisper
+                        // than canvas shadowBlur), then the sharp line on top
+                        if (button.iconGlowBlur > 0 && button.iconGlowColor.a > 0) {
+                            context.strokeStyle = button.iconGlowColor;
+                            context.globalAlpha = 0.28;
+                            context.lineWidth = button.iconLineWidth * 3;
+                            context.stroke();
+                            context.globalAlpha = 1.0;
+                        }
+                        context.strokeStyle = button.strokeColor;
                         context.lineWidth = button.iconLineWidth;
                         context.stroke();
                     }
@@ -2853,26 +2860,25 @@ Item {
                 }
                 ctx.globalAlpha = 1;
 
-                // speed segments
-                ctx.lineWidth = t;
-                for (var i = 0; i < n; i++) {
-                    var a0 = start + sweep * i / n + gap / 2;
-                    var a1 = start + sweep * (i + 1) / n - gap / 2;
-                    var pos = (i + 0.5) / n;
-                    var col = pos < 0.7 ? green : pos < 0.9 ? purple : red;
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, rSeg, a0, a1, false);
-                    if (pos <= frac) {
-                        ctx.strokeStyle = col;
-                        ctx.shadowColor = col;
-                        ctx.shadowBlur = R * 0.09;
-                    } else {
-                        ctx.strokeStyle = dim;
-                        ctx.shadowBlur = 0;
+                // speed segments: unlit first, then a soft halo under the lit ones,
+                // then the lit segments crisp on top
+                var segCol = function(pos) { return pos < 0.7 ? green : pos < 0.9 ? purple : red; };
+                for (var pass = 0; pass < 3; pass++) {
+                    ctx.lineWidth = pass === 1 ? t + R * 0.07 : t;
+                    ctx.globalAlpha = pass === 1 ? 0.22 : 1.0;
+                    for (var i = 0; i < n; i++) {
+                        var pos = (i + 0.5) / n;
+                        var lit = pos <= frac;
+                        if ((pass === 0) === lit) continue;
+                        var a0 = start + sweep * i / n + gap / 2;
+                        var a1 = start + sweep * (i + 1) / n - gap / 2;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, rSeg, a0, a1, false);
+                        ctx.strokeStyle = lit ? segCol(pos) : dim;
+                        ctx.stroke();
                     }
-                    ctx.stroke();
                 }
-                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1.0;
 
                 // duty arc
                 ctx.lineWidth = Math.max(2, R * 0.045);
@@ -2884,12 +2890,15 @@ Item {
                 if (d === d && d > 0.002) {
                     var dcol = d >= 0.9 ? red : d >= speedo.dutyWarn ? orange : purple;
                     ctx.strokeStyle = dcol;
-                    ctx.shadowColor = dcol;
-                    ctx.shadowBlur = R * 0.06;
                     ctx.beginPath();
                     ctx.arc(cx, cy, rDuty, start, start + sweep * d, false);
+                    var dutyW = ctx.lineWidth;
+                    ctx.globalAlpha = 0.25;
+                    ctx.lineWidth = dutyW * 2.6;
                     ctx.stroke();
-                    ctx.shadowBlur = 0;
+                    ctx.globalAlpha = 1.0;
+                    ctx.lineWidth = dutyW;
+                    ctx.stroke();
                 }
 
                 // inner guide line
@@ -6696,8 +6705,6 @@ Item {
                     font.family: "Exan"
                     font.pixelSize: 0.5 * unit
                     font.letterSpacing: 0.03 * unit
-                    style: Text.Outline
-                    styleColor: "#0f5a2c"
                     elide: Text.ElideRight
                     text: nameOrId
 
@@ -6777,8 +6784,6 @@ Item {
                         font.pixelSize: Math.max(0.22 * unit, tronSpeedo.radius * 0.1)
                         fontSizeMode: Text.HorizontalFit
                         minimumPixelSize: 0.14 * unit
-                        style: Text.Outline
-                        styleColor: "#6a22b8"
                         text: toFixed1Zero(parent.value) + vescConfig.distanceUnit
                     }
 
@@ -6841,8 +6846,6 @@ Item {
                         font.pixelSize: 0.42 * unit
                         fontSizeMode: Text.HorizontalFit
                         minimumPixelSize: 0.2 * unit
-                        style: Text.Outline
-                        styleColor: "#0f5a2c"
                         text: peakBox.valueText
                     }
 
@@ -8362,8 +8365,6 @@ Item {
                         text: swTab.text
                         font: swTab.font
                         color: swTab.checked ? swTheme.neonGreen : "#c98bff"
-                        style: Text.Outline
-                        styleColor: swTab.checked ? "#0f5a2c" : "#4a1784"
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                         fontSizeMode: Text.HorizontalFit
