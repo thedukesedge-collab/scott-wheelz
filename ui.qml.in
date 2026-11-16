@@ -999,6 +999,7 @@ Item {
         property int railStyle: 0  // 0 straight, 1 WTF
         property int tireStyle: 0  // 0 treaded, 1 slick
         property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
+        property string tuneColors: "{}"    // tune slot -> neon palette index (JSON)
     }
 
     Settings {
@@ -2246,6 +2247,28 @@ Item {
         readonly property color background: "#05060d"
         readonly property color grid: "#160d2b"
 
+        // Re-RinkFloat: neon palette for the tune preset buttons
+        readonly property var neonNames: ["Green", "Purple", "Cyan", "Magenta", "Orange", "Yellow", "Red", "Blue"]
+        readonly property var neonColors: ["#39ff7a", "#b14cff", "#00f0ff", "#ff2bd6", "#ff8a1f", "#f5ff3b", "#ff2b4f", "#3b7bff"]
+
+        function tuneColorIndex(slot) {
+            var map = {};
+            try { map = JSON.parse(swSettings.tuneColors || "{}"); } catch (e) {}
+            var i = map[slot];
+            return (i === undefined || i < 0 || i >= neonColors.length) ? ((slot - 1) % neonColors.length) : i;
+        }
+
+        function tuneColor(slot) {
+            return neonColors[tuneColorIndex(slot)];
+        }
+
+        function setTuneColor(slot, index) {
+            var map = {};
+            try { map = JSON.parse(swSettings.tuneColors || "{}"); } catch (e) {}
+            map[slot] = index;
+            swSettings.tuneColors = JSON.stringify(map);
+        }
+
         function color(name) {
             switch (name) {
             case "lightAccent":
@@ -2680,7 +2703,7 @@ Item {
             antialiasing: true
         }
 
-        SwLText {
+        SwNeonValue {
             id: valueText
             anchors.centerIn: parent
 
@@ -2689,13 +2712,12 @@ Item {
             text: round(parent.value)
         }
 
-        SwDText {
+        SwNeonLabel {
             id: valueUnit
             anchors.left: valueText.right
             anchors.baseline: valueText.baseline
-            anchors.leftMargin: font.pixelSize * 0.1
+            anchors.leftMargin: 0.04 * unit
 
-            font.pixelSize: fontSizeSmall
             text: parent.valueUnit
         }
 
@@ -5379,6 +5401,57 @@ Item {
                 visible: editTuneDialog.tune && !editTuneDiff.isEmpty
                 text: "Overwrite with current tune"
             }
+
+            // Re-RinkFloat: neon color for this preset button (saved right away)
+            LText {
+                Layout.fillWidth: true
+                text: "Button color: " + swTheme.neonNames[tuneColorRow.selected]
+            }
+
+            Flow {
+                id: tuneColorRow
+                Layout.fillWidth: true
+                spacing: 0.15 * unit
+
+                property int selected: editTuneDialog.tuneSlot ? swTheme.tuneColorIndex(editTuneDialog.tuneSlot) : 0
+
+                Repeater {
+                    model: swTheme.neonColors.length
+
+                    Rectangle {
+                        width: 0.8 * unit
+                        height: width
+                        radius: width / 2
+                        color: "#0b0718"
+                        border.width: index === tuneColorRow.selected ? 4 : 2
+                        border.color: swTheme.neonColors[index]
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: parent.width * 0.45
+                            height: width
+                            radius: width / 2
+                            color: swTheme.neonColors[index]
+                            opacity: index === tuneColorRow.selected ? 1 : 0.6
+                        }
+
+                        RectangularGlow {
+                            anchors.fill: parent
+                            z: -1
+                            visible: index === tuneColorRow.selected
+                            glowRadius: 0.15 * unit
+                            spread: 0.3
+                            cornerRadius: parent.radius + glowRadius
+                            color: swTheme.neonColors[index]
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: swTheme.setTuneColor(editTuneDialog.tuneSlot, index)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -6654,14 +6727,12 @@ Item {
                     width: parent.width
                     height: 1.9 * unit
 
-                    SwNText {
+                    SwNeonLabel {
                         id: currentDialLabel
                         anchors.bottom: parent.bottom
                         width: parent.height
-
-                        font.pixelSize: fontSizeSmall
                         horizontalAlignment: Text.AlignHCenter
-                        text: "current"
+                        text: "CURRENT"
                     }
 
                     Dial {
@@ -6678,15 +6749,13 @@ Item {
                         valueUnit: "A"
                     }
 
-                    SwNText {
+                    SwNeonLabel {
                         id: dutyDialLabel
                         anchors.bottom: parent.bottom
                         anchors.right: parent.right
                         width: parent.height
-
-                        font.pixelSize: fontSizeSmall
                         horizontalAlignment: Text.AlignHCenter
-                        text: "duty"
+                        text: "DUTY"
                     }
 
                     Dial {
@@ -7099,21 +7168,19 @@ Item {
                         readonly property real alpha: 0.05;
                         property real value: 0;
 
-                        SwLText {
+                        SwNeonValue {
                             width: parent.width
 
-                            font.pixelSize: hudLeft.fontSizeBars
                             horizontalAlignment: Text.AlignHCenter
                             text: (toFixed1Zero(parent.value))
                         }
 
-                        SwDText {
+                        SwNeonLabel {
                             width: parent.width
                             anchors.bottom: parent.bottom
 
-                            font.pixelSize: fontSizeSmall
                             horizontalAlignment: Text.AlignHCenter
-                            text: "Wh/%1".arg(vescConfig.distanceUnit)
+                            text: "WH/%1".arg(vescConfig.distanceUnit.toUpperCase())
                         }
 
                         function add(v) {
@@ -7671,12 +7738,11 @@ Item {
                 Layout.topMargin: 0.2 * unit
                 spacing: 0.2 * unit
 
-                Text {
+                SwNeonLabel {
                     Layout.preferredWidth: 1.3 * unit
                     Layout.alignment: Qt.AlignVCenter
-                    color: swTiltSlider.value !== 0 ? swTheme.neonGreen : swTheme.color("normalText")
-                    font.family: "Exan"
-                    font.pixelSize: 0.38 * unit
+                    color: swTiltSlider.value !== 0 ? swTheme.neonGreen : "#c98bff"
+                    font.pixelSize: 0.36 * unit
                     text: "TILT"
                 }
 
@@ -7756,12 +7822,11 @@ Item {
                     }
                 }
 
-                Text {
+                SwNeonValue {
                     Layout.preferredWidth: 1.5 * unit
                     Layout.alignment: Qt.AlignVCenter
                     horizontalAlignment: Text.AlignRight
-                    color: swTiltSlider.value !== 0 ? swTheme.neonGreen : swTheme.color("normalText")
-                    font.family: "Exan"
+                    color: swTiltSlider.value !== 0 ? swTheme.neonGreen : "#ead6ff"
                     font.pixelSize: 0.36 * unit
                     text: (swTiltSlider.degrees > 0 ? "+" : "") + swTiltSlider.degrees.toFixed(1) + "°"
                 }
@@ -7893,7 +7958,7 @@ Item {
 
         property real handleHeight: 0.75 * unit
         // Re-RinkFloat: collapses all the way down to just the swipe handle
-        property real minHeight: handleHeight + 2
+        property real minHeight: handleHeight + 1
         property real openMinHeight: handleHeight + bottomStackTabs.implicitHeight + bottomLine.implicitHeight + 2
         // Fixed (unit-based) height of everything on the main view except the
         // speedo, which takes what's left. Never read from layout results.
@@ -8008,9 +8073,48 @@ Item {
 
                 // Re-RinkFloat: Tron-style tab labels
                 component SwTabButton : TabButton {
+                    id: swTab
                     font.family: "Exan"
                     font.pixelSize: 0.27 * unit
                     font.letterSpacing: 0.03 * unit
+
+                    contentItem: Text {
+                        text: swTab.text
+                        font: swTab.font
+                        color: swTab.checked ? swTheme.neonGreen : "#c98bff"
+                        style: Text.Outline
+                        styleColor: swTab.checked ? "#0f5a2c" : "#4a1784"
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        fontSizeMode: Text.HorizontalFit
+                        minimumPixelSize: 0.16 * unit
+                        elide: Text.ElideRight
+                    }
+
+                    background: Rectangle {
+                        color: swTab.checked ? "#0e2a1a" : swTab.pressed ? "#24123f" : "#0b0718"
+
+                        // divider between tabs
+                        Rectangle {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 1
+                            height: parent.height * 0.5
+                            color: swTheme.neonPurple
+                            opacity: 0.5
+                        }
+
+                        // glowing underline on the active tab
+                        Rectangle {
+                            anchors.bottom: parent.bottom
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: parent.width * 0.8
+                            height: 0.07 * unit
+                            radius: height / 2
+                            color: swTheme.neonGreen
+                            visible: swTab.checked
+                        }
+                    }
                 }
 
                 SwTabButton {text: "TUNES"}
@@ -8019,7 +8123,15 @@ Item {
                 SwTabButton {text: "BOARD STYLE"}
 
                 background: Rectangle {
-                    color: swTheme.color("lightBackground")
+                    color: "#0b0718"
+
+                    Rectangle {
+                        anchors.top: parent.top
+                        width: parent.width
+                        height: 1
+                        color: swTheme.neonPurple
+                        opacity: 0.6
+                    }
 
                     Rectangle {
                         anchors.bottom: parent.bottom
@@ -8109,11 +8221,14 @@ Item {
                                             anchors.centerIn: tuneName ? parent : undefined
                                             anchors.top: tuneName ? undefined : parent.top
 
-                                            color: tuneName ? swTheme.color("lightText") : swTheme.color("disabledText")
-                                            font.pixelSize: 0.5 * unit
+                                            color: !tuneName ? swTheme.color("disabledText") : button.pressed ? swTheme.background : button.neon
+                                            font.family: "Exan"
+                                            font.pixelSize: 0.48 * unit
+                                            font.letterSpacing: 0.08 * unit
                                             horizontalAlignment: Text.AlignHCenter
-                                            wrapMode: Text.WordWrap
-                                            text: tuneName || "empty slot"
+                                            fontSizeMode: Text.HorizontalFit
+                                            minimumPixelSize: 0.22 * unit
+                                            text: (tuneName || "empty slot").toUpperCase()
                                         }
 
                                         SwDText {
@@ -8125,6 +8240,18 @@ Item {
                                             visible: !tuneName
                                             horizontalAlignment: Text.AlignHCenter
                                             text: "press and hold to set"
+                                        }
+
+                                        // shown on the tune that matches the board's current config
+                                        Text {
+                                            anchors.horizontalCenter: parent.horizontalCenter
+                                            anchors.top: tuneButtonText.bottom
+                                            visible: button.tuneDiff === 0
+                                            color: button.pressed ? swTheme.background : button.neon
+                                            font.family: "Exan"
+                                            font.pixelSize: 0.2 * unit
+                                            font.letterSpacing: 0.1 * unit
+                                            text: "ACTIVE"
                                         }
                                     }
 
@@ -8140,37 +8267,34 @@ Item {
                                     }
                                 }
 
+                                // Re-RinkFloat: neon slab like the HORN button, in the slot's
+                                // chosen color (press and hold > Color). Brighter glow + tinted
+                                // core on the active tune; fills solid while pressed.
+                                property color neon: swTheme.tuneColor(slot)
+
                                 background: Rectangle {
                                     id: buttonBg
                                     z: 1
 
-                                    border.color: tuneDiff === 0 ? swTheme.neonGreen : tuneName ? swTheme.neonPurple : swTheme.color("disabledText")
-                                    border.width: 2
-                                    radius: 3
+                                    radius: 0.3 * unit
+                                    border.width: 3
+                                    border.color: tuneName ? button.neon : swTheme.color("disabledText")
+                                    color: button.pressed && tuneName ? button.neon : button.tuneDiff === 0 ? Qt.rgba(button.neon.r, button.neon.g, button.neon.b, 0.18) : "#0b0718"
 
-                                    color: swTheme.color("darkBackground")
-
-                                    states: [
-                                        State {
-                                            name: "change"
-                                            when: button.pressed
-                                            PropertyChanges {target: buttonBg; color: swTheme.color("lightestBackground");}
-                                        }
-                                    ]
-
-                                    transitions: Transition {
-                                        ColorAnimation {property: "color"; duration: 200; easing.type: Easing.InOutCirc;}
+                                    Behavior on color {
+                                        ColorAnimation {duration: 150}
                                     }
-                                }
 
-                                Glow {
-                                    anchors.fill: buttonBg
-                                    radius: Math.round(0.25 * unit)
-                                    samples: radius * 2 + 1
-                                    opacity: 0.3
-                                    color: swTheme.neonGreen
-                                    visible: tuneDiff === 0
-                                    source: buttonBg
+                                    RectangularGlow {
+                                        anchors.fill: parent
+                                        z: -1
+                                        visible: !!button.tuneName
+                                        glowRadius: 0.25 * unit
+                                        spread: 0.2
+                                        cornerRadius: parent.radius + glowRadius
+                                        color: button.neon
+                                        opacity: button.pressed || button.tuneDiff === 0 ? 0.9 : 0.3
+                                    }
                                 }
                             }
                         }
@@ -8301,11 +8425,12 @@ Item {
                             value: 0
                         }
 
-                        SwLText {
+                        SwNeonLabel {
                             anchors.horizontalCenter: parent.horizontalCenter
 
-                            font.pixelSize: fontSizeBig
-                            text: "Magic Flywheel"
+                            font.pixelSize: 0.45 * unit
+                            font.letterSpacing: 0.06 * unit
+                            text: "MAGIC FLYWHEEL"
                         }
 
                         SwLText {
@@ -8315,14 +8440,56 @@ Item {
                             text: "Before enabling flywheel mode make sure that your board is nose up and perfectly balanced. To turn it off, you must disengage the board first."
                         }
 
+                        // Re-RinkFloat: Tron flywheel switch. Purple when off; neon
+                        // green, glowing and filled while flywheel mode is running.
                         Button {
                             id: flywheelOnButton
                             anchors.horizontalCenter: parent.horizontalCenter
+                            width: 4.2 * unit
+                            height: 1.1 * unit
+                            padding: 0
+                            leftInset: 0
+                            rightInset: 0
+                            topInset: 0
+                            bottomInset: 0
+
+                            property bool spinning: state.pkgMode === state.m_Flywheel
+                            property color neon: spinning ? swTheme.neonGreen : swTheme.neonPurple
 
                             enabled: [state.m_Normal, state.m_Flywheel].includes(state.pkgMode)
-                            text: state.pkgMode === state.m_Flywheel ? "Off" : "On"
+                            opacity: enabled ? 1 : 0.4
+                            text: spinning ? "FLYWHEEL OFF" : "FLYWHEEL ON"
                             onClicked: {
                                 commands.sendFlywheel(state.pkgMode === state.m_Normal);
+                            }
+
+                            contentItem: Text {
+                                text: flywheelOnButton.text
+                                color: flywheelOnButton.pressed ? swTheme.background : flywheelOnButton.neon
+                                font.family: "Exan"
+                                font.pixelSize: 0.36 * unit
+                                font.letterSpacing: 0.08 * unit
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                fontSizeMode: Text.HorizontalFit
+                                minimumPixelSize: 0.2 * unit
+                            }
+
+                            background: Rectangle {
+                                radius: 0.3 * unit
+                                color: flywheelOnButton.pressed ? flywheelOnButton.neon : flywheelOnButton.spinning ? "#0e2a1a" : "#140a26"
+                                border.color: flywheelOnButton.neon
+                                border.width: 3
+
+                                RectangularGlow {
+                                    anchors.fill: parent
+                                    z: -1
+                                    glowRadius: 0.25 * unit
+                                    spread: 0.2
+                                    cornerRadius: parent.radius + glowRadius
+                                    color: flywheelOnButton.neon
+                                    opacity: flywheelOnButton.spinning || flywheelOnButton.pressed ? 0.9 : 0.3
+                                }
                             }
                         }
 
