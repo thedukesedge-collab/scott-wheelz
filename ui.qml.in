@@ -7624,8 +7624,8 @@ Item {
                                     // truss lattice (X cells) either side of the hub
                                     context.beginPath();
                                     for (var side = -1; side <= 1; side += 2) {
-                                        for (var cx0 = 22; cx0 < 78; cx0 += 8) {
-                                            var xa = side * cx0, xb = side * (cx0 + 8);
+                                        for (var cx0 = 22; cx0 < 77; cx0 += 11) {
+                                            var xa = side * cx0, xb = side * (cx0 + 11);
                                             context.moveTo(xa, railY(xa) - 1);
                                             context.lineTo(xb, railY(xb) + 5);
                                             context.moveTo(xa, railY(xa) + 5);
