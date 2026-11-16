@@ -2320,13 +2320,9 @@ Item {
         font.letterSpacing: 0.02 * unit
         fontSizeMode: width > 0 ? Text.HorizontalFit : Text.FixedSize
         minimumPixelSize: 0.14 * unit
-        layer.enabled: true
-        layer.effect: Glow {
-            radius: Math.round(0.08 * unit)
-            samples: 2 * radius + 1
-            spread: 0.3
-            color: swTheme.neonPurple
-        }
+        // neon-tube edge; a plain text style so it renders everywhere
+        style: Text.Outline
+        styleColor: "#6a22b8"
     }
 
     component SwNeonValue : SwNeonLabel {
@@ -2400,8 +2396,8 @@ Item {
         SwEngineIcon {
             anchors.bottom: parent.bottom
             anchors.horizontalCenter: parent.horizontalCenter
-            width: 0.5 * unit
-            height: 0.42 * unit
+            width: 0.75 * unit
+            height: 0.55 * unit
             visible: parent.engineIcon
             color: parent.warn ? swTheme.color("red") : "#c98bff"
         }
