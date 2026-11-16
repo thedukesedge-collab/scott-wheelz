@@ -277,3 +277,9 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   the top center (`swHudTop.fitScale`, a Scale transform) to fit above the
   sheet, so everything stays visible and usable, just smaller. The grid
   background follows the visible area.
+
+### Rails: NORMAL or WTF (v1.2.3-rf12)
+- DUB TAIL removed (a saved value falls back to NORMAL). WTF redrawn from
+  a reference image: slimmer rail, center raised over the tire, shallow
+  dips at about +-33, ends level again, straight segments between kinks,
+  ends cut at an angle. Footpads sit on the slimmer rail.

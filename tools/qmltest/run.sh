@@ -151,7 +151,7 @@ for c in "$@"; do
   for frac in 0 1; do
     echo "=================== $c (sheetFraction=$frac)"
     mkdir -p ~/.config/QtProject
-    printf "[scottWheelz]\nsheetFraction=$frac\n" > ~/.config/QtProject/qmlscene.conf
+    printf "[scottWheelz]\nsheetFraction=$frac\nrailStyle=$frac\n" > ~/.config/QtProject/qmlscene.conf
     git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Rink-Float/g; s/{{VERSION}}/test/g" | python3 rjsmin.py > /tmp/ui.qml
     QML2_IMPORT_PATH=$stubs QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout 30 \
       /usr/lib/qt5/bin/qmlscene /tmp/wrapper.qml 2>&1 \

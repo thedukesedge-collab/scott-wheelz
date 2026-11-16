@@ -997,7 +997,7 @@ Item {
         category: "scottWheelz"  // old name kept so saved settings survive the rename
 
         property bool invertPitch: false
-        property int railStyle: 0  // 0 stock, 1 WTF, 2 dub tail
+        property int railStyle: 0  // 0 normal (straight), 1 WTF
         property int tireStyle: 0  // 0 treaded, 1 slick
         property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
     }
@@ -7171,10 +7171,8 @@ Item {
                             function railY(x) {
                                 // piecewise-straight profiles with sharp kinks
                                 switch (sw_rail) {
-                                case 1:  // WTF: "W" - kicked ends, flat drops under the pads, raised middle over the tire
-                                    return railLerp(x, [-97, -80, -45, -30, 30, 45, 80, 97], [-9, 3, 3, -2, -2, 3, 3, -9]);
-                                case 2:  // dub tail: flat, then a straight kick at the tail
-                                    return railLerp(x, [-97, 60, 97], [0, 0, -11]);
+                                case 1:  // WTF: center raised over the tire, shallow dips either side, ends back up
+                                    return railLerp(x, [-97, -33, -12, 12, 33, 97], [0, 3.2, -1.2, -1.2, 3.2, 0]);
                                 default:
                                     return 0;
                                 }
@@ -7192,6 +7190,23 @@ Item {
                             // rail outline in path units (call after context.scale)
                             function railPath(context) {
                                 var x;
+                                if (sw_rail === 1) {
+                                    // WTF: slimmer rail, straight segments between the
+                                    // kinks, ends cut at an angle (top corner further out)
+                                    var xs = [-97, -33, -12, 12, 33, 97];
+                                    context.beginPath();
+                                    context.moveTo(xs[0], railY(xs[0]) - 6);
+                                    for (var i = 1; i < xs.length; i++) {
+                                        context.lineTo(xs[i], railY(xs[i]) - 6);
+                                    }
+                                    context.lineTo(86, railY(86) + 6);
+                                    for (var j = xs.length - 2; j >= 1; j--) {
+                                        context.lineTo(xs[j], railY(xs[j]) + 6);
+                                    }
+                                    context.lineTo(-86, railY(-86) + 6);
+                                    context.closePath();
+                                    return;
+                                }
                                 context.beginPath();
                                 context.moveTo(-97, railY(-97) - 3);
                                 for (x = -95; x <= 95; x += 5) {
@@ -7208,12 +7223,13 @@ Item {
 
                             // a footpad following the rail top
                             function padPath(context, x0, x1) {
+                                var off = sw_rail === 1 ? 9 : 11;  // sits on the rail top
                                 context.beginPath();
-                                context.moveTo(x0, railY(x0) - 11);
+                                context.moveTo(x0, railY(x0) - off);
                                 for (var x = x0 + 2; x < x1; x += 2) {
-                                    context.lineTo(x, railY(x) - 11);
+                                    context.lineTo(x, railY(x) - off);
                                 }
-                                context.lineTo(x1, railY(x1) - 11);
+                                context.lineTo(x1, railY(x1) - off);
                             }
 
                             function paintBalanceOutline(context, rotation) {
@@ -8368,7 +8384,7 @@ Item {
                             spacing: 0.12 * unit
 
                             Repeater {
-                                model: ["STOCK", "WTF", "DUB TAIL"]
+                                model: ["NORMAL", "WTF"]
 
                                 Rectangle {
                                     width: 2.6 * unit
