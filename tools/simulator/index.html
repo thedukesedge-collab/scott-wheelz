@@ -256,10 +256,10 @@ const save = () => { try { localStorage.setItem('rrfSim', JSON.stringify(P)); } 
 
 // ---------- simulated board ----------
 const S = {
-  mode: 'ready', speed: 0, accel: 0, duty: 0, motorA: 0, battA: 0, pitch: 0, roll: 0, balance: 0, setpoint: 0,
+  mode: 'ready', speed: 0, accel: 0, duty: 0, motorA: 0, battA: 0, pitch: 14, roll: 0, balance: 14, setpoint: 0,
   fpL: false, fpR: false, wheelslip: false, battPct: 90, volts: 81.7, motorT: 19.5, escT: 27.7,
   trip: 0, life: 113.5, whmi: 0, erpm: 0, auto: false, target: 0, nextTarget: 0, scen: null, scenT: 0,
-  manSpeed: 0, manPitch: 0, manRoll: 0, tilt: 0, move: 0, okSince: 0, horn: false, nose: 0
+  manSpeed: 0, manPitch: 14, manRoll: 0, prevMode: 'ready', tilt: 0, move: 0, okSince: 0, horn: false, nose: 0
 };
 const running = () => S.mode === 'running';
 
@@ -523,7 +523,7 @@ $('flyBtn').onclick = () => {
 
 // ---------- simulator controls ----------
 const sliderDefs = [
-  ['manSpeed', 'Speed', 0, 50, 0.5, 'mph'], ['manPitch', 'Pitch', -15, 15, 0.1, '°'], ['manRoll', 'Roll', -40, 40, 0.5, '°'],
+  ['manSpeed', 'Speed', 0, 50, 0.5, 'mph'], ['manPitch', 'Pitch', -20, 20, 0.5, '°'], ['manRoll', 'Roll', -40, 40, 0.5, '°'],
   ['battPct', 'Battery', 0, 100, 1, '%'], ['motorT', 'Motor temp', 10, 110, 1, '°C'], ['escT', 'ESC temp', 10, 100, 1, '°C']
 ];
 sliderDefs.forEach(([k, label, mn, mx, st, un]) => {
@@ -540,7 +540,7 @@ function syncSliders() {
     const autoLocked = S.auto && (k === 'manSpeed' || k === 'manPitch' || k === 'manRoll');
     row.classList.toggle('locked', autoLocked);
     inp.disabled = autoLocked;
-    if (document.activeElement !== inp && (k === 'battPct' || k === 'motorT' || k === 'escT')) inp.value = S[k];
+    if (document.activeElement !== inp && (k === 'battPct' || k === 'motorT' || k === 'escT' || k === 'manPitch' || k === 'manSpeed')) inp.value = S[k];
     row.querySelector('b').textContent = (+inp.value).toFixed(st(def[4])) + def[5];
   });
   $('sbAuto').classList.toggle('on', S.auto);
@@ -613,7 +613,17 @@ function step(now) {
   if (S.nose) S.duty = clamp(S.duty + 0.13, 0, 1);
   S.erpm = S.speed * 1350;
   S.battA = S.motorA * S.duty;
-  const pTarget = running() ? (S.auto || S.scen ? S.accel * 0.9 + (Math.random() - 0.5) * 0.4 : S.manPitch) + S.tilt * 4 : (S.mode === 'flywheel' ? 0 : -14);
+  // pitch: + = nose up / tail down. Resting on the tail (+14°) when nobody's on it;
+  // the Pitch slider moves it whenever Auto ride / a scenario isn't driving it
+  if (S.mode !== S.prevMode) {
+    if (S.mode === 'ready') S.manPitch = 14;
+    else if (S.mode === 'running') S.manPitch = 0;
+    S.prevMode = S.mode;
+  }
+  let pTarget;
+  if (S.scen || (S.auto && running())) pTarget = S.accel * 1.6 + (Math.random() - 0.5) * 0.6 + S.tilt * 4;
+  else if (S.mode === 'flywheel') pTarget = 0;
+  else pTarget = S.manPitch + (running() ? S.tilt * 4 : 0);
   S.pitch += (pTarget - S.pitch) * 0.25;
   S.balance = running() ? S.pitch * 0.85 : S.pitch;
   S.setpoint = running() ? S.tilt * 4 : 0;
