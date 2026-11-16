@@ -39,6 +39,9 @@ class Prefs extends ChangeNotifier {
   int get dialMax => _get('dialMax', 40);
   set dialMax(int v) => _set('dialMax', v);
 
+  bool get tempF => _get('tempF', false);
+  set tempF(bool v) => _set('tempF', v);
+
   bool get metric => _get('metric', false);
   set metric(bool v) => _set('metric', v);
 

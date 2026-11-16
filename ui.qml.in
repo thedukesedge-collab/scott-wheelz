@@ -1063,6 +1063,7 @@ Item {
         property string tuneColors: "{}"    // tune slot -> neon palette index (JSON)
         // free-spin limiter (sent to the board, which doesn't save it)
         property bool freespinOn: false
+        property bool tempF: false  // show temperatures in °F (tap the engine icon)
         property real freespinLimitKmh: 72.4  // 45 mph
         property bool speedo40Migrated: false  // one-time bump of a saved 30 mph dial to 40
         // ride peaks, kept until the board's trip counter resets (power cycle)
@@ -2470,6 +2471,8 @@ Item {
         property real value
         property real warningThreshold: 0
         property bool warn: !!warningThreshold && value > warningThreshold
+        property bool fahrenheit: false  // value stays in °C; only the display converts
+        readonly property real shownValue: fahrenheit ? value * 1.8 + 32 : value
 
         SwNeonValue {
             anchors.top: parent.top
@@ -2477,7 +2480,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             color: parent.warn ? swTheme.color("red") : "#ead6ff"
             font.pixelSize: 0.4 * unit
-            text: toFixed1Zero(parent.value) + parent.unitText
+            text: toFixed1Zero(parent.shownValue) + parent.unitText
         }
 
         SwNeonLabel {
@@ -8050,7 +8053,14 @@ Item {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     engineIcon: true
-                    unitText: "°C"
+                    fahrenheit: swSettings.tempF
+                    unitText: swSettings.tempF ? "°F" : "°C"
+
+                    // Re-RinkFloat: tap the engine to switch °C / °F
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: swSettings.tempF = !swSettings.tempF
+                    }
                     warningThreshold: motorConfig.tempMotorStart - preferences.tempWarningOffset
                     value: state.rtData["motor.motor_temp"]
                 }
@@ -8060,7 +8070,8 @@ Item {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     labelText: "ESC"
-                    unitText: "°C"
+                    fahrenheit: swSettings.tempF
+                    unitText: swSettings.tempF ? "°F" : "°C"
                     warningThreshold: motorConfig.tempFetStart - preferences.tempWarningOffset
                     value: state.rtData["motor.mosfet_temp"]
                 }
@@ -9075,8 +9086,8 @@ Item {
                                     Value {label: "Motor current"; unit: "A"; value: toFixed1Zero(state.rtData["motor.current"]);}
                                     Value {label: "Battery current"; unit: "A"; value: toFixed1Zero(state.rtData["motor.batt_current"]);}
                                     Value {label: "Battery voltage"; unit: "V"; value: toFixed1Zero(state.rtData["motor.batt_voltage"]);}
-                                    Value {label: "Motor temp"; unit: "°C"; value: toFixed1Zero(state.rtData["motor.motor_temp"]);}
-                                    Value {label: "ESC temp"; unit: "°C"; value: toFixed1Zero(state.rtData["motor.mosfet_temp"]);}
+                                    Value {label: "Motor temp"; unit: swSettings.tempF ? "°F" : "°C"; value: toFixed1Zero(swSettings.tempF ? state.rtData["motor.motor_temp"] * 1.8 + 32 : state.rtData["motor.motor_temp"]);}
+                                    Value {label: "ESC temp"; unit: swSettings.tempF ? "°F" : "°C"; value: toFixed1Zero(swSettings.tempF ? state.rtData["motor.mosfet_temp"] * 1.8 + 32 : state.rtData["motor.mosfet_temp"]);}
                                 }
 
                                 Column {

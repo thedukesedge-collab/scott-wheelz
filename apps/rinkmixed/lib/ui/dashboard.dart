@@ -246,13 +246,20 @@ class _DashboardState extends State<Dashboard> {
   Widget _midRow(double u) {
     final mt = b.v('motor.motor_temp'), et = b.v('motor.mosfet_temp');
     final mWarn = mt.isFinite && mt > 85, eWarn = et.isFinite && et > 75;
+    final f = b.prefs.tempF;
+    String t(double c) => '${fx1(f ? c * 1.8 + 32 : c)}${f ? '°F' : '°C'}';
     return Stack(children: [
-      Positioned(left: 0, top: 0, bottom: 0, width: 1.7 * u, child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        FittedBox(child: Text('${fx1(mt)}°C', style: tron(0.4 * u, mWarn ? Neon.red : Neon.lavLight))),
-        SizedBox(width: 0.75 * u, height: 0.55 * u, child: CustomPaint(painter: IconPainter(enginePath, mWarn ? Neon.red : Neon.lav, box: 48, lineWidth: 3))),
-      ])),
+      // tap the engine to switch °C / °F
+      Positioned(left: 0, top: 0, bottom: 0, width: 1.7 * u, child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => b.prefs.tempF = !f,
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          FittedBox(child: Text(t(mt), style: tron(0.4 * u, mWarn ? Neon.red : Neon.lavLight))),
+          SizedBox(width: 0.75 * u, height: 0.55 * u, child: CustomPaint(painter: IconPainter(enginePath, mWarn ? Neon.red : Neon.lav, box: 48, lineWidth: 3))),
+        ]),
+      )),
       Positioned(right: 0, top: 0, bottom: 0, width: 1.7 * u, child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        FittedBox(child: Text('${fx1(et)}°C', style: tron(0.4 * u, eWarn ? Neon.red : Neon.lavLight))),
+        FittedBox(child: Text(t(et), style: tron(0.4 * u, eWarn ? Neon.red : Neon.lavLight))),
         NeonLabel('ESC', size: 0.3 * u),
       ])),
       Positioned(left: 1.9 * u, right: 1.9 * u, top: 0, bottom: 0, child: Center(child: FittedBox(

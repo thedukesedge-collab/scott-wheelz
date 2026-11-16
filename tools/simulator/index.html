@@ -212,7 +212,7 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver" class="tron"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf35 · sim</span></div>
+      <div id="ver" class="tron"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf36 · sim</span></div>
     </div>
   </div>
 
@@ -257,7 +257,7 @@ const NEON = ['#39ff7a', '#b14cff', '#00f0ff', '#ff2bd6', '#ff8a1f', '#f5ff3b', 
 const fx1 = v => (isFinite(v) ? (Math.round(v * 10) / 10).toFixed(1) : '-.-');
 
 // ---------- persisted prefs (this browser only) ----------
-const defaults = { fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
+const defaults = { tempF: false, fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
 let P = Object.assign({}, defaults);
 try { Object.assign(P, JSON.parse(localStorage.getItem('rrfSim') || '{}')); } catch (e) {}
 const save = () => { try { localStorage.setItem('rrfSim', JSON.stringify(P)); } catch (e) {} };
@@ -539,6 +539,10 @@ $('fsPill').onclick = () => {
     P.fsMph = Math.max(40, v); P.fsOn = true; save(); renderFs(); toast('Free-spin limiter on');
   });
 };
+
+// tap the engine icon / motor temp to switch °C / °F
+$('motorStat').style.cursor = 'pointer';
+$('motorStat').onclick = () => { P.tempF = !P.tempF; save(); toast(P.tempF ? 'Temperatures in °F' : 'Temperatures in °C'); };
 
 // ---------- flywheel ----------
 $('flyBtn').onclick = () => {
@@ -1067,9 +1071,10 @@ function updateDom() {
   const ro = running() ? 1 : 0;
   $('spL').style.opacity = ro; $('spV').style.opacity = ro; $('spV').textContent = fx1(S.setpoint) + '°';
   const mw = S.motorT > 85, ew = S.escT > 75;
-  $('motorV').textContent = fx1(S.motorT) + '°C'; $('motorV').style.color = mw ? RED : '#ead6ff';
+  const tC = c => P.tempF ? c * 1.8 + 32 : c, tU = P.tempF ? '°F' : '°C';
+  $('motorV').textContent = fx1(tC(S.motorT)) + tU; $('motorV').style.color = mw ? RED : '#ead6ff';
   $('engine').firstChild.setAttribute('stroke', mw ? RED : '#c98bff');
-  $('escV').textContent = fx1(S.escT) + '°C'; $('escV').style.color = ew ? RED : '#ead6ff';
+  $('escV').textContent = fx1(tC(S.escT)) + tU; $('escV').style.color = ew ? RED : '#ead6ff';
   let st = S.mode === 'flywheel' ? 'FLYWHEEL' : running() ? (S.nose ? 'PUSHBACK: DUTY' : 'RUNNING') : 'READY';
   $('status').textContent = st; $('status').style.color = S.nose ? ORANGE : '#d6ffe4';
   // tilt
@@ -1097,7 +1102,7 @@ function updateDom() {
   // data page
   if ($('pgData').classList.contains('on') && plotMode) drawPlot();
   if ($('pgData').classList.contains('on') && !plotMode) {
-    const rows = [['Speed', fx1(S.speed) + ' mph'], ['ERPM', Math.round(S.erpm)], ['Duty', (S.duty * 100).toFixed(1) + ' %'], ['Motor current', fx1(S.motorA) + ' A'], ['Battery current', fx1(S.battA) + ' A'], ['Battery voltage', S.volts.toFixed(1) + ' V'], ['Pitch', fx1(S.pitch) + '°'], ['Balance pitch', fx1(S.balance) + '°'], ['Roll', fx1(S.roll) + '°'], ['Setpoint', fx1(S.setpoint) + '°'], ['Footpads', (S.fpL ? 'L' : '-') + (S.fpR ? 'R' : '-')], ['Wheelslip', S.wheelslip ? 'YES' : 'no'], ['Motor temp', fx1(S.motorT) + ' °C'], ['ESC temp', fx1(S.escT) + ' °C'], ['Trip', S.trip.toFixed(2) + ' mi'], ['Lifetime', S.life.toFixed(1) + ' mi']];
+    const rows = [['Speed', fx1(S.speed) + ' mph'], ['ERPM', Math.round(S.erpm)], ['Duty', (S.duty * 100).toFixed(1) + ' %'], ['Motor current', fx1(S.motorA) + ' A'], ['Battery current', fx1(S.battA) + ' A'], ['Battery voltage', S.volts.toFixed(1) + ' V'], ['Pitch', fx1(S.pitch) + '°'], ['Balance pitch', fx1(S.balance) + '°'], ['Roll', fx1(S.roll) + '°'], ['Setpoint', fx1(S.setpoint) + '°'], ['Footpads', (S.fpL ? 'L' : '-') + (S.fpR ? 'R' : '-')], ['Wheelslip', S.wheelslip ? 'YES' : 'no'], ['Motor temp', fx1(P.tempF ? S.motorT * 1.8 + 32 : S.motorT) + (P.tempF ? ' °F' : ' °C')], ['ESC temp', fx1(P.tempF ? S.escT * 1.8 + 32 : S.escT) + (P.tempF ? ' °F' : ' °C')], ['Trip', S.trip.toFixed(2) + ' mi'], ['Lifetime', S.life.toFixed(1) + ' mi']];
     $('dataList').innerHTML = rows.map(r => '<div class="datarow"><span>' + r[0] + '</span><span>' + r[1] + '</span></div>').join('');
   }
   syncSliders();

@@ -358,6 +358,12 @@ class _DataPageState extends State<DataPage> {
     );
   }
 
+  String _temp(double c) {
+    final fh = b.prefs.tempF;
+    final v = fh ? c * 1.8 + 32 : c;
+    return '${v.isFinite ? v.toStringAsFixed(1) : '-.-'} ${fh ? '°F' : '°C'}';
+  }
+
   String _fmt(double v) => v.abs() >= 100 ? '${v.round()}' : v.toStringAsFixed(1);
 
   Widget _text() {
@@ -373,8 +379,8 @@ class _DataPageState extends State<DataPage> {
       ('Motor current', '${f('motor.current')} A'),
       ('Battery current', '${f('motor.batt_current')} A'),
       ('Battery voltage', '${f('motor.batt_voltage')} V'),
-      ('Motor temp', '${f('motor.motor_temp')} °C'),
-      ('ESC temp', '${f('motor.mosfet_temp')} °C'),
+      ('Motor temp', _temp(b.v('motor.motor_temp'))),
+      ('ESC temp', _temp(b.v('motor.mosfet_temp'))),
       ('Pitch', '${f('imu.pitch')}°'),
       ('Balance pitch', '${f('imu.balance_pitch')}°'),
       ('Roll', '${f('imu.roll')}°'),
