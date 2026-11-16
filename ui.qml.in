@@ -7710,11 +7710,11 @@ Item {
             Rectangle {
                 id: hornFrame
                 Layout.fillWidth: true
-                Layout.preferredHeight: 1.35 * unit
+                Layout.preferredHeight: 1.75 * unit  // bigger now the sheet folds away
                 Layout.leftMargin: 0.15 * unit
                 Layout.rightMargin: 0.15 * unit
                 Layout.topMargin: 0.15 * unit
-                Layout.bottomMargin: 0.15 * unit
+                Layout.bottomMargin: 0.35 * unit  // gap so the horn and the sheet handle can't be mis-hit
                 radius: 0.3 * unit
 
                 readonly property real budgetMax: 3.0
@@ -7780,7 +7780,7 @@ Item {
                     text: hornFrame.honking ? "HONK" : hornFrame.blocked || (hornButton.pressed && hornFrame.budget <= 0) ? "WAIT" : hornFrame.expired ? "MAX" : "HORN"
                     color: hornFrame.honking ? swTheme.background : swTheme.neonPurple
                     font.family: "Exan"
-                    font.pixelSize: 0.62 * unit
+                    font.pixelSize: 0.75 * unit
                     font.letterSpacing: 0.2 * unit
                 }
 
@@ -7820,17 +7820,20 @@ Item {
         anchors.bottom: root.bottom
         height: minHeight + (maxHeight - minHeight) * fraction
         z: 5
+        clip: true  // collapsed, only the handle peeks out
 
         Material.accent: swTheme.neonGreen
         Material.foreground: swTheme.color("normalText")
         Material.background: swTheme.color("lightBackground")
 
         property real handleHeight: 0.75 * unit
-        property real minHeight: handleHeight + bottomStackTabs.implicitHeight + bottomLine.implicitHeight + 2
+        // Re-RinkFloat: collapses all the way down to just the swipe handle
+        property real minHeight: handleHeight + 2
+        property real openMinHeight: handleHeight + bottomStackTabs.implicitHeight + bottomLine.implicitHeight + 2
         // Fixed (unit-based) height of everything on the main view except the
         // speedo, which takes what's left. Never read from layout results.
-        property real hudFixedHeight: (0.8 + 1.1 + 0.12 + 1.3 + 1.0 + 0.2 + 1.35 + 0.3 + 1.0) * unit + Math.max(hudLeft.contentHeight, pitch.height)
-        property real maxHeight: Math.max(minHeight, root.height * 0.4)  // up to 2/5 of the screen
+        property real hudFixedHeight: (0.8 + 1.1 + 0.12 + 1.3 + 1.0 + 0.2 + 1.75 + 0.5 + 1.0) * unit + Math.max(hudLeft.contentHeight, pitch.height)
+        property real maxHeight: Math.max(openMinHeight, root.height * 0.4)  // up to 2/5 of the screen
         property real fraction: 0  // 0 = collapsed, 1 = fully up
         property bool dragging: false
 
@@ -7870,8 +7873,11 @@ Item {
         }
 
         ColumnLayout {
-            anchors.fill: parent
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
             anchors.margins: 1
+            height: bottomSheet.maxHeight - 2  // full size; the sheet clips it
             spacing: 0
 
             Item {
