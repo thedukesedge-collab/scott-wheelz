@@ -7312,38 +7312,11 @@ Item {
                             }
                         }
 
-                        // Rink-Float: tap = next rail shape, long-press = flip direction
                         MouseArea {
                             anchors.fill: pitchCanvas
                             onPressAndHold: swSettings.invertPitch = !swSettings.invertPitch
-                            onClicked: {
-                                swSettings.railStyle = (swSettings.railStyle + 1) % 4;
-                                railNameText.flash();
-                            }
                         }
 
-                        Text {
-                            id: railNameText
-                            anchors.horizontalCenter: pitchCanvas.horizontalCenter
-                            anchors.verticalCenter: pitchCanvas.verticalCenter
-                            anchors.verticalCenterOffset: -pitchCanvas.height * 0.3
-                            color: swTheme.neonGreen
-                            font.family: "Exan"
-                            font.pixelSize: fontSizeSmall
-                            text: ["STOCK RAILS", "WTF RAILS", "DUB TAIL", "DOUBLE KICK"][swSettings.railStyle] ?? ""
-                            opacity: 0
-
-                            function flash() {
-                                railNameFade.restart();
-                            }
-
-                            SequentialAnimation {
-                                id: railNameFade
-                                PropertyAction {target: railNameText; property: "opacity"; value: 1}
-                                PauseAnimation {duration: 900}
-                                NumberAnimation {target: railNameText; property: "opacity"; to: 0; duration: 500}
-                            }
-                        }
 
                         Text {
                             id: pitchPushbackText
@@ -7880,13 +7853,14 @@ Item {
                 // Rink-Float: Tron-style tab labels
                 component SwTabButton : TabButton {
                     font.family: "Exan"
-                    font.pixelSize: 0.38 * unit
-                    font.letterSpacing: 0.08 * unit
+                    font.pixelSize: 0.27 * unit
+                    font.letterSpacing: 0.03 * unit
                 }
 
                 SwTabButton {text: "TUNES"}
                 SwTabButton {text: "CONTROL"}
                 SwTabButton {text: "DATA"}
+                SwTabButton {text: "BOARD STYLE"}
 
                 background: Rectangle {
                     color: swTheme.color("lightBackground")
@@ -8175,86 +8149,6 @@ Item {
                             anchors.horizontalCenter: parent.horizontalCenter
 
                             font.pixelSize: fontSizeBig
-                            text: "Rails"
-                        }
-
-                        // Rink-Float: rail shape for the side view (also: tap the side view)
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 0.12 * unit
-
-                            Repeater {
-                                model: ["STOCK", "WTF", "DUB TAIL", "DBL KICK"]
-
-                                Rectangle {
-                                    width: 2.1 * unit
-                                    height: 0.75 * unit
-                                    radius: height / 2
-                                    property bool selected: swSettings.railStyle === index
-                                    color: selected ? swTheme.neonGreen : "transparent"
-                                    border.color: selected ? swTheme.neonGreen : swTheme.neonPurple
-                                    border.width: 2
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: modelData
-                                        color: parent.selected ? swTheme.background : swTheme.neonPurple
-                                        font.family: "Exan"
-                                        font.pixelSize: 0.28 * unit
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        onClicked: swSettings.railStyle = index
-                                    }
-                                }
-                            }
-                        }
-
-                        SwLText {
-                            anchors.horizontalCenter: parent.horizontalCenter
-
-                            font.pixelSize: fontSizeBig
-                            text: "Tire"
-                        }
-
-                        // Rink-Float: tire style for the side and front views
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 0.12 * unit
-
-                            Repeater {
-                                model: ["TREADED", "SLICK"]
-
-                                Rectangle {
-                                    width: 2.6 * unit
-                                    height: 0.75 * unit
-                                    radius: height / 2
-                                    property bool selected: swSettings.tireStyle === index
-                                    color: selected ? swTheme.neonGreen : "transparent"
-                                    border.color: selected ? swTheme.neonGreen : swTheme.neonPurple
-                                    border.width: 2
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: modelData
-                                        color: parent.selected ? swTheme.background : swTheme.neonPurple
-                                        font.family: "Exan"
-                                        font.pixelSize: 0.28 * unit
-                                    }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        onClicked: swSettings.tireStyle = index
-                                    }
-                                }
-                            }
-                        }
-
-                        SwLText {
-                            anchors.horizontalCenter: parent.horizontalCenter
-
-                            font.pixelSize: fontSizeBig
                             text: "Magic Flywheel"
                         }
 
@@ -8418,6 +8312,142 @@ Item {
                                 rtPlotData.init(state.rtDataAllItems, state.ticksPerSecond);
                                 rtPlot.init(state.ticksPerSecond);
                             }
+                        }
+                    }
+                }
+
+                // Rink-Float: Board Style - looks of the side / front views only
+                ScrollView {
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    contentWidth: availableWidth
+                    clip: true
+
+                    Column {
+                        anchors.fill: parent
+                        anchors.leftMargin: 0.15 * unit
+                        anchors.rightMargin: 0.15 * unit
+                        spacing: 0.15 * unit
+
+                        Item {
+                            width: parent.width
+                            height: 0.1 * unit
+                        }
+
+                        SwLText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            font.pixelSize: fontSizeBig
+                            text: "Rails"
+                        }
+
+                        // Rink-Float: rail shape for the side view
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.12 * unit
+
+                            Repeater {
+                                model: ["STOCK", "WTF", "DUB TAIL", "DBL KICK"]
+
+                                Rectangle {
+                                    width: 2.1 * unit
+                                    height: 0.75 * unit
+                                    radius: height / 2
+                                    property bool selected: swSettings.railStyle === index
+                                    color: selected ? swTheme.neonGreen : "transparent"
+                                    border.color: selected ? swTheme.neonGreen : swTheme.neonPurple
+                                    border.width: 2
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData
+                                        color: parent.selected ? swTheme.background : swTheme.neonPurple
+                                        font.family: "Exan"
+                                        font.pixelSize: 0.28 * unit
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onClicked: swSettings.railStyle = index
+                                    }
+                                }
+                            }
+                        }
+
+                        SwLText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            font.pixelSize: fontSizeBig
+                            text: "Tire"
+                        }
+
+                        // Rink-Float: tire style for the side and front views
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.12 * unit
+
+                            Repeater {
+                                model: ["TREADED", "SLICK"]
+
+                                Rectangle {
+                                    width: 2.6 * unit
+                                    height: 0.75 * unit
+                                    radius: height / 2
+                                    property bool selected: swSettings.tireStyle === index
+                                    color: selected ? swTheme.neonGreen : "transparent"
+                                    border.color: selected ? swTheme.neonGreen : swTheme.neonPurple
+                                    border.width: 2
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData
+                                        color: parent.selected ? swTheme.background : swTheme.neonPurple
+                                        font.family: "Exan"
+                                        font.pixelSize: 0.28 * unit
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onClicked: swSettings.tireStyle = index
+                                    }
+                                }
+                            }
+                        }
+
+                        SwLText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            font.pixelSize: fontSizeBig
+                            text: "Side view"
+                        }
+
+                        // Rink-Float: same as long-pressing the side view
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: 4.2 * unit
+                            height: 0.75 * unit
+                            radius: height / 2
+                            color: swSettings.invertPitch ? swTheme.neonGreen : "transparent"
+                            border.color: swSettings.invertPitch ? swTheme.neonGreen : swTheme.neonPurple
+                            border.width: 2
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: swSettings.invertPitch ? "FLIPPED" : "NORMAL"
+                                color: swSettings.invertPitch ? swTheme.background : swTheme.neonPurple
+                                font.family: "Exan"
+                                font.pixelSize: 0.28 * unit
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: swSettings.invertPitch = !swSettings.invertPitch
+                            }
+                        }
+
+                        Item {
+                            width: parent.width
+                            height: 0.2 * unit
                         }
                     }
                 }

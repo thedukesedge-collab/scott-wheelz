@@ -237,3 +237,9 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - Control tab > Tire: TREADED (tread ticks, the original look) or SLICK
   (smooth, slightly bolder ring in the side view; rounder, no tread lines in
   the front view). Saved in `swSettings.tireStyle`. Display only.
+
+### Board Style tab (v1.2.3-rf8)
+- New 4th sheet tab BOARD STYLE holds Rails, Tire and Side view
+  (normal/flipped) options; removed from the Control tab. Tapping the side
+  view no longer cycles rails (long-press still flips it). Tab labels are
+  smaller (0.27 unit) so four fit.
