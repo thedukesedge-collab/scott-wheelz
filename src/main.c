@@ -957,8 +957,7 @@ static void refloat_thd(void *arg) {
             // Braking requests still pass. Never active in darkride, flywheel or
             // handtest, and the app only allows limits of 40 mph / 64 km/h and up.
             if (d->freespin_limit_speed > 0.0f && d->state.wheelslip && !d->state.darkride &&
-                d->state.mode == MODE_NORMAL &&
-                fabsf(d->motor.speed) > d->freespin_limit_speed &&
+                d->state.mode == MODE_NORMAL && fabsf(d->motor.speed) > d->freespin_limit_speed &&
                 sign(new_current) == d->motor.erpm_sign) {
                 new_current = 0.0f;
                 d->freespin_limiting = true;
