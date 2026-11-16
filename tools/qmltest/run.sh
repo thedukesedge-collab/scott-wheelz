@@ -153,7 +153,9 @@ for c in "$@"; do
     mkdir -p ~/.config/QtProject
     # mark first-run hints as seen so they don't pop the sheet open
     printf "[scottWheelz]\nsheetFraction=$frac\nrailStyle=$frac\n\n[uiHints]\nstatusText=true\nplotCursor=true\ndrGeneral=true\ndrStartStop=true\ndrDownload=true\n" > ~/.config/QtProject/qmlscene.conf
-    git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Re-RinkFloat/g; s/{{VERSION}}/test/g" | python3 rjsmin.py > /tmp/ui.qml
+    git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Re-RinkFloat/g; s/{{VERSION}}/test/g" \
+      | sed "s/property real sheetFraction: 0 /property real sheetFraction: $frac /; s/bottomSheet.open();//" \
+      | python3 rjsmin.py > /tmp/ui.qml
     QML2_IMPORT_PATH=$stubs QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout 30 \
       /usr/lib/qt5/bin/qmlscene /tmp/wrapper.qml 2>&1 \
       | grep -v "Cannot read property\|is not a function\|of null\|of undefined\|Unable to assign \[undefined\]\|is not defined" | head -120
