@@ -175,6 +175,10 @@ Item {
                 commands.sendRcMove(moveSlider.value);
             }
 
+            // Re-RinkFloat: free-spin limiter, resent every second (the board
+            // forgets it on power cycle)
+            freespinSender.tick();
+
             // Re-RinkFloat: keep the horn alive while the button is held
             hornFrame.tick();
             if (hornFrame.honking) {
@@ -189,6 +193,29 @@ Item {
                 swTiltSlider.sentNonZero = swTiltActive;
             } else if (tiltEnabled.checked) {
                 vescCommands.lispSendReplCmd("(set-remote-state " + tiltSlider.value + " 0 0 0 0)");
+            }
+        }
+    }
+
+    // Re-RinkFloat: free-spin limiter. Minimum 40 mph / 64.4 km/h, enforced
+    // here and in the package.
+    QtObject {
+        id: freespinSender
+
+        readonly property real minKmh: 64.4
+        property int count: 0
+
+        function send() {
+            var data = commands.createData(4, commands.c_FREESPIN_LIMIT);
+            var v = swSettings.freespinOn ? Math.round(Math.max(minKmh, swSettings.freespinLimitKmh) * 10) : 0;
+            data.setUint16(2, v);
+            vescCommands.sendCustomAppData(data.buffer);
+        }
+
+        function tick() {
+            if (++count >= 10) {
+                count = 0;
+                send();
             }
         }
     }
@@ -666,6 +693,7 @@ Item {
         readonly property int c_DATA_RECORD_HEADER: 42
         readonly property int c_DATA_RECORD_DATA: 43
         readonly property int c_SW_HORN: 120  // Re-RinkFloat
+        readonly property int c_FREESPIN_LIMIT: 121  // Re-RinkFloat
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
         // Dynamic range: +-131008.0
@@ -923,6 +951,7 @@ Item {
                 var wheelslip = sensorAndFlags & 0b00000001;
                 state.wheelslip = wheelslip;
                 state.darkride = sensorAndFlags & 0b00000010;
+                state.freespinLimiting = !!(sensorAndFlags & 0b00000100);
                 state.charging = sensorAndFlags & 0b00100000;
 
                 var setpointAndStop = dv.getUint8(ind++);
@@ -1032,6 +1061,9 @@ Item {
         property bool flipView: false  // side view mirrored: nose on the right
         property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
         property string tuneColors: "{}"    // tune slot -> neon palette index (JSON)
+        // free-spin limiter (sent to the board, which doesn't save it)
+        property bool freespinOn: false
+        property real freespinLimitKmh: 72.4  // 45 mph
         property bool speedo40Migrated: false  // one-time bump of a saved 30 mph dial to 40
         // ride peaks, kept until the board's trip counter resets (power cycle)
         // or you press and hold either readout
@@ -1917,6 +1949,7 @@ Item {
         property string stopConditionString: stopConditionToString.get(stopCondition) ?? "unknown (%1)".arg(stopCondition)
 
         property bool darkride: false
+        property bool freespinLimiting: false  // Re-RinkFloat: free-spin limiter holding the wheel
         property bool wheelslip: false
         property bool charging: false
 
@@ -2792,6 +2825,7 @@ Item {
         property real erpm: 0
         property string unitText: ""
         property bool wheelslip: false
+        property bool spinLimiting: false  // Re-RinkFloat
 
         property int segments: 40
         property real sweepDeg: 240
@@ -2929,7 +2963,7 @@ Item {
             color: swTheme.color("red")
             font.family: "Exan"
             font.pixelSize: Math.max(fontSizeSuperSmall, speedo.radius * 0.11)
-            text: "WHEELSLIP"
+            text: speedo.spinLimiting ? "SPIN LIMIT" : "WHEELSLIP"
             opacity: speedo.wheelslip ? 1 : 0
 
             Behavior on opacity {
@@ -5323,6 +5357,33 @@ Item {
         }
     }
 
+    // Re-RinkFloat: safety warning before the free-spin limiter is turned on
+    BaseDialog {
+        id: freespinWarningDialog
+        parent: ApplicationWindow.overlay
+
+        title: "\u26A0 Free-spin limiter"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+
+        property real limitDisplay: 45
+
+        onOpened: standardButton(Dialog.Ok).text = "I understand, turn on"
+
+        onAccepted: {
+            swSettings.freespinLimitKmh = Math.max(freespinSender.minKmh, limitDisplay / vescConfig.imperialFactor);
+            swSettings.freespinOn = true;
+            freespinSender.send();
+            VescIf.emitStatusMessage("Free-spin limiter on", true);
+        }
+
+        NText {
+            width: freespinWarningDialog.availableWidth
+            font.pointSize: 12
+            wrapMode: Text.WordWrap
+            text: "This stops the motor from spinning the tire faster than %1 %2 while the board detects wheelslip, for example when the tire is in the air after a jump.\n\nWARNING: if wheelslip is detected while you are riding at or above this speed (a hard bump, a moment of lost traction), the motor stops pushing and the nose can drop. This can cause a NOSEDIVE at high speed.\n\nLandings can also be rougher, because the tire will be turning slower than the ground.\n\nThe board forgets this setting when it is powered off; this app turns it back on while it is connected.\n\nOnly turn it on if you understand and accept this risk.".arg(Math.round(limitDisplay)).arg(vescConfig.speedUnit)
+        }
+    }
+
     BaseDialog {
         id: editBoardNameDialog
 
@@ -6765,6 +6826,7 @@ Item {
                 duty: Math.abs(state.rtData["motor.duty_cycle"])
                 erpm: Math.abs(state.rtData["motor.erpm"])
                 wheelslip: state.wheelslip
+                spinLimiting: state.freespinLimiting
 
                 // Re-RinkFloat: trip (left) / lifetime (right) mileage, small and
                 // semi-transparent inside the dial, above the big digits
@@ -8720,6 +8782,105 @@ Item {
                             from: -1
                             to: 1
                             value: 0
+                        }
+
+                        // Re-RinkFloat: free-spin limiter
+                        SwNeonLabel {
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            font.pixelSize: 0.45 * unit
+                            font.letterSpacing: 0.06 * unit
+                            text: "FREE-SPIN LIMITER"
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            font.pixelSize: fontSizeNormal
+                            wrapMode: Text.WordWrap
+                            text: "Stops the motor from spinning the tire past this speed while wheelslip is detected (e.g. in the air off a jump). Minimum %1.".arg(freespinUi.minText)
+                        }
+
+                        Row {
+                            id: freespinUi
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.2 * unit
+
+                            readonly property real factor: vescConfig.imperialFactor
+                            readonly property real minDisplay: Math.ceil(freespinSender.minKmh * factor)
+                            readonly property string unitText: vescConfig.speedUnit
+                            readonly property string minText: "%1 %2".arg(minDisplay).arg(unitText)
+
+                            TextField {
+                                id: freespinInput
+                                width: 2.0 * unit
+                                anchors.verticalCenter: parent.verticalCenter
+                                horizontalAlignment: Text.AlignHCenter
+                                font.family: "Exan"
+                                font.pixelSize: 0.36 * unit
+                                color: swTheme.neonGreen
+                                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                                validator: IntValidator {bottom: 0; top: 150}
+                                text: Math.round(swSettings.freespinLimitKmh * freespinUi.factor)
+                            }
+
+                            SwNeonLabel {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: freespinUi.unitText
+                            }
+
+                            // ON / OFF switch in the neon style
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 2.4 * unit
+                                height: 0.75 * unit
+                                radius: height / 2
+                                color: swSettings.freespinOn ? swTheme.neonGreen : "transparent"
+                                border.color: swSettings.freespinOn ? swTheme.neonGreen : swTheme.neonPurple
+                                border.width: 2
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: swSettings.freespinOn ? "ON" : "OFF"
+                                    color: swSettings.freespinOn ? swTheme.background : swTheme.neonPurple
+                                    font.family: "Exan"
+                                    font.pixelSize: 0.3 * unit
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: freespinUi.request(!swSettings.freespinOn)
+                                }
+                            }
+
+                            function request(on) {
+                                if (!on) {
+                                    swSettings.freespinOn = false;
+                                    freespinSender.send();
+                                    VescIf.emitStatusMessage("Free-spin limiter off", true);
+                                    return;
+                                }
+                                var v = parseFloat(freespinInput.text);
+                                if (!(v >= minDisplay)) {
+                                    freespinInput.text = minDisplay;
+                                    VescIf.emitStatusMessage("Minimum is " + minText, false);
+                                    return;
+                                }
+                                freespinWarningDialog.limitDisplay = v;
+                                freespinWarningDialog.open();
+                            }
+                        }
+
+                        SwLText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            visible: swSettings.freespinOn
+                            font.pixelSize: fontSizeSmall
+                            color: swTheme.neonGreen
+                            text: "Active: limit %1 %2 (press OFF/ON to change)".arg(Math.round(swSettings.freespinLimitKmh * freespinUi.factor)).arg(freespinUi.unitText)
+                        }
+
+                        Item {
+                            width: parent.width
+                            height: 0.3 * unit
                         }
 
                         SwNeonLabel {

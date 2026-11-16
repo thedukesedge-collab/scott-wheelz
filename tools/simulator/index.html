@@ -186,6 +186,14 @@
         <div class="page" id="pgControl">
           <div class="secTitle">Move</div>
           <div id="moveBox"><div class="neonL" id="fwdL">FWD</div><div id="moveTrack"><div class="bar"></div><div id="moveKnob"></div></div><div class="neonL" id="revL">REV</div></div>
+          <div class="secTitle neonL" style="font-size:16px;margin-top:14px">FREE-SPIN LIMITER</div>
+          <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Stops the motor from spinning the tire past this speed while wheelslip is detected (e.g. in the air off a jump). Minimum 40 mph.</p>
+          <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0 4px">
+            <input id="fsInput" type="number" min="40" max="150" style="width:80px;background:#140a26;border:1px solid var(--purple);color:var(--green);font-family:Orbitron,monospace;font-size:18px;text-align:center;border-radius:6px;padding:6px">
+            <span class="neonL">mph</span>
+            <div class="pill" id="fsPill">OFF</div>
+          </div>
+          <div id="fsActive" style="text-align:center;font-size:12px;color:var(--green)"></div>
           <div class="secTitle neonL" style="font-size:16px;margin-top:14px">MAGIC FLYWHEEL</div>
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Before enabling flywheel mode make sure that your board is nose up and perfectly balanced. To turn it off, you must disengage the board first.</p>
           <div class="fly" id="flyBtn">FLYWHEEL ON</div>
@@ -204,7 +212,7 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver" class="tron"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf32 · sim</span></div>
+      <div id="ver" class="tron"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf33 · sim</span></div>
     </div>
   </div>
 
@@ -249,7 +257,7 @@ const NEON = ['#39ff7a', '#b14cff', '#00f0ff', '#ff2bd6', '#ff8a1f', '#f5ff3b', 
 const fx1 = v => (isFinite(v) ? (Math.round(v * 10) / 10).toFixed(1) : '-.-');
 
 // ---------- persisted prefs (this browser only) ----------
-const defaults = { name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
+const defaults = { fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
 let P = Object.assign({}, defaults);
 try { Object.assign(P, JSON.parse(localStorage.getItem('rrfSim') || '{}')); } catch (e) {}
 const save = () => { try { localStorage.setItem('rrfSim', JSON.stringify(P)); } catch (e) {} };
@@ -262,6 +270,7 @@ const S = {
   manSpeed: 0, manPitch: 14, manRoll: 0, prevMode: 'ready', tilt: 0, move: 0, okSince: 0, horn: false, nose: 0
 };
 const running = () => S.mode === 'running';
+window.__sim = S;  // for automated checks
 
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.style.opacity = 1;
@@ -515,6 +524,22 @@ $('horn').addEventListener('pointerdown', e => {
 const hornUp = () => { hornPressed = false; hornExpired = false; hornBlocked = false; if (navigator.vibrate) try { navigator.vibrate(0); } catch (e) {} };
 $('horn').addEventListener('pointerup', hornUp); $('horn').addEventListener('pointercancel', hornUp);
 
+// ---------- free-spin limiter ----------
+function renderFs() {
+  $('fsPill').textContent = P.fsOn ? 'ON' : 'OFF';
+  $('fsPill').classList.toggle('on', !!P.fsOn);
+  $('fsActive').textContent = P.fsOn ? 'Active: limit ' + Math.round(P.fsMph) + ' mph (press OFF/ON to change)' : '';
+  if (document.activeElement !== $('fsInput')) $('fsInput').value = Math.round(P.fsMph);
+}
+$('fsPill').onclick = () => {
+  if (P.fsOn) { P.fsOn = false; save(); renderFs(); toast('Free-spin limiter off'); return; }
+  const v = parseFloat($('fsInput').value);
+  if (!(v >= 40)) { $('fsInput').value = 40; toast('Minimum is 40 mph'); return; }
+  modal('<h3>\u26A0 FREE-SPIN LIMITER</h3><div style="font-size:13px;line-height:1.45;color:#d6ffe4">This stops the motor from spinning the tire faster than <b>' + Math.round(v) + ' mph</b> while the board detects wheelslip, for example when the tire is in the air after a jump.<br><br><b style="color:#ff2b4f">WARNING:</b> if wheelslip is detected while you are riding at or above this speed (a hard bump, a moment of lost traction), the motor stops pushing and the nose can drop. This can cause a <b style="color:#ff2b4f">NOSEDIVE</b> at high speed.<br><br>Landings can also be rougher, because the tire will be turning slower than the ground.<br><br>Only turn it on if you understand and accept this risk.</div><div class="btns"><button data-close>Cancel</button><button class="pri" data-ok>I understand, turn on</button></div>', () => {
+    P.fsMph = Math.max(40, v); P.fsOn = true; save(); renderFs(); toast('Free-spin limiter on');
+  });
+};
+
 // ---------- flywheel ----------
 $('flyBtn').onclick = () => {
   if (S.mode === 'flywheel') { S.mode = 'ready'; toast('Flywheel off'); }
@@ -604,6 +629,13 @@ function step(now) {
   const prev = S.speed;
   S.speed += clamp(tSpeed - S.speed, -maxA * dt * 1.6, maxA * dt);
   S.speed = Math.max(0, S.speed);
+  // free-spin limiter: while wheelslip, don't drive the tire past the limit
+  S.limiting = false;
+  if (P.fsOn && S.wheelslip && running() && S.speed > P.fsMph) {
+    S.speed = Math.max(P.fsMph, prev - 20 * dt);
+    S.limiting = true;
+    if (forcedDuty !== null) forcedDuty = clamp(S.speed / 48, 0, 1);
+  }
   const acc = dt > 0 ? (S.speed - prev) / dt : 0;
   S.accel += (acc - S.accel) * 0.2;
 
@@ -714,7 +746,7 @@ function drawSpeedo() {
   for (let j = 0; j <= 4; j++) { const a = start + sweep * j / 4; ntext(ctx, String(Math.round(P.dialMax * j / 4)), cx + Math.cos(a) * rLabel, cy + Math.sin(a) * rLabel, Math.max(9, R * 0.1), '#7d68ab', { weight: '500', mono: true }); }
   // digits + unit + erpm + duty
   const digitsY = cy - R * 0.08;
-  if (S.wheelslip) ntext(ctx, 'WHEELSLIP', cx, digitsY - R * 0.33, Math.max(9, R * 0.11), RED);
+  if (S.wheelslip) ntext(ctx, S.limiting ? 'SPIN LIMIT' : 'WHEELSLIP', cx, digitsY - R * 0.33, Math.max(9, R * 0.11), RED);
   else {
     // trip / life minis, 75% opacity, above the digits
     const mw = R * 0.36, my = cy - R * 0.55, vs = Math.max(0.22 * u, R * 0.1), ls = Math.max(0.17 * u, R * 0.07);
@@ -1080,7 +1112,7 @@ function frame(now) {
 }
 
 // ---------- start ----------
-layout(); renderTunes(); renderStyle(); buildLegend(); setTab(P.tab || 0);
+layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); setTab(P.tab || 0);
 window.addEventListener('resize', () => { layout(); renderTunes(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { layout(); renderTunes(); });
 requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });

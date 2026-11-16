@@ -951,6 +951,21 @@ static void refloat_thd(void *arg) {
                 new_current = sign(new_current) * current_limit;
             }
 
+            // Re-RinkFloat: free-spin limiter. Only while the package has flagged
+            // wheelslip (tire spinning without load, e.g. in the air after a jump):
+            // above the limit speed, stop driving the wheel any faster (freewheel).
+            // Braking requests still pass. Never active in darkride, flywheel or
+            // handtest, and the app only allows limits of 40 mph / 64 km/h and up.
+            if (d->freespin_limit_speed > 0.0f && d->state.wheelslip && !d->state.darkride &&
+                d->state.mode == MODE_NORMAL &&
+                fabsf(d->motor.speed) > d->freespin_limit_speed &&
+                sign(new_current) == d->motor.erpm_sign) {
+                new_current = 0.0f;
+                d->freespin_limiting = true;
+            } else {
+                d->freespin_limiting = false;
+            }
+
             if (d->state.darkride) {
                 new_current = -new_current;
             }
@@ -1246,6 +1261,8 @@ static void data_init(Data *d) {
 
     d->beep_num_left = 0;
     d->sw_horn_beeping = false;
+    d->freespin_limit_speed = 0.0f;
+    d->freespin_limiting = false;
     d->beep_duration = 0.0f;
     d->beeper_timer = 0;
 }
@@ -1279,6 +1296,7 @@ enum {
 
     // Re-RinkFloat custom commands (kept far from upstream's range)
     COMMAND_SW_HORN = 120,  // haptic horn: 1 byte, 1 = on/keepalive, 0 = off
+    COMMAND_FREESPIN_LIMIT = 121,  // free-spin limiter: uint16 limit in 0.1 km/h, 0 = off
 
     // commands above 200 are unstable and can change protocol at any time
 } Commands;
@@ -1993,7 +2011,9 @@ static void cmd_realtime_data(Data *d) {
 
     buffer[ind++] = d->state.mode << 4 | d->state.state;
 
-    uint8_t flags = d->state.charging << 5 | d->state.darkride << 1 | d->state.wheelslip;
+    uint8_t flags = d->state.charging << 5 |
+        (d->freespin_limiting && d->state.state == STATE_RUNNING) << 2 | d->state.darkride << 1 |
+        d->state.wheelslip;
     buffer[ind++] = d->footpad.state << 6 | flags;
 
     buffer[ind++] = d->state.sat << 4 | d->state.stop_condition;
@@ -2361,6 +2381,24 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
         if (len == 3 || len == 4) {
             uint8_t mode = len == 4 ? buffer[3] : HORN_MODE_BOTH;
             haptic_feedback_horn(&d->haptic_feedback, &d->time, buffer[2], mode);
+        } else {
+            log_error("Command data length incorrect: %u", len);
+        }
+        return;
+    }
+    case COMMAND_FREESPIN_LIMIT: {
+        if (len == 4) {
+            float limit = ((buffer[2] << 8) | buffer[3]) * 0.1f;
+            if (limit > 0.0f && limit < 64.3f) {
+                limit = 64.3f;  // never below 40 mph
+            }
+            if (limit > 200.0f) {
+                limit = 200.0f;
+            }
+            d->freespin_limit_speed = limit;
+            if (limit == 0.0f) {
+                d->freespin_limiting = false;
+            }
         } else {
             log_error("Command data length incorrect: %u", len);
         }
