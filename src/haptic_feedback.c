@@ -69,10 +69,6 @@ void haptic_feedback_init(HapticFeedback *hf) {
     hf->horn_custom = false;
 }
 
-static float clampf(float v, float lo, float hi) {
-    return v < lo ? lo : v > hi ? hi : v;
-}
-
 void haptic_feedback_horn_settings(
     HapticFeedback *hf,
     float beep_strength,
