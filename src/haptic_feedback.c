@@ -66,6 +66,25 @@ void haptic_feedback_init(HapticFeedback *hf) {
     hf->horn_on = false;
     hf->horn_used = false;
     hf->horn_mode = HORN_MODE_BOTH;
+    hf->horn_custom = false;
+}
+
+static float clampf(float v, float lo, float hi) {
+    return v < lo ? lo : v > hi ? hi : v;
+}
+
+void haptic_feedback_horn_settings(
+    HapticFeedback *hf,
+    float beep_strength,
+    uint16_t beep_frequency,
+    float buzz_strength,
+    uint16_t buzz_frequency
+) {
+    hf->horn_beep_strength = clampf(beep_strength, 1.0f, 10.0f);
+    hf->horn_beep_frequency = (uint16_t) clampf(beep_frequency, 300, 1000);
+    hf->horn_buzz_strength = clampf(buzz_strength, 0.0f, 15.0f);
+    hf->horn_buzz_frequency = (uint16_t) clampf(buzz_frequency, 30, 150);
+    hf->horn_custom = true;
 }
 
 void haptic_feedback_horn(HapticFeedback *hf, const Time *time, uint8_t req, uint8_t mode) {
@@ -303,7 +322,13 @@ void haptic_feedback_update(
         uint16_t beep_frequency = tone->frequency;
         float buzz_strength = hf->cfg->vibrate.strength;
         uint16_t buzz_frequency = hf->cfg->vibrate.frequency;
-        if (hf->type_playing == HAPTIC_FEEDBACK_HORN) {
+        if (hf->type_playing == HAPTIC_FEEDBACK_HORN && hf->horn_custom) {
+            // Re-RinkFloat: the horn's own settings from the app
+            beep_strength = hf->horn_beep_strength;
+            beep_frequency = hf->horn_beep_frequency;
+            buzz_strength = hf->horn_buzz_strength;
+            buzz_frequency = hf->horn_buzz_frequency;
+        } else if (hf->type_playing == HAPTIC_FEEDBACK_HORN) {
             beep_strength = fmaxf(beep_strength, HORN_MIN_BEEP_STRENGTH);
             buzz_strength = fmaxf(buzz_strength, HORN_MIN_VIBRATE_STRENGTH);
             if (beep_frequency == 0) {

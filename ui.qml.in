@@ -216,7 +216,23 @@ Item {
             if (++count >= 10) {
                 count = 0;
                 send();
+                hornSettingsSender.send();
             }
+        }
+    }
+
+    // Re-RinkFloat: horn-only sound settings, resent every second with the
+    // free-spin limit (the board forgets both on power cycle)
+    QtObject {
+        id: hornSettingsSender
+
+        function send() {
+            var data = commands.createData(8, commands.c_HORN_SETTINGS);
+            data.setUint8(2, Math.round(swSettings.hornBeepStrength * 10));
+            data.setUint16(3, swSettings.hornBeepFreq);
+            data.setUint8(5, Math.round(swSettings.hornBuzzStrength * 10));
+            data.setUint16(6, swSettings.hornBuzzFreq);
+            vescCommands.sendCustomAppData(data.buffer);
         }
     }
 
@@ -694,6 +710,7 @@ Item {
         readonly property int c_DATA_RECORD_DATA: 43
         readonly property int c_SW_HORN: 120  // Re-RinkFloat
         readonly property int c_FREESPIN_LIMIT: 121  // Re-RinkFloat
+        readonly property int c_HORN_SETTINGS: 122  // Re-RinkFloat
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
         // Dynamic range: +-131008.0
@@ -1064,6 +1081,11 @@ Item {
         // free-spin limiter (sent to the board, which doesn't save it)
         property bool freespinOn: false
         property bool tempF: false  // show temperatures in °F (tap the engine icon)
+        // horn-only sound settings (sent to the board, which doesn't save them)
+        property real hornBeepStrength: 5.0   // V
+        property int hornBeepFreq: 495        // Hz
+        property real hornBuzzStrength: 8     // A
+        property int hornBuzzFreq: 70         // Hz
         property real freespinLimitKmh: 72.4  // 45 mph
         property bool speedo40Migrated: false  // one-time bump of a saved 30 mph dial to 40
         // ride peaks, kept until the board's trip counter resets (power cycle)
@@ -2457,6 +2479,107 @@ Item {
             ctx.strokeStyle = engineIcon.color;
             ctx.lineWidth = 3;
             ctx.stroke();
+        }
+    }
+
+    // Re-RinkFloat: label + [down] value [up] stepper with hold-to-repeat
+    component SwStepper : Item {
+        id: stepper
+        width: parent ? parent.width : 0
+        height: 0.95 * unit
+
+        property string label
+        property real value
+        property real from
+        property real to
+        property real step: 1
+        property int decimals: 0
+        property string suffix: ""
+        signal moved(real newValue)
+
+        function nudge(dir) {
+            var v = Math.round((value + dir * step) / step) * step;
+            v = Math.max(from, Math.min(to, v));
+            if (v !== value) moved(v);
+        }
+
+        SwNeonLabel {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width - 4.6 * unit
+            font.pixelSize: 0.28 * unit
+            text: stepper.label
+        }
+
+        Row {
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 0.1 * unit
+
+            Repeater {
+                model: [-1, 0, 1]
+
+                Item {
+                    width: modelData === 0 ? 2.1 * unit : 1.1 * unit
+                    height: 0.8 * unit
+
+                    Text {
+                        visible: modelData === 0
+                        anchors.centerIn: parent
+                        color: swTheme.neonGreen
+                        font.family: "Exan"
+                        font.pixelSize: 0.32 * unit
+                        text: stepper.value.toFixed(stepper.decimals) + stepper.suffix
+                    }
+
+                    Rectangle {
+                        visible: modelData !== 0
+                        anchors.fill: parent
+                        radius: 0.15 * unit
+                        property bool atLimit: modelData < 0 ? stepper.value <= stepper.from : stepper.value >= stepper.to
+                        color: arrowMouse.pressed && !atLimit ? swTheme.neonPurple : "#140a26"
+                        border.color: atLimit ? "#4a2a73" : swTheme.neonPurple
+                        border.width: 2
+
+                        // arrow
+                        Canvas {
+                            anchors.centerIn: parent
+                            width: 0.4 * unit
+                            height: 0.3 * unit
+                            property bool up: modelData > 0
+                            property color col: parent.atLimit ? "#4a2a73" : arrowMouse.pressed ? swTheme.background : swTheme.neonGreen
+                            onColChanged: requestPaint()
+                            onPaint: {
+                                var ctx = getContext("2d");
+                                ctx.reset();
+                                ctx.beginPath();
+                                if (up) {
+                                    ctx.moveTo(0, height); ctx.lineTo(width / 2, 0); ctx.lineTo(width, height);
+                                } else {
+                                    ctx.moveTo(0, 0); ctx.lineTo(width / 2, height); ctx.lineTo(width, 0);
+                                }
+                                ctx.closePath();
+                                ctx.fillStyle = col;
+                                ctx.fill();
+                            }
+                        }
+
+                        MouseArea {
+                            id: arrowMouse
+                            anchors.fill: parent
+                            onPressed: { stepper.nudge(modelData); repeatTimer.interval = 450; repeatTimer.start(); }
+                            onReleased: repeatTimer.stop()
+                            onCanceled: repeatTimer.stop()
+                        }
+
+                        Timer {
+                            id: repeatTimer
+                            repeat: true
+                            onTriggered: { interval = 90; stepper.nudge(modelData); }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -8891,6 +9014,86 @@ Item {
                             font.pixelSize: fontSizeSmall
                             color: swTheme.neonGreen
                             text: "Active: limit %1 %2 (press OFF/ON to change)".arg(Math.round(swSettings.freespinLimitKmh * freespinUi.factor)).arg(freespinUi.unitText)
+                        }
+
+                        Item {
+                            width: parent.width
+                            height: 0.3 * unit
+                        }
+
+                        // Re-RinkFloat: horn-only sound settings
+                        SwNeonLabel {
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            font.pixelSize: 0.45 * unit
+                            font.letterSpacing: 0.06 * unit
+                            text: "HORN SETTINGS"
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            font.pixelSize: fontSizeNormal
+                            wrapMode: Text.WordWrap
+                            text: "Used only for the HORN button, separate from the Haptic Feedback settings. The beep plays any time; the buzz only while riding."
+                        }
+
+                        SwStepper {
+                            label: "BEEP STRENGTH"
+                            value: swSettings.hornBeepStrength
+                            from: 1; to: 10; step: 0.5; decimals: 1; suffix: " V"
+                            onMoved: { swSettings.hornBeepStrength = newValue; hornSettingsSender.send(); }
+                        }
+
+                        SwStepper {
+                            label: "BEEP PITCH"
+                            value: swSettings.hornBeepFreq
+                            from: 300; to: 1000; step: 25; suffix: " Hz"
+                            onMoved: { swSettings.hornBeepFreq = newValue; hornSettingsSender.send(); }
+                        }
+
+                        SwStepper {
+                            label: "BUZZ STRENGTH"
+                            value: swSettings.hornBuzzStrength
+                            from: 0; to: 15; step: 1; suffix: " A"
+                            onMoved: { swSettings.hornBuzzStrength = newValue; hornSettingsSender.send(); }
+                        }
+
+                        SwStepper {
+                            label: "BUZZ FREQUENCY"
+                            value: swSettings.hornBuzzFreq
+                            from: 30; to: 150; step: 5; suffix: " Hz"
+                            onMoved: { swSettings.hornBuzzFreq = newValue; hornSettingsSender.send(); }
+                        }
+
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: 3.2 * unit
+                            height: 0.7 * unit
+                            radius: height / 2
+                            color: resetHornMouse.pressed ? swTheme.neonPurple : "transparent"
+                            border.color: swTheme.neonPurple
+                            border.width: 2
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "RESET HORN"
+                                color: resetHornMouse.pressed ? swTheme.background : swTheme.neonPurple
+                                font.family: "Exan"
+                                font.pixelSize: 0.26 * unit
+                            }
+
+                            MouseArea {
+                                id: resetHornMouse
+                                anchors.fill: parent
+                                onClicked: {
+                                    swSettings.hornBeepStrength = 5.0;
+                                    swSettings.hornBeepFreq = 495;
+                                    swSettings.hornBuzzStrength = 8;
+                                    swSettings.hornBuzzFreq = 70;
+                                    hornSettingsSender.send();
+                                    VescIf.emitStatusMessage("Horn settings reset", true);
+                                }
+                            }
                         }
 
                         Item {

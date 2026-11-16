@@ -100,6 +100,13 @@
   .chip.on { color: #d6ffe4; border-color: #3d2266; }
   .chip.on i { opacity: 1; }
   .chip b { font-weight: 500; font-family: ui-monospace, monospace; color: #c3a6ff; }
+  .stepRow { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
+  .stepRow .lbl { font-family: Orbitron, monospace; color: var(--lav); font-size: 11px; }
+  .stepCtl { display: flex; align-items: center; gap: 4px; }
+  .stepBtn { width: 40px; height: 30px; border: 2px solid var(--purple); border-radius: 6px; background: #140a26; color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 13px; cursor: pointer; touch-action: none; }
+  .stepBtn:active { background: var(--purple); color: var(--bg); }
+  .stepBtn.lim { border-color: #4a2a73; color: #4a2a73; }
+  .stepVal { width: 78px; text-align: center; font-family: Orbitron, monospace; color: var(--green); font-size: 13px; }
   .datarow { display: flex; justify-content: space-between; border-bottom: 1px solid #1d1235; padding: 4px 2px; font-size: 13px; }
   .datarow span:last-child { color: #d6ffe4; font-family: ui-monospace, monospace; }
   /* modal */
@@ -194,6 +201,10 @@
             <div class="pill" id="fsPill">OFF</div>
           </div>
           <div id="fsActive" style="text-align:center;font-size:12px;color:var(--green)"></div>
+          <div class="secTitle neonL" style="font-size:16px;margin-top:14px">HORN SETTINGS</div>
+          <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Used only for the HORN button, separate from the Haptic Feedback settings. The beep plays any time; the buzz only while riding.</p>
+          <div id="hornSteps"></div>
+          <div style="text-align:center;margin-top:6px"><div class="pill" id="hornReset" style="display:inline-block">RESET HORN</div></div>
           <div class="secTitle neonL" style="font-size:16px;margin-top:14px">MAGIC FLYWHEEL</div>
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Before enabling flywheel mode make sure that your board is nose up and perfectly balanced. To turn it off, you must disengage the board first.</p>
           <div class="fly" id="flyBtn">FLYWHEEL ON</div>
@@ -212,7 +223,7 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver" class="tron"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf37 · sim</span></div>
+      <div id="ver" class="tron"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf38 · sim</span></div>
     </div>
   </div>
 
@@ -257,7 +268,7 @@ const NEON = ['#39ff7a', '#b14cff', '#00f0ff', '#ff2bd6', '#ff8a1f', '#f5ff3b', 
 const fx1 = v => (isFinite(v) ? (Math.round(v * 10) / 10).toFixed(1) : '-.-');
 
 // ---------- persisted prefs (this browser only) ----------
-const defaults = { tempF: false, fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
+const defaults = { hBeep: 5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, tempF: false, fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
 let P = Object.assign({}, defaults);
 try { Object.assign(P, JSON.parse(localStorage.getItem('rrfSim') || '{}')); } catch (e) {}
 const save = () => { try { localStorage.setItem('rrfSim', JSON.stringify(P)); } catch (e) {} };
@@ -543,6 +554,33 @@ $('fsPill').onclick = () => {
 // tap the engine icon / motor temp to switch °C / °F
 $('motorStat').style.cursor = 'pointer';
 $('motorStat').onclick = () => { P.tempF = !P.tempF; save(); toast(P.tempF ? 'Temperatures in °F' : 'Temperatures in °C'); };
+
+// ---------- horn settings (horn only) ----------
+const HORN_STEPS = [
+  ['hBeep', 'BEEP STRENGTH', 1, 10, 0.5, 1, ' V'], ['hBeepHz', 'BEEP PITCH', 300, 1000, 25, 0, ' Hz'],
+  ['hBuzz', 'BUZZ STRENGTH', 0, 15, 1, 0, ' A'], ['hBuzzHz', 'BUZZ FREQUENCY', 30, 150, 5, 0, ' Hz'],
+];
+function renderHorn() {
+  const box = $('hornSteps'); box.innerHTML = '';
+  HORN_STEPS.forEach(([k, label, mn, mx, stp, dec, suf]) => {
+    const row = document.createElement('div'); row.className = 'stepRow';
+    row.innerHTML = '<span class="lbl">' + label + '</span><span class="stepCtl"><span class="stepBtn" data-d="-1">&#9660;</span><span class="stepVal"></span><span class="stepBtn" data-d="1">&#9650;</span></span>';
+    const val = row.querySelector('.stepVal');
+    const paint = () => {
+      val.textContent = (+P[k]).toFixed(dec) + suf;
+      row.querySelectorAll('.stepBtn').forEach(b => b.classList.toggle('lim', +b.dataset.d < 0 ? P[k] <= mn : P[k] >= mx));
+    };
+    row.querySelectorAll('.stepBtn').forEach(b => {
+      let t = null;
+      const nudge = () => { const v = clamp(Math.round((P[k] + +b.dataset.d * stp) / stp) * stp, mn, mx); if (v !== P[k]) { P[k] = v; save(); paint(); } };
+      b.addEventListener('pointerdown', e => { e.preventDefault(); nudge(); t = setTimeout(function rep() { nudge(); t = setTimeout(rep, 90); }, 450); });
+      const stop = () => clearTimeout(t);
+      b.addEventListener('pointerup', stop); b.addEventListener('pointerleave', stop); b.addEventListener('pointercancel', stop);
+    });
+    paint(); box.appendChild(row);
+  });
+}
+$('hornReset').onclick = () => { Object.assign(P, { hBeep: 5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70 }); save(); renderHorn(); toast('Horn settings reset'); };
 
 // ---------- flywheel ----------
 $('flyBtn').onclick = () => {
@@ -1119,7 +1157,7 @@ function frame(now) {
 }
 
 // ---------- start ----------
-layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); setTab(P.tab || 0);
+layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); renderHorn(); setTab(P.tab || 0);
 window.addEventListener('resize', () => { layout(); renderTunes(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { layout(); renderTunes(); });
 requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });

@@ -1300,6 +1300,8 @@ enum {
     // Re-RinkFloat custom commands (kept far from upstream's range)
     COMMAND_SW_HORN = 120,  // haptic horn: 1 byte, 1 = on/keepalive, 0 = off
     COMMAND_FREESPIN_LIMIT = 121,  // free-spin limiter: uint16 limit in 0.1 km/h, 0 = off
+    // horn-only sound: u8 beep V x10, u16 beep Hz, u8 buzz A x10, u16 buzz Hz
+    COMMAND_HORN_SETTINGS = 122,
 
     // commands above 200 are unstable and can change protocol at any time
 } Commands;
@@ -2384,6 +2386,20 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
         if (len == 3 || len == 4) {
             uint8_t mode = len == 4 ? buffer[3] : HORN_MODE_BOTH;
             haptic_feedback_horn(&d->haptic_feedback, &d->time, buffer[2], mode);
+        } else {
+            log_error("Command data length incorrect: %u", len);
+        }
+        return;
+    }
+    case COMMAND_HORN_SETTINGS: {
+        if (len == 8) {
+            haptic_feedback_horn_settings(
+                &d->haptic_feedback,
+                buffer[2] * 0.1f,
+                (buffer[3] << 8) | buffer[4],
+                buffer[5] * 0.1f,
+                (buffer[6] << 8) | buffer[7]
+            );
         } else {
             log_error("Command data length incorrect: %u", len);
         }

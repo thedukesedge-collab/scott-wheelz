@@ -63,9 +63,26 @@ typedef struct {
     volatile bool horn_on;  // button currently held
     volatile bool horn_used;  // at least one press since boot
     volatile uint8_t horn_mode;  // HornMode of the current press
+
+    // Re-RinkFloat: horn-only sound settings sent by the app (not saved on the
+    // board). Until they arrive, the horn uses the haptic config with minimums.
+    volatile bool horn_custom;
+    volatile float horn_beep_strength;  // V
+    volatile uint16_t horn_beep_frequency;  // Hz
+    volatile float horn_buzz_strength;  // A, 0 = no buzz
+    volatile uint16_t horn_buzz_frequency;  // Hz
 } HapticFeedback;
 
 void haptic_feedback_init(HapticFeedback *hf);
+
+// Re-RinkFloat: horn-only settings from the app; values are clamped to safe ranges.
+void haptic_feedback_horn_settings(
+    HapticFeedback *hf,
+    float beep_strength,
+    uint16_t beep_frequency,
+    float buzz_strength,
+    uint16_t buzz_frequency
+);
 
 void haptic_feedback_configure(HapticFeedback *hf, const RefloatConfig *cfg);
 
