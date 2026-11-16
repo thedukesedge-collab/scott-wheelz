@@ -92,3 +92,16 @@ Back up your XML config first. First test with the wheel off the ground.
   ADC1 / ADC2, and an engaged half gets a pulsing glow and a pulsing label, so
   it is obvious at a glance which sensor halves are active. Voltages below
   each half are unchanged.
+
+### Fixes / theme (v1.2.3-sw1, update 2)
+- Board tab pitch/roll drawings didn't move: inside the Board tab, the bare
+  names `pitch`/`roll` resolved to the main screen's `id: pitch` / `id: roll`
+  items instead of the angles, so the "has data" check was always false.
+  Angles are now always read as `boardPage.*`, and the side and rear views
+  rotate inside their canvases (like the main screen does).
+- Main screen stats keep the stock layout but use the neon theme: `swTheme`
+  maps the app's theme colors to green/purple (red and orange alerts kept),
+  `SwNText`/`SwLText`/`SwDText` replace the stock text colors there, the Dial
+  and StatusText components use it too, and a dark grid sits behind the stats.
+  The battery bar fill is purple so the % stays readable; the balance-pitch
+  outline and value are purple to stand apart from the green board.

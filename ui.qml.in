@@ -2206,6 +2206,55 @@ Item {
         color: Utility.getAppHexColor("disabledText")
     }
 
+    // Scott Wheelz: neon green + purple theme for the main screen.
+    // Warning colors (red, orange) are kept so alerts still read as alerts.
+    QtObject {
+        id: swTheme
+
+        readonly property color neonGreen: "#39ff7a"
+        readonly property color neonPurple: "#b14cff"
+        readonly property color background: "#05060d"
+        readonly property color grid: "#160d2b"
+
+        function color(name) {
+            switch (name) {
+            case "lightAccent":
+            case "green":
+                return "#39ff7a";
+            case "lightText":
+                return "#d6ffe4";
+            case "normalText":
+                return "#c3a6ff";
+            case "disabledText":
+                return "#7d68ab";
+            case "lightBackground":
+                return "#24123f";
+            case "lightestBackground":
+                return "#3d2266";
+            case "darkBackground":
+                return "#05060d";
+            case "purpleAccent":
+                return "#7b2fd0";
+            case "swPurple":
+                return "#b14cff";
+            default:
+                return Utility.getAppHexColor(name);
+            }
+        }
+    }
+
+    component SwNText : Text {
+        color: swTheme.color("normalText")
+    }
+
+    component SwLText : Text {
+        color: swTheme.color("lightText")
+    }
+
+    component SwDText : Text {
+        color: swTheme.color("disabledText")
+    }
+
     component FloatingToolButton : RoundButton {
         id: button
         anchors.margins: 4
@@ -2388,23 +2437,23 @@ Item {
                 var context = getContext("2d");
                 context.reset();
                 context.lineWidth = lineWidth;
-                context.strokeStyle = Utility.getAppHexColor("lightBackground");
+                context.strokeStyle = swTheme.color("lightBackground");
                 context.path = dialBackground;
                 context.stroke();
 
                 if (!allowNegative) {
-                    context.strokeStyle = Utility.getAppHexColor("lightestBackground");
+                    context.strokeStyle = swTheme.color("lightestBackground");
                     context.path = topFill;
                     context.stroke();
                 }
 
                 if (warnThresholdAbs > 0 && Math.abs(value) > warnThresholdAbs) {
-                    context.strokeStyle = Utility.getAppHexColor("orange");
+                    context.strokeStyle = swTheme.color("orange");
                 } else {
                     if (valueAngle > 0) {
-                        context.strokeStyle = Utility.getAppHexColor("lightAccent");
+                        context.strokeStyle = swTheme.color("lightAccent");
                     } else {
-                        context.strokeStyle = Utility.getAppHexColor("green");
+                        context.strokeStyle = swTheme.color("green");
                     }
                 }
 
@@ -2421,7 +2470,7 @@ Item {
             anchors.top: parent.verticalCenter
             anchors.topMargin: dialRadius
             z: 1
-            color: Utility.getAppHexColor("lightText")
+            color: swTheme.color("lightText")
         }
 
         Rectangle {
@@ -2433,12 +2482,12 @@ Item {
             anchors.topMargin: dialRadius
             visible: !allowNegative && topAngle > 0
             z: 3
-            color: Utility.getAppHexColor("lightText")
+            color: swTheme.color("lightText")
             transform: Rotation {origin.x: 0; origin.y: -dialRadius; angle: topAngle}
             antialiasing: true
         }
 
-        LText {
+        SwLText {
             id: valueText
             anchors.centerIn: parent
 
@@ -2447,7 +2496,7 @@ Item {
             text: round(parent.value)
         }
 
-        DText {
+        SwDText {
             id: valueUnit
             anchors.left: valueText.right
             anchors.baseline: valueText.baseline
@@ -2457,7 +2506,7 @@ Item {
             text: parent.valueUnit
         }
 
-        LText {
+        SwLText {
             id: topValueLabel
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: -Math.sin(topAngleRads) * (dialRadius + lineWidth + font.pixelSize * 1.7)
@@ -4072,7 +4121,7 @@ Item {
             }
         ]
 
-        LText {
+        SwLText {
             id: statusTextState
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width
@@ -4096,13 +4145,13 @@ Item {
 
             color: {
                 if (red) {
-                    return Utility.getAppHexColor("red");
+                    return swTheme.color("red");
                 } else if (dark) {
-                    return Utility.isDarkMode() ? Utility.getAppHexColor("black") : Utility.getAppHexColor("disabledText");
+                    return Utility.isDarkMode() ? swTheme.color("black") : swTheme.color("disabledText");
                 } else if (blue) {
-                    return Utility.getAppHexColor("lightAccent");
+                    return swTheme.color("lightAccent");
                 } else {
-                    return Utility.getAppHexColor("lightText");
+                    return swTheme.color("lightText");
                 }
             }
             source: statusTextState
@@ -4112,7 +4161,7 @@ Item {
             id: statusTextMode
             anchors.top: statusTextState.bottom
             width: parent.width
-            color: globState.pkgMode == globState.m_Flywheel ? Utility.getAppHexColor("lightAccent") : Utility.getAppHexColor("lightText")
+            color: globState.pkgMode == globState.m_Flywheel ? swTheme.color("lightAccent") : swTheme.color("lightText")
             font.pixelSize: statusTextAlert.visible ? fontSizeSuperSmall : fontSizeSmall
             font.family: "Exan"
             horizontalAlignment: Text.AlignHCenter
@@ -5910,12 +5959,50 @@ Item {
         }
     }
 
+    // Scott Wheelz: Tron grid behind the main screen stats
+    Rectangle {
+        x: root.x
+        y: root.y
+        width: root.width
+        height: swHudTop.height
+        color: swTheme.background
+        border.color: swTheme.neonPurple
+        border.width: 1
+        radius: 4
+
+        Canvas {
+            anchors.fill: parent
+            anchors.margins: 1
+            contextType: "2d"
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+            onPaint: {
+                var ctx = getContext("2d");
+                ctx.reset();
+                ctx.strokeStyle = swTheme.grid;
+                ctx.lineWidth = 1;
+                var step = Math.max(12, Math.round(0.5 * unit));
+                ctx.beginPath();
+                for (var x = 0; x < width; x += step) {
+                    ctx.moveTo(x + 0.5, 0);
+                    ctx.lineTo(x + 0.5, height);
+                }
+                for (var y = 0; y < height; y += step) {
+                    ctx.moveTo(0, y + 0.5);
+                    ctx.lineTo(width, y + 0.5);
+                }
+                ctx.stroke();
+            }
+        }
+    }
+
     ColumnLayout {
         id: root
         anchors.fill: parent
         anchors.margins: 5
 
         ColumnLayout {
+            id: swHudTop
             Layout.fillWidth: true
             spacing: 0
 
@@ -5926,7 +6013,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 0.8 * unit
 
-                color: Utility.getAppHexColor("lightBackground")
+                color: swTheme.color("lightBackground")
 
                 property real voltage: state.rtData["motor.batt_voltage"]
                 property int value: 0
@@ -5938,7 +6025,7 @@ Item {
                     }
                 }
 
-                LText {
+                SwLText {
                     id: batteryBarValue
                     anchors.centerIn: parent
                     z: 2
@@ -5953,10 +6040,10 @@ Item {
                     height: parent.height
                     z: 1
 
-                    color: Utility.getAppHexColor("lightAccent")
+                    color: swTheme.color("purpleAccent")
                 }
 
-                LText {
+                SwLText {
                     id: batteryBarVoltageValue
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.horizontalCenterOffset: -parent.width / 4
@@ -5995,13 +6082,13 @@ Item {
                     property real voltage: 0
                     visible: state.charging
 
-                    LText {
+                    SwLText {
                         anchors.horizontalCenter: parent.horizontalCenter
                         font.pixelSize: fontSizeSmall
                         text: "charging"
                     }
 
-                    LText {
+                    SwLText {
                         anchors.bottom: parent.bottom
                         width: parent.width / 2
                         font.pixelSize: fontSizeSmall
@@ -6009,7 +6096,7 @@ Item {
                         text: "%1A".arg(toFixed1Zero(parent.current))
                     }
 
-                    LText {
+                    SwLText {
                         anchors.bottom: parent.bottom
                         anchors.right: parent.right
                         width: parent.width / 2
@@ -6036,7 +6123,7 @@ Item {
                     property string name
                     property string nameOrId
 
-                    color: name ? Utility.getAppHexColor("lightText") : Utility.getAppHexColor("normalText")
+                    color: name ? swTheme.color("lightText") : swTheme.color("normalText")
                     font.pixelSize: 0.45 * unit
                     clip: true
                     text: nameOrId
@@ -6126,7 +6213,7 @@ Item {
                                 }
                             }
 
-                            NText {
+                            SwNText {
                                 id: speedDialValueErpm
                                 anchors.top: parent.verticalCenter
                                 anchors.horizontalCenter: parent.horizontalCenter
@@ -6136,7 +6223,7 @@ Item {
                                 text: parent.erpm
                             }
 
-                            DText {
+                            SwDText {
                                 id: speedDialValueErpmLabel
                                 anchors.top: speedDialValueErpm.bottom
                                 anchors.horizontalCenter: parent.horizontalCenter
@@ -6152,7 +6239,7 @@ Item {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 anchors.bottomMargin: 0.5 * unit
 
-                                color: Utility.getAppHexColor("red")
+                                color: swTheme.color("red")
                                 font.family: "Exan"
                                 font.pixelSize: fontSizeSmall
                                 opacity: 0
@@ -6181,7 +6268,7 @@ Item {
                                 radius: Math.round(0.09 * unit)
                                 samples: 2 * radius + 1
                                 opacity: 0.6 * speedDialWheelslip.opacity
-                                color: Utility.getAppHexColor("red")
+                                color: swTheme.color("red")
                                 visible: state.wheelslip
                                 source: speedDialWheelslip
                             }
@@ -6194,7 +6281,7 @@ Item {
                         width: parent.width
                         height: 1.8 * unit
 
-                        NText {
+                        SwNText {
                             id: currentDialLabel
                             anchors.bottom: parent.bottom
                             width: parent.height
@@ -6218,7 +6305,7 @@ Item {
                             valueUnit: "A"
                         }
 
-                        NText {
+                        SwNText {
                             id: dutyDialLabel
                             anchors.bottom: parent.bottom
                             anchors.right: parent.right
@@ -6252,7 +6339,7 @@ Item {
                             readonly property real alpha: 0.05;
                             property real value: 0;
 
-                            LText {
+                            SwLText {
                                 width: parent.width
 
                                 font.pixelSize: hudLeft.fontSizeBars
@@ -6260,7 +6347,7 @@ Item {
                                 text: (toFixed1Zero(parent.value))
                             }
 
-                            DText {
+                            SwDText {
                                 width: parent.width
                                 anchors.bottom: parent.bottom
 
@@ -6295,7 +6382,7 @@ Item {
                         anchors.bottom: parent.bottom
                         width: parent.width
 
-                        NText {
+                        SwNText {
                             id: batteryCurrentLabel
                             anchors.bottom: parent.bottom
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -6314,7 +6401,7 @@ Item {
 
                             property var sideWidth: 1.5 * unit
 
-                            color: Utility.getAppHexColor("lightBackground")
+                            color: swTheme.color("lightBackground")
 
                             Rectangle {
                                 anchors.bottom: parent.bottom
@@ -6323,7 +6410,7 @@ Item {
                                 height: hudLeft.barThicknessSmall * 1.2
                                 z: 2
 
-                                color: Utility.getAppHexColor("lightText")
+                                color: swTheme.color("lightText")
                             }
 
                             Rectangle {
@@ -6332,7 +6419,7 @@ Item {
                                 height: hudLeft.barThicknessSmall
                                 z: 1
 
-                                color: Utility.getAppHexColor("lightAccent")
+                                color: swTheme.color("lightAccent")
                             }
 
                             Rectangle {
@@ -6341,11 +6428,11 @@ Item {
                                 height: hudLeft.barThicknessSmall
                                 z: 1
 
-                                color: Utility.getAppHexColor("green")
+                                color: swTheme.color("green")
                             }
                         }
 
-                        LText {
+                        SwLText {
                             id: batteryCurrentValue
                             anchors.bottom: batteryCurrentBar.top
                             anchors.bottomMargin: 0.06 * unit
@@ -6355,7 +6442,7 @@ Item {
                             text: toFixed1Zero(parent.value)
                         }
 
-                        DText {
+                        SwDText {
                             id: batteryCurrentValueUnit
                             anchors.left: batteryCurrentValue.right
                             anchors.baseline: batteryCurrentValue.baseline
@@ -6453,7 +6540,7 @@ Item {
                                 onPaint: {
                                     var context = getContext("2d");
                                     context.reset();
-                                    context.fillStyle = Utility.getAppHexColor("lightAccent")
+                                    context.fillStyle = swTheme.color("lightAccent")
                                     context.path = path
                                     context.fill()
                                 }
@@ -6464,7 +6551,7 @@ Item {
                                 onPaint: {
                                     var context = getContext("2d");
                                     context.reset();
-                                    context.strokeStyle = Utility.getAppHexColor("lightText")
+                                    context.strokeStyle = swTheme.color("lightText")
                                     context.lineWidth = 2
                                     context.path = footpadPath
                                     context.stroke()
@@ -6482,7 +6569,7 @@ Item {
                                 samples: radius * 2 + 1
                                 spread: 0.6
                                 opacity: leftSensor.opacity * (0.4 + 0.5 * footpad.pulse)
-                                color: Utility.getAppHexColor("lightAccent")
+                                color: swTheme.color("lightAccent")
                                 source: leftSensor
                             }
 
@@ -6497,7 +6584,7 @@ Item {
                                 samples: radius * 2 + 1
                                 spread: 0.6
                                 opacity: rightSensor.opacity * (0.4 + 0.5 * footpad.pulse)
-                                color: Utility.getAppHexColor("lightAccent")
+                                color: swTheme.color("lightAccent")
                                 source: rightSensor
                             }
 
@@ -6508,7 +6595,7 @@ Item {
                                 anchors.verticalCenterOffset: footpadCanvas.height * 0.08
                                 font.pixelSize: fontSizeSuperSmall
                                 font.bold: true
-                                color: on ? Utility.getAppHexColor("darkBackground") : Utility.getAppHexColor("disabledText")
+                                color: on ? swTheme.color("darkBackground") : swTheme.color("disabledText")
                                 scale: on ? 1.0 + 0.12 * footpad.pulse : 1.0
                                 z: 3
                             }
@@ -6525,7 +6612,7 @@ Item {
                                 on: rightSensor.on
                             }
 
-                            NText {
+                            SwNText {
                                 id: footpadLeftAdc
                                 anchors.bottom: parent.bottom
                                 anchors.horizontalCenter: footpadCanvas.horizontalCenter
@@ -6535,7 +6622,7 @@ Item {
                                 text: "%1V".arg(toFixed1Zero(parent.leftVoltage))
                             }
 
-                            NText {
+                            SwNText {
                                 id: footpadRightAdc
                                 anchors.bottom: parent.bottom
                                 anchors.horizontalCenter: footpadCanvas.horizontalCenter
@@ -6601,12 +6688,12 @@ Item {
                                     context.rotate(Math.PI / 180 * parent.value);
                                     context.path = rollPath;
                                     context.lineWidth = 2;
-                                    context.strokeStyle = Utility.getAppHexColor("lightText")
+                                    context.strokeStyle = swTheme.color("lightText")
                                     context.stroke();
                                 }
                             }
 
-                            NText {
+                            SwNText {
                                 id: rollText
                                 anchors.bottom: parent.bottom
                                 anchors.horizontalCenter: parent.horizontalCenter
@@ -6711,7 +6798,7 @@ Item {
                                 context.translate(width / 2, height / 2);
                                 context.rotate(Math.PI / 180 * rotation);
                                 context.lineWidth = 2;
-                                context.strokeStyle = Utility.getAppHexColor(color);
+                                context.strokeStyle = swTheme.color(color);
                                 for (let path of paths) {
                                     context.path = path;
                                     context.stroke();
@@ -6729,8 +6816,8 @@ Item {
                             onSw_signChanged: requestPaint()
 
                             function paintDetailedBoard(context, rotation) {
-                                var text = Utility.getAppHexColor("lightText");
-                                var accent = Utility.getAppHexColor("lightAccent");
+                                var text = swTheme.color("lightText");
+                                var accent = swTheme.color("lightAccent");
                                 context.save();
                                 context.translate(width / 2, height / 2);
                                 context.rotate(Math.PI / 180 * rotation);
@@ -6795,7 +6882,7 @@ Item {
                             onPaint: {
                                 var context = getContext("2d");
                                 context.reset()
-                                paintPath(context, [pitchBoardPath], sw_sign * parent.balancePitchValue, "lightAccent");
+                                paintPath(context, [pitchBoardPath], sw_sign * parent.balancePitchValue, "swPurple");
                                 paintDetailedBoard(context, sw_sign * parent.pitchValue);
                                 context.globalAlpha = parent.runtimeOpacity;
                                 paintPath(context, [pitchSetpointPath], sw_sign * parent.setpointValue, "orange");
@@ -6814,11 +6901,11 @@ Item {
                                 if (satText) {
                                     text = satText;
                                     if (state.setpointAdjustmentClass == state.sac_Error) {
-                                        color = Utility.getAppHexColor("red");
+                                        color = swTheme.color("red");
                                     } else if (state.setpointAdjustmentClass == state.sac_Warning) {
-                                        color = Utility.getAppHexColor("orange");
+                                        color = swTheme.color("orange");
                                     } else {
-                                        color = Utility.getAppHexColor("normalText");
+                                        color = swTheme.color("normalText");
                                     }
                                 }
                             }
@@ -6844,7 +6931,7 @@ Item {
                             ]
                         }
 
-                        NText {
+                        SwNText {
                             id: pitchPitchLabel
                             anchors.bottom: parent.bottom
                             anchors.left: parent.left
@@ -6855,7 +6942,7 @@ Item {
                             text: "pitch"
                         }
 
-                        LText {
+                        SwLText {
                             id: pitchPitchValue
                             anchors.bottom: pitchPitchLabel.top
                             width: parent.textWidth
@@ -6865,7 +6952,7 @@ Item {
                             text: "%1°".arg(toFixed1Zero(parent.pitchValue))
                         }
 
-                        NText {
+                        SwNText {
                             id: pitchBalancePitchLabel
                             anchors.bottom: parent.bottom
                             anchors.right: parent.right
@@ -6882,13 +6969,13 @@ Item {
                             anchors.right: parent.right
                             width: parent.textWidth
 
-                            color: Utility.getAppHexColor("lightAccent")
+                            color: swTheme.color("swPurple")
                             font.pixelSize: fontSizeNormal
                             horizontalAlignment: Text.AlignHCenter
                             text: "%1°".arg(toFixed1Zero(parent.balancePitchValue))
                         }
 
-                        NText {
+                        SwNText {
                             id: pitchSetpointLabel
                             anchors.top: parent.top
                             anchors.right: parent.right
@@ -6906,7 +6993,7 @@ Item {
                             anchors.right: parent.right
                             width: parent.textWidth
 
-                            color: Utility.getAppHexColor("orange")
+                            color: swTheme.color("orange")
                             font.pixelSize: fontSizeNormal
                             horizontalAlignment: Text.AlignHCenter
                             opacity: parent.runtimeOpacity
@@ -6939,7 +7026,7 @@ Item {
 
                     property string format: "%1" + unit
 
-                    NText {
+                    SwNText {
                         anchors.bottom: parent.bottom
                         width: parent.width
                         font.pixelSize: fontSizeSmall
@@ -6949,7 +7036,7 @@ Item {
 
                     Text {
                         width: parent.width
-                        color: !!warningThreshold && value > warningThreshold ? Utility.getAppHexColor("red") : Utility.getAppHexColor("lightText")
+                        color: !!warningThreshold && value > warningThreshold ? swTheme.color("red") : swTheme.color("lightText")
                         font.pixelSize: fontSizeNormal
                         horizontalAlignment: Text.AlignHCenter
                         text: format.arg(toFixed1Zero(value))
@@ -7468,7 +7555,7 @@ Item {
                 property real pitch: state.rtData["imu.pitch"]
                 property real roll: state.rtData["imu.roll"]
                 property real yaw: state.rtData["imu.yaw"]
-                property bool hasData: !isNaN(pitch) && !isNaN(roll)
+                property bool hasData: !isNaN(boardPage.pitch) && !isNaN(boardPage.roll)
                 property bool riding: state.pkgState === state.s_Running
                 property int sign: invertSwitch.checked ? -1 : 1
 
@@ -7698,7 +7785,7 @@ Item {
 
                         Item {
                             width: parent.width
-                            height: width * 0.42
+                            height: width * 0.6
 
                             // level reference
                             Rectangle {
@@ -7710,25 +7797,29 @@ Item {
 
                             Item {
                                 id: sideBoard
-                                anchors.centerIn: parent
-                                width: parent.width * 0.9
-                                height: parent.height
-                                rotation: boardPage.hasData ? -boardPage.sign * boardPage.pitch : 0
-                                Behavior on rotation { NumberAnimation { duration: 90 } }
+                                anchors.fill: parent
 
                                 Canvas {
                                     id: sideCanvas
                                     anchors.fill: parent
                                     contextType: "2d"
                                     property bool fpOn: boardPage.adc1On || boardPage.adc2On
+                                    // Rotation is applied inside the canvas (same approach as
+                                    // the main screen) so it repaints on every new pitch value.
+                                    property real ang: isNaN(boardPage.pitch) ? 0 : -boardPage.sign * boardPage.pitch
                                     onFpOnChanged: requestPaint()
+                                    onAngChanged: requestPaint()
                                     onWidthChanged: requestPaint()
 
                                     // Drawn in a 300 x 126 space, nose on the right
                                     onPaint: {
                                         var ctx = getContext("2d");
                                         ctx.reset();
-                                        ctx.scale(width / 300, height / 126);
+                                        var sc = Math.min(width / 320, height / 190);
+                                        ctx.translate(width / 2, height / 2);
+                                        ctx.rotate(ang * Math.PI / 180);
+                                        ctx.scale(sc, sc);
+                                        ctx.translate(-150, -63);
                                         var cx = 150, cy = 63;
 
                                         // tire with tread ticks
@@ -7787,27 +7878,15 @@ Item {
                                         ctx.roundedRect(6, 53, 9, 16, 3, 3);
                                         ctx.roundedRect(285, 53, 9, 16, 3, 3);
                                         boardPage.neonStroke(ctx, boardPage.neonPurple, 1.5);
+
+                                        // labels rotate with the board
+                                        ctx.font = "bold " + Math.round(fontSizeSuperSmall / sc) + "px monospace";
+                                        ctx.textAlign = "center";
+                                        ctx.fillStyle = boardPage.neonGreen;
+                                        ctx.fillText("NOSE", 262, 96);
+                                        ctx.fillStyle = boardPage.neonPurple;
+                                        ctx.fillText("TAIL", 38, 96);
                                     }
-                                }
-
-                                Text {
-                                    x: parent.width * 0.86
-                                    y: parent.height * 0.58
-                                    text: "NOSE"
-                                    color: boardPage.neonGreen
-                                    font.family: boardPage.monoFont
-                                    font.pixelSize: fontSizeSuperSmall
-                                    font.bold: true
-                                }
-
-                                Text {
-                                    x: parent.width * 0.04
-                                    y: parent.height * 0.58
-                                    text: "TAIL"
-                                    color: boardPage.neonPurple
-                                    font.family: boardPage.monoFont
-                                    font.pixelSize: fontSizeSuperSmall
-                                    font.bold: true
                                 }
                             }
                         }
@@ -7819,7 +7898,7 @@ Item {
 
                         Item {
                             width: parent.width
-                            height: 2.4 * unit
+                            height: 3 * unit
 
                             Rectangle {
                                 anchors.centerIn: parent
@@ -7829,22 +7908,24 @@ Item {
                             }
 
                             Item {
-                                anchors.centerIn: parent
-                                width: Math.min(parent.width * 0.6, 4 * unit)
-                                height: parent.height
-                                rotation: boardPage.hasData ? boardPage.sign * boardPage.roll : 0
-                                Behavior on rotation { NumberAnimation { duration: 90 } }
+                                anchors.fill: parent
 
                                 Canvas {
                                     anchors.fill: parent
                                     contextType: "2d"
+                                    property real ang: isNaN(boardPage.roll) ? 0 : boardPage.sign * boardPage.roll
+                                    onAngChanged: requestPaint()
                                     onWidthChanged: requestPaint()
 
-                                    // 200 x 120 space, seen from the tail
+                                    // 200 x 120 space, seen from the tail, rotated in-canvas
                                     onPaint: {
                                         var ctx = getContext("2d");
                                         ctx.reset();
-                                        ctx.scale(width / 200, height / 120);
+                                        var sc = Math.min(width / 260, height / 170);
+                                        ctx.translate(width / 2, height / 2);
+                                        ctx.rotate(ang * Math.PI / 180);
+                                        ctx.scale(sc, sc);
+                                        ctx.translate(-100, -60);
 
                                         // tire profile
                                         ctx.beginPath();
