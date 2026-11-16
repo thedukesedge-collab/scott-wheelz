@@ -42,7 +42,7 @@ jobs:
           flutter create --platforms=android,ios --org com.rinkmixed --project-name rinkmixed .
           rm -f test/widget_test.dart
           python3 tools/patch_platforms.py .
-          curl -fsSL "$FONT_URL" -o assets/fonts/Orbitron.ttf
+          mkdir -p assets/fonts && curl -fsSL "$FONT_URL" -o assets/fonts/Orbitron.ttf
       - name: Analyze
         working-directory: ${{ env.APP }}
         run: |
@@ -81,7 +81,7 @@ jobs:
           flutter create --platforms=android,ios --org com.rinkmixed --project-name rinkmixed .
           rm -f test/widget_test.dart
           python3 tools/patch_platforms.py .
-          curl -fsSL "$FONT_URL" -o assets/fonts/Orbitron.ttf
+          mkdir -p assets/fonts && curl -fsSL "$FONT_URL" -o assets/fonts/Orbitron.ttf
       - name: Build (unsigned)
         working-directory: ${{ env.APP }}
         run: |
