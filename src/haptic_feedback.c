@@ -46,6 +46,13 @@
 #define HORN_REFILL 1.0f
 // - in ALT mode, beep and buzz swap this often
 #define HORN_ALT_STEP 0.125f
+// - the horn works out of the box: if the rider's haptic strengths are lower
+//   (Refloat's default Vibrate Strength is 0), these minimums are used for the
+//   horn only. Other haptic alerts keep using the configured values.
+#define HORN_MIN_BEEP_STRENGTH 5.0f
+#define HORN_MIN_VIBRATE_STRENGTH 8.0f
+#define HORN_DEFAULT_BEEP_FREQUENCY 495
+#define HORN_DEFAULT_VIBRATE_FREQUENCY 70
 
 void haptic_feedback_init(HapticFeedback *hf) {
     hf->type_playing = HAPTIC_FEEDBACK_NONE;
@@ -292,8 +299,23 @@ void haptic_feedback_update(
         float scale =
             hf->type_playing == HAPTIC_FEEDBACK_HORN ? 1.0f : strength_scale(hf, fabsf(md->speed));
 
-        bool play_beep = tone->strength > 0.0f;
-        bool play_buzz = hf->cfg->vibrate.strength > 0.0f;
+        float beep_strength = tone->strength;
+        uint16_t beep_frequency = tone->frequency;
+        float buzz_strength = hf->cfg->vibrate.strength;
+        uint16_t buzz_frequency = hf->cfg->vibrate.frequency;
+        if (hf->type_playing == HAPTIC_FEEDBACK_HORN) {
+            beep_strength = fmaxf(beep_strength, HORN_MIN_BEEP_STRENGTH);
+            buzz_strength = fmaxf(buzz_strength, HORN_MIN_VIBRATE_STRENGTH);
+            if (beep_frequency == 0) {
+                beep_frequency = HORN_DEFAULT_BEEP_FREQUENCY;
+            }
+            if (buzz_frequency == 0) {
+                buzz_frequency = HORN_DEFAULT_VIBRATE_FREQUENCY;
+            }
+        }
+
+        bool play_beep = beep_strength > 0.0f;
+        bool play_buzz = buzz_strength > 0.0f;
 
         if (hf->type_playing == HAPTIC_FEEDBACK_HORN) {
             // Re-RinkFloat: no current-based vibration when the board isn't
@@ -325,15 +347,13 @@ void haptic_feedback_update(
         bool horn = hf->type_playing == HAPTIC_FEEDBACK_HORN;
 
         if (play_beep) {
-            foc_play_tone(0, tone->frequency, tone->strength * scale);
+            foc_play_tone(0, beep_frequency, beep_strength * scale);
         } else if (horn) {
             foc_play_tone(0, 1, 0.0f);
         }
 
         if (play_buzz) {
-            motor_control_play_tone(
-                mc, hf->cfg->vibrate.frequency, hf->cfg->vibrate.strength * scale
-            );
+            motor_control_play_tone(mc, buzz_frequency, buzz_strength * scale);
         } else if (horn) {
             motor_control_stop_tone(mc);
         }
