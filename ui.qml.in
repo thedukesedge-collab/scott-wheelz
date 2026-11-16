@@ -428,7 +428,7 @@ Item {
             }
         }
 
-        // Called explicitly after the Write button in {{PACKAGE_NAME}} Cfg qml page is pressed
+        // Called explicitly after the Write button in Refloat Cfg qml page is pressed
         function configWritten() {
             disarmDueUpdate();
             unsetDefault();
@@ -5687,7 +5687,7 @@ Item {
                 }
 
                 ErrText {
-                    text: "{{PACKAGE_NAME}} Cfg failed to load"
+                    text: "Refloat Cfg failed to load"
                     visible: state.configLoadingError
                 }
 
@@ -6235,7 +6235,7 @@ Item {
                     id: welcomeMessage
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    text: "If you haven't configured your board yet, make sure to configure your motor and IMU before you try to ride the board.\n\nTo run the motor wizard, you need to disable the {{PACKAGE_NAME}} package first. You can do so in {{PACKAGE_NAME}} Settings > Setup, which you can access using the cog button in the top right corner of the main {{PACKAGE_NAME}} screen.\n\nAfter the setup, you can safely verify your board balances correctly using the Handtest mode.\n\nTo configure {{PACKAGE_NAME}}, you need to set the High and Low Voltage Thresholds in {{PACKAGE_NAME}} Cfg > Specs according to your battery voltage. The rest of the configuration options has defaults that should provide you with a well-behaving, rideable board.\n\nHappy shredding!\n\nGo to Settings > Setup now?"
+                    text: "If you haven't configured your board yet, make sure to configure your motor and IMU before you try to ride the board.\n\nTo run the motor wizard, you need to disable the {{PACKAGE_NAME}} package first. You can do so in {{PACKAGE_NAME}} Settings > Setup, which you can access using the cog button in the top right corner of the main {{PACKAGE_NAME}} screen.\n\nAfter the setup, you can safely verify your board balances correctly using the Handtest mode.\n\nTo configure {{PACKAGE_NAME}}, you need to set the High and Low Voltage Thresholds in Refloat Cfg > Specs according to your battery voltage. The rest of the configuration options has defaults that should provide you with a well-behaving, rideable board.\n\nHappy shredding!\n\nGo to Settings > Setup now?"
                 }
 
                 CheckBox {
@@ -9138,12 +9138,20 @@ Item {
                 }
             }
 
-            SwNText {
+            // Re-RinkFloat: title strip - RE:FLOAT + RINK-MIXED + version
+            Text {
                 id: bottomLine
                 Layout.fillWidth: true
-                font.pixelSize: 0.2 * unit
+                Layout.topMargin: 0.04 * unit
+                Layout.bottomMargin: 0.04 * unit
+                font.family: "Exan"
+                font.pixelSize: 0.24 * unit
+                font.letterSpacing: 0.03 * unit
                 horizontalAlignment: Text.AlignHCenter
-                text: "{{PACKAGE_NAME}} {{VERSION}}"
+                textFormat: Text.StyledText
+                text: '<font color="#b14cff">RE:</font><font color="#ead6ff">FLOAT</font>'
+                      + '<font color="#7a3fc0"> — </font><font color="#39ff7a">RINK-MIXED</font>'
+                      + '<font color="#7d68ab">  {{VERSION}}</font>'
             }
         }
     }

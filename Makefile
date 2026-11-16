@@ -9,7 +9,7 @@ all: rinkfloat.vescpkg
 
 rinkfloat.vescpkg: src lisp/package.lisp package_README-gen.md ui.qml
 ifeq ($(OLDVT), 1)
-	"$(VESC_TOOL)" --buildPkg "rinkfloat.vescpkg:lisp/package.lisp:ui.qml:0:package_README-gen.md:Re-RinkFloat"
+	"$(VESC_TOOL)" --buildPkg "rinkfloat.vescpkg:lisp/package.lisp:ui.qml:0:package_README-gen.md:Re-Float Rink-Mixed"
 else
 	"$(VESC_TOOL)" --buildPkgFromDesc pkgdesc.qml
 endif

@@ -1,8 +1,10 @@
-# Re-RinkFloat
+# Re-Float Rink-Mixed  (RE:FLOAT — RINK-MIXED)
 
-**Re-RinkFloat is a vibe-coded fork of [Refloat](https://github.com/lukash/refloat) 1.2.3.** All the changes below were made with an AI coding assistant on top of Refloat. All credit for the package itself goes to **Lukáš Hrázký (lukash)**, the author of Refloat, and to the original Float authors (Mitch Lustig, Dado Mista, Nico Aleman, based on work by Benjamin Vedder). Licensed under GPL-3.0. Not an official Refloat release, so please don't report Re-RinkFloat issues to the Refloat project.
+*A custom Refloat remix* (formerly Re-RinkFloat)
 
-## New in Re-RinkFloat
+**Re-Float Rink-Mixed is a vibe-coded fork of [Refloat](https://github.com/lukash/refloat) 1.2.3.** All the changes below were made with an AI coding assistant on top of Refloat. All credit for the package itself goes to **Lukáš Hrázký (lukash)**, the author of Refloat, and to the original Float authors (Mitch Lustig, Dado Mista, Nico Aleman, based on work by Benjamin Vedder). Licensed under GPL-3.0. Not an official Refloat release, so please don't report Re-Float Rink-Mixed issues to the Refloat project.
+
+## New in Re-Float Rink-Mixed
 - **Haptic horn**: a big HORN bar on the main screen. Hold or tap it: full haptics while riding (up to 3 s per press), tone only when idle (up to 2 s). A heat budget allows repeated taps as long as it stays safe. Real pushback and alerts always override it. If the app disconnects, the horn stops within 0.5 s.
 - **TILT slider** on the main screen: +-4 deg remote tilt that springs back to 0 when released. The package hard-caps remote tilt at +-4 deg.
 - **Tron-style main screen**: neon green/purple theme, digital segmented speedometer with a duty ring, a battery bar that fades from green to red, and a full-screen layout.
@@ -26,7 +28,7 @@ For more details, read the [1.2 release post](https://pev.dev/t/refloat-version-
 
 ## Installation
 ### Upgrading
-Back up your package config (either by **Backup Configs** on the Start page, or by saving the XML on **Re-RinkFloat Cfg**).
+Back up your package config (either by **Backup Configs** on the Start page, or by saving the XML on **Refloat Cfg**).
 
 If upgrading from Refloat 1.1 to 1.2, an automatic config restore dialog should pop up. Confirm it to restore. This is the preferred way to update the config from now on, as it will also migrate any changed options to the new version. Other methods of restoring the config will not do that.
 
@@ -45,11 +47,11 @@ On 6.05+ firmware, the package should ride well without the need to configure an
 ## Credits
 Refloat author: Lukáš Hrázký (lukash). All credit for Refloat goes to him.
 
-Re-RinkFloat changes: vibe-coded with an AI coding assistant.
+Re-Float Rink-Mixed changes: vibe-coded with an AI coding assistant.
 
 Original Float package authors: Mitch Lustig, Dado Mista, Nico Aleman
 
 ## Downloads and Changelogs
 Refloat: [https://github.com/lukash/refloat/releases](https://github.com/lukash/refloat/releases)
 
-Re-RinkFloat: [https://github.com/thedukesedge-collab/scott-wheelz](https://github.com/thedukesedge-collab/scott-wheelz)
+Re-Float Rink-Mixed: [https://github.com/thedukesedge-collab/scott-wheelz](https://github.com/thedukesedge-collab/scott-wheelz)

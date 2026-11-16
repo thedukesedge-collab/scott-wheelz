@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Re-RinkFloat Simulator</title>
+<title>Re-Float Rink-Mixed Simulator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -204,7 +204,7 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver">Re-RinkFloat 1.2.3-rf31 · simulator</div>
+      <div id="ver" class="tron"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf32 · sim</span></div>
     </div>
   </div>
 
@@ -292,7 +292,7 @@ function layout() {
   css($('handle').firstChild, { width: px(1.4 * u), height: px(0.12 * u) });
   css($('tabs'), { height: px(tabsH) });
   document.querySelectorAll('.tab').forEach(t => t.style.fontSize = px(0.27 * u));
-  css($('ver'), { height: px(verH), fontSize: px(0.2 * u), lineHeight: px(verH) });
+  css($('ver'), { height: px(verH + 0.08 * u), fontSize: px(0.24 * u), lineHeight: px(verH + 0.08 * u), letterSpacing: '.03em' });
 
   const hudH = rootH - sheetMin - 0.1 * u;
   css($('hud'), { width: px(rootW), height: px(hudH) });

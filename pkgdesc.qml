@@ -1,7 +1,7 @@
 import QtQuick 2.15
 
 Item {
-    property string pkgName: "Re-RinkFloat"
+    property string pkgName: "Re-Float Rink-Mixed"
     property string pkgDescriptionMd: "package_README-gen.md"
     property string pkgLisp: "lisp/package.lisp"
     property string pkgQml: "ui.qml"
