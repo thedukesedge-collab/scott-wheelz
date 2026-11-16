@@ -851,6 +851,14 @@ Item {
             odometer.value = values.odometer * 0.001 * vescConfig.imperialFactor;
             tachometer.value = values.tachometer_abs * 0.001 * vescConfig.imperialFactor;
 
+            // Re-RinkFloat: trip counter went backwards = board was power cycled,
+            // so start fresh ride peaks
+            if (values.tachometer_abs < swSettings.peakTach) {
+                swSettings.peakSpeed = 0;
+                swSettings.peakDuty = 0;
+            }
+            swSettings.peakTach = values.tachometer_abs;
+
             var speed = Math.abs(values.speed * 3.6 * vescConfig.imperialFactor);
             consumption.add(Math.max(Math.min(values.current_in * values.v_in / Math.max(speed, 1e-6), 60) , -60));
         }
@@ -944,6 +952,15 @@ Item {
 
                 state.rtData = state.newRtData(newRt);
 
+                // Re-RinkFloat: ride peaks (only while actually riding, and not
+                // during wheelslip, so a hand-spun wheel doesn't count)
+                if (state.pkgState === state.s_Running && !state.wheelslip) {
+                    var pkSpeed = Math.abs(state.rtData["motor.speed"]);
+                    var pkDuty = Math.abs(state.rtData["motor.duty_cycle"]);
+                    if (pkSpeed === pkSpeed && pkSpeed > swSettings.peakSpeed) swSettings.peakSpeed = pkSpeed;
+                    if (pkDuty === pkDuty && pkDuty > swSettings.peakDuty) swSettings.peakDuty = Math.min(1, pkDuty);
+                }
+
                 if (hasCharging) {
                     chargingInfo.current = getFloat16(dv, ind); ind += 2;
                     chargingInfo.voltage = getFloat16(dv, ind); ind += 2;
@@ -979,7 +996,7 @@ Item {
         id: preferences
         category: "preferences"
 
-        property int speedDialMax: vescConfig.useImperial ? 30 : 40
+        property int speedDialMax: vescConfig.useImperial ? 40 : 64
         property alias showBattVoltage: prefShowBattVoltage.checked
         property alias showBattVoltagePerCell: prefShowBattVoltagePerCell.checked
         property alias battCurrentLog: prefBattCurrentLog.checked
@@ -1000,6 +1017,12 @@ Item {
         property int tireStyle: 0  // 0 treaded, 1 slick
         property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
         property string tuneColors: "{}"    // tune slot -> neon palette index (JSON)
+        property bool speedo40Migrated: false  // one-time bump of a saved 30 mph dial to 40
+        // ride peaks, kept until the board's trip counter resets (power cycle)
+        // or you press and hold either readout
+        property real peakSpeed: 0     // raw motor.speed units (x imperialFactor to show)
+        property real peakDuty: 0      // 0..1
+        property real peakTach: -1     // trip counter when last seen, to spot a reset
     }
 
     Settings {
@@ -6719,6 +6742,54 @@ Item {
                     labelText: "LIFE"
                     unitText: vescConfig.distanceUnit
                 }
+
+                // Re-RinkFloat: ride peaks under trip / life. Press and hold to reset.
+                SwStat {
+                    id: peakSpeedStat
+                    anchors.top: tachometer.bottom
+                    anchors.topMargin: 0.1 * unit
+                    anchors.left: tachometer.left
+                    labelText: "TOP SPEED"
+                    unitText: vescConfig.speedUnit
+                    value: swSettings.peakSpeed * vescConfig.imperialFactor
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onPressAndHold: tronSpeedo.resetPeaks()
+                    }
+                }
+
+                SwStat {
+                    id: peakDutyStat
+                    anchors.top: odometer.bottom
+                    anchors.topMargin: 0.1 * unit
+                    anchors.right: odometer.right
+                    labelText: "MAX DUTY"
+                    unitText: "%"
+                    warningThreshold: 89.99
+                    value: swSettings.peakDuty * 100
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onPressAndHold: tronSpeedo.resetPeaks()
+                    }
+                }
+
+                function resetPeaks() {
+                    swSettings.peakSpeed = 0;
+                    swSettings.peakDuty = 0;
+                    VescIf.emitStatusMessage("Top speed / max duty reset", true);
+                }
+
+                // one-time: older builds saved a 30 mph dial; move it to 40
+                Component.onCompleted: Qt.callLater(function() {
+                    if (!swSettings.speedo40Migrated) {
+                        if (preferences.speedDialMax < 40) {
+                            preferences.speedDialMax = 40;
+                        }
+                        swSettings.speedo40Migrated = true;
+                    }
+                })
 
                 Item {
                     id: hudDials  // Re-RinkFloat: current / duty dials flank the speedo
