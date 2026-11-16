@@ -176,7 +176,7 @@ Item {
             }
 
             // Scott Wheelz: keep the horn alive while the button is held
-            if (hornButton.pressed) {
+            if (hornFrame.honking) {
                 commands.sendHorn(true);
             }
 
@@ -6147,24 +6147,43 @@ Item {
                     Component.onCompleted: load();
                 }
 
-                // Scott Wheelz: haptic horn (hold). Works only while riding.
+                // Scott Wheelz: haptic horn (hold). Riding: full haptics; idle: tone only.
+                // Mirrors the package's limits (haptic_feedback.c): max 1 s per
+                // press, then 1 s cooldown after release. The package enforces
+                // them; this only shows the state.
                 Rectangle {
                     id: hornFrame
                     Layout.alignment: Qt.AlignVCenter
                     Layout.preferredWidth: 1.9 * unit
                     Layout.preferredHeight: 0.62 * unit
                     radius: height / 2
-                    // works riding (full haptics) or idle/ready (tone only)
-                    property bool riding: state.pkgState === state.s_Running || state.pkgState === state.s_Ready
-                    color: hornButton.pressed ? swTheme.neonPurple : "transparent"
+
+                    property bool available: state.pkgState === state.s_Running || state.pkgState === state.s_Ready
+                    property bool expired: false   // held past the 1 s limit
+                    property bool cooling: false   // 1 s cooldown after release
+                    property bool honking: hornButton.pressed && !expired && !cooling
+
+                    color: honking ? swTheme.neonPurple : "transparent"
                     border.color: swTheme.neonPurple
                     border.width: 2
-                    opacity: riding ? 1.0 : 0.4
+                    opacity: available && !cooling && !expired ? 1.0 : 0.4
+
+                    Timer {
+                        id: hornMaxTimer
+                        interval: 1000
+                        onTriggered: hornFrame.expired = true
+                    }
+
+                    Timer {
+                        id: hornCooldownTimer
+                        interval: 1000
+                        onTriggered: hornFrame.cooling = false
+                    }
 
                     Text {
                         anchors.centerIn: parent
-                        text: hornButton.pressed ? "HONK" : "HORN"
-                        color: hornButton.pressed ? swTheme.background : swTheme.neonPurple
+                        text: hornFrame.honking ? "HONK" : hornFrame.cooling ? "WAIT" : hornFrame.expired ? "MAX" : "HORN"
+                        color: hornFrame.honking ? swTheme.background : swTheme.neonPurple
                         font.family: "monospace"
                         font.bold: true
                         font.pixelSize: fontSizeSmall
@@ -6174,10 +6193,25 @@ Item {
                     MouseArea {
                         id: hornButton
                         anchors.fill: parent
-                        enabled: parent.riding
-                        onPressed: commands.sendHorn(true)
-                        onReleased: commands.sendHorn(false)
-                        onCanceled: commands.sendHorn(false)
+                        enabled: parent.available
+                        onPressed: {
+                            if (hornFrame.cooling) return;
+                            hornFrame.expired = false;
+                            hornMaxTimer.restart();
+                            commands.sendHorn(true);
+                        }
+                        onReleased: hornFrame.release()
+                        onCanceled: hornFrame.release()
+                    }
+
+                    function release() {
+                        commands.sendHorn(false);
+                        hornMaxTimer.stop();
+                        if (!cooling) {
+                            cooling = true;
+                            hornCooldownTimer.restart();
+                        }
+                        expired = false;
                     }
                 }
 

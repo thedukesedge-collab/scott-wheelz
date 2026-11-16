@@ -24,8 +24,17 @@
 #include <math.h>
 
 #define TONE_LENGTH 0.1f
-// Scott Wheelz: horn stops this long after the last request from the app
+// Scott Wheelz horn safety limits (seconds)
+// - stops this long after the last keepalive from the app (app disconnects)
 #define HORN_TIMEOUT 0.3f
+// - a tap plays at least this long, so it's noticeable
+#define HORN_MIN_TIME 0.2f
+// - one press never plays longer than this; holding longer is silent
+#define HORN_MAX_TIME 1.0f
+// - after a release, new presses are ignored for this long. Together with
+//   HORN_MAX_TIME this caps the horn at ~50% duty, which matters most when
+//   idle: the tone then runs at standstill with no airflow cooling.
+#define HORN_COOLDOWN 1.0f
 
 void haptic_feedback_init(HapticFeedback *hf) {
     hf->type_playing = HAPTIC_FEEDBACK_NONE;
@@ -33,15 +42,54 @@ void haptic_feedback_init(HapticFeedback *hf) {
     hf->is_playing = false;
     hf->can_change_type = true;
     hf->horn_timer = 0;
+    hf->horn_start = 0;
+    hf->horn_end = 0;
     hf->horn_on = false;
+    hf->horn_used = false;
 }
 
 void haptic_feedback_horn(HapticFeedback *hf, const Time *time, bool on) {
+    // A press whose keepalives stopped arriving counts as released now.
+    if (hf->horn_on && timer_older(time, hf->horn_timer, HORN_TIMEOUT)) {
+        hf->horn_on = false;
+        hf->horn_end = time->now;
+    }
+
+    if (!on) {
+        if (hf->horn_on) {
+            hf->horn_on = false;
+            hf->horn_end = time->now;
+        }
+        return;
+    }
+
+    if (hf->horn_on) {
+        // keepalive for the current press (does not extend HORN_MAX_TIME)
+        hf->horn_timer = time->now;
+        return;
+    }
+
+    // new press: ignored during the cooldown after the previous one
+    if (hf->horn_used && !timer_older(time, hf->horn_end, HORN_COOLDOWN)) {
+        return;
+    }
+
+    hf->horn_used = true;
+    hf->horn_start = time->now;
     hf->horn_timer = time->now;
-    hf->horn_on = on;
+    hf->horn_on = true;
 }
 
 static inline bool horn_active(const HapticFeedback *hf, const Time *time) {
+    if (!hf->horn_used || timer_older(time, hf->horn_start, HORN_MAX_TIME)) {
+        return false;
+    }
+
+    // minimum length for short taps
+    if (!timer_older(time, hf->horn_start, HORN_MIN_TIME)) {
+        return true;
+    }
+
     return hf->horn_on && !timer_older(time, hf->horn_timer, HORN_TIMEOUT);
 }
 

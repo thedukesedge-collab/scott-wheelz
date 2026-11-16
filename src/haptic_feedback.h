@@ -45,10 +45,14 @@ typedef struct {
     bool can_change_type;
 
     // Scott Wheelz horn: set from the command thread, read in the main loop.
-    // The horn plays while requests keep arriving and stops on its own
-    // HORN_TIMEOUT after the last one (e.g. if the app disconnects).
-    volatile time_t horn_timer;
-    volatile bool horn_on;
+    // A press plays for at least HORN_MIN_TIME and at most HORN_MAX_TIME,
+    // stops HORN_TIMEOUT after the last keepalive (e.g. app disconnects), and
+    // a new press is ignored until HORN_COOLDOWN after the previous release.
+    volatile time_t horn_timer;  // last request from the app
+    volatile time_t horn_start;  // start of the current press
+    volatile time_t horn_end;  // release of the previous press
+    volatile bool horn_on;  // button currently held
+    volatile bool horn_used;  // at least one press since boot
 } HapticFeedback;
 
 void haptic_feedback_init(HapticFeedback *hf);

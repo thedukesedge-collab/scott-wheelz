@@ -119,3 +119,14 @@ screen, restyled:
   and StatusText components use it too, and a dark grid sits behind the stats.
   The battery bar fill is purple so the % stays readable; the balance-pitch
   outline and value are purple to stand apart from the green board.
+
+### Horn safety limits (update 4)
+Enforced in the package (`src/haptic_feedback.c`), mirrored in the UI:
+- min 0.2 s per tap, max 1.0 s per press (holding longer is silent),
+- 1.0 s cooldown after release (presses ignored), so <= ~50% duty,
+- stops 0.3 s after the app's last keepalive (disconnect-safe),
+- lowest priority: pushback / error haptics always win,
+- idle (READY): audible tone only, no current-based vibration.
+Settings it uses: Warning Audible Strength (V, 0-12, default 3) and
+Vibrate Strength (A, 0-25, default 0 = off). Higher values mean more motor
+current and heat, especially at standstill.
