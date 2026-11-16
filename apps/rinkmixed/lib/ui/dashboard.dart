@@ -234,7 +234,7 @@ class _DashboardState extends State<Dashboard> {
       Positioned(left: halfW + (halfW - pitchS) / 2, top: pTop - 0.6 * u, width: pitchS, height: pitchS,
           child: CustomPaint(painter: SidePainter(b, u))),
       Positioned(left: halfW, top: pTop + pitchS - 0.95 * u, width: tw, child: stat('${fx1(b.v('imu.pitch'))}°', 'PITCH', Neon.lavLight)),
-      Positioned(left: halfW * 2 - tw, top: pTop + pitchS - 0.95 * u, width: tw, child: stat('${fx1(b.v('imu.balance_pitch'))}°', 'BALANCE', Neon.purple)),
+      Positioned(left: halfW * 1.5 + 0.05 * u, top: pTop + pitchS - 0.95 * u, width: tw, child: stat('${fx1(b.v('imu.balance_pitch'))}°', 'BALANCE', Neon.purple)),
       if (b.running)
         Positioned(left: halfW * 2 - tw, top: pTop, width: tw, child: Column(children: [
           Text('setpoint', style: TextStyle(color: Neon.text, fontSize: 0.3 * u)),

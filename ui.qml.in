@@ -7980,10 +7980,14 @@ Item {
                             text: "%1°".arg(toFixed1Zero(parent.pitchValue))
                         }
 
+                        // Re-RinkFloat: BALANCE sits one step right of PITCH, so WH/MI,
+                        // BATTERY AMPS, PITCH and BALANCE are evenly spaced
+                        property real balanceX: textWidth / 2 + width / 2 + 0.05 * unit - textWidth / 2
+
                         SwNeonLabel {
                             id: pitchBalancePitchLabel
                             anchors.bottom: parent.bottom
-                            anchors.right: parent.right
+                            x: parent.balanceX
                             width: parent.textWidth
 
                             horizontalAlignment: Text.AlignHCenter
@@ -7993,7 +7997,7 @@ Item {
                         SwNeonValue {
                             id: pitchBalancePitchValue
                             anchors.bottom: pitchBalancePitchLabel.top
-                            anchors.right: parent.right
+                            x: parent.balanceX
                             width: parent.textWidth
 
                             color: swTheme.color("swPurple")
