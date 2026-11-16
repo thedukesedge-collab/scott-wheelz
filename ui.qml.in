@@ -8781,23 +8781,51 @@ Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
-                    ToggleFloatingToolButton {
+                    // Re-RinkFloat: GRAPH / TEXT switch for the live data
+                    Rectangle {
                         id: toggleDataPlotButton
                         anchors.top: parent.top
                         anchors.right: parent.right
-                        width: 0.8 * unit
-                        height: 0.8 * unit
+                        anchors.topMargin: 0.08 * unit
+                        anchors.rightMargin: 0.1 * unit
                         z: 1
-                        value: true
-                        strokeColor: swTheme.neonGreen
-                        bgColor: swTheme.color("lightBackground")
+                        width: 2.8 * unit
+                        height: 0.6 * unit
+                        radius: height / 2
+                        color: "#0b0718"
+                        border.color: swTheme.neonPurple
+                        border.width: 2
 
-                        trueIconPath: Path {
-                            PathSvg {path: "M 6 13 L 31 13 M 6 21 L 21 21 M 6 29 L 21 29 M 6 37 L 21 37 M 29 21 L 44 21 M 29 29 L 44 29 M 29 37 L 44 37"}
+                        property bool value: true  // true = graph
+
+                        Row {
+                            anchors.fill: parent
+                            anchors.margins: 3
+
+                            Repeater {
+                                model: ["GRAPH", "TEXT"]
+
+                                Rectangle {
+                                    width: parent.width / 2
+                                    height: parent.height
+                                    radius: height / 2
+                                    property bool on: (index === 0) === toggleDataPlotButton.value
+                                    color: on ? swTheme.neonGreen : "transparent"
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData
+                                        color: parent.on ? swTheme.background : "#c98bff"
+                                        font.family: "Exan"
+                                        font.pixelSize: 0.22 * unit
+                                    }
+                                }
+                            }
                         }
 
-                        falseIconPath: Path {
-                            PathSvg {path: "M 10 12 L 10 38 L 42 38 M 10 30 L 22 22 L 32 28 L 39 18"}
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: toggleDataPlotButton.value = mouse.x < width / 2
                         }
                     }
 
@@ -8844,12 +8872,48 @@ Item {
 
                             Item {
                                 width: parent.width
-                                height: 0.1 * unit
+                                height: 0.8 * unit  // room for the GRAPH / TEXT switch
                             }
 
-                            Item {
+                            // Re-RinkFloat: live core values as plain text
+                            Row {
                                 width: parent.width
-                                height: 0.1 * unit
+
+                                Column {
+                                    width: parent.width / 2
+                                    spacing: 5
+                                    clip: true
+
+                                    Value {label: "Speed"; unit: " " + vescConfig.speedUnit; value: toFixed1Zero(Math.abs(state.rtData["motor.speed"]) * vescConfig.imperialFactor);}
+                                    Value {label: "ERPM"; value: round(state.rtData["motor.erpm"]);}
+                                    Value {label: "Duty"; unit: "%"; value: toFixed1Zero(state.rtData["motor.duty_cycle"] * 100);}
+                                    Value {label: "Motor current"; unit: "A"; value: toFixed1Zero(state.rtData["motor.current"]);}
+                                    Value {label: "Battery current"; unit: "A"; value: toFixed1Zero(state.rtData["motor.batt_current"]);}
+                                    Value {label: "Battery voltage"; unit: "V"; value: toFixed1Zero(state.rtData["motor.batt_voltage"]);}
+                                    Value {label: "Motor temp"; unit: "°C"; value: toFixed1Zero(state.rtData["motor.motor_temp"]);}
+                                    Value {label: "ESC temp"; unit: "°C"; value: toFixed1Zero(state.rtData["motor.mosfet_temp"]);}
+                                }
+
+                                Column {
+                                    width: parent.width / 2
+                                    spacing: 5
+                                    clip: true
+
+                                    Value {label: "Pitch"; unit: "°"; value: toFixed1Zero(state.rtData["imu.pitch"]);}
+                                    Value {label: "Balance pitch"; unit: "°"; value: toFixed1Zero(state.rtData["imu.balance_pitch"]);}
+                                    Value {label: "Roll"; unit: "°"; value: toFixed1Zero(state.rtData["imu.roll"]);}
+                                    Value {label: "Setpoint"; unit: "°"; value: toFixed1Zero(state.rtData["setpoint"]);}
+                                    Value {label: "ADC1"; unit: "V"; value: toFixed2Zero(state.rtData["footpad.adc1"]);}
+                                    Value {label: "ADC2"; unit: "V"; value: toFixed2Zero(state.rtData["footpad.adc2"]);}
+                                    Value {label: "Wheelslip"; value: state.wheelslip ? "YES" : "no";}
+                                }
+                            }
+
+                            Rectangle {
+                                width: parent.width
+                                height: 1
+                                color: swTheme.neonPurple
+                                opacity: 0.4
                             }
 
                             Row {

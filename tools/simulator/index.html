@@ -87,6 +87,19 @@
   #moveTrack { position: relative; width: 44px; touch-action: none; }
   #moveTrack .bar { position: absolute; left: 50%; top: 0; bottom: 0; width: 6px; margin-left: -3px; border: 2px solid var(--purple); border-radius: 3px; }
   #moveKnob { position: absolute; left: 50%; width: 26px; height: 26px; margin-left: -13px; margin-top: -13px; border-radius: 50%; border: 3px solid var(--green); background: var(--bg); }
+  #dataSwitch { position: absolute; right: 8px; top: 6px; z-index: 2; display: flex; border: 2px solid var(--purple); border-radius: 999px; background: #0b0718; padding: 2px; }
+  #dataSwitch div { padding: 4px 12px; border-radius: 999px; font-family: Orbitron, monospace; font-size: 10px; color: var(--lav); cursor: pointer; }
+  #dataSwitch div.on { background: var(--green); color: var(--bg); }
+  #pgData { padding: 0; }
+  #dataText { position: absolute; inset: 0; overflow-y: auto; padding: 40px 10px 10px; }
+  #dataGraph { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 38px 6px 4px; }
+  #plotWrap { position: relative; flex: 1; min-height: 60px; touch-action: none; }
+  #legend { flex: none; display: flex; flex-wrap: wrap; gap: 4px; padding-top: 4px; max-height: 40%; overflow-y: auto; }
+  .chip { display: flex; align-items: center; gap: 4px; font-size: 10px; padding: 2px 6px; border-radius: 4px; border: 1px solid #2a1a4a; color: var(--dim); cursor: pointer; white-space: nowrap; }
+  .chip i { width: 9px; height: 9px; border-radius: 2px; display: block; opacity: .35; }
+  .chip.on { color: #d6ffe4; border-color: #3d2266; }
+  .chip.on i { opacity: 1; }
+  .chip b { font-weight: 500; font-family: ui-monospace, monospace; color: #c3a6ff; }
   .datarow { display: flex; justify-content: space-between; border-bottom: 1px solid #1d1235; padding: 4px 2px; font-size: 13px; }
   .datarow span:last-child { color: #d6ffe4; font-family: ui-monospace, monospace; }
   /* modal */
@@ -177,7 +190,11 @@
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Before enabling flywheel mode make sure that your board is nose up and perfectly balanced. To turn it off, you must disengage the board first.</p>
           <div class="fly" id="flyBtn">FLYWHEEL ON</div>
         </div>
-        <div class="page" id="pgData"><div id="dataList"></div></div>
+        <div class="page" id="pgData">
+          <div id="dataSwitch"><div data-v="1" class="on">GRAPH</div><div data-v="0">TEXT</div></div>
+          <div id="dataGraph"><div id="plotWrap"><canvas id="plot"></canvas></div><div id="legend"></div></div>
+          <div id="dataText" style="display:none"><div id="dataList"></div></div>
+        </div>
         <div class="page" id="pgStyle">
           <div class="secTitle">Rails</div>
           <div class="pills" id="railPills"></div>
@@ -187,7 +204,7 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver">Re-RinkFloat 1.2.3-rf27 · simulator</div>
+      <div id="ver">Re-RinkFloat 1.2.3-rf28 · simulator</div>
     </div>
   </div>
 
@@ -843,6 +860,110 @@ function drawPitch() {
   }
 }
 
+// ---------- live data graph (like Refloat's DATA plot) ----------
+const SERIES = [
+  ['erpm', 'ERPM', '#469138', true, () => S.erpm],
+  ['duty', 'Duty Cycle', '#e3ac34', true, () => S.duty],
+  ['mcur', 'Motor Current', '#e33421', true, () => S.motorA],
+  ['pitch', 'Pitch', '#b1b277', true, () => S.pitch],
+  ['bpitch', 'Balance Pitch', '#53b3bf', true, () => S.balance],
+  ['tt', 'Torque Tilt Setpoint', '#df4a98', true, () => running() ? clamp(S.motorA * 0.06, -3, 3) : 0],
+  ['atr', 'ATR Setpoint', '#7640d6', true, () => running() ? clamp(S.accel * 0.35, -2.5, 2.5) : 0],
+  ['sp', 'Setpoint', '#e57e20', true, () => S.setpoint],
+  ['speed', 'Speed', '#3f9469', false, () => S.speed],
+  ['bv', 'Battery Voltage', '#6e6ee0', false, () => S.volts],
+  ['bc', 'Battery Current', '#cf44cd', false, () => S.battA],
+  ['ct', 'Controller Temp', '#ddae68', false, () => S.escT],
+  ['mt', 'Motor Temp', '#88bb93', false, () => S.motorT],
+  ['roll', 'Roll', '#c68f7e', false, () => S.roll],
+  ['adc1', 'ADC1 Voltage', '#69aad7', false, () => S.fpL ? 2.9 : 0],
+  ['adc2', 'ADC2 Voltage', '#4a8772', false, () => S.fpR ? 3.0 : 0],
+  ['run', 'Running', '#3f6620', false, () => running() ? 1 : 0],
+  ['slip', 'Wheelslip', '#893075', false, () => S.wheelslip ? 1 : 0],
+];
+const PLOT_HZ = 20, PLOT_SECS = 30, PLOT_N = PLOT_HZ * PLOT_SECS;
+const plotBuf = SERIES.map(() => new Float32Array(PLOT_N));
+let plotHead = 0, plotCount = 0, plotAcc = 0, plotCursor = null, plotMode = 1;
+const plotVis = SERIES.map(sr => sr[3]);
+try { const v = JSON.parse(localStorage.getItem('rrfSimPlot') || 'null'); if (Array.isArray(v) && v.length === SERIES.length) v.forEach((b, i) => plotVis[i] = !!b); } catch (e) {}
+function plotSample(dt) {
+  plotAcc += dt;
+  while (plotAcc >= 1 / PLOT_HZ) {
+    plotAcc -= 1 / PLOT_HZ;
+    SERIES.forEach((sr, i) => plotBuf[i][plotHead] = sr[4]());
+    plotHead = (plotHead + 1) % PLOT_N; plotCount = Math.min(PLOT_N, plotCount + 1);
+  }
+}
+const plotAt = (i, k) => plotBuf[i][(plotHead - plotCount + k + PLOT_N) % PLOT_N];
+function buildLegend() {
+  const lg = $('legend'); lg.innerHTML = '';
+  SERIES.forEach((sr, i) => {
+    const c = document.createElement('div'); c.className = 'chip' + (plotVis[i] ? ' on' : '');
+    c.innerHTML = '<i style="background:' + sr[2] + '"></i>' + sr[1] + ' <b></b>';
+    c.onclick = () => { plotVis[i] = !plotVis[i]; c.classList.toggle('on', plotVis[i]); try { localStorage.setItem('rrfSimPlot', JSON.stringify(plotVis)); } catch (e) {} };
+    lg.appendChild(c);
+  });
+}
+(() => {
+  const pw = $('plotWrap');
+  const at = e => { const r = pw.getBoundingClientRect(); plotCursor = clamp((e.clientX - r.left) / r.width, 0, 1); };
+  pw.addEventListener('pointerdown', e => { pw.setPointerCapture(e.pointerId); at(e); });
+  pw.addEventListener('pointermove', e => { if (plotCursor !== null) at(e); });
+  const end = () => { plotCursor = null; };
+  pw.addEventListener('pointerup', end); pw.addEventListener('pointercancel', end);
+})();
+$('dataSwitch').querySelectorAll('div').forEach(d => d.onclick = () => {
+  plotMode = +d.dataset.v;
+  $('dataSwitch').querySelectorAll('div').forEach(x => x.classList.toggle('on', x === d));
+  $('dataGraph').style.display = plotMode ? 'flex' : 'none';
+  $('dataText').style.display = plotMode ? 'none' : 'block';
+});
+let plotCtx = null, plotW = 0, plotH = 0;
+function drawPlot() {
+  const pw = $('plotWrap'), w = pw.clientWidth, h = pw.clientHeight;
+  if (w < 10 || h < 10) return;
+  if (w !== plotW || h !== plotH || !plotCtx) { plotW = w; plotH = h; plotCtx = sizeCanvas($('plot'), w, h); }
+  const ctx = plotCtx;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(5,6,13,.85)'; ctx.fillRect(0, 0, w, h);
+  // grid: 5 s columns, quarter rows
+  ctx.strokeStyle = '#1d1235'; ctx.lineWidth = 1; ctx.beginPath();
+  for (let sx = 0; sx <= PLOT_SECS; sx += 5) { const x = Math.round(w - (sx / PLOT_SECS) * w) + 0.5; ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+  for (let r = 1; r < 4; r++) { const y = Math.round(h * r / 4) + 0.5; ctx.moveTo(0, y); ctx.lineTo(w, y); }
+  ctx.stroke();
+  ctx.fillStyle = '#4b3a75'; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'right';
+  for (let sx = 5; sx < PLOT_SECS; sx += 5) ctx.fillText('-' + sx + 's', w - (sx / PLOT_SECS) * w - 2, h - 3);
+  const n = plotCount; if (n < 2) return;
+  const x0 = w - (n / PLOT_N) * w, dx = w / (PLOT_N - 1);
+  // each series auto-scaled to its own range (zero kept in view for signed data)
+  SERIES.forEach((sr, i) => {
+    if (!plotVis[i]) return;
+    let mn = Infinity, mx = -Infinity;
+    for (let k = 0; k < n; k++) { const v = plotAt(i, k); if (v < mn) mn = v; if (v > mx) mx = v; }
+    if (mn < 0 && mx > 0) { const m = Math.max(-mn, mx); mn = -m; mx = m; }
+    if (mx - mn < 1e-6) { mx += 1; mn -= 1; }
+    const pad = (mx - mn) * 0.08; mn -= pad; mx += pad;
+    ctx.beginPath();
+    for (let k = 0; k < n; k++) { const x = x0 + k * dx, y = h - (plotAt(i, k) - mn) / (mx - mn) * h; if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+    ctx.strokeStyle = sr[2]; ctx.lineWidth = 1.6; ctx.stroke();
+  });
+  // cursor
+  let idx = n - 1;
+  if (plotCursor !== null) {
+    const cx = plotCursor * w; idx = clamp(Math.round((cx - x0) / dx), 0, n - 1);
+    const x = x0 + idx * dx;
+    ctx.strokeStyle = '#d6ffe4'; ctx.globalAlpha = 0.7; ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, h); ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.fillStyle = '#d6ffe4'; ctx.textAlign = x > w / 2 ? 'right' : 'left';
+    ctx.fillText(((n - 1 - idx) / PLOT_HZ).toFixed(1) + 's ago', x + (x > w / 2 ? -4 : 4), 11);
+  }
+  // legend values (at the cursor, or live)
+  const chips = $('legend').children;
+  SERIES.forEach((sr, i) => {
+    const v = plotAt(i, idx), b = chips[i] && chips[i].querySelector('b');
+    if (b) b.textContent = Math.abs(v) >= 100 ? Math.round(v) : (sr[0] === 'duty' ? (v * 100).toFixed(0) + '%' : v.toFixed(1));
+  });
+}
+
 // ---------- per-frame DOM updates ----------
 function updateDom() {
   // battery
@@ -898,22 +1019,26 @@ function updateDom() {
   fly.classList.toggle('dis', !(S.mode === 'flywheel' || (S.mode === 'ready' && !S.fpL && !S.fpR)));
   fly.textContent = S.mode === 'flywheel' ? 'FLYWHEEL OFF' : 'FLYWHEEL ON';
   // data page
-  if ($('pgData').classList.contains('on')) {
+  if ($('pgData').classList.contains('on') && plotMode) drawPlot();
+  if ($('pgData').classList.contains('on') && !plotMode) {
     const rows = [['Speed', fx1(S.speed) + ' mph'], ['ERPM', Math.round(S.erpm)], ['Duty', (S.duty * 100).toFixed(1) + ' %'], ['Motor current', fx1(S.motorA) + ' A'], ['Battery current', fx1(S.battA) + ' A'], ['Battery voltage', S.volts.toFixed(1) + ' V'], ['Pitch', fx1(S.pitch) + '°'], ['Balance pitch', fx1(S.balance) + '°'], ['Roll', fx1(S.roll) + '°'], ['Setpoint', fx1(S.setpoint) + '°'], ['Footpads', (S.fpL ? 'L' : '-') + (S.fpR ? 'R' : '-')], ['Wheelslip', S.wheelslip ? 'YES' : 'no'], ['Motor temp', fx1(S.motorT) + ' °C'], ['ESC temp', fx1(S.escT) + ' °C'], ['Trip', S.trip.toFixed(2) + ' mi'], ['Lifetime', S.life.toFixed(1) + ' mi']];
     $('dataList').innerHTML = rows.map(r => '<div class="datarow"><span>' + r[0] + '</span><span>' + r[1] + '</span></div>').join('');
   }
   syncSliders();
 }
 
+let lastFrame = performance.now();
 function frame(now) {
+  const fdt = Math.min(0.25, (now - lastFrame) / 1000); lastFrame = now;
   step(now);
+  plotSample(fdt);
   drawSpeedo(); drawFootpad(); drawRoll(); drawPitch();
   updateDom();
   requestAnimationFrame(frame);
 }
 
 // ---------- start ----------
-layout(); renderTunes(); renderStyle(); setTab(P.tab || 0);
+layout(); renderTunes(); renderStyle(); buildLegend(); setTab(P.tab || 0);
 window.addEventListener('resize', () => { layout(); renderTunes(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { layout(); renderTunes(); });
 requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
