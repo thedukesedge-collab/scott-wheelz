@@ -1027,7 +1027,7 @@ Item {
         id: swSettings
         category: "scottWheelz"  // old name kept so saved settings survive the rename
 
-        property int railStyle: 0  // 0 straight, 1 WTF
+        property int railStyle: 0  // 0 straight, 1 WTF, 2 Atom
         property int tireStyle: 0  // 0 treaded, 1 slick
         property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
         property string tuneColors: "{}"    // tune slot -> neon palette index (JSON)
@@ -7493,6 +7493,8 @@ Item {
                                 switch (sw_rail) {
                                 case 1:  // WTF: center raised over the tire, shallow dips either side, ends back up
                                     return railLerp(x, [-97, -33, -12, 12, 33, 97], [0, 3.2, -1.2, -1.2, 3.2, 0]);
+                                case 2:  // Atom: flat middle, deck sweeps up into both kicks
+                                    return railLerp(x, [-97, -80, -40, 40, 80, 97], [-5, -2, 0, 0, -2, -5]);
                                 default:
                                     return 0;
                                 }
@@ -7510,6 +7512,24 @@ Item {
                             // rail outline in path units (call after context.scale)
                             function railPath(context) {
                                 var x;
+                                if (sw_rail === 2) {
+                                    // Atom: deck + truss rail, ends chamfered underneath
+                                    context.beginPath();
+                                    context.moveTo(-97, railY(-97) - 8);
+                                    for (x = -92; x <= 92; x += 4) {
+                                        context.lineTo(x, railY(x) - 7);
+                                    }
+                                    context.lineTo(97, railY(97) - 8);
+                                    context.lineTo(96, railY(96) - 2);
+                                    context.lineTo(84, railY(84) + 7);
+                                    for (x = 80; x >= -80; x -= 4) {
+                                        context.lineTo(x, railY(x) + 7);
+                                    }
+                                    context.lineTo(-84, railY(-84) + 7);
+                                    context.lineTo(-96, railY(-96) - 2);
+                                    context.closePath();
+                                    return;
+                                }
                                 if (sw_rail === 1) {
                                     // WTF: slimmer rail, straight segments between the
                                     // kinks, ends cut at an angle (top corner further out)
@@ -7543,7 +7563,7 @@ Item {
 
                             // a footpad following the rail top
                             function padPath(context, x0, x1) {
-                                var off = sw_rail === 1 ? 9 : 11;  // sits on the rail top
+                                var off = sw_rail === 0 ? 11 : 9;  // sits on the rail top
                                 context.beginPath();
                                 context.moveTo(x0, railY(x0) - off);
                                 for (var x = x0 + 2; x < x1; x += 2) {
@@ -7591,6 +7611,41 @@ Item {
                                 railPath(context);
                                 glow(context, purple, 2 * u);
 
+                                var atom = sw_rail === 2;
+                                if (atom) {
+                                    // deck / rail seam
+                                    context.beginPath();
+                                    context.moveTo(-95, railY(-95) - 3);
+                                    for (var sx = -91; sx <= 95; sx += 4) {
+                                        context.lineTo(sx, railY(sx) - 3);
+                                    }
+                                    glow(context, purple, 1 * u);
+
+                                    // truss lattice (X cells) either side of the hub
+                                    context.beginPath();
+                                    for (var side = -1; side <= 1; side += 2) {
+                                        for (var cx0 = 22; cx0 < 78; cx0 += 8) {
+                                            var xa = side * cx0, xb = side * (cx0 + 8);
+                                            context.moveTo(xa, railY(xa) - 1);
+                                            context.lineTo(xb, railY(xb) + 5);
+                                            context.moveTo(xa, railY(xa) + 5);
+                                            context.lineTo(xb, railY(xb) - 1);
+                                        }
+                                    }
+                                    glow(context, purple, 0.8 * u);
+
+                                    // green slanted inserts at the nose and tail
+                                    for (var e = -1; e <= 1; e += 2) {
+                                        context.beginPath();
+                                        context.moveTo(e * 90, railY(e * 90) - 1);
+                                        context.lineTo(e * 84, railY(e * 84) - 1);
+                                        context.lineTo(e * 72, railY(e * 72) + 5);
+                                        context.lineTo(e * 78, railY(e * 78) + 5);
+                                        context.closePath();
+                                        glow(context, green, 1.5 * u);
+                                    }
+                                }
+
                                 // tire
                                 for (var k = 0; k < 2; k++) {
                                     var a0 = Math.asin(8 / 36);
@@ -7615,8 +7670,50 @@ Item {
                                 context.lineWidth = 1.2 * u;
                                 context.stroke();
 
+                                if (atom) {
+                                    // Atom hub: green rings with a bolt circle
+                                    for (var r of [18, 13]) {
+                                        for (var hh = 0; hh < 2; hh++) {
+                                            var c0 = Math.asin(Math.min(1, 8 / r));
+                                            context.beginPath();
+                                            if (hh === 0)
+                                                context.arc(0, 0, r, c0, Math.PI - c0);
+                                            else
+                                                context.arc(0, 0, r, Math.PI + c0, 2 * Math.PI - c0);
+                                            glow(context, green, (r === 18 ? 1.8 : 1.2) * u);
+                                        }
+                                    }
+                                    context.beginPath();
+                                    for (var bi = 0; bi < 8; bi++) {
+                                        var ba = bi * Math.PI / 4 + Math.PI / 8;
+                                        var bx = 15.5 * Math.cos(ba), by = 15.5 * Math.sin(ba);
+                                        if (Math.abs(by) < 9) continue;
+                                        context.moveTo(bx + 1.3, by);
+                                        context.arc(bx, by, 1.3, 0, 2 * Math.PI);
+                                    }
+                                    glow(context, green, 1 * u);
+
+                                    // axle bolts in the rail
+                                    context.beginPath();
+                                    for (var ax of [-11, -6, 6, 11]) {
+                                        context.moveTo(ax + 1.8, railY(0) + 2);
+                                        context.arc(ax, railY(0) + 2, 1.8, 0, 2 * Math.PI);
+                                    }
+                                    glow(context, green, 1 * u);
+
+                                    // fender: two horns with a concave sweep between
+                                    context.beginPath();
+                                    context.moveTo(-35, railY(-35) - 7);
+                                    context.lineTo(-29, -30);
+                                    context.lineTo(-25, -29);
+                                    context.quadraticCurveTo(0, -8, 25, -29);
+                                    context.lineTo(29, -30);
+                                    context.lineTo(35, railY(35) - 7);
+                                    glow(context, purple, 2 * u);
+                                }
+
                                 // hub motor
-                                for (var h = 0; h < 2; h++) {
+                                for (var h = 0; h < (atom ? 0 : 2); h++) {
                                     var b0 = Math.asin(8 / 18);
                                     context.beginPath();
                                     if (h === 0)
@@ -7625,15 +7722,17 @@ Item {
                                         context.arc(0, 0, 18, Math.PI + b0, 2 * Math.PI - b0);
                                     glow(context, purple, 1.5 * u);
                                 }
-                                context.beginPath();
-                                context.arc(0, 0, 3.5, 0, 2 * Math.PI);
-                                context.fillStyle = purple;
-                                context.fill();
+                                if (!atom) {
+                                    context.beginPath();
+                                    context.arc(0, 0, 3.5, 0, 2 * Math.PI);
+                                    context.fillStyle = purple;
+                                    context.fill();
 
-                                // fender
-                                context.beginPath();
-                                context.arc(0, 0, 43, Math.PI * 1.13, Math.PI * 1.87);
-                                glow(context, purple, 2 * u);
+                                    // fender
+                                    context.beginPath();
+                                    context.arc(0, 0, 43, Math.PI * 1.13, Math.PI * 1.87);
+                                    glow(context, purple, 2 * u);
+                                }
 
                                 // front footpad (nose, left)
                                 padPath(context, -88, -46);
@@ -8772,10 +8871,10 @@ Item {
                             spacing: 0.12 * unit
 
                             Repeater {
-                                model: ["STRAIGHT", "WTF"]
+                                model: ["STRAIGHT", "WTF", "ATOM"]
 
                                 Rectangle {
-                                    width: 2.6 * unit
+                                    width: 2.5 * unit
                                     height: 0.75 * unit
                                     radius: height / 2
                                     property bool selected: swSettings.railStyle === index
