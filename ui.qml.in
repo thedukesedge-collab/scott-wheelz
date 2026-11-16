@@ -952,11 +952,25 @@ Item {
 
                 state.rtData = state.newRtData(newRt);
 
-                // Re-RinkFloat: ride peaks (only while actually riding, and not
-                // during wheelslip, so a hand-spun wheel doesn't count)
-                if (state.pkgState === state.s_Running && !state.wheelslip) {
-                    var pkSpeed = Math.abs(state.rtData["motor.speed"]);
-                    var pkDuty = Math.abs(state.rtData["motor.duty_cycle"]);
+                // Re-RinkFloat: ride peaks, with free spin filtered out. A sample
+                // only counts when ALL of these have held for the last 0.5 s:
+                //  - package is running (not idle / flywheel / darkride)
+                //  - no wheelslip flag (the package's free-spin detector)
+                //  - at least one footpad sensor pressed (a rider is on it)
+                //  - the motor is under real load (>= 4 A either way); a
+                //    tire spinning in the air hits high duty on almost no current
+                var pkSpeed = Math.abs(state.rtData["motor.speed"]);
+                var pkDuty = Math.abs(state.rtData["motor.duty_cycle"]);
+                var pkAmps = Math.abs(state.rtData["motor.current"]);
+                var pkOk = state.pkgState === state.s_Running && !state.wheelslip && !state.darkride
+                        && state.fpState !== state.fs_None
+                        && (pkAmps !== pkAmps || pkAmps >= 4);  // NaN = not reported, don't block
+                var pkNow = Date.now();
+                if (!pkOk) {
+                    state.peakOkSince = 0;
+                } else if (state.peakOkSince === 0) {
+                    state.peakOkSince = pkNow;
+                } else if (pkNow - state.peakOkSince >= 500) {
                     if (pkSpeed === pkSpeed && pkSpeed > swSettings.peakSpeed) swSettings.peakSpeed = pkSpeed;
                     if (pkDuty === pkDuty && pkDuty > swSettings.peakDuty) swSettings.peakDuty = Math.min(1, pkDuty);
                 }
@@ -1827,6 +1841,7 @@ Item {
         readonly property int fs_Both: 3
 
         property int fpState: fs_None
+        property double peakOkSince: 0  // Re-RinkFloat: when ride-peak conditions last became true
 
         onFpStateChanged: {
             leftSensor.on = false;
