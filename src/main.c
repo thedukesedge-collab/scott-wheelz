@@ -951,18 +951,22 @@ static void refloat_thd(void *arg) {
                 new_current = sign(new_current) * current_limit;
             }
 
-            // Re-RinkFloat: free-spin limiter. Only while the package has flagged
-            // wheelslip (tire spinning without load, e.g. in the air after a jump):
-            // above the limit speed, stop driving the wheel any faster (freewheel).
-            // Braking requests still pass. Never active in darkride, flywheel or
-            // handtest, and the app only allows limits of 40 mph / 64 km/h and up.
+            // Re-RinkFloat: free-spin limiter (governor). Only while the package has
+            // flagged wheelslip (tire spinning without load, e.g. in the air after a
+            // jump): within 3 km/h of the limit the drive current is eased off
+            // proportionally, reaching 0 at the limit, so the tire keeps spinning and
+            // settles just under the limit instead of spinning up further. Braking
+            // requests still pass. Never active in darkride, flywheel or handtest, and
+            // the limit is never below 40 mph / 64 km/h.
+            d->freespin_limiting = false;
             if (d->freespin_limit_speed > 0.0f && d->state.wheelslip && !d->state.darkride &&
-                d->state.mode == MODE_NORMAL && fabsf(d->motor.speed) > d->freespin_limit_speed &&
-                sign(new_current) == d->motor.erpm_sign) {
-                new_current = 0.0f;
-                d->freespin_limiting = true;
-            } else {
-                d->freespin_limiting = false;
+                d->state.mode == MODE_NORMAL && sign(new_current) == d->motor.erpm_sign) {
+                static const float band = 3.0f;  // km/h
+                float headroom = d->freespin_limit_speed - fabsf(d->motor.speed);
+                if (headroom < band) {
+                    new_current *= fminf(fmaxf(headroom / band, 0.0f), 1.0f);
+                    d->freespin_limiting = true;
+                }
             }
 
             if (d->state.darkride) {

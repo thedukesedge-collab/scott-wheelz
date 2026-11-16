@@ -187,7 +187,7 @@
           <div class="secTitle">Move</div>
           <div id="moveBox"><div class="neonL" id="fwdL">FWD</div><div id="moveTrack"><div class="bar"></div><div id="moveKnob"></div></div><div class="neonL" id="revL">REV</div></div>
           <div class="secTitle neonL" style="font-size:16px;margin-top:14px">FREE-SPIN LIMITER</div>
-          <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Stops the motor from spinning the tire past this speed while wheelslip is detected (e.g. in the air off a jump). Minimum 40 mph.</p>
+          <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Holds the tire at this speed while wheelslip is detected (e.g. in the air off a jump): the motor eases off so the tire keeps spinning just under the limit. Normal riding is not limited. Minimum 40 mph.</p>
           <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0 4px">
             <input id="fsInput" type="number" min="40" max="150" style="width:80px;background:#140a26;border:1px solid var(--purple);color:var(--green);font-family:Orbitron,monospace;font-size:18px;text-align:center;border-radius:6px;padding:6px">
             <span class="neonL">mph</span>
@@ -212,7 +212,7 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver" class="tron"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf33 · sim</span></div>
+      <div id="ver" class="tron"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf34 · sim</span></div>
     </div>
   </div>
 
@@ -535,7 +535,7 @@ $('fsPill').onclick = () => {
   if (P.fsOn) { P.fsOn = false; save(); renderFs(); toast('Free-spin limiter off'); return; }
   const v = parseFloat($('fsInput').value);
   if (!(v >= 40)) { $('fsInput').value = 40; toast('Minimum is 40 mph'); return; }
-  modal('<h3>\u26A0 FREE-SPIN LIMITER</h3><div style="font-size:13px;line-height:1.45;color:#d6ffe4">This stops the motor from spinning the tire faster than <b>' + Math.round(v) + ' mph</b> while the board detects wheelslip, for example when the tire is in the air after a jump.<br><br><b style="color:#ff2b4f">WARNING:</b> if wheelslip is detected while you are riding at or above this speed (a hard bump, a moment of lost traction), the motor stops pushing and the nose can drop. This can cause a <b style="color:#ff2b4f">NOSEDIVE</b> at high speed.<br><br>Landings can also be rougher, because the tire will be turning slower than the ground.<br><br>Only turn it on if you understand and accept this risk.</div><div class="btns"><button data-close>Cancel</button><button class="pri" data-ok>I understand, turn on</button></div>', () => {
+  modal('<h3>\u26A0 FREE-SPIN LIMITER</h3><div style="font-size:13px;line-height:1.45;color:#d6ffe4">While the board detects wheelslip (for example the tire in the air after a jump), the motor eases off so the tire keeps spinning at about <b>' + Math.round(v) + ' mph</b> instead of spinning up further. It does not stop the tire.<br><br><b style="color:#ff2b4f">WARNING:</b> if wheelslip is detected while you are riding near or above this speed (a hard bump, a moment of lost traction), the motor eases off and the nose can drop. This can cause a <b style="color:#ff2b4f">NOSEDIVE</b> at high speed.<br><br>Landings can also be rougher, because the tire will be turning slower than the ground.<br><br>Only turn it on if you understand and accept this risk.</div><div class="btns"><button data-close>Cancel</button><button class="pri" data-ok>I understand, turn on</button></div>', () => {
     P.fsMph = Math.max(40, v); P.fsOn = true; save(); renderFs(); toast('Free-spin limiter on');
   });
 };
@@ -631,8 +631,10 @@ function step(now) {
   S.speed = Math.max(0, S.speed);
   // free-spin limiter: while wheelslip, don't drive the tire past the limit
   S.limiting = false;
-  if (P.fsOn && S.wheelslip && running() && S.speed > P.fsMph) {
-    S.speed = Math.max(P.fsMph, prev - 20 * dt);
+  // governor: eases off within ~2 mph of the limit, tire keeps spinning just under it
+  if (P.fsOn && S.wheelslip && running() && S.speed > P.fsMph - 2) {
+    const hold = P.fsMph - 0.5;
+    if (S.speed > hold) S.speed = Math.max(hold, prev - 20 * dt);
     S.limiting = true;
     if (forcedDuty !== null) forcedDuty = clamp(S.speed / 48, 0, 1);
   }

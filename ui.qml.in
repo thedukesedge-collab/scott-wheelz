@@ -5380,7 +5380,7 @@ Item {
             width: freespinWarningDialog.availableWidth
             font.pointSize: 12
             wrapMode: Text.WordWrap
-            text: "This stops the motor from spinning the tire faster than %1 %2 while the board detects wheelslip, for example when the tire is in the air after a jump.\n\nWARNING: if wheelslip is detected while you are riding at or above this speed (a hard bump, a moment of lost traction), the motor stops pushing and the nose can drop. This can cause a NOSEDIVE at high speed.\n\nLandings can also be rougher, because the tire will be turning slower than the ground.\n\nThe board forgets this setting when it is powered off; this app turns it back on while it is connected.\n\nOnly turn it on if you understand and accept this risk.".arg(Math.round(limitDisplay)).arg(vescConfig.speedUnit)
+            text: "While the board detects wheelslip (for example the tire in the air after a jump), the motor eases off so the tire keeps spinning at about %1 %2 instead of spinning up further. It does not stop the tire.\n\nWARNING: if wheelslip is detected while you are riding near or above this speed (a hard bump, a moment of lost traction), the motor eases off and the nose can drop. This can cause a NOSEDIVE at high speed.\n\nLandings can also be rougher, because the tire will be turning slower than the ground.\n\nThe board forgets this setting when it is powered off; this app turns it back on while it is connected.\n\nOnly turn it on if you understand and accept this risk.".arg(Math.round(limitDisplay)).arg(vescConfig.speedUnit)
         }
     }
 
@@ -8797,7 +8797,7 @@ Item {
                             width: parent.width
                             font.pixelSize: fontSizeNormal
                             wrapMode: Text.WordWrap
-                            text: "Stops the motor from spinning the tire past this speed while wheelslip is detected (e.g. in the air off a jump). Minimum %1.".arg(freespinUi.minText)
+                            text: "Holds the tire at this speed while wheelslip is detected (e.g. in the air off a jump): the motor eases off so the tire keeps spinning just under the limit instead of spinning up further. Normal riding is not limited. Minimum %1.".arg(freespinUi.minText)
                         }
 
                         Row {
