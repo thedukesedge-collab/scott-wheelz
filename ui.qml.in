@@ -176,6 +176,7 @@ Item {
             }
 
             // Rink-Float: keep the horn alive while the button is held
+            hornFrame.tick();
             if (hornFrame.honking) {
                 commands.sendHorn(true);
             }
@@ -7448,10 +7449,11 @@ Item {
                 }
             }
 
-            // Rink-Float: big HORN bar across the bottom (hold). Riding: full haptics; idle: tone only.
-            // Mirrors the package's limits (haptic_feedback.c): max 1 s per
-            // press, then 1 s cooldown after release. The package enforces
-            // them; this only shows the state.
+            // Rink-Float: big HORN bar across the bottom (hold or tap). Riding:
+            // full haptics, up to 3 s per press; idle: tone only, up to 2 s.
+            // Mirrors the package's heat budget (haptic_feedback.c): 3 s of
+            // horn, used up while sounding (1.5x faster idle), refilled 1 s
+            // per s of silence. The package enforces it; this only shows it.
             Rectangle {
                 id: hornFrame
                 Layout.fillWidth: true
@@ -7462,10 +7464,26 @@ Item {
                 Layout.bottomMargin: 0.15 * unit
                 radius: 0.3 * unit
 
+                readonly property real budgetMax: 3.0
                 property bool available: state.pkgState === state.s_Running || state.pkgState === state.s_Ready
-                property bool expired: false   // held past the 1 s limit
-                property bool cooling: false   // 1 s cooldown after release
-                property bool honking: hornButton.pressed && !expired && !cooling
+                property bool riding: state.pkgState === state.s_Running
+                property bool expired: false   // held past the per-press limit
+                property bool blocked: false   // pressed with too little budget left
+                property real budget: budgetMax
+                property bool honking: hornButton.pressed && !expired && !blocked && budget > 0
+
+                // called from the 10 Hz timer
+                function tick() {
+                    if (honking) {
+                        budget = Math.max(0, budget - (riding ? 0.1 : 0.15));
+                        if (budget <= 0) {
+                            expired = true;
+                            commands.sendHorn(false);
+                        }
+                    } else {
+                        budget = Math.min(budgetMax, budget + 0.1);
+                    }
+                }
 
                 color: honking ? swTheme.neonPurple : "#140a26"
                 border.color: swTheme.neonPurple
@@ -7480,23 +7498,30 @@ Item {
                     color: swTheme.neonPurple
                     opacity: hornFrame.honking ? 0.9 : 0.3
                 }
-                opacity: available && !cooling && !expired ? 1.0 : 0.4
+                opacity: available && budget >= 0.2 ? 1.0 : 0.4
 
-                Timer {
-                    id: hornMaxTimer
-                    interval: 1000
-                    onTriggered: hornFrame.expired = true
+                // heat budget gauge along the bottom edge
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.bottom: parent.bottom
+                    anchors.leftMargin: parent.radius
+                    anchors.bottomMargin: 0.12 * unit
+                    width: (parent.width - 2 * parent.radius) * hornFrame.budget / hornFrame.budgetMax
+                    height: 0.07 * unit
+                    radius: height / 2
+                    color: hornFrame.budget >= 1.0 ? swTheme.neonGreen : swTheme.color("orange")
+                    opacity: hornFrame.budget < hornFrame.budgetMax ? 0.9 : 0.35
                 }
 
                 Timer {
-                    id: hornCooldownTimer
-                    interval: 1000
-                    onTriggered: hornFrame.cooling = false
+                    id: hornMaxTimer
+                    interval: 3000
+                    onTriggered: hornFrame.expired = true
                 }
 
                 Text {
                     anchors.centerIn: parent
-                    text: hornFrame.honking ? "HONK" : hornFrame.cooling ? "WAIT" : hornFrame.expired ? "MAX" : "HORN"
+                    text: hornFrame.honking ? "HONK" : hornFrame.blocked || (hornButton.pressed && hornFrame.budget <= 0) ? "WAIT" : hornFrame.expired ? "MAX" : "HORN"
                     color: hornFrame.honking ? swTheme.background : swTheme.neonPurple
                     font.family: "Exan"
                     font.pixelSize: 0.62 * unit
@@ -7508,8 +7533,10 @@ Item {
                     anchors.fill: parent
                     enabled: parent.available
                     onPressed: {
-                        if (hornFrame.cooling) return;
                         hornFrame.expired = false;
+                        hornFrame.blocked = hornFrame.budget < 0.2;
+                        if (hornFrame.blocked) return;
+                        hornMaxTimer.interval = hornFrame.riding ? 3000 : 2000;
                         hornMaxTimer.restart();
                         commands.sendHorn(true);
                     }
@@ -7520,11 +7547,8 @@ Item {
                 function release() {
                     commands.sendHorn(false);
                     hornMaxTimer.stop();
-                    if (!cooling) {
-                        cooling = true;
-                        hornCooldownTimer.restart();
-                    }
                     expired = false;
+                    blocked = false;
                 }
             }
         }

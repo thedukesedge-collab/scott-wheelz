@@ -194,3 +194,16 @@ current and heat, especially at standstill.
   Remote Tilt input to UART (config write). Firmware also hard-caps remote
   tilt at +-4 deg (`REMOTE_TILT_SAFE_MAX` in `src/remote.c`), whatever
   Tiltback Angle Limit says.
+
+### Horn heat budget (v1.2.3-rf3)
+Replaces the fixed 1 s max / 1 s cooldown (update 4):
+- Per press: up to 3 s while riding, 2 s idle (READY).
+- Heat budget: 3 s of horn; sounding uses it 1 s/s riding, 1.5 s/s idle;
+  silence refills 1 s/s. So taps and holds are free while the long-run duty
+  stays <= ~50% riding / ~40% idle. When it runs dry the press ends and new
+  presses wait until 0.2 s is back. (`HORN_BUDGET`, `HORN_DRAIN_*`,
+  `HORN_REFILL` in `src/haptic_feedback.c`.)
+- Unchanged: 0.2 s minimum tap, 0.3 s disconnect timeout, lowest priority
+  (pushback/alerts win), idle = tone only.
+- App: HORN bar mirrors the budget with a gauge along its bottom edge
+  (orange under 1 s), shows WAIT when empty and MAX past the per-press limit.

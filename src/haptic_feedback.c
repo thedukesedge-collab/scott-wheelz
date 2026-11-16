@@ -30,11 +30,18 @@
 // - a tap plays at least this long, so it's noticeable
 #define HORN_MIN_TIME 0.2f
 // - one press never plays longer than this; holding longer is silent
-#define HORN_MAX_TIME 1.0f
-// - after a release, new presses are ignored for this long. Together with
-//   HORN_MAX_TIME this caps the horn at ~50% duty, which matters most when
-//   idle: the tone then runs at standstill with no airflow cooling.
-#define HORN_COOLDOWN 1.0f
+#define HORN_MAX_TIME_RIDING 3.0f
+#define HORN_MAX_TIME_IDLE 2.0f
+// - heat budget instead of a fixed cooldown: up to HORN_BUDGET seconds of
+//   horn are available; sounding uses it up (faster when idle, since the
+//   tone then runs at standstill with no airflow cooling), silence refills
+//   it 1 s per s. Tapping or holding is free as long as the long-run duty
+//   stays <= ~50% riding / ~40% idle; when it runs dry the horn stops until
+//   HORN_MIN_TIME has been earned back.
+#define HORN_BUDGET 3.0f
+#define HORN_DRAIN_RIDING 1.0f
+#define HORN_DRAIN_IDLE 1.5f
+#define HORN_REFILL 1.0f
 // - in ALT mode, beep and buzz swap this often
 #define HORN_ALT_STEP 0.125f
 
@@ -45,7 +52,8 @@ void haptic_feedback_init(HapticFeedback *hf) {
     hf->can_change_type = true;
     hf->horn_timer = 0;
     hf->horn_start = 0;
-    hf->horn_end = 0;
+    hf->horn_budget = HORN_BUDGET;
+    hf->horn_budget_timer = 0;
     hf->horn_on = false;
     hf->horn_used = false;
     hf->horn_mode = HORN_MODE_BOTH;
@@ -55,25 +63,21 @@ void haptic_feedback_horn(HapticFeedback *hf, const Time *time, bool on, uint8_t
     // A press whose keepalives stopped arriving counts as released now.
     if (hf->horn_on && timer_older(time, hf->horn_timer, HORN_TIMEOUT)) {
         hf->horn_on = false;
-        hf->horn_end = time->now;
     }
 
     if (!on) {
-        if (hf->horn_on) {
-            hf->horn_on = false;
-            hf->horn_end = time->now;
-        }
+        hf->horn_on = false;
         return;
     }
 
     if (hf->horn_on) {
-        // keepalive for the current press (does not extend HORN_MAX_TIME)
+        // keepalive for the current press (does not extend the max time)
         hf->horn_timer = time->now;
         return;
     }
 
-    // new press: ignored during the cooldown after the previous one
-    if (hf->horn_used && !timer_older(time, hf->horn_end, HORN_COOLDOWN)) {
+    // new press: needs enough budget left for at least a short tap
+    if (hf->horn_budget < HORN_MIN_TIME) {
         return;
     }
 
@@ -84,8 +88,8 @@ void haptic_feedback_horn(HapticFeedback *hf, const Time *time, bool on, uint8_t
     hf->horn_on = true;
 }
 
-static inline bool horn_active(const HapticFeedback *hf, const Time *time) {
-    if (!hf->horn_used || timer_older(time, hf->horn_start, HORN_MAX_TIME)) {
+static inline bool horn_active(const HapticFeedback *hf, const Time *time, float max_time) {
+    if (!hf->horn_used || hf->horn_budget <= 0.0f || timer_older(time, hf->horn_start, max_time)) {
         return false;
     }
 
@@ -118,7 +122,7 @@ static HapticFeedbackType haptic_feedback_get_type(
     // Rink-Float: the horn also works while the board is idle (READY).
     // update() then plays only the foc_play_tone part, which runs the motor
     // at 0 A with an audio signal on top, so the wheel isn't pushed.
-    if (state->state == STATE_READY && horn_active(hf, time)) {
+    if (state->state == STATE_READY && horn_active(hf, time, HORN_MAX_TIME_IDLE)) {
         return HAPTIC_FEEDBACK_HORN;
     }
 
@@ -157,7 +161,7 @@ static HapticFeedbackType haptic_feedback_get_type(
 
     // Rink-Float: the horn has the lowest priority, so real pushback and
     // error alerts are never masked by it.
-    if (horn_active(hf, time)) {
+    if (horn_active(hf, time, HORN_MAX_TIME_RIDING)) {
         return HAPTIC_FEEDBACK_HORN;
     }
 
@@ -224,6 +228,23 @@ void haptic_feedback_update(
     const AlertTracker *at,
     const Time *time
 ) {
+    // Rink-Float: horn heat budget (main loop only)
+    float dt = timer_age(time, hf->horn_budget_timer);
+    hf->horn_budget_timer = time->now;
+    if (dt > 0.1f || dt < 0.0f) {
+        dt = 0.1f;
+    }
+    if (haptic_feedback_horn_playing(hf)) {
+        float drain = state->state == STATE_RUNNING ? HORN_DRAIN_RIDING : HORN_DRAIN_IDLE;
+        hf->horn_budget = fmaxf(hf->horn_budget - drain * dt, 0.0f);
+        if (hf->horn_budget <= 0.0f) {
+            // ran dry: end this press so it doesn't sputter back on
+            hf->horn_on = false;
+        }
+    } else {
+        hf->horn_budget = fminf(hf->horn_budget + HORN_REFILL * dt, HORN_BUDGET);
+    }
+
     HapticFeedbackType type_to_play = haptic_feedback_get_type(hf, state, md, at, time);
 
     if (type_to_play != hf->type_playing && hf->can_change_type) {
