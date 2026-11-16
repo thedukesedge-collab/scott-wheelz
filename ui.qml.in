@@ -997,7 +997,7 @@ Item {
         category: "scottWheelz"  // old name kept so saved settings survive the rename
 
         property bool invertPitch: false
-        property int railStyle: 0  // 0 normal (straight), 1 WTF
+        property int railStyle: 0  // 0 straight, 1 WTF
         property int tireStyle: 0  // 0 treaded, 1 slick
         property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
     }
@@ -8384,7 +8384,7 @@ Item {
                             spacing: 0.12 * unit
 
                             Repeater {
-                                model: ["NORMAL", "WTF"]
+                                model: ["STRAIGHT", "WTF"]
 
                                 Rectangle {
                                     width: 2.6 * unit
