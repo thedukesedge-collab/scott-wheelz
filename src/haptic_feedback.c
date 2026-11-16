@@ -25,8 +25,10 @@
 
 #define TONE_LENGTH 0.1f
 // Rink-Float horn safety limits (seconds)
-// - stops this long after the last keepalive from the app (app disconnects)
-#define HORN_TIMEOUT 0.3f
+// - stops this long after the last keepalive from the app (app disconnects).
+//   A keepalive never starts a new press (only an explicit start does), so a
+//   Bluetooth hiccup can cut a press short but never extend it.
+#define HORN_TIMEOUT 0.5f
 // - a tap plays at least this long, so it's noticeable
 #define HORN_MIN_TIME 0.2f
 // - one press never plays longer than this; holding longer is silent
@@ -59,22 +61,27 @@ void haptic_feedback_init(HapticFeedback *hf) {
     hf->horn_mode = HORN_MODE_BOTH;
 }
 
-void haptic_feedback_horn(HapticFeedback *hf, const Time *time, bool on, uint8_t mode) {
+void haptic_feedback_horn(HapticFeedback *hf, const Time *time, uint8_t req, uint8_t mode) {
     // A press whose keepalives stopped arriving counts as released now.
     if (hf->horn_on && timer_older(time, hf->horn_timer, HORN_TIMEOUT)) {
         hf->horn_on = false;
     }
 
-    if (!on) {
+    if (req == HORN_REQ_OFF) {
         hf->horn_on = false;
         return;
     }
 
-    if (hf->horn_on) {
-        // keepalive for the current press (does not extend the max time)
-        hf->horn_timer = time->now;
+    if (req == HORN_REQ_KEEPALIVE) {
+        // keeps the current press alive (does not extend the max time);
+        // ignored if the press already ended
+        if (hf->horn_on) {
+            hf->horn_timer = time->now;
+        }
         return;
     }
+
+    // HORN_REQ_START: a new press
 
     // new press: needs enough budget left for at least a short tap
     if (hf->horn_budget < HORN_MIN_TIME) {

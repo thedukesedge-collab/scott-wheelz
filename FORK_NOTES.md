@@ -243,3 +243,17 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   (normal/flipped) options; removed from the Control tab. Tapping the side
   view no longer cycles rails (long-press still flips it). Tab labels are
   smaller (0.27 unit) so four fit.
+
+### Fixes (v1.2.3-rf9)
+- Horn could run 4-5 s at idle: a Bluetooth gap > 0.3 s ended the press and
+  the next keepalive started a new one (resetting the max-time clock).
+  COMMAND_SW_HORN byte [2] is now a `HornRequest`: 0 off, 1 keepalive
+  (only keeps an existing press alive), 2 start. HORN_TIMEOUT 0.3 -> 0.5 s.
+  The app also sends "off" when its own per-press timer runs out.
+- Sheet: at most 1/3 of the screen. The main view now lays out above the
+  sheet's current height instead of being covered: the speedo shrinks (down
+  to 1.8 units, corner dials hidden below 2.6) so battery, name row, stats,
+  temps, TILT and HORN stay visible.
+- Rails: DOUBLE KICK removed (a saved value falls back to STOCK). WTF and
+  DUB TAIL are straight segments with sharp kinks (`railY` uses linear
+  interpolation between knots).

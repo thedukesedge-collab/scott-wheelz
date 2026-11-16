@@ -69,8 +69,15 @@ void haptic_feedback_init(HapticFeedback *hf);
 
 void haptic_feedback_configure(HapticFeedback *hf, const RefloatConfig *cfg);
 
-// Rink-Float: request (on=true) or cancel (on=false) the haptic horn.
-void haptic_feedback_horn(HapticFeedback *hf, const Time *time, bool on, uint8_t mode);
+// Rink-Float horn requests (byte [2] of COMMAND_SW_HORN)
+typedef enum {
+    HORN_REQ_OFF = 0,
+    HORN_REQ_KEEPALIVE = 1,  // only keeps an existing press alive
+    HORN_REQ_START = 2,  // starts a new press
+} HornRequest;
+
+// Rink-Float: start / keep alive / stop the haptic horn.
+void haptic_feedback_horn(HapticFeedback *hf, const Time *time, uint8_t req, uint8_t mode);
 
 // Rink-Float: true while the horn is actually sounding (drives the optional
 // external beeper on the PPM pin).

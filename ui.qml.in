@@ -178,7 +178,7 @@ Item {
             // Rink-Float: keep the horn alive while the button is held
             hornFrame.tick();
             if (hornFrame.honking) {
-                commands.sendHorn(true);
+                commands.sendHorn(1);
             }
 
             // Rink-Float: main-screen TILT slider wins while it's in use; one
@@ -786,9 +786,10 @@ Item {
 
         // Rink-Float: haptic horn. on=true starts / keeps it alive (resend
         // at least every 300ms), on=false stops it immediately.
-        function sendHorn(on) {
+        // req: 0 off, 1 keepalive, 2 start a new press
+        function sendHorn(req) {
             var data = createData(4, c_SW_HORN);
-            data.setUint8(2, on ? 1 : 0);
+            data.setUint8(2, req);
             data.setUint8(3, 3); // HORN_MODE_BOTH: tone + vibrate (tone only when idle)
             vescCommands.sendCustomAppData(data.buffer);
         }
@@ -996,7 +997,7 @@ Item {
         category: "scottWheelz"  // old name kept so saved settings survive the rename
 
         property bool invertPitch: false
-        property int railStyle: 0  // 0 stock, 1 WTF, 2 dub tail, 3 double kick
+        property int railStyle: 0  // 0 stock, 1 WTF, 2 dub tail
         property int tireStyle: 0  // 0 treaded, 1 slick
         property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
     }
@@ -6258,7 +6259,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             // leave room for the collapsed Tunes / Control / Data sheet
-            Layout.bottomMargin: bottomSheet.minHeight + 0.1 * unit
+            Layout.bottomMargin: bottomSheet.height + 0.1 * unit
             spacing: 0
 
             property real centralMargin: 0.08 * unit
@@ -6457,9 +6458,8 @@ Item {
             TronSpeedo {
                 id: tronSpeedo
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.max(2.6 * unit, Math.min(5.5 * unit,
-                    root.height - bottomSheet.minHeight - batteryBar.height - boardNameRow.height
-                    - hud.height - middleRow.height - swTiltRow.height - hornFrame.height - 1.2 * unit))
+                Layout.preferredHeight: Math.max(1.8 * unit, Math.min(5.5 * unit,
+                    root.height - bottomSheet.height - 0.1 * unit - bottomSheet.hudFixedHeight))
 
                 maxValue: preferences.speedDialMax
                 unitText: vescConfig.speedUnit
@@ -6471,6 +6471,7 @@ Item {
                 Item {
                     id: hudDials  // Rink-Float: current / duty dials flank the speedo
                     anchors.bottom: parent.bottom
+                    visible: parent.height >= 2.6 * unit  // hidden while the sheet squeezes the speedo
                     width: parent.width
                     height: 1.9 * unit
 
@@ -7158,17 +7159,21 @@ Item {
                             // Rink-Float: rail profiles. Height of the rail centerline
                             // (path units, + = down) at x (-97 nose ... 97 tail).
                             function railY(x) {
-                                var ax = Math.abs(x);
-                                function ease(t) { return (1 - Math.cos(Math.PI * t)) / 2; }
-                                function kick(d) { return d > 0 ? -10 * Math.pow(d / 42, 1.6) : 0; }
+                                // piecewise-straight profiles with sharp kinks
+                                function lerp(pts) {
+                                    for (var i = 1; i < pts.length; i++) {
+                                        if (x <= pts[i][0]) {
+                                            var t = (x - pts[i - 1][0]) / (pts[i][0] - pts[i - 1][0]);
+                                            return pts[i - 1][1] + t * (pts[i][1] - pts[i - 1][1]);
+                                        }
+                                    }
+                                    return pts[pts.length - 1][1];
+                                }
                                 switch (sw_rail) {
-                                case 1:  // WTF: "W" - kicked ends, dips under the pads, hump over the tire
-                                    if (ax < 62) return -3 + 6 * ease(ax / 62);
-                                    return 3 - 10 * ease(Math.min(1, (ax - 62) / 35));
-                                case 2:  // dub tail: only the tail is kicked up
-                                    return kick(x - 55);
-                                case 3:  // double kick: nose and tail kicked
-                                    return kick(ax - 55);
+                                case 1:  // WTF: "W" - kicked ends, flat drops under the pads, raised middle over the tire
+                                    return lerp([[-97, -9], [-80, 3], [-45, 3], [-30, -2], [30, -2], [45, 3], [80, 3], [97, -9]]);
+                                case 2:  // dub tail: flat, then a straight kick at the tail
+                                    return lerp([[-97, 0], [60, 0], [97, -11]]);
                                 default:
                                     return 0;
                                 }
@@ -7195,7 +7200,7 @@ Item {
                             function padPath(context, x0, x1) {
                                 context.beginPath();
                                 context.moveTo(x0, railY(x0) - 11);
-                                for (var x = x0 + 3; x < x1; x += 3) {
+                                for (var x = x0 + 2; x < x1; x += 2) {
                                     context.lineTo(x, railY(x) - 11);
                                 }
                                 context.lineTo(x1, railY(x1) - 11);
@@ -7652,7 +7657,7 @@ Item {
                         budget = Math.max(0, budget - (riding ? 0.1 : 0.15));
                         if (budget <= 0) {
                             expired = true;
-                            commands.sendHorn(false);
+                            commands.sendHorn(0);
                         }
                     } else {
                         budget = Math.min(budgetMax, budget + 0.1);
@@ -7690,7 +7695,10 @@ Item {
                 Timer {
                     id: hornMaxTimer
                     interval: 3000
-                    onTriggered: hornFrame.expired = true
+                    onTriggered: {
+                        hornFrame.expired = true;
+                        commands.sendHorn(0);
+                    }
                 }
 
                 Text {
@@ -7712,14 +7720,14 @@ Item {
                         if (hornFrame.blocked) return;
                         hornMaxTimer.interval = hornFrame.riding ? 3000 : 2000;
                         hornMaxTimer.restart();
-                        commands.sendHorn(true);
+                        commands.sendHorn(2);
                     }
                     onReleased: hornFrame.release()
                     onCanceled: hornFrame.release()
                 }
 
                 function release() {
-                    commands.sendHorn(false);
+                    commands.sendHorn(0);
                     hornMaxTimer.stop();
                     expired = false;
                     blocked = false;
@@ -7745,7 +7753,11 @@ Item {
 
         property real handleHeight: 0.75 * unit
         property real minHeight: handleHeight + bottomStackTabs.height + bottomLine.height + 2
-        property real maxHeight: Math.max(minHeight, root.height - batteryBar.height - boardNameRow.height)
+        // at most 1/3 of the screen, and never more than the main view can give
+        // up (the main view shrinks the speedo instead of being covered)
+        property real hudFixedHeight: batteryBar.height + boardNameRow.height + hud.height + middleRow.height
+                                      + swTiltRow.height + hornFrame.height + 1.0 * unit
+        property real maxHeight: Math.max(minHeight, Math.min(root.height / 3, root.height - hudFixedHeight - 1.8 * unit - 0.1 * unit))
         property real fraction: 0  // 0 = collapsed, 1 = fully up
         property bool dragging: false
 
@@ -8347,10 +8359,10 @@ Item {
                             spacing: 0.12 * unit
 
                             Repeater {
-                                model: ["STOCK", "WTF", "DUB TAIL", "DBL KICK"]
+                                model: ["STOCK", "WTF", "DUB TAIL"]
 
                                 Rectangle {
-                                    width: 2.1 * unit
+                                    width: 2.6 * unit
                                     height: 0.75 * unit
                                     radius: height / 2
                                     property bool selected: swSettings.railStyle === index

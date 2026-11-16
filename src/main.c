@@ -2356,10 +2356,11 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
         return;
     }
     case COMMAND_SW_HORN: {
-        // [2] = on/off, optional [3] = HornMode (default: beep + buzz)
+        // [2] = HornRequest (0 off, 1 keepalive, 2 start),
+        // optional [3] = HornMode (default: beep + buzz)
         if (len == 3 || len == 4) {
             uint8_t mode = len == 4 ? buffer[3] : HORN_MODE_BOTH;
-            haptic_feedback_horn(&d->haptic_feedback, &d->time, buffer[2] != 0, mode);
+            haptic_feedback_horn(&d->haptic_feedback, &d->time, buffer[2], mode);
         } else {
             log_error("Command data length incorrect: %u", len);
         }
