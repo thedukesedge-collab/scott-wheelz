@@ -1,0 +1,36 @@
+# Rink-Float: build any commit and publish it as its own release, so older
+# versions stay downloadable (Actions > Release a commit > Run workflow).
+name: Release a commit
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit / branch / tag to build
+        required: true
+      name:
+        description: Release tag name (e.g. build-rf8)
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - name: Build Package
+        uses: ./.github/actions/build
+        with:
+          cache-auth-token: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          ver=$(cat version)
+          cp rinkfloat.vescpkg rinkfloat-$ver.vescpkg
+          gh release delete "${{ inputs.name }}" --yes --cleanup-tag || true
+          gh release create "${{ inputs.name }}" rinkfloat-$ver.vescpkg --prerelease \
+            --title "Rink-Float $ver (${sha::7})" --notes "Build of ${sha::7}." --target "$sha"
