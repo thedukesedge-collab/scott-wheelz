@@ -49,8 +49,19 @@ Back up your XML config first. First test with the wheel off the ground.
 
 ## Scott Wheelz features
 
+### Current layout (update 3)
+There is no separate Board tab any more. Everything lives on the stock main
+screen, restyled:
+- Neon theme over the stock stats (all stock features kept): dark grid,
+  green/purple colors via `swTheme`, red/orange alerts unchanged.
+- Side view: neon tire, hub, fender, rails and footpads with NOSE/TAIL,
+  plus the stock balance-pitch outline (dim purple) and setpoint (orange).
+  Long-press it to flip direction (saved in `swSettings.invertPitch`).
+- Footpad: neon outline, ADC1/ADC2 halves glow green and pulse when engaged.
+- HORN pill next to the board name (hold; riding only).
+
 ### Haptic horn
-- App: **Board** tab > **HAPTIC HORN** (hold). Enabled only while riding.
+- App: **HORN** pill next to the board name (hold). Enabled only while riding.
 - Command `120` (`COMMAND_SW_HORN`), payload 1 byte: `1` = on/keepalive,
   `0` = off. The app resends every 100 ms while held; the package stops the
   horn by itself 0.3 s after the last request (`HORN_TIMEOUT`), so a dropped

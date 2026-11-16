@@ -973,6 +973,14 @@ Item {
         property alias checkForNewVersions: prefCheckForNewVersions.checked
     }
 
+    // Scott Wheelz: long-press the side view on the main screen to flip it
+    Settings {
+        id: swSettings
+        category: "scottWheelz"
+
+        property bool invertPitch: false
+    }
+
     Settings {
         id: persistentData
         category: "persistentData"
@@ -2237,6 +2245,8 @@ Item {
                 return "#7b2fd0";
             case "swPurple":
                 return "#b14cff";
+            case "swBalance":
+                return "#6a4a9e";
             default:
                 return Utility.getAppHexColor(name);
             }
@@ -6137,6 +6147,39 @@ Item {
                     Component.onCompleted: load();
                 }
 
+                // Scott Wheelz: haptic horn (hold). Works only while riding.
+                Rectangle {
+                    id: hornFrame
+                    Layout.alignment: Qt.AlignVCenter
+                    Layout.preferredWidth: 1.9 * unit
+                    Layout.preferredHeight: 0.62 * unit
+                    radius: height / 2
+                    property bool riding: state.pkgState === state.s_Running
+                    color: hornButton.pressed ? swTheme.neonPurple : "transparent"
+                    border.color: swTheme.neonPurple
+                    border.width: 2
+                    opacity: riding ? 1.0 : 0.4
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: hornButton.pressed ? "HONK" : "HORN"
+                        color: hornButton.pressed ? swTheme.background : swTheme.neonPurple
+                        font.family: "monospace"
+                        font.bold: true
+                        font.pixelSize: fontSizeSmall
+                        font.letterSpacing: 0.03 * unit
+                    }
+
+                    MouseArea {
+                        id: hornButton
+                        anchors.fill: parent
+                        enabled: parent.riding
+                        onPressed: commands.sendHorn(true)
+                        onReleased: commands.sendHorn(false)
+                        onCanceled: commands.sendHorn(false)
+                    }
+                }
+
                 ToolButton {
                     id: editBoardNameButton
                     Layout.alignment: Qt.AlignVCenter
@@ -6551,9 +6594,13 @@ Item {
                                 onPaint: {
                                     var context = getContext("2d");
                                     context.reset();
-                                    context.strokeStyle = swTheme.color("lightText")
-                                    context.lineWidth = 2
                                     context.path = footpadPath
+                                    context.strokeStyle = swTheme.neonPurple
+                                    context.globalAlpha = 0.25
+                                    context.lineWidth = 7
+                                    context.stroke()
+                                    context.globalAlpha = 1.0
+                                    context.lineWidth = 2
                                     context.stroke()
                                 }
                             }
@@ -6806,75 +6853,104 @@ Item {
                                 context.restore();
                             }
 
-                            // Scott Wheelz: detailed side view (tread, hub, fender,
-                            // footpads, NOSE/TAIL) drawn in the same frame as the
-                            // stock board outline. Nose is on the left. The front
-                            // pad lights up when ADC1 or ADC2 is engaged.
+                            // Scott Wheelz: neon side view (green tire + footpads, purple
+                            // rails/fender/hub) with NOSE/TAIL. Nose is on the left. The
+                            // front pad brightens when ADC1 or ADC2 is engaged.
+                            // Long-press the drawing to flip it if it tilts the wrong way.
                             property bool fpOn: state.fpState !== state.fs_None
-                            property real sw_sign: (typeof invertSwitch !== "undefined" && invertSwitch.checked) ? -1 : 1
+                            property real sw_sign: swSettings.invertPitch ? -1 : 1
                             onFpOnChanged: requestPaint()
                             onSw_signChanged: requestPaint()
 
+                            // wide faint pass (glow) + thin bright pass
+                            function glow(context, color, w) {
+                                context.save();
+                                context.strokeStyle = color;
+                                context.globalAlpha = 0.22;
+                                context.lineWidth = w * 3.5;
+                                context.stroke();
+                                context.globalAlpha = 1.0;
+                                context.lineWidth = w;
+                                context.stroke();
+                                context.restore();
+                            }
+
                             function paintDetailedBoard(context, rotation) {
-                                var text = swTheme.color("lightText");
-                                var accent = swTheme.color("lightAccent");
+                                var green = swTheme.neonGreen;
+                                var purple = swTheme.neonPurple;
+                                var u = 1 / scale;  // one screen pixel in path units
                                 context.save();
                                 context.translate(width / 2, height / 2);
                                 context.rotate(Math.PI / 180 * rotation);
-                                context.lineWidth = 2;
-                                context.strokeStyle = text;
+
+                                // rails (stock outline path, already scaled)
                                 context.path = pitchBoardPath;
-                                context.stroke();
-                                context.path = pitchWheelPath;
-                                context.stroke();
+                                glow(context, purple, 2);
 
                                 context.scale(scale, scale);
-                                context.lineWidth = 1.2 / scale * 1.5;
 
-                                // tread ticks on the visible tire arcs
+                                // tire
+                                for (var k = 0; k < 2; k++) {
+                                    var a0 = Math.asin(8 / 36);
+                                    context.beginPath();
+                                    if (k === 0)
+                                        context.arc(0, 0, 36, a0, Math.PI - a0);
+                                    else
+                                        context.arc(0, 0, 36, Math.PI + a0, 2 * Math.PI - a0);
+                                    glow(context, green, 2 * u);
+                                }
+
+                                // tread ticks
                                 context.beginPath();
                                 for (var i = 0; i < 36; i++) {
                                     var a = i * Math.PI / 18;
-                                    var y1 = 32 * Math.sin(a);
+                                    var y1 = 31 * Math.sin(a);
                                     if (Math.abs(y1) < 10) continue;
-                                    context.moveTo(32 * Math.cos(a), y1);
+                                    context.moveTo(31 * Math.cos(a), y1);
                                     context.lineTo(36 * Math.cos(a), 36 * Math.sin(a));
                                 }
+                                context.strokeStyle = green;
+                                context.lineWidth = 1.2 * u;
                                 context.stroke();
 
-                                // axle
+                                // hub motor
+                                for (var h = 0; h < 2; h++) {
+                                    var b0 = Math.asin(8 / 18);
+                                    context.beginPath();
+                                    if (h === 0)
+                                        context.arc(0, 0, 18, b0, Math.PI - b0);
+                                    else
+                                        context.arc(0, 0, 18, Math.PI + b0, 2 * Math.PI - b0);
+                                    glow(context, purple, 1.5 * u);
+                                }
                                 context.beginPath();
                                 context.arc(0, 0, 3.5, 0, 2 * Math.PI);
-                                context.fillStyle = text;
+                                context.fillStyle = purple;
                                 context.fill();
 
-                                // fender over the tire
+                                // fender
                                 context.beginPath();
-                                context.arc(0, 0, 42, Math.PI * 1.13, Math.PI * 1.87);
-                                context.lineWidth = 2 / scale * 1.5;
-                                context.stroke();
+                                context.arc(0, 0, 43, Math.PI * 1.13, Math.PI * 1.87);
+                                glow(context, purple, 2 * u);
 
                                 // rear footpad (tail, right)
                                 context.beginPath();
                                 context.moveTo(46, -11);
                                 context.lineTo(88, -11);
-                                context.lineWidth = 3 / scale * 1.5;
-                                context.stroke();
+                                glow(context, green, 2.5 * u);
 
                                 // front footpad (nose, left)
                                 context.beginPath();
                                 context.moveTo(-88, -11);
                                 context.lineTo(-46, -11);
-                                context.strokeStyle = fpOn ? accent : text;
-                                context.lineWidth = (fpOn ? 5 : 3) / scale * 1.5;
-                                context.stroke();
+                                glow(context, fpOn ? green : "#1d6b3c", (fpOn ? 4 : 2.5) * u);
 
                                 // labels
-                                context.font = "bold " + Math.round(fontSizeSuperSmall / scale) + "px sans-serif";
+                                context.font = "bold " + Math.round(fontSizeSuperSmall * u) + "px monospace";
                                 context.textAlign = "center";
-                                context.fillStyle = fpOn ? accent : text;
+                                context.fillStyle = green;
                                 context.fillText("NOSE", -70, 26);
-                                context.fillStyle = text;
+                                context.fillStyle = purple;
                                 context.fillText("TAIL", 70, 26);
                                 context.restore();
                             }
@@ -6882,11 +6958,16 @@ Item {
                             onPaint: {
                                 var context = getContext("2d");
                                 context.reset()
-                                paintPath(context, [pitchBoardPath], sw_sign * parent.balancePitchValue, "swPurple");
+                                paintPath(context, [pitchBoardPath], sw_sign * parent.balancePitchValue, "swBalance");
                                 paintDetailedBoard(context, sw_sign * parent.pitchValue);
                                 context.globalAlpha = parent.runtimeOpacity;
                                 paintPath(context, [pitchSetpointPath], sw_sign * parent.setpointValue, "orange");
                             }
+                        }
+
+                        MouseArea {
+                            anchors.fill: pitchCanvas
+                            onPressAndHold: swSettings.invertPitch = !swSettings.invertPitch
                         }
 
                         Text {
@@ -7093,7 +7174,6 @@ Item {
             TabButton {text: "Tunes"}
             TabButton {text: "Control"}
             TabButton {text: "Data"}
-            TabButton {text: "Board"}
 
             background: Rectangle {
                 color: Utility.getAppHexColor("lightBackground");
@@ -7531,567 +7611,6 @@ Item {
                         function onCommsInitialized() {
                             rtPlotData.init(state.rtDataAllItems, state.ticksPerSecond);
                             rtPlot.init(state.ticksPerSecond);
-                        }
-                    }
-                }
-            }
-
-            // Scott Wheelz: board orientation, footpad sensors and haptic horn
-            // ("Tron" style: neon green + purple on a dark grid)
-            Item {
-                id: boardPage
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-
-                readonly property color neonGreen: "#39ff7a"
-                readonly property color neonPurple: "#b14cff"
-                readonly property color dimPurple: "#3a1a5c"
-                readonly property color dimGreen: "#0f4a28"
-                readonly property color bgColor: "#05060d"
-                readonly property color gridColor: "#160d2b"
-                readonly property string monoFont: "monospace"
-
-                // Fused IMU angles (degrees), NaN until data arrives
-                property real pitch: state.rtData["imu.pitch"]
-                property real roll: state.rtData["imu.roll"]
-                property real yaw: state.rtData["imu.yaw"]
-                property bool hasData: !isNaN(boardPage.pitch) && !isNaN(boardPage.roll)
-                property bool riding: state.pkgState === state.s_Running
-                property int sign: invertSwitch.checked ? -1 : 1
-
-                // Front footpad: ADC1 = left half, ADC2 = right half. Uses the
-                // package's own engaged state (fault_adc1 / fault_adc2 thresholds).
-                property bool adc1On: (state.fpState & state.fs_Left) !== 0
-                property bool adc2On: (state.fpState & state.fs_Right) !== 0
-                property real adc1Voltage: state.rtData["footpad.adc1"]
-                property real adc2Voltage: state.rtData["footpad.adc2"]
-
-                function fmt(v) {
-                    return isNaN(v) ? "--" : (v >= 0 ? "+" : "") + v.toFixed(1) + "°";
-                }
-
-                // Stroke the current path twice: a wide faint pass for the
-                // glow, then a thin bright pass on top.
-                function neonStroke(ctx, color, w) {
-                    ctx.save();
-                    ctx.strokeStyle = color;
-                    ctx.globalAlpha = 0.22;
-                    ctx.lineWidth = w * 4;
-                    ctx.stroke();
-                    ctx.globalAlpha = 1.0;
-                    ctx.lineWidth = w;
-                    ctx.stroke();
-                    ctx.restore();
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    color: boardPage.bgColor
-                }
-
-                // Background grid
-                Canvas {
-                    anchors.fill: parent
-                    contextType: "2d"
-                    onWidthChanged: requestPaint()
-                    onHeightChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d");
-                        ctx.reset();
-                        ctx.strokeStyle = boardPage.gridColor;
-                        ctx.lineWidth = 1;
-                        var step = Math.max(12, Math.round(0.5 * unit));
-                        ctx.beginPath();
-                        for (var x = 0; x < width; x += step) {
-                            ctx.moveTo(x + 0.5, 0);
-                            ctx.lineTo(x + 0.5, height);
-                        }
-                        for (var y = 0; y < height; y += step) {
-                            ctx.moveTo(0, y + 0.5);
-                            ctx.lineTo(width, y + 0.5);
-                        }
-                        ctx.stroke();
-                    }
-                }
-
-                component NeonLabel : Text {
-                    color: boardPage.neonGreen
-                    font.family: boardPage.monoFont
-                    font.pixelSize: fontSizeBig
-                    font.letterSpacing: 0.04 * unit
-                    anchors.horizontalCenter: parent ? parent.horizontalCenter : undefined
-                }
-
-                component NeonNote : Text {
-                    width: parent ? parent.width : 0
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.WordWrap
-                    color: "#9a86c2"
-                    font.family: boardPage.monoFont
-                    font.pixelSize: fontSizeSuperSmall
-                }
-
-                ScrollView {
-                    anchors.fill: parent
-                    contentWidth: availableWidth
-                    clip: true
-
-                    Column {
-                        id: boardColumn
-                        width: parent.width
-                        spacing: 0.15 * unit
-                        topPadding: 0.2 * unit
-                        bottomPadding: 0.3 * unit
-
-                        // ---------------- Horn ----------------
-                        Rectangle {
-                            id: hornFrame
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            width: parent.width * 0.9
-                            height: 1.5 * unit
-                            radius: 0.15 * unit
-                            color: hornButton.pressed ? boardPage.neonPurple : boardPage.bgColor
-                            border.color: boardPage.riding ? boardPage.neonPurple : boardPage.dimPurple
-                            border.width: 2
-                            opacity: boardPage.riding ? 1.0 : 0.5
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: hornButton.pressed ? "HONKING..." : "HAPTIC HORN"
-                                color: hornButton.pressed ? boardPage.bgColor : boardPage.neonPurple
-                                font.family: boardPage.monoFont
-                                font.pixelSize: fontSizeBig
-                                font.letterSpacing: 0.06 * unit
-                                font.bold: true
-                            }
-
-                            MouseArea {
-                                id: hornButton
-                                anchors.fill: parent
-                                enabled: boardPage.riding
-                                onPressed: commands.sendHorn(true)
-                                onReleased: commands.sendHorn(false)
-                                onCanceled: commands.sendHorn(false)
-                            }
-                        }
-
-                        NeonNote {
-                            text: boardPage.riding
-                                ? "Hold to honk. Max-strength haptic tones. Pushback and error alerts take priority."
-                                : "Horn works only while riding (board engaged)."
-                        }
-
-                        // ---------------- Front footpad ----------------
-                        NeonLabel {
-                            text: "FRONT FOOTPAD  " + (boardPage.adc1On && boardPage.adc2On ? "BOTH"
-                                : boardPage.adc1On ? "ADC1"
-                                : boardPage.adc2On ? "ADC2" : "OFF")
-                            color: (boardPage.adc1On || boardPage.adc2On) ? boardPage.neonGreen : "#9a86c2"
-                        }
-
-                        Item {
-                            width: parent.width
-                            height: 2.2 * unit
-
-                            Canvas {
-                                id: swFootpadCanvas
-                                anchors.centerIn: parent
-                                width: Math.min(parent.width * 0.7, 4.5 * unit)
-                                height: parent.height
-                                contextType: "2d"
-
-                                property bool a1: boardPage.adc1On
-                                property bool a2: boardPage.adc2On
-                                onA1Changed: requestPaint()
-                                onA2Changed: requestPaint()
-                                onWidthChanged: requestPaint()
-
-                                onPaint: {
-                                    var ctx = getContext("2d");
-                                    ctx.reset();
-                                    var w = width, h = height, m = 6;
-                                    var r = h * 0.35;     // nose curve
-                                    var gap = w * 0.04;   // gap between halves
-
-                                    // Halves are drawn nose-up: the curved edge is the nose
-                                    function half(left, on) {
-                                        var x0 = left ? m : w / 2 + gap / 2;
-                                        var x1 = left ? w / 2 - gap / 2 : w - m;
-                                        ctx.beginPath();
-                                        if (left) {
-                                            ctx.moveTo(x1, m);
-                                            ctx.lineTo(x0 + r, m);
-                                            ctx.quadraticCurveTo(x0, m, x0, m + r);
-                                            ctx.lineTo(x0, h - m);
-                                            ctx.lineTo(x1, h - m);
-                                        } else {
-                                            ctx.moveTo(x0, m);
-                                            ctx.lineTo(x1 - r, m);
-                                            ctx.quadraticCurveTo(x1, m, x1, m + r);
-                                            ctx.lineTo(x1, h - m);
-                                            ctx.lineTo(x0, h - m);
-                                        }
-                                        ctx.closePath();
-                                        ctx.fillStyle = on ? boardPage.dimGreen : boardPage.bgColor;
-                                        ctx.fill();
-                                        boardPage.neonStroke(ctx, on ? boardPage.neonGreen : boardPage.dimPurple, 2);
-
-                                        // grip ridges
-                                        ctx.beginPath();
-                                        for (var i = 1; i < 5; i++) {
-                                            var y = m + r + (h - 2 * m - r) * i / 5;
-                                            ctx.moveTo(x0 + (x1 - x0) * 0.18, y);
-                                            ctx.lineTo(x1 - (x1 - x0) * 0.18, y);
-                                        }
-                                        ctx.strokeStyle = on ? boardPage.neonGreen : boardPage.dimPurple;
-                                        ctx.globalAlpha = 0.5;
-                                        ctx.lineWidth = 1;
-                                        ctx.stroke();
-                                        ctx.globalAlpha = 1.0;
-                                    }
-
-                                    half(true, a1);
-                                    half(false, a2);
-                                }
-                            }
-
-                            Text {
-                                anchors.horizontalCenter: swFootpadCanvas.horizontalCenter
-                                anchors.horizontalCenterOffset: -swFootpadCanvas.width / 4
-                                anchors.verticalCenter: swFootpadCanvas.verticalCenter
-                                horizontalAlignment: Text.AlignHCenter
-                                text: "ADC1\n" + (isNaN(boardPage.adc1Voltage) ? "--" : boardPage.adc1Voltage.toFixed(2)) + "V"
-                                color: boardPage.adc1On ? boardPage.neonGreen : "#9a86c2"
-                                font.family: boardPage.monoFont
-                                font.pixelSize: fontSizeSmall
-                            }
-
-                            Text {
-                                anchors.horizontalCenter: swFootpadCanvas.horizontalCenter
-                                anchors.horizontalCenterOffset: swFootpadCanvas.width / 4
-                                anchors.verticalCenter: swFootpadCanvas.verticalCenter
-                                horizontalAlignment: Text.AlignHCenter
-                                text: "ADC2\n" + (isNaN(boardPage.adc2Voltage) ? "--" : boardPage.adc2Voltage.toFixed(2)) + "V"
-                                color: boardPage.adc2On ? boardPage.neonGreen : "#9a86c2"
-                                font.family: boardPage.monoFont
-                                font.pixelSize: fontSizeSmall
-                            }
-                        }
-
-                        // ---------------- Side view: pitch ----------------
-                        NeonLabel {
-                            text: "PITCH  " + boardPage.fmt(boardPage.pitch)
-                        }
-
-                        Item {
-                            width: parent.width
-                            height: width * 0.6
-
-                            // level reference
-                            Rectangle {
-                                anchors.centerIn: parent
-                                width: parent.width * 0.92
-                                height: 1
-                                color: boardPage.dimPurple
-                            }
-
-                            Item {
-                                id: sideBoard
-                                anchors.fill: parent
-
-                                Canvas {
-                                    id: sideCanvas
-                                    anchors.fill: parent
-                                    contextType: "2d"
-                                    property bool fpOn: boardPage.adc1On || boardPage.adc2On
-                                    // Rotation is applied inside the canvas (same approach as
-                                    // the main screen) so it repaints on every new pitch value.
-                                    property real ang: isNaN(boardPage.pitch) ? 0 : -boardPage.sign * boardPage.pitch
-                                    onFpOnChanged: requestPaint()
-                                    onAngChanged: requestPaint()
-                                    onWidthChanged: requestPaint()
-
-                                    // Drawn in a 300 x 126 space, nose on the right
-                                    onPaint: {
-                                        var ctx = getContext("2d");
-                                        ctx.reset();
-                                        var sc = Math.min(width / 320, height / 190);
-                                        ctx.translate(width / 2, height / 2);
-                                        ctx.rotate(ang * Math.PI / 180);
-                                        ctx.scale(sc, sc);
-                                        ctx.translate(-150, -63);
-                                        var cx = 150, cy = 63;
-
-                                        // tire with tread ticks
-                                        ctx.beginPath();
-                                        ctx.arc(cx, cy, 34, 0, 2 * Math.PI);
-                                        boardPage.neonStroke(ctx, boardPage.neonGreen, 2);
-                                        ctx.beginPath();
-                                        for (var i = 0; i < 24; i++) {
-                                            var a = i * Math.PI / 12;
-                                            ctx.moveTo(cx + 30 * Math.cos(a), cy + 30 * Math.sin(a));
-                                            ctx.lineTo(cx + 34 * Math.cos(a), cy + 34 * Math.sin(a));
-                                        }
-                                        ctx.strokeStyle = boardPage.neonGreen;
-                                        ctx.lineWidth = 1;
-                                        ctx.stroke();
-
-                                        // hub motor
-                                        ctx.beginPath();
-                                        ctx.arc(cx, cy, 15, 0, 2 * Math.PI);
-                                        boardPage.neonStroke(ctx, boardPage.neonPurple, 1.5);
-                                        ctx.beginPath();
-                                        ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
-                                        ctx.fillStyle = boardPage.neonPurple;
-                                        ctx.fill();
-
-                                        // fender
-                                        ctx.beginPath();
-                                        ctx.arc(cx, cy, 42, Math.PI * 1.08, Math.PI * 1.92);
-                                        boardPage.neonStroke(ctx, boardPage.neonPurple, 2);
-
-                                        // rails (slight concave toward the ends)
-                                        ctx.beginPath();
-                                        ctx.moveTo(14, 56);
-                                        ctx.quadraticCurveTo(150, 72, 286, 56);
-                                        ctx.lineTo(286, 66);
-                                        ctx.quadraticCurveTo(150, 82, 14, 66);
-                                        ctx.closePath();
-                                        ctx.fillStyle = boardPage.bgColor;
-                                        ctx.fill();
-                                        boardPage.neonStroke(ctx, boardPage.neonPurple, 2);
-
-                                        // rear footpad (tail, left)
-                                        ctx.beginPath();
-                                        ctx.moveTo(22, 54);
-                                        ctx.quadraticCurveTo(70, 61, 112, 62);
-                                        boardPage.neonStroke(ctx, boardPage.neonGreen, 3);
-
-                                        // front footpad (nose, right) - lights up with ADC
-                                        ctx.beginPath();
-                                        ctx.moveTo(188, 62);
-                                        ctx.quadraticCurveTo(230, 61, 278, 54);
-                                        boardPage.neonStroke(ctx, fpOn ? boardPage.neonGreen : boardPage.dimGreen, fpOn ? 4 : 3);
-
-                                        // bumpers
-                                        ctx.beginPath();
-                                        ctx.roundedRect(6, 53, 9, 16, 3, 3);
-                                        ctx.roundedRect(285, 53, 9, 16, 3, 3);
-                                        boardPage.neonStroke(ctx, boardPage.neonPurple, 1.5);
-
-                                        // labels rotate with the board
-                                        ctx.font = "bold " + Math.round(fontSizeSuperSmall / sc) + "px monospace";
-                                        ctx.textAlign = "center";
-                                        ctx.fillStyle = boardPage.neonGreen;
-                                        ctx.fillText("NOSE", 262, 96);
-                                        ctx.fillStyle = boardPage.neonPurple;
-                                        ctx.fillText("TAIL", 38, 96);
-                                    }
-                                }
-                            }
-                        }
-
-                        // ---------------- Rear view: roll ----------------
-                        NeonLabel {
-                            text: "ROLL  " + boardPage.fmt(boardPage.roll)
-                        }
-
-                        Item {
-                            width: parent.width
-                            height: 3 * unit
-
-                            Rectangle {
-                                anchors.centerIn: parent
-                                width: parent.width * 0.7
-                                height: 1
-                                color: boardPage.dimPurple
-                            }
-
-                            Item {
-                                anchors.fill: parent
-
-                                Canvas {
-                                    anchors.fill: parent
-                                    contextType: "2d"
-                                    property real ang: isNaN(boardPage.roll) ? 0 : boardPage.sign * boardPage.roll
-                                    onAngChanged: requestPaint()
-                                    onWidthChanged: requestPaint()
-
-                                    // 200 x 120 space, seen from the tail, rotated in-canvas
-                                    onPaint: {
-                                        var ctx = getContext("2d");
-                                        ctx.reset();
-                                        var sc = Math.min(width / 260, height / 170);
-                                        ctx.translate(width / 2, height / 2);
-                                        ctx.rotate(ang * Math.PI / 180);
-                                        ctx.scale(sc, sc);
-                                        ctx.translate(-100, -60);
-
-                                        // tire profile
-                                        ctx.beginPath();
-                                        ctx.roundedRect(78, 10, 44, 100, 16, 16);
-                                        ctx.fillStyle = boardPage.bgColor;
-                                        ctx.fill();
-                                        boardPage.neonStroke(ctx, boardPage.neonGreen, 2);
-
-                                        // tread lines
-                                        ctx.beginPath();
-                                        for (var i = 0; i < 7; i++) {
-                                            var y = 22 + i * 12.5;
-                                            ctx.moveTo(84, y);
-                                            ctx.lineTo(116, y);
-                                        }
-                                        ctx.strokeStyle = boardPage.neonGreen;
-                                        ctx.globalAlpha = 0.4;
-                                        ctx.lineWidth = 1;
-                                        ctx.stroke();
-                                        ctx.globalAlpha = 1.0;
-
-                                        // rails + footpad
-                                        ctx.beginPath();
-                                        ctx.roundedRect(18, 54, 164, 12, 4, 4);
-                                        ctx.fillStyle = boardPage.bgColor;
-                                        ctx.fill();
-                                        boardPage.neonStroke(ctx, boardPage.neonPurple, 2);
-
-                                        // axle
-                                        ctx.beginPath();
-                                        ctx.arc(100, 60, 4, 0, 2 * Math.PI);
-                                        ctx.fillStyle = boardPage.neonPurple;
-                                        ctx.fill();
-                                    }
-                                }
-                            }
-                        }
-
-                        // ---------------- Top view: yaw ----------------
-                        NeonLabel {
-                            text: "YAW  " + boardPage.fmt(boardPage.yaw)
-                        }
-
-                        Item {
-                            width: parent.width
-                            height: 3.4 * unit
-
-                            // heading ring with ticks every 30 degrees
-                            Canvas {
-                                id: ringCanvas
-                                anchors.centerIn: parent
-                                width: parent.height
-                                height: width
-                                contextType: "2d"
-                                onWidthChanged: requestPaint()
-                                onPaint: {
-                                    var ctx = getContext("2d");
-                                    ctx.reset();
-                                    var c = width / 2, r = width / 2 - 6;
-                                    ctx.beginPath();
-                                    ctx.arc(c, c, r, 0, 2 * Math.PI);
-                                    boardPage.neonStroke(ctx, boardPage.neonPurple, 1.5);
-                                    ctx.beginPath();
-                                    for (var i = 0; i < 12; i++) {
-                                        var a = i * Math.PI / 6;
-                                        var len = i % 3 === 0 ? 10 : 5;
-                                        ctx.moveTo(c + r * Math.sin(a), c - r * Math.cos(a));
-                                        ctx.lineTo(c + (r - len) * Math.sin(a), c - (r - len) * Math.cos(a));
-                                    }
-                                    ctx.strokeStyle = boardPage.neonPurple;
-                                    ctx.lineWidth = 1.5;
-                                    ctx.stroke();
-                                }
-                            }
-
-                            Item {
-                                anchors.fill: ringCanvas
-                                rotation: isNaN(boardPage.yaw) ? 0 : boardPage.sign * boardPage.yaw
-
-                                Canvas {
-                                    anchors.fill: parent
-                                    contextType: "2d"
-                                    property bool a1: boardPage.adc1On
-                                    property bool a2: boardPage.adc2On
-                                    onA1Changed: requestPaint()
-                                    onA2Changed: requestPaint()
-                                    onWidthChanged: requestPaint()
-
-                                    // 100 x 100 space, nose pointing up
-                                    onPaint: {
-                                        var ctx = getContext("2d");
-                                        ctx.reset();
-                                        ctx.scale(width / 100, height / 100);
-
-                                        // deck outline
-                                        ctx.beginPath();
-                                        ctx.roundedRect(39, 14, 22, 72, 9, 9);
-                                        ctx.fillStyle = boardPage.bgColor;
-                                        ctx.fill();
-                                        boardPage.neonStroke(ctx, boardPage.neonPurple, 1);
-
-                                        // tire slot
-                                        ctx.beginPath();
-                                        ctx.roundedRect(44, 41, 12, 18, 3, 3);
-                                        boardPage.neonStroke(ctx, boardPage.neonGreen, 1);
-
-                                        // front footpad halves (ADC1 left, ADC2 right)
-                                        ctx.beginPath();
-                                        ctx.roundedRect(41.5, 17, 8, 21, 3, 3);
-                                        ctx.fillStyle = a1 ? boardPage.neonGreen : boardPage.dimGreen;
-                                        ctx.fill();
-                                        ctx.beginPath();
-                                        ctx.roundedRect(50.5, 17, 8, 21, 3, 3);
-                                        ctx.fillStyle = a2 ? boardPage.neonGreen : boardPage.dimGreen;
-                                        ctx.fill();
-
-                                        // rear footpad
-                                        ctx.beginPath();
-                                        ctx.roundedRect(41.5, 62, 17, 21, 3, 3);
-                                        boardPage.neonStroke(ctx, boardPage.neonGreen, 0.8);
-                                    }
-                                }
-
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    y: parent.height * 0.02
-                                    text: "NOSE"
-                                    color: boardPage.neonGreen
-                                    font.family: boardPage.monoFont
-                                    font.pixelSize: fontSizeSuperSmall
-                                    font.bold: true
-                                }
-
-                                Text {
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    y: parent.height * 0.88
-                                    text: "TAIL"
-                                    color: boardPage.neonPurple
-                                    font.family: boardPage.monoFont
-                                    font.pixelSize: fontSizeSuperSmall
-                                    font.bold: true
-                                }
-                            }
-                        }
-
-                        NeonNote {
-                            text: "Yaw is relative heading from the gyro and drifts over time (no compass)."
-                        }
-
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 0.15 * unit
-
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: "INVERT DIRECTION"
-                                color: "#9a86c2"
-                                font.family: boardPage.monoFont
-                                font.pixelSize: fontSizeSmall
-                            }
-
-                            Switch {
-                                id: invertSwitch
-                                checked: false
-                                Material.accent: boardPage.neonGreen
-                            }
                         }
                     }
                 }
