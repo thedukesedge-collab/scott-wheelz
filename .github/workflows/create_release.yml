@@ -77,7 +77,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: ${{github.ref}}
-          name: Rink-Float ${{env.VERSION}}
+          name: Re-RinkFloat ${{env.VERSION}}
           draft: true
           artifacts: "rinkfloat-${{env.VERSION}}.vescpkg,rinkfloat-${{env.VERSION}}.elf,config_signature.txt"
           bodyFile: "release_notes.md"

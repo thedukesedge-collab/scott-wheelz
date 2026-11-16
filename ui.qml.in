@@ -175,13 +175,13 @@ Item {
                 commands.sendRcMove(moveSlider.value);
             }
 
-            // Rink-Float: keep the horn alive while the button is held
+            // Re-RinkFloat: keep the horn alive while the button is held
             hornFrame.tick();
             if (hornFrame.honking) {
                 commands.sendHorn(1);
             }
 
-            // Rink-Float: main-screen TILT slider wins while it's in use; one
+            // Re-RinkFloat: main-screen TILT slider wins while it's in use; one
             // final 0 is sent after it springs back
             var swTiltActive = swTiltSlider.pressed || swTiltSlider.value != 0;
             if (swTiltActive || swTiltSlider.sentNonZero) {
@@ -665,7 +665,7 @@ Item {
         readonly property int c_DATA_RECORD_REQUEST: 41
         readonly property int c_DATA_RECORD_HEADER: 42
         readonly property int c_DATA_RECORD_DATA: 43
-        readonly property int c_SW_HORN: 120  // Rink-Float
+        readonly property int c_SW_HORN: 120  // Re-RinkFloat
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
         // Dynamic range: +-131008.0
@@ -784,7 +784,7 @@ Item {
             vescCommands.sendCustomAppData(data.buffer);
         }
 
-        // Rink-Float: haptic horn. on=true starts / keeps it alive (resend
+        // Re-RinkFloat: haptic horn. on=true starts / keeps it alive (resend
         // at least every 300ms), on=false stops it immediately.
         // req: 0 off, 1 keepalive, 2 start a new press
         function sendHorn(req) {
@@ -991,7 +991,7 @@ Item {
         property alias checkForNewVersions: prefCheckForNewVersions.checked
     }
 
-    // Rink-Float: long-press the side view on the main screen to flip it
+    // Re-RinkFloat: long-press the side view on the main screen to flip it
     Settings {
         id: swSettings
         category: "scottWheelz"  // old name kept so saved settings survive the rename
@@ -2237,7 +2237,7 @@ Item {
         color: Utility.getAppHexColor("disabledText")
     }
 
-    // Rink-Float: neon green + purple theme for the main screen.
+    // Re-RinkFloat: neon green + purple theme for the main screen.
     // Warning colors (red, orange) are kept so alerts still read as alerts.
     QtObject {
         id: swTheme
@@ -2276,7 +2276,7 @@ Item {
         }
     }
 
-    // Rink-Float: Tron grid used behind the main screen and the bottom sheet
+    // Re-RinkFloat: Tron grid used behind the main screen and the bottom sheet
     component SwGrid : Canvas {
         contextType: "2d"
         onWidthChanged: requestPaint()
@@ -2575,7 +2575,7 @@ Item {
         }
     }
 
-    // Rink-Float: digital "Tron" speedometer. Segmented neon arc for speed
+    // Re-RinkFloat: digital "Tron" speedometer. Segmented neon arc for speed
     // (green, then purple, red at the top end), thin inner arc for duty, and
     // a big glowing digital readout in the middle.
     component TronSpeedo : Item {
@@ -3135,7 +3135,7 @@ Item {
         id: plot
         color: neon ? swTheme.background : "#0b0b0b"
 
-        // Rink-Float: neon axes / labels (series keep their own colors)
+        // Re-RinkFloat: neon axes / labels (series keep their own colors)
         property bool neon: false
 
         function themeColor(name) {
@@ -6232,7 +6232,7 @@ Item {
         }
     }
 
-    // Rink-Float: Tron grid behind the main screen stats
+    // Re-RinkFloat: Tron grid behind the main screen stats
     Rectangle {
         x: root.x
         y: root.y
@@ -6261,7 +6261,7 @@ Item {
             // leave room for the collapsed Tunes / Control / Data sheet
             Layout.bottomMargin: bottomSheet.minHeight + 0.1 * unit
 
-            // Rink-Float: the main view keeps its full-size layout and is
+            // Re-RinkFloat: the main view keeps its full-size layout and is
             // scaled down (from the top center) to fit above the sheet as it
             // comes up. A transform doesn't affect layout, so no feedback.
             property real fitScale: Math.min(1, (root.height - bottomSheet.height - 0.1 * unit) / Math.max(1, root.height - bottomSheet.minHeight - 0.1 * unit))
@@ -6303,7 +6303,7 @@ Item {
                     text: Math.round(parent.value) + "%"
                 }
 
-                // Rink-Float: neon fill that fades smoothly from green (full)
+                // Re-RinkFloat: neon fill that fades smoothly from green (full)
                 // through yellow/orange to red (empty), glowing harder as it drops
                 property real level: clamp(value / 100, 0, 1)
                 property color fillColor: Qt.hsva(level * 140 / 360, 0.85, 1.0, 1.0)
@@ -6463,9 +6463,9 @@ Item {
                 }
             }
 
-            Item {Layout.fillHeight: true}  // Rink-Float: spread out to fill the screen
+            Item {Layout.fillHeight: true}  // Re-RinkFloat: spread out to fill the screen
 
-            // Rink-Float: digital Tron speedometer, takes whatever height is left
+            // Re-RinkFloat: digital Tron speedometer, takes whatever height is left
             TronSpeedo {
                 id: tronSpeedo
                 Layout.fillWidth: true
@@ -6479,7 +6479,7 @@ Item {
                 wheelslip: state.wheelslip
 
                 Item {
-                    id: hudDials  // Rink-Float: current / duty dials flank the speedo
+                    id: hudDials  // Re-RinkFloat: current / duty dials flank the speedo
                     anchors.bottom: parent.bottom
                     visible: parent.height >= 2.6 * unit  // hidden while the sheet squeezes the speedo
                     width: parent.width
@@ -6554,7 +6554,7 @@ Item {
                     width: parent.width  / 2
                     height: parent.height
 
-                    // Rink-Float: footpad + roll on top, then the small dials and
+                    // Re-RinkFloat: footpad + roll on top, then the small dials and
                     // battery current; the side view gets the whole right column
                     property real contentHeight: hudRightTop.height + 1.5 * unit
 
@@ -6575,7 +6575,7 @@ Item {
                             property real leftVoltage: state.rtData["footpad.adc1"]
                             property real rightVoltage: state.rtData["footpad.adc2"]
 
-                            // Rink-Float: breathing glow while either half is engaged
+                            // Re-RinkFloat: breathing glow while either half is engaged
                             property real pulse: 0
                             SequentialAnimation on pulse {
                                 running: leftSensor.on || rightSensor.on
@@ -6689,7 +6689,7 @@ Item {
                                 source: rightSensor
                             }
 
-                            // Rink-Float: ADC labels on each half
+                            // Re-RinkFloat: ADC labels on each half
                             component AdcLabel : Text {
                                 property bool on: false
                                 anchors.centerIn: footpadCanvas
@@ -6755,7 +6755,7 @@ Item {
                             property real value: newValue
                             onValueChanged: rollCanvas.requestPaint();
 
-                            // Rink-Float: + = nose up (same sign as the side view)
+                            // Re-RinkFloat: + = nose up (same sign as the side view)
                             property real noseUp: (swSettings.invertPitch ? -1 : 1) * state.rtData["imu.pitch"]
                             onNoseUpChanged: rollCanvas.requestPaint();
                             property int tireStyle: swSettings.tireStyle
@@ -6792,7 +6792,7 @@ Item {
                                     PathSvg {path: "M 45.01 -9 L -45.01 -9 A 3 3 0 0 0 -48 -5.75 L -47 6.25 A 3 3 0 0 0 -44.01 9 L 44.01 9 A 3 3 0 0 0 47 6.25 L 48 -5.75 A 3 3 0 0 0 45.01 -9 M -33.54 9 L -33.01 15 A 38.15 15.07 95.62 0 0 -23.54 37.5 A 35 17.39 0 0 0 23.54 37.5 A 38.15 15.07 -95.62 0 0 33.01 15 L 33.54 9 M 33.54 -9 L 33.01 -15 A 38.15 15.07 95.62 0 0 23.54 -37.5 A 35 17.39 0 0 0 -23.54 -37.5 A 38.15 15.07 84.38 0 0 -33.01 -15 L -33.54 -9 M -36 -3 L 36 -3"}
                                 }
 
-                                // Rink-Float: Tron front view. Tire + nose block roll
+                                // Re-RinkFloat: Tron front view. Tire + nose block roll
                                 // together; the nose block (with its lightbar) slides up
                                 // the tire as the nose rises: top of the tire at the
                                 // tail-down rest angle (~20 deg), middle when level.
@@ -7153,7 +7153,7 @@ Item {
                                 context.restore();
                             }
 
-                            // Rink-Float: neon side view (green tire + footpads, purple
+                            // Re-RinkFloat: neon side view (green tire + footpads, purple
                             // rails/fender/hub) with NOSE/TAIL. Nose is on the left. The
                             // front pad brightens when ADC1 or ADC2 is engaged.
                             // Long-press the drawing to flip it if it tilts the wrong way.
@@ -7166,7 +7166,7 @@ Item {
                             onSw_signChanged: requestPaint()
                             onSw_railChanged: requestPaint()
 
-                            // Rink-Float: rail profiles. Height of the rail centerline
+                            // Re-RinkFloat: rail profiles. Height of the rail centerline
                             // (path units, + = down) at x (-97 nose ... 97 tail).
                             function railY(x) {
                                 // piecewise-straight profiles with sharp kinks
@@ -7546,7 +7546,7 @@ Item {
                 }
             }
 
-            // Rink-Float: TILT slider. Springs back to 0 when released. Range is
+            // Re-RinkFloat: TILT slider. Springs back to 0 when released. Range is
             // +-4 deg (the package also hard-caps remote tilt at 4 deg), so it
             // can't tilt the nose far enough to drag or dive.
             RowLayout {
@@ -7654,7 +7654,7 @@ Item {
                 }
             }
 
-            // Rink-Float: big HORN bar across the bottom (hold or tap). Riding:
+            // Re-RinkFloat: big HORN bar across the bottom (hold or tap). Riding:
             // full haptics, up to 3 s per press; idle: tone only, up to 2 s.
             // Mirrors the package's heat budget (haptic_feedback.c): 3 s of
             // horn, used up while sounding (1.5x faster idle), refilled 1 s
@@ -7762,7 +7762,7 @@ Item {
         }
     }
 
-    // Rink-Float: Tunes / Control / Data live in a pull-up sheet over the
+    // Re-RinkFloat: Tunes / Control / Data live in a pull-up sheet over the
     // full-screen main view. Drag the handle up/down, tap it to open/close.
     // The position is remembered (swSettings.sheetFraction).
     Item {
@@ -7793,7 +7793,7 @@ Item {
 
         Component.onCompleted: fraction = swSettings.sheetFraction >= 0.5 ? 1 : 0
 
-        // Rink-Float: the sheet is "magnetic": it always settles fully up or
+        // Re-RinkFloat: the sheet is "magnetic": it always settles fully up or
         // fully down, whichever is closer when you let go
         function setFraction(f) {
             fraction = f;
@@ -7887,7 +7887,7 @@ Item {
                 Layout.fillWidth: true
                 clip: true
 
-                // Rink-Float: Tron-style tab labels
+                // Re-RinkFloat: Tron-style tab labels
                 component SwTabButton : TabButton {
                     font.family: "Exan"
                     font.pixelSize: 0.27 * unit
@@ -8353,7 +8353,7 @@ Item {
                     }
                 }
 
-                // Rink-Float: Board Style - looks of the side / front views only
+                // Re-RinkFloat: Board Style - looks of the side / front views only
                 ScrollView {
                     Layout.fillHeight: true
                     Layout.fillWidth: true
@@ -8378,7 +8378,7 @@ Item {
                             text: "Rails"
                         }
 
-                        // Rink-Float: rail shape for the side view
+                        // Re-RinkFloat: rail shape for the side view
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter
                             spacing: 0.12 * unit
@@ -8418,7 +8418,7 @@ Item {
                             text: "Tire"
                         }
 
-                        // Rink-Float: tire style for the side and front views
+                        // Re-RinkFloat: tire style for the side and front views
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter
                             spacing: 0.12 * unit
@@ -8458,7 +8458,7 @@ Item {
                             text: "Side view"
                         }
 
-                        // Rink-Float: same as long-pressing the side view
+                        // Re-RinkFloat: same as long-pressing the side view
                         Rectangle {
                             anchors.horizontalCenter: parent.horizontalCenter
                             width: 4.2 * unit

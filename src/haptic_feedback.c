@@ -24,7 +24,7 @@
 #include <math.h>
 
 #define TONE_LENGTH 0.1f
-// Rink-Float horn safety limits (seconds)
+// Re-RinkFloat horn safety limits (seconds)
 // - stops this long after the last keepalive from the app (app disconnects).
 //   A keepalive never starts a new press (only an explicit start does), so a
 //   Bluetooth hiccup can cut a press short but never extend it.
@@ -126,7 +126,7 @@ static HapticFeedbackType haptic_feedback_get_type(
     const AlertTracker *at,
     const Time *time
 ) {
-    // Rink-Float: the horn also works while the board is idle (READY).
+    // Re-RinkFloat: the horn also works while the board is idle (READY).
     // update() then plays only the foc_play_tone part, which runs the motor
     // at 0 A with an audio signal on top, so the wheel isn't pushed.
     if (state->state == STATE_READY && horn_active(hf, time, HORN_MAX_TIME_IDLE)) {
@@ -166,7 +166,7 @@ static HapticFeedbackType haptic_feedback_get_type(
         return HAPTIC_FEEDBACK_DUTY_CONTINUOUS;
     }
 
-    // Rink-Float: the horn has the lowest priority, so real pushback and
+    // Re-RinkFloat: the horn has the lowest priority, so real pushback and
     // error alerts are never masked by it.
     if (horn_active(hf, time, HORN_MAX_TIME_RIDING)) {
         return HAPTIC_FEEDBACK_HORN;
@@ -235,7 +235,7 @@ void haptic_feedback_update(
     const AlertTracker *at,
     const Time *time
 ) {
-    // Rink-Float: horn heat budget (main loop only)
+    // Re-RinkFloat: horn heat budget (main loop only)
     float dt = timer_age(time, hf->horn_budget_timer);
     hf->horn_budget_timer = time->now;
     if (dt > 0.1f || dt < 0.0f) {
@@ -286,7 +286,7 @@ void haptic_feedback_update(
         hf->is_playing = false;
     } else if (should_be_playing) {
         const CfgHapticTone *tone = get_haptic_tone(hf);
-        // Rink-Float: the horn always plays at the configured maximum
+        // Re-RinkFloat: the horn always plays at the configured maximum
         // strength (the strength reached at Max Strength Speed), regardless of
         // the current speed.
         float scale =
@@ -296,7 +296,7 @@ void haptic_feedback_update(
         bool play_buzz = hf->cfg->vibrate.strength > 0.0f;
 
         if (hf->type_playing == HAPTIC_FEEDBACK_HORN) {
-            // Rink-Float: no current-based vibration when the board isn't
+            // Re-RinkFloat: no current-based vibration when the board isn't
             // running, so an idle horn never moves the wheel.
             bool can_buzz = play_buzz && state->state == STATE_RUNNING;
             switch (hf->horn_mode) {

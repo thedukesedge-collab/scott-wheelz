@@ -1,5 +1,5 @@
 #!/bin/bash
-# Rink-Float: load ui.qml in qmlscene with stub VESC Tool modules and print
+# Re-RinkFloat: load ui.qml in qmlscene with stub VESC Tool modules and print
 # every QML warning/error. Usage: tools/qmltest/run.sh <commit>...
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
@@ -152,7 +152,7 @@ for c in "$@"; do
     echo "=================== $c (sheetFraction=$frac)"
     mkdir -p ~/.config/QtProject
     printf "[scottWheelz]\nsheetFraction=$frac\nrailStyle=$frac\n" > ~/.config/QtProject/qmlscene.conf
-    git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Rink-Float/g; s/{{VERSION}}/test/g" | python3 rjsmin.py > /tmp/ui.qml
+    git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Re-RinkFloat/g; s/{{VERSION}}/test/g" | python3 rjsmin.py > /tmp/ui.qml
     QML2_IMPORT_PATH=$stubs QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout 30 \
       /usr/lib/qt5/bin/qmlscene /tmp/wrapper.qml 2>&1 \
       | grep -v "Cannot read property\|is not a function\|of null\|of undefined\|Unable to assign \[undefined\]\|is not defined" | head -120

@@ -1,4 +1,7 @@
-# Rink-Float fork notes
+# Re-RinkFloat fork notes
+
+(Renamed from "Rink-Float" in v1.2.3-rf14. The output file is still
+`rinkfloat.vescpkg` so the download link stays the same.)
 
 (Renamed from "Scott Wheelz" in v1.2.3-rf1. The GitHub repo is still
 `scott-wheelz`, the output is now `rinkfloat.vescpkg`, and the app's saved
@@ -283,3 +286,12 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   a reference image: slimmer rail, center raised over the tire, shallow
   dips at about +-33, ends level again, straight segments between kinks,
   ends cut at an angle. Footpads sit on the slimmer rail.
+
+### Rename to Re-RinkFloat, README credits (v1.2.3-rf14)
+- Package name is now **Re-RinkFloat** (`package_name`, `pkgdesc.qml`,
+  `Makefile`, `settings.xml` "Re-RinkFloat Cfg", `lisp/package.lisp`, UI
+  text, comments). Output file is still `rinkfloat.vescpkg`; app settings
+  category is still `scottWheelz`.
+- `package_README.md` (shown by VESC Tool when the package loads) now
+  lists the Re-RinkFloat additions and says the fork was vibe-coded on top
+  of Refloat, with all credit to Lukas Hrazky (lukash).

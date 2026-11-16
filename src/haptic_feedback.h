@@ -30,10 +30,10 @@ typedef enum {
     HAPTIC_FEEDBACK_ERROR_TEMPERATURE,
     HAPTIC_FEEDBACK_ERROR_VOLTAGE,
     HAPTIC_FEEDBACK_ERROR_FATAL,
-    HAPTIC_FEEDBACK_HORN,  // Rink-Float: manual horn from the app
+    HAPTIC_FEEDBACK_HORN,  // Re-RinkFloat: manual horn from the app
 } HapticFeedbackType;
 
-// Rink-Float horn sound modes (sent by the app with each press)
+// Re-RinkFloat horn sound modes (sent by the app with each press)
 typedef enum {
     HORN_MODE_BEEP = 0,  // audible motor tone only
     HORN_MODE_BUZZ = 1,  // vibration (current) only; tone when idle or vibrate is off
@@ -52,7 +52,7 @@ typedef struct {
     bool is_playing;
     bool can_change_type;
 
-    // Rink-Float horn: set from the command thread, read in the main loop.
+    // Re-RinkFloat horn: set from the command thread, read in the main loop.
     // A press plays for at least HORN_MIN_TIME and at most HORN_MAX_TIME_*
     // (riding / idle), stops HORN_TIMEOUT after the last keepalive (e.g. app
     // disconnects), and is limited by a heat budget (see haptic_feedback.c).
@@ -69,17 +69,17 @@ void haptic_feedback_init(HapticFeedback *hf);
 
 void haptic_feedback_configure(HapticFeedback *hf, const RefloatConfig *cfg);
 
-// Rink-Float horn requests (byte [2] of COMMAND_SW_HORN)
+// Re-RinkFloat horn requests (byte [2] of COMMAND_SW_HORN)
 typedef enum {
     HORN_REQ_OFF = 0,
     HORN_REQ_KEEPALIVE = 1,  // only keeps an existing press alive
     HORN_REQ_START = 2,  // starts a new press
 } HornRequest;
 
-// Rink-Float: start / keep alive / stop the haptic horn.
+// Re-RinkFloat: start / keep alive / stop the haptic horn.
 void haptic_feedback_horn(HapticFeedback *hf, const Time *time, uint8_t req, uint8_t mode);
 
-// Rink-Float: true while the horn is actually sounding (drives the optional
+// Re-RinkFloat: true while the horn is actually sounding (drives the optional
 // external beeper on the PPM pin).
 bool haptic_feedback_horn_playing(const HapticFeedback *hf);
 

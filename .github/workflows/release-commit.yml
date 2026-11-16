@@ -1,4 +1,4 @@
-# Rink-Float: build any commit and publish it as its own release, so older
+# Re-RinkFloat: build any commit and publish it as its own release, so older
 # versions stay downloadable (Actions > Release a commit > Run workflow).
 name: Release a commit
 on:
@@ -33,4 +33,4 @@ jobs:
           cp rinkfloat.vescpkg rinkfloat-$ver.vescpkg
           gh release delete "${{ inputs.name }}" --yes --cleanup-tag || true
           gh release create "${{ inputs.name }}" rinkfloat-$ver.vescpkg --prerelease \
-            --title "Rink-Float $ver (${sha::7})" --notes "Build of ${sha::7}." --target "$sha"
+            --title "Re-RinkFloat $ver (${sha::7})" --notes "Build of ${sha::7}." --target "$sha"
