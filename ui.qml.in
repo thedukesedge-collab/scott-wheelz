@@ -6677,9 +6677,14 @@ Item {
                     property string name
                     property string nameOrId
 
-                    color: name ? swTheme.color("lightText") : swTheme.color("normalText")
-                    font.pixelSize: 0.55 * unit
-                    clip: true
+                    // Re-RinkFloat: neon green, in the same digital font as the rest
+                    color: name ? swTheme.neonGreen : "#1d9b4c"
+                    font.family: "Exan"
+                    font.pixelSize: 0.5 * unit
+                    font.letterSpacing: 0.03 * unit
+                    style: Text.Outline
+                    styleColor: "#0f5a2c"
+                    elide: Text.ElideRight
                     text: nameOrId
 
                     function load() {
