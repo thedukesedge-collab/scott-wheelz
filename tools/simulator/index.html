@@ -779,19 +779,51 @@ function drawFootpad() {
   ntext(ctx, v2.toFixed(1) + 'V', s * 0.74, s * 0.92, s * 0.15, '#c3a6ff', { weight: '500', mono: true });
 }
 
-// roll (front) view
-const rollDeck = new Path2D('M 45.01 -9 L -45.01 -9 A 3 3 0 0 0 -48 -5.75 L -47 6.25 A 3 3 0 0 0 -44.01 9 L 44.01 9 A 3 3 0 0 0 47 6.25 L 48 -5.75 A 3 3 0 0 0 45.01 -9');
-const rollTire = new Path2D('M -33.54 9 L -33.01 15 A 38.15 15.07 95.62 0 0 -23.54 37.5 A 35 17.39 0 0 0 23.54 37.5 A 38.15 15.07 -95.62 0 0 33.01 15 L 33.54 9 M 33.54 -9 L 33.01 -15 A 38.15 15.07 95.62 0 0 23.54 -37.5 A 35 17.39 0 0 0 -23.54 -37.5 A 38.15 15.07 84.38 0 0 -33.01 -15 L -33.54 -9');
+// roll (front) view: same drawing as the package. Tire + nose block roll
+// together; the nose block (with its lightbar) slides up the tire as the nose
+// rises: top of the tire at the tail-down rest angle (~20 deg), middle when level.
 function drawRoll() {
   const ctx = ctxRoll, s = footS; ctx.clearRect(0, 0, s, s);
-  const k = s * 0.8 / 100;
-  ctx.save(); ctx.translate(s / 2, s * 0.42); ctx.rotate(S.roll * Math.PI / 180); ctx.scale(k, k);
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = GREEN; ctx.shadowColor = GREEN; ctx.shadowBlur = 6; ctx.lineWidth = 2.5 / k; ctx.stroke(rollTire);
-  ctx.strokeStyle = PURPLE; ctx.shadowColor = PURPLE; ctx.lineWidth = 2.5 / k; ctx.stroke(rollDeck);
-  ctx.beginPath(); ctx.moveTo(-36, -3); ctx.lineTo(36, -3); ctx.strokeStyle = GREEN; ctx.shadowColor = GREEN; ctx.lineWidth = 3 / k; ctx.stroke();
+  const labelSize = s * 0.13;
+  const ch = s - labelSize * 1.1;              // canvas area above the ROLL label
+  const sc = ch * 0.95 / 100, uu = 1 / sc;
+  const lift = -29 * clamp(S.pitch / 20, -1, 1);
+  const glow = (color, w) => glowStroke(ctx, color, w);
+  const roundRect = (x, y, w, h, r) => {
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r); ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r); ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r); ctx.closePath();
+  };
+  ctx.save();
+  ctx.translate(s / 2, ch / 2); ctx.scale(sc, sc);
+  // fixed roll scale: arc with ticks every 15 deg, level mark
+  ctx.beginPath(); ctx.arc(0, 0, 47, Math.PI * 1.17, Math.PI * 1.83);
+  ctx.strokeStyle = PURPLE; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.2 * uu; ctx.stroke();
+  for (let t = -45; t <= 45; t += 15) {
+    const ta = (t - 90) * Math.PI / 180, r1 = t === 0 ? 42 : 44;
+    ctx.beginPath(); ctx.moveTo(Math.cos(ta) * r1, Math.sin(ta) * r1); ctx.lineTo(Math.cos(ta) * 47, Math.sin(ta) * 47); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.rotate(S.roll * Math.PI / 180);
+  // roll pointer
+  ctx.beginPath(); ctx.moveTo(0, -48); ctx.lineTo(-3, -53); ctx.lineTo(3, -53); ctx.closePath(); ctx.fillStyle = GREEN; ctx.fill();
+  // tire + tread (slick = rounder, no tread)
+  const slick = P.tire === 1;
+  roundRect(-25, -40, 50, 80, slick ? 24 : 17); glow(GREEN, 2 * uu);
+  if (!slick) {
+    ctx.beginPath(); for (let y = -30; y <= 30; y += 7.5) { ctx.moveTo(-18, y); ctx.lineTo(18, y); }
+    ctx.strokeStyle = GREEN; ctx.globalAlpha = 0.35; ctx.lineWidth = 1 * uu; ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  // axle hub
+  ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, 2 * Math.PI); ctx.fillStyle = PURPLE; ctx.fill();
+  // nose block, slides with pitch; filled so it hides the tire behind it
+  roundRect(-47, lift - 10, 94, 20, 4); ctx.fillStyle = '#0b0716'; ctx.fill(); glow(PURPLE, 2 * uu);
+  // lightbar
+  ctx.beginPath(); ctx.moveTo(-34, lift - 2); ctx.lineTo(34, lift - 2); glow('#d6ffe4', 2.5 * uu);
+  ctx.beginPath(); ctx.moveTo(-34, lift - 2); ctx.lineTo(34, lift - 2);
+  ctx.strokeStyle = GREEN; ctx.globalAlpha = 0.6; ctx.lineWidth = 6 * uu; ctx.stroke(); ctx.globalAlpha = 1;
   ctx.restore();
-  ntext(ctx, 'ROLL  ' + fx1(S.roll) + '°', s / 2, s * 0.92, s * 0.13, '#c3a6ff', { weight: '500', mono: true });
+  ntext(ctx, 'ROLL  ' + fx1(S.roll) + '°', s / 2, s - labelSize * 0.55, labelSize, '#c3a6ff', { weight: '500', mono: true });
 }
 
 // pitch side view (STRAIGHT / WTF / ATOM, TREADED / SLICK, FLIP)
