@@ -213,3 +213,13 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   closer; a tap on the handle toggles between the two.
 - TUNES / CONTROL / DATA tab labels use the "Exan" digital font
   (`SwTabButton`).
+
+### Rail shapes (v1.2.3-rf5)
+- Side view rails are drawn from a profile (`railY(x)` in pitchCanvas)
+  instead of the fixed stock path: STOCK (flat), WTF ("W": kicked ends,
+  dips under the pads, hump over the tire), DUB TAIL (only the tail kicked),
+  DOUBLE KICK (nose and tail kicked). Footpads and the balance outline
+  follow the same shape.
+- Pick it in Control tab > Rails, or tap the side view to cycle (name
+  flashes). Long-press still flips direction. Saved in
+  `swSettings.railStyle`. Display only; no effect on riding.

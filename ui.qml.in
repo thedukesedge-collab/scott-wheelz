@@ -996,6 +996,7 @@ Item {
         category: "scottWheelz"  // old name kept so saved settings survive the rename
 
         property bool invertPitch: false
+        property int railStyle: 0  // 0 stock, 1 WTF, 2 dub tail, 3 double kick
         property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
     }
 
@@ -7032,8 +7033,68 @@ Item {
                             // Long-press the drawing to flip it if it tilts the wrong way.
                             property bool fpOn: state.fpState !== state.fs_None
                             property real sw_sign: swSettings.invertPitch ? -1 : 1
+                            property int sw_rail: swSettings.railStyle
                             onFpOnChanged: requestPaint()
                             onSw_signChanged: requestPaint()
+                            onSw_railChanged: requestPaint()
+
+                            // Rink-Float: rail profiles. Height of the rail centerline
+                            // (path units, + = down) at x (-97 nose ... 97 tail).
+                            function railY(x) {
+                                var ax = Math.abs(x);
+                                function ease(t) { return (1 - Math.cos(Math.PI * t)) / 2; }
+                                function kick(d) { return d > 0 ? -10 * Math.pow(d / 42, 1.6) : 0; }
+                                switch (sw_rail) {
+                                case 1:  // WTF: "W" - kicked ends, dips under the pads, hump over the tire
+                                    if (ax < 62) return -3 + 6 * ease(ax / 62);
+                                    return 3 - 10 * ease(Math.min(1, (ax - 62) / 35));
+                                case 2:  // dub tail: only the tail is kicked up
+                                    return kick(x - 55);
+                                case 3:  // double kick: nose and tail kicked
+                                    return kick(ax - 55);
+                                default:
+                                    return 0;
+                                }
+                            }
+
+                            // rail outline in path units (call after context.scale)
+                            function railPath(context) {
+                                var x;
+                                context.beginPath();
+                                context.moveTo(-97, railY(-97) - 3);
+                                for (x = -95; x <= 95; x += 5) {
+                                    context.lineTo(x, railY(x) - 8);
+                                }
+                                context.lineTo(97, railY(97) - 3);
+                                context.lineTo(92, railY(92) + 4);
+                                for (x = 85; x >= -85; x -= 5) {
+                                    context.lineTo(x, railY(x) + 8);
+                                }
+                                context.lineTo(-92, railY(-92) + 4);
+                                context.closePath();
+                            }
+
+                            // a footpad following the rail top
+                            function padPath(context, x0, x1) {
+                                context.beginPath();
+                                context.moveTo(x0, railY(x0) - 11);
+                                for (var x = x0 + 3; x < x1; x += 3) {
+                                    context.lineTo(x, railY(x) - 11);
+                                }
+                                context.lineTo(x1, railY(x1) - 11);
+                            }
+
+                            function paintBalanceOutline(context, rotation) {
+                                context.save();
+                                context.translate(width / 2, height / 2);
+                                context.rotate(Math.PI / 180 * rotation);
+                                context.scale(scale, scale);
+                                railPath(context);
+                                context.lineWidth = 2 / scale;
+                                context.strokeStyle = swTheme.color("swBalance");
+                                context.stroke();
+                                context.restore();
+                            }
 
                             // wide faint pass (glow) + thin bright pass
                             function glow(context, color, w) {
@@ -7056,11 +7117,11 @@ Item {
                                 context.translate(width / 2, height / 2);
                                 context.rotate(Math.PI / 180 * rotation);
 
-                                // rails (stock outline path, already scaled)
-                                context.path = pitchBoardPath;
-                                glow(context, purple, 2);
-
                                 context.scale(scale, scale);
+
+                                // rails (shape from swSettings.railStyle)
+                                railPath(context);
+                                glow(context, purple, 2 * u);
 
                                 // tire
                                 for (var k = 0; k < 2; k++) {
@@ -7107,15 +7168,11 @@ Item {
                                 glow(context, purple, 2 * u);
 
                                 // rear footpad (tail, right)
-                                context.beginPath();
-                                context.moveTo(46, -11);
-                                context.lineTo(88, -11);
+                                padPath(context, 46, 88);
                                 glow(context, green, 2.5 * u);
 
                                 // front footpad (nose, left)
-                                context.beginPath();
-                                context.moveTo(-88, -11);
-                                context.lineTo(-46, -11);
+                                padPath(context, -88, -46);
                                 glow(context, fpOn ? green : "#1d6b3c", (fpOn ? 4 : 2.5) * u);
 
                                 // labels
@@ -7131,16 +7188,44 @@ Item {
                             onPaint: {
                                 var context = getContext("2d");
                                 context.reset()
-                                paintPath(context, [pitchBoardPath], sw_sign * parent.balancePitchValue, "swBalance");
+                                paintBalanceOutline(context, sw_sign * parent.balancePitchValue);
                                 paintDetailedBoard(context, sw_sign * parent.pitchValue);
                                 context.globalAlpha = parent.runtimeOpacity;
                                 paintPath(context, [pitchSetpointPath], sw_sign * parent.setpointValue, "orange");
                             }
                         }
 
+                        // Rink-Float: tap = next rail shape, long-press = flip direction
                         MouseArea {
                             anchors.fill: pitchCanvas
                             onPressAndHold: swSettings.invertPitch = !swSettings.invertPitch
+                            onClicked: {
+                                swSettings.railStyle = (swSettings.railStyle + 1) % 4;
+                                railNameText.flash();
+                            }
+                        }
+
+                        Text {
+                            id: railNameText
+                            anchors.horizontalCenter: pitchCanvas.horizontalCenter
+                            anchors.verticalCenter: pitchCanvas.verticalCenter
+                            anchors.verticalCenterOffset: -pitchCanvas.height * 0.3
+                            color: swTheme.neonGreen
+                            font.family: "Exan"
+                            font.pixelSize: fontSizeSmall
+                            text: ["STOCK RAILS", "WTF RAILS", "DUB TAIL", "DOUBLE KICK"][swSettings.railStyle] ?? ""
+                            opacity: 0
+
+                            function flash() {
+                                railNameFade.restart();
+                            }
+
+                            SequentialAnimation {
+                                id: railNameFade
+                                PropertyAction {target: railNameText; property: "opacity"; value: 1}
+                                PauseAnimation {duration: 900}
+                                NumberAnimation {target: railNameText; property: "opacity"; to: 0; duration: 500}
+                            }
                         }
 
                         Text {
@@ -7967,6 +8052,46 @@ Item {
                             from: -1
                             to: 1
                             value: 0
+                        }
+
+                        SwLText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            font.pixelSize: fontSizeBig
+                            text: "Rails"
+                        }
+
+                        // Rink-Float: rail shape for the side view (also: tap the side view)
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.12 * unit
+
+                            Repeater {
+                                model: ["STOCK", "WTF", "DUB TAIL", "DBL KICK"]
+
+                                Rectangle {
+                                    width: 2.1 * unit
+                                    height: 0.75 * unit
+                                    radius: height / 2
+                                    property bool selected: swSettings.railStyle === index
+                                    color: selected ? swTheme.neonGreen : "transparent"
+                                    border.color: selected ? swTheme.neonGreen : swTheme.neonPurple
+                                    border.width: 2
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData
+                                        color: parent.selected ? swTheme.background : swTheme.neonPurple
+                                        font.family: "Exan"
+                                        font.pixelSize: 0.28 * unit
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        onClicked: swSettings.railStyle = index
+                                    }
+                                }
+                            }
                         }
 
                         SwLText {
