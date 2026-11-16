@@ -8374,14 +8374,30 @@ Item {
                             text: "Move"
                         }
 
+                        // Re-RinkFloat: vertical move slider. Up = forward, down =
+                        // backward; same behavior as before (springs back to 0).
+                        SwNeonLabel {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            color: moveSlider.value > 0 ? swTheme.neonGreen : "#c98bff"
+                            text: "FWD"
+                        }
+
                         Slider {
                             id: moveSlider
-                            width: parent.width * 0.9
                             anchors.horizontalCenter: parent.horizontalCenter
+                            width: 1.2 * unit
+                            height: 3.2 * unit
+                            orientation: Qt.Vertical
 
                             from: -1
                             to: 1
                             value: 0
+                        }
+
+                        SwNeonLabel {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            color: moveSlider.value < 0 ? swTheme.neonGreen : "#c98bff"
+                            text: "REV"
                         }
 
                         Item {
