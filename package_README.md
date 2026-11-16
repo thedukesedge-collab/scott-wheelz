@@ -6,11 +6,11 @@
 - **Haptic horn**: a big HORN bar on the main screen. Hold or tap it: full haptics while riding (up to 3 s per press), tone only when idle (up to 2 s). A heat budget allows repeated taps as long as it stays safe. Real pushback and alerts always override it. If the app disconnects, the horn stops within 0.5 s.
 - **TILT slider** on the main screen: +-4 deg remote tilt that springs back to 0 when released. The package hard-caps remote tilt at +-4 deg.
 - **Tron-style main screen**: neon green/purple theme, digital segmented speedometer with a duty ring, a battery bar that fades from green to red, and a full-screen layout.
-- **Side view**: detailed board drawing (tire, hub, fender, footpads, NOSE/TAIL). Long-press it to flip the direction.
+- **Side view**: detailed board drawing (tire, hub, fender, nose footpad that lights up when engaged, NOSE/TAIL).
 - **Front (roll) view**: the nose block with its lightbar slides up the tire as the nose rises.
 - **Footpad view**: the ADC1/ADC2 halves glow when engaged.
 - **Pull-up panel**: Tunes / Control / Data / Board Style live in a panel that snaps open or closed. The main screen shrinks to fit above it.
-- **Board Style tab**: Straight or WTF rails, treaded or slick tire, normal or flipped side view.
+- **Board Style tab**: Straight or WTF rails, treaded or slick tire.
 
 A full-featured self-balancing skateboard package.
 

@@ -295,3 +295,9 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - `package_README.md` (shown by VESC Tool when the package loads) now
   lists the Re-RinkFloat additions and says the fork was vibe-coded on top
   of Refloat, with all credit to Lukas Hrazky (lukash).
+
+### Side view cleanup (v1.2.3-rf15)
+- Removed the green tail footpad line; only the nose pad (lights up when
+  ADC1/ADC2 engaged) is drawn.
+- Removed the flip feature (long-press and the Board Style "Side view"
+  option). Side and front views always use the IMU pitch sign as-is.

@@ -991,12 +991,11 @@ Item {
         property alias checkForNewVersions: prefCheckForNewVersions.checked
     }
 
-    // Re-RinkFloat: long-press the side view on the main screen to flip it
+    // Re-RinkFloat: app-side display settings
     Settings {
         id: swSettings
         category: "scottWheelz"  // old name kept so saved settings survive the rename
 
-        property bool invertPitch: false
         property int railStyle: 0  // 0 straight, 1 WTF
         property int tireStyle: 0  // 0 treaded, 1 slick
         property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
@@ -6756,7 +6755,7 @@ Item {
                             onValueChanged: rollCanvas.requestPaint();
 
                             // Re-RinkFloat: + = nose up (same sign as the side view)
-                            property real noseUp: (swSettings.invertPitch ? -1 : 1) * state.rtData["imu.pitch"]
+                            property real noseUp: state.rtData["imu.pitch"]
                             onNoseUpChanged: rollCanvas.requestPaint();
                             property int tireStyle: swSettings.tireStyle
                             onTireStyleChanged: rollCanvas.requestPaint();
@@ -7156,9 +7155,8 @@ Item {
                             // Re-RinkFloat: neon side view (green tire + footpads, purple
                             // rails/fender/hub) with NOSE/TAIL. Nose is on the left. The
                             // front pad brightens when ADC1 or ADC2 is engaged.
-                            // Long-press the drawing to flip it if it tilts the wrong way.
                             property bool fpOn: state.fpState !== state.fs_None
-                            property real sw_sign: swSettings.invertPitch ? -1 : 1
+                            property real sw_sign: 1
                             property int sw_rail: swSettings.railStyle
                             property int sw_tire: swSettings.tireStyle
                             onSw_tireChanged: requestPaint()
@@ -7315,10 +7313,6 @@ Item {
                                 context.arc(0, 0, 43, Math.PI * 1.13, Math.PI * 1.87);
                                 glow(context, purple, 2 * u);
 
-                                // rear footpad (tail, right)
-                                padPath(context, 46, 88);
-                                glow(context, green, 2.5 * u);
-
                                 // front footpad (nose, left)
                                 padPath(context, -88, -46);
                                 glow(context, fpOn ? green : "#1d6b3c", (fpOn ? 4 : 2.5) * u);
@@ -7341,11 +7335,6 @@ Item {
                                 context.globalAlpha = parent.runtimeOpacity;
                                 paintPath(context, [pitchSetpointPath], sw_sign * parent.setpointValue, "orange");
                             }
-                        }
-
-                        MouseArea {
-                            anchors.fill: pitchCanvas
-                            onPressAndHold: swSettings.invertPitch = !swSettings.invertPitch
                         }
 
 
@@ -8448,37 +8437,6 @@ Item {
                                         onClicked: swSettings.tireStyle = index
                                     }
                                 }
-                            }
-                        }
-
-                        SwLText {
-                            anchors.horizontalCenter: parent.horizontalCenter
-
-                            font.pixelSize: fontSizeBig
-                            text: "Side view"
-                        }
-
-                        // Re-RinkFloat: same as long-pressing the side view
-                        Rectangle {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            width: 4.2 * unit
-                            height: 0.75 * unit
-                            radius: height / 2
-                            color: swSettings.invertPitch ? swTheme.neonGreen : "transparent"
-                            border.color: swSettings.invertPitch ? swTheme.neonGreen : swTheme.neonPurple
-                            border.width: 2
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: swSettings.invertPitch ? "FLIPPED" : "NORMAL"
-                                color: swSettings.invertPitch ? swTheme.background : swTheme.neonPurple
-                                font.family: "Exan"
-                                font.pixelSize: 0.28 * unit
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: swSettings.invertPitch = !swSettings.invertPitch
                             }
                         }
 
