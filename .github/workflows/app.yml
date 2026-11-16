@@ -51,6 +51,9 @@ jobs:
       - name: Test
         working-directory: ${{ env.APP }}
         run: flutter test
+      - name: Screenshots
+        working-directory: ${{ env.APP }}
+        run: flutter test --update-goldens test_screens/ || true
       - name: Build APK
         working-directory: ${{ env.APP }}
         run: |
@@ -64,6 +67,7 @@ jobs:
             --title "Rink-Mixed app (latest build)" --notes "Latest phone app builds from main."
           gh release edit app-latest --notes "Rink-Mixed app built from ${GITHUB_SHA::7}. Android: tap rinkmixed.apk to download and install."
           gh release upload app-latest "$APP/rinkmixed.apk" --clobber
+          for f in $APP/test_screens/goldens/*.png; do [ -f "$f" ] && gh release upload app-latest "$f" --clobber; done
 
   ios:
     if: github.event_name == 'workflow_dispatch' && inputs.ios || contains(github.event.head_commit.message, '[ios]')
