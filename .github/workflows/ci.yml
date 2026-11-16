@@ -10,6 +10,8 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v25
@@ -34,3 +36,18 @@ jobs:
         with:
           name: scottwheelz-vescpkg
           path: scottwheelz.vescpkg
+
+      # Scott Wheelz: publish each main-branch build as a direct download
+      # (Releases > "Latest build"), so phones get the .vescpkg itself
+      # instead of a zip.
+      - name: Publish latest build
+        if: always() && steps.build.outcome == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest-build --yes --cleanup-tag || true
+          gh release create latest-build scottwheelz.vescpkg \
+            --prerelease \
+            --title "Latest build" \
+            --notes "Scott Wheelz built from commit ${GITHUB_SHA::7}. Tap scottwheelz.vescpkg below to download." \
+            --target "$GITHUB_SHA"
