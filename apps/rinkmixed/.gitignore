@@ -6,3 +6,4 @@ assets/fonts/*.ttf
 pubspec.lock
 .flutter-plugins
 .flutter-plugins-dependencies
+screens/
