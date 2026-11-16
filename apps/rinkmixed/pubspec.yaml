@@ -1,0 +1,26 @@
+name: rinkmixed
+description: "Re-Float Rink-Mixed: standalone app for VESC Onewheels running the Re-Float Rink-Mixed (Refloat) package."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_blue_plus: 1.32.12
+  shared_preferences: ^2.3.2
+  path_drawing: ^1.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: Orbitron
+      fonts:
+        - asset: assets/fonts/Orbitron.ttf
