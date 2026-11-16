@@ -997,7 +997,6 @@ Item {
 
         property bool invertPitch: false
         property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
-        property real sheetOpenFraction: 0.5  // where a tap on the handle opens it to
     }
 
     Settings {
@@ -7580,28 +7579,21 @@ Item {
             NumberAnimation {duration: 220; easing.type: Easing.OutCubic}
         }
 
-        Component.onCompleted: fraction = clamp(swSettings.sheetFraction, 0, 1)
+        Component.onCompleted: fraction = swSettings.sheetFraction >= 0.5 ? 1 : 0
 
+        // Rink-Float: the sheet is "magnetic": it always settles fully up or
+        // fully down, whichever is closer when you let go
         function setFraction(f) {
             fraction = f;
             swSettings.sheetFraction = f;
-            if (f > 0.05) {
-                swSettings.sheetOpenFraction = f;
-            }
         }
 
         function open() {
-            if (fraction < 0.05) {
-                setFraction(Math.max(0.3, swSettings.sheetOpenFraction));
-            }
+            setFraction(1);
         }
 
         function toggle() {
-            if (fraction < 0.05) {
-                open();
-            } else {
-                setFraction(0);
-            }
+            setFraction(fraction < 0.5 ? 1 : 0);
         }
 
         Rectangle {
@@ -7668,13 +7660,12 @@ Item {
                             bottomSheet.toggle();
                             return;
                         }
-                        var f = bottomSheet.fraction;
-                        bottomSheet.setFraction(f < 0.05 ? 0 : f > 0.95 ? 1 : f);
+                        bottomSheet.setFraction(bottomSheet.fraction < 0.5 ? 0 : 1);
                     }
 
                     onCanceled: {
                         bottomSheet.dragging = false;
-                        bottomSheet.setFraction(bottomSheet.fraction);
+                        bottomSheet.setFraction(bottomSheet.fraction < 0.5 ? 0 : 1);
                     }
                 }
             }
@@ -7684,9 +7675,16 @@ Item {
                 Layout.fillWidth: true
                 clip: true
 
-                TabButton {text: "Tunes"}
-                TabButton {text: "Control"}
-                TabButton {text: "Data"}
+                // Rink-Float: Tron-style tab labels
+                component SwTabButton : TabButton {
+                    font.family: "Exan"
+                    font.pixelSize: 0.38 * unit
+                    font.letterSpacing: 0.08 * unit
+                }
+
+                SwTabButton {text: "TUNES"}
+                SwTabButton {text: "CONTROL"}
+                SwTabButton {text: "DATA"}
 
                 background: Rectangle {
                     color: swTheme.color("lightBackground")

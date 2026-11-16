@@ -207,3 +207,9 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   (pushback/alerts win), idle = tone only.
 - App: HORN bar mirrors the budget with a gauge along its bottom edge
   (orange under 1 s), shows WAIT when empty and MAX past the per-press limit.
+
+### Magnetic sheet, Tron tabs (v1.2.3-rf4)
+- The pull-up sheet snaps fully up or fully down on release, whichever is
+  closer; a tap on the handle toggles between the two.
+- TUNES / CONTROL / DATA tab labels use the "Exan" digital font
+  (`SwTabButton`).
