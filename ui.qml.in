@@ -1029,6 +1029,7 @@ Item {
 
         property int railStyle: 0  // 0 straight, 1 WTF, 2 Atom
         property int tireStyle: 0  // 0 treaded, 1 slick
+        property bool flipView: false  // side view mirrored: nose on the right
         property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
         property string tuneColors: "{}"    // tune slot -> neon palette index (JSON)
         property bool speedo40Migrated: false  // one-time bump of a saved 30 mph dial to 40
@@ -7538,6 +7539,7 @@ Item {
                             function paintPath(context, paths, rotation, color) {
                                 context.save();
                                 context.translate(width / 2, height / 2);
+                                if (sw_flip) context.scale(-1, 1);
                                 context.rotate(Math.PI / 180 * rotation);
                                 context.lineWidth = 2;
                                 context.strokeStyle = swTheme.color(color);
@@ -7553,6 +7555,11 @@ Item {
                             // front pad brightens when ADC1 or ADC2 is engaged.
                             property bool fpOn: state.fpState !== state.fs_None
                             property real sw_sign: 1
+                            // Re-RinkFloat: FLIP mirrors the whole side view (pitch included),
+                            // so the board's real attitude is kept: tail-down stays tail-down,
+                            // it's just drawn on the other side
+                            property bool sw_flip: swSettings.flipView
+                            onSw_flipChanged: requestPaint()
                             property int sw_rail: swSettings.railStyle
                             property int sw_tire: swSettings.tireStyle
                             onSw_tireChanged: requestPaint()
@@ -7649,6 +7656,7 @@ Item {
                             function paintBalanceOutline(context, rotation) {
                                 context.save();
                                 context.translate(width / 2, height / 2);
+                                if (sw_flip) context.scale(-1, 1);
                                 context.rotate(Math.PI / 180 * rotation);
                                 context.scale(scale, scale);
                                 railPath(context);
@@ -7677,6 +7685,7 @@ Item {
                                 var u = 1 / scale;  // one screen pixel in path units
                                 context.save();
                                 context.translate(width / 2, height / 2);
+                                if (sw_flip) context.scale(-1, 1);
                                 context.rotate(Math.PI / 180 * rotation);
 
                                 context.scale(scale, scale);
@@ -7806,10 +7815,12 @@ Item {
                                 // labels
                                 context.font = "bold " + Math.round(fontSizeSuperSmall * u) + "px monospace";
                                 context.textAlign = "center";
+                                if (sw_flip) context.scale(-1, 1);  // keep the text readable
+                                var lx = sw_flip ? -1 : 1;
                                 context.fillStyle = green;
-                                context.fillText("NOSE", -70, 26);
+                                context.fillText("NOSE", -70 * lx, 26);
                                 context.fillStyle = purple;
-                                context.fillText("TAIL", 70, 26);
+                                context.fillText("TAIL", 70 * lx, 26);
                                 context.restore();
                             }
 
@@ -9000,6 +9011,38 @@ Item {
                                         onClicked: swSettings.tireStyle = index
                                     }
                                 }
+                            }
+                        }
+
+                        SwLText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+
+                            font.pixelSize: fontSizeBig
+                            text: "View"
+                        }
+
+                        // Re-RinkFloat: mirror the side view (nose left <-> right)
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: 2.6 * unit
+                            height: 0.75 * unit
+                            radius: height / 2
+                            property bool selected: swSettings.flipView
+                            color: selected ? swTheme.neonGreen : "transparent"
+                            border.color: selected ? swTheme.neonGreen : swTheme.neonPurple
+                            border.width: 2
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "FLIP"
+                                color: parent.selected ? swTheme.background : swTheme.neonPurple
+                                font.family: "Exan"
+                                font.pixelSize: 0.28 * unit
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: swSettings.flipView = !swSettings.flipView
                             }
                         }
 
