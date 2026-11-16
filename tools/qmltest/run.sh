@@ -154,7 +154,7 @@ for c in "$@"; do
     # mark first-run hints as seen so they don't pop the sheet open
     printf "[scottWheelz]\nsheetFraction=$frac\nrailStyle=$frac\n\n[uiHints]\nstatusText=true\nplotCursor=true\ndrGeneral=true\ndrStartStop=true\ndrDownload=true\n" > ~/.config/QtProject/qmlscene.conf
     git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Re-RinkFloat/g; s/{{VERSION}}/test/g" \
-      | sed "s/property int railStyle: 0 /property int railStyle: $((2 - 2 * frac)) /; s/property bool flipView: false /property bool flipView: $([ $frac = 1 ] && echo true || echo false) /; s/property real sheetFraction: 0 /property real sheetFraction: $frac /; s/bottomSheet.open();//; s/bottomStackTabs.currentIndex = 2;//; s/Component.onCompleted: fraction = swSettings.sheetFraction >= 0.5 ? 1 : 0/Component.onCompleted: fraction = $frac/" \
+      | sed "s/category: \"scottWheelz\"/category: \"scottWheelzTest$frac\"/; s/property int railStyle: 0 /property int railStyle: $((2 - 2 * frac)) /; s/property bool flipView: false /property bool flipView: $([ $frac = 1 ] && echo true || echo false) /; s/property real sheetFraction: 0 /property real sheetFraction: $frac /; s/bottomSheet.open();//; s/bottomStackTabs.currentIndex = 2;//; s/Component.onCompleted: fraction = swSettings.sheetFraction >= 0.5 ? 1 : 0/Component.onCompleted: fraction = $frac/" \
       | python3 rjsmin.py > /tmp/ui.qml
     QML2_IMPORT_PATH=$stubs QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout 30 \
       /usr/lib/qt5/bin/qmlscene /tmp/wrapper.qml 2>&1 \
