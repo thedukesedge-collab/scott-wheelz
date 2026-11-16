@@ -24,3 +24,7 @@ jobs:
           /usr/lib/qt5/bin/qmllint /tmp/lint.qml
       - name: Load test (stub VESC Tool modules)
         run: tools/qmltest/run.sh HEAD aebdcd1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qml-screenshots
+          path: /tmp/shots/*.png

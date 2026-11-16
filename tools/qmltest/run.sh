@@ -111,6 +111,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 ApplicationWindow {
     width: 395; height: 703; visible: true
+    Timer { id: quitTimer; interval: 500; onTriggered: Qt.quit() }
     Loader {
         id: l
         anchors.fill: parent
@@ -123,6 +124,7 @@ ApplicationWindow {
     Timer {
         interval: 3000; running: true
         onTriggered: {
+            l.item && l.item.parent && l.item.parent.grabToImage(function(r) { r.saveToFile(Qt.application.arguments[Qt.application.arguments.length - 1]); });
             function dump(it, depth) {
                 if (depth > 4 || !it) return;
                 for (var i = 0; i < it.children.length; i++) {
@@ -133,15 +135,21 @@ ApplicationWindow {
                 }
             }
             if (l.item) dump(l.item, 0);
-            Qt.quit();
+            quitTimer.start();
         }
     }
 }
 Q
 cd "$here/../.."
+mkdir -p /tmp/shots
 for c in "$@"; do
-  echo "=================== $c"
-  git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Rink-Float/g; s/{{VERSION}}/test/g" | python3 rjsmin.py > /tmp/ui.qml
-  QML2_IMPORT_PATH=$stubs QT_QPA_PLATFORM=offscreen timeout 20 /usr/lib/qt5/bin/qmlscene /tmp/wrapper.qml 2>&1 \
-    | grep -v "Cannot read property\|is not a function\|of null\|of undefined\|Unable to assign \[undefined\]\|is not defined" | head -80
+  for frac in 0 1; do
+    echo "=================== $c (sheetFraction=$frac)"
+    mkdir -p ~/.config/QtProject
+    printf "[scottWheelz]\nsheetFraction=$frac\n" > ~/.config/QtProject/qmlscene.conf
+    git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Rink-Float/g; s/{{VERSION}}/test/g" | python3 rjsmin.py > /tmp/ui.qml
+    QML2_IMPORT_PATH=$stubs QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout 30 \
+      /usr/lib/qt5/bin/qmlscene /tmp/wrapper.qml -- /tmp/shots/${c}_sheet$frac.png 2>&1 \
+      | grep -v "Cannot read property\|is not a function\|of null\|of undefined\|Unable to assign \[undefined\]\|is not defined" | head -120
+  done
 done
