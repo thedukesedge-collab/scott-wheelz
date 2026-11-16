@@ -7505,6 +7505,7 @@ Item {
                         Canvas {
                             id: pitchCanvas
                             anchors.centerIn: parent
+                            anchors.verticalCenterOffset: -0.6 * unit  // Re-RinkFloat: sit level with the footpad / roll views
                             width: height
                             height: parent.height
                             contextType: "2d"
