@@ -1,0 +1,25 @@
+name: QML lint
+on:
+  push:
+    branches: ["*"]
+  workflow_dispatch:
+
+jobs:
+  qmllint:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+      - name: Install Qt 5 QML tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq qtdeclarative5-dev-tools
+      - name: Lint ui.qml (verbatim and minified) for recent commits
+        run: |
+          for c in $(git log --format=%h -8); do
+            git show $c:ui.qml.in > /tmp/ui_$c.qml
+            python3 rjsmin.py < /tmp/ui_$c.qml > /tmp/uimin_$c.qml
+            echo "=== $c verbatim"
+            /usr/lib/qt5/bin/qmllint /tmp/ui_$c.qml && echo OK
+            echo "=== $c minified"
+            /usr/lib/qt5/bin/qmllint /tmp/uimin_$c.qml && echo OK
+          done
