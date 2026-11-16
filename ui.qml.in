@@ -7774,15 +7774,6 @@ Item {
                                     }
                                     glow(context, green, 1 * u);
 
-                                    // fender: two horns with a concave sweep between
-                                    context.beginPath();
-                                    context.moveTo(-35, railY(-35) - 7);
-                                    context.lineTo(-29, -30);
-                                    context.lineTo(-25, -29);
-                                    context.quadraticCurveTo(0, -8, 25, -29);
-                                    context.lineTo(29, -30);
-                                    context.lineTo(35, railY(35) - 7);
-                                    glow(context, purple, 2 * u);
                                 }
 
                                 // hub motor
