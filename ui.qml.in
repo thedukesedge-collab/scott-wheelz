@@ -2329,8 +2329,13 @@ Item {
         property color fillColor: Utility.getAppHexColor("normalText")
         property color bgColor: Utility.getAppHexColor("darkBackground")
         property var customBgColor
+        property real iconLineWidth: 2
+        property color iconGlowColor: "transparent"
+        property real iconGlowBlur: 0
 
         onIconPathChanged: iconCanvas.requestPaint()
+        onStrokeColorChanged: iconCanvas.requestPaint()
+        onFillColorChanged: iconCanvas.requestPaint()
         onFillIconPathChanged: iconCanvas.requestPaint()
 
         contentItem: Item {
@@ -2344,12 +2349,15 @@ Item {
                 onPaint: {
                     var context = getContext("2d");
                     context.reset();
+                    context.shadowColor = button.iconGlowColor;
+                    context.shadowBlur = button.iconGlowBlur;
                     if (iconPath) {
                         context.strokeStyle = button.strokeColor;
                         context.lineCap = "round";
+                        context.lineJoin = "round";
                         iconPath.scale = Qt.size(iconSize / 50, iconSize / 50);
                         context.path = iconPath;
-                        context.lineWidth = 2;
+                        context.lineWidth = button.iconLineWidth;
                         context.stroke();
                     }
                     if (fillIconPath) {
@@ -2386,6 +2394,43 @@ Item {
     component ToolButton : FloatingToolButton {
         anchors.margins: 0
         bgColor: Utility.getAppHexColor("normalBackground")
+    }
+
+    // Re-RinkFloat: Tron-style round button - dark core, neon purple ring
+    // with a soft glow, glowing neon green icon. Flips to solid purple when pressed.
+    component TronToolButton : FloatingToolButton {
+        id: tronButton
+        anchors.margins: 0
+        iconSize: width * 0.56
+        iconLineWidth: 2.5
+        strokeColor: pressed ? swTheme.background : swTheme.neonGreen
+        iconGlowColor: pressed ? "transparent" : swTheme.neonGreen
+        iconGlowBlur: 0.12 * unit
+
+        background: Item {
+            RectangularGlow {
+                anchors.fill: tronRing
+                glowRadius: 0.15 * unit
+                spread: 0.15
+                cornerRadius: tronRing.radius + glowRadius
+                color: swTheme.neonPurple
+                opacity: tronButton.pressed ? 0.9 : 0.45
+            }
+
+            Rectangle {
+                id: tronRing
+                anchors.fill: parent
+                anchors.margins: 0.1 * unit
+                radius: width / 2
+                color: tronButton.pressed ? swTheme.neonPurple : swTheme.background
+                border.color: swTheme.neonPurple
+                border.width: 2
+
+                Behavior on color {
+                    ColorAnimation {duration: 150}
+                }
+            }
+        }
     }
 
     component ToggleFloatingToolButton : FloatingToolButton {
@@ -6442,7 +6487,7 @@ Item {
                     Component.onCompleted: load();
                 }
 
-                ToolButton {
+                TronToolButton {
                     id: editBoardNameButton
                     Layout.alignment: Qt.AlignVCenter
                     Layout.preferredWidth: 1.1 * unit
@@ -6458,7 +6503,7 @@ Item {
                     }
                 }
 
-                ToolButton {
+                TronToolButton {
                     id: settingsButton
                     Layout.alignment: Qt.AlignVCenter
                     Layout.preferredWidth: 1.1 * unit
