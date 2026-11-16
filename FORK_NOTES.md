@@ -257,3 +257,16 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - Rails: DOUBLE KICK removed (a saved value falls back to STOCK). WTF and
   DUB TAIL are straight segments with sharp kinks (`railY` uses linear
   interpolation between knots).
+
+### Fix: UI tab missing in rf9 (v1.2.3-rf10)
+- rf9 made the main view's bottom margin depend on the sheet height while
+  the sheet's max height was computed from the main view's laid-out
+  heights - a layout feedback loop. It rendered on desktop Qt but VESC Tool
+  on the phone never showed the tab. The sheet now uses only fixed,
+  unit-based sizes (`hudFixedHeight`), `minHeight` uses implicit heights,
+  and rail profiles use a plain helper (`railLerp`) instead of a nested
+  function.
+- CI: `QML lint` workflow syntax-checks ui.qml and loads it in qmlscene
+  with stub VESC Tool modules (tools/qmltest/run.sh), publishing a
+  screenshot to the `qml-shots` branch. `Release a commit` workflow builds
+  any commit as its own fixed-download release.
