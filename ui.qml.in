@@ -6743,6 +6743,14 @@ Item {
                             property real value: newValue
                             onValueChanged: rollCanvas.requestPaint();
 
+                            // Rink-Float: + = nose up (same sign as the side view)
+                            property real noseUp: (swSettings.invertPitch ? -1 : 1) * state.rtData["imu.pitch"]
+                            onNoseUpChanged: rollCanvas.requestPaint();
+
+                            Behavior on noseUp {
+                                NumberAnimation {easing.type: Easing.OutCirc; duration: 100}
+                            }
+
                             Behavior on value {
                                 id: rollEasingBehavior
                                 NumberAnimation {
@@ -6770,15 +6778,117 @@ Item {
                                     PathSvg {path: "M 45.01 -9 L -45.01 -9 A 3 3 0 0 0 -48 -5.75 L -47 6.25 A 3 3 0 0 0 -44.01 9 L 44.01 9 A 3 3 0 0 0 47 6.25 L 48 -5.75 A 3 3 0 0 0 45.01 -9 M -33.54 9 L -33.01 15 A 38.15 15.07 95.62 0 0 -23.54 37.5 A 35 17.39 0 0 0 23.54 37.5 A 38.15 15.07 -95.62 0 0 33.01 15 L 33.54 9 M 33.54 -9 L 33.01 -15 A 38.15 15.07 95.62 0 0 23.54 -37.5 A 35 17.39 0 0 0 -23.54 -37.5 A 38.15 15.07 84.38 0 0 -33.01 -15 L -33.54 -9 M -36 -3 L 36 -3"}
                                 }
 
+                                // Rink-Float: Tron front view. Tire + nose block roll
+                                // together; the nose block (with its lightbar) slides up
+                                // the tire as the nose rises: top of the tire at the
+                                // tail-down rest angle (~20 deg), middle when level.
                                 onPaint: {
-                                    var context = getContext("2d");
-                                    context.reset();
-                                    context.translate(width / 2, height / 2);
-                                    context.rotate(Math.PI / 180 * parent.value);
-                                    context.path = rollPath;
-                                    context.lineWidth = 2;
-                                    context.strokeStyle = swTheme.color("lightText")
-                                    context.stroke();
+                                    var ctx = getContext("2d");
+                                    ctx.reset();
+                                    var green = "#39ff7a";
+                                    var purple = "#b14cff";
+                                    var u = 1 / scale;
+                                    var rollDeg = parent.value;
+                                    var noseUp = parent.noseUp;
+                                    if (noseUp !== noseUp) noseUp = 0;
+                                    var lift = -29 * Math.max(-1, Math.min(1, noseUp / 20));
+
+                                    function glow(color, w) {
+                                        ctx.save();
+                                        ctx.strokeStyle = color;
+                                        ctx.globalAlpha = 0.22;
+                                        ctx.lineWidth = w * 3.5;
+                                        ctx.stroke();
+                                        ctx.globalAlpha = 1.0;
+                                        ctx.lineWidth = w;
+                                        ctx.stroke();
+                                        ctx.restore();
+                                    }
+
+                                    function roundRect(x, y, w, h, r) {
+                                        ctx.beginPath();
+                                        ctx.moveTo(x + r, y);
+                                        ctx.lineTo(x + w - r, y);
+                                        ctx.arcTo(x + w, y, x + w, y + r, r);
+                                        ctx.lineTo(x + w, y + h - r);
+                                        ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+                                        ctx.lineTo(x + r, y + h);
+                                        ctx.arcTo(x, y + h, x, y + h - r, r);
+                                        ctx.lineTo(x, y + r);
+                                        ctx.arcTo(x, y, x + r, y, r);
+                                        ctx.closePath();
+                                    }
+
+                                    ctx.translate(width / 2, height / 2);
+                                    ctx.scale(scale, scale);
+
+                                    // fixed roll scale: arc with ticks every 15 deg, level mark
+                                    ctx.beginPath();
+                                    ctx.arc(0, 0, 47, Math.PI * 1.17, Math.PI * 1.83);
+                                    ctx.strokeStyle = purple;
+                                    ctx.globalAlpha = 0.5;
+                                    ctx.lineWidth = 1.2 * u;
+                                    ctx.stroke();
+                                    for (var t = -45; t <= 45; t += 15) {
+                                        var ta = (t - 90) * Math.PI / 180;
+                                        var r1 = t === 0 ? 42 : 44;
+                                        ctx.beginPath();
+                                        ctx.moveTo(Math.cos(ta) * r1, Math.sin(ta) * r1);
+                                        ctx.lineTo(Math.cos(ta) * 47, Math.sin(ta) * 47);
+                                        ctx.stroke();
+                                    }
+                                    ctx.globalAlpha = 1.0;
+
+                                    ctx.rotate(Math.PI / 180 * rollDeg);
+
+                                    // roll pointer
+                                    ctx.beginPath();
+                                    ctx.moveTo(0, -48);
+                                    ctx.lineTo(-3, -53);
+                                    ctx.lineTo(3, -53);
+                                    ctx.closePath();
+                                    ctx.fillStyle = green;
+                                    ctx.fill();
+
+                                    // tire (front view) + tread
+                                    roundRect(-25, -40, 50, 80, 17);
+                                    glow(green, 2 * u);
+                                    ctx.beginPath();
+                                    for (var y = -30; y <= 30; y += 7.5) {
+                                        ctx.moveTo(-18, y);
+                                        ctx.lineTo(18, y);
+                                    }
+                                    ctx.strokeStyle = green;
+                                    ctx.globalAlpha = 0.35;
+                                    ctx.lineWidth = 1 * u;
+                                    ctx.stroke();
+                                    ctx.globalAlpha = 1.0;
+
+                                    // axle hub
+                                    ctx.beginPath();
+                                    ctx.arc(0, 0, 3.5, 0, 2 * Math.PI);
+                                    ctx.fillStyle = purple;
+                                    ctx.fill();
+
+                                    // nose block, slides with pitch; filled so it hides the tire behind it
+                                    roundRect(-47, lift - 10, 94, 20, 4);
+                                    ctx.fillStyle = "#0b0716";
+                                    ctx.fill();
+                                    glow(purple, 2 * u);
+
+                                    // lightbar
+                                    ctx.beginPath();
+                                    ctx.moveTo(-34, lift - 2);
+                                    ctx.lineTo(34, lift - 2);
+                                    glow("#d6ffe4", 2.5 * u);
+                                    ctx.beginPath();
+                                    ctx.moveTo(-34, lift - 2);
+                                    ctx.lineTo(34, lift - 2);
+                                    ctx.strokeStyle = green;
+                                    ctx.globalAlpha = 0.6;
+                                    ctx.lineWidth = 6 * u;
+                                    ctx.stroke();
+                                    ctx.globalAlpha = 1.0;
                                 }
                             }
 
@@ -6788,7 +6898,8 @@ Item {
                                 anchors.horizontalCenter: parent.horizontalCenter
 
                                 font.pixelSize: fontSizeSmall
-                                text: "roll: %1°".arg(toFixed1Zero(parent.value))
+                                font.family: "Exan"
+                                text: "ROLL %1°".arg(toFixed1Zero(parent.value))
                             }
                         }
                     }

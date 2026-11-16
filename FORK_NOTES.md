@@ -223,3 +223,12 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - Pick it in Control tab > Rails, or tap the side view to cycle (name
   flashes). Long-press still flips direction. Saved in
   `swSettings.railStyle`. Display only; no effect on riding.
+
+### Tron front (roll) view (v1.2.3-rf6)
+- Redrawn in neon: green tire with tread lines and purple hub, purple nose
+  block with a glowing lightbar, a fixed roll scale (ticks every 15 deg)
+  with a green pointer. ROLL readout in the Exan font.
+- The nose block slides along the tire with pitch (same sign as the side
+  view, honors the invert setting): level = middle of the tire, nose up
+  20 deg or more (tail down at rest) = top of the tire, nose down = lower.
+  Everything still rotates with roll.
