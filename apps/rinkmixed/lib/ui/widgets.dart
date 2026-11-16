@@ -14,8 +14,11 @@ class NeonLabel extends StatelessWidget {
   final TextAlign align;
 
   @override
-  Widget build(BuildContext context) => Text(text,
-      textAlign: align, maxLines: 1, overflow: TextOverflow.fade, softWrap: false, style: tron(size, color));
+  Widget build(BuildContext context) => FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: align == TextAlign.left ? Alignment.centerLeft : Alignment.center,
+        child: Text(text, textAlign: align, maxLines: 1, softWrap: false, style: tron(size, color)),
+      );
 }
 
 class TronIconButton extends StatefulWidget {
