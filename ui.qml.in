@@ -6237,7 +6237,7 @@ Item {
         x: root.x
         y: root.y
         width: root.width
-        height: swHudTop.height
+        height: root.height - bottomSheet.height - 0.1 * unit
         color: swTheme.background
         border.color: swTheme.neonPurple
         border.width: 1
@@ -6259,7 +6259,18 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             // leave room for the collapsed Tunes / Control / Data sheet
-            Layout.bottomMargin: bottomSheet.height + 0.1 * unit
+            Layout.bottomMargin: bottomSheet.minHeight + 0.1 * unit
+
+            // Rink-Float: the main view keeps its full-size layout and is
+            // scaled down (from the top center) to fit above the sheet as it
+            // comes up. A transform doesn't affect layout, so no feedback.
+            property real fitScale: Math.min(1, (root.height - bottomSheet.height - 0.1 * unit) / Math.max(1, root.height - bottomSheet.minHeight - 0.1 * unit))
+            transform: Scale {
+                origin.x: swHudTop.width / 2
+                origin.y: 0
+                xScale: swHudTop.fitScale
+                yScale: swHudTop.fitScale
+            }
             spacing: 0
 
             property real centralMargin: 0.08 * unit
@@ -6458,7 +6469,7 @@ Item {
             TronSpeedo {
                 id: tronSpeedo
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.max(1.8 * unit, Math.min(5.5 * unit, root.height - bottomSheet.height - 0.1 * unit - bottomSheet.hudFixedHeight))
+                Layout.preferredHeight: Math.max(1.8 * unit, Math.min(5.5 * unit, root.height - bottomSheet.minHeight - 0.1 * unit - bottomSheet.hudFixedHeight))
 
                 maxValue: preferences.speedDialMax
                 unitText: vescConfig.speedUnit
@@ -7752,12 +7763,10 @@ Item {
 
         property real handleHeight: 0.75 * unit
         property real minHeight: handleHeight + bottomStackTabs.implicitHeight + bottomLine.implicitHeight + 2
-        // At most 1/3 of the screen, and never more than the main view can give
-        // up (the main view shrinks the speedo instead of being covered).
-        // Built only from fixed sizes (never from layout results) so nothing
-        // here can feed back into the layout.
+        // Fixed (unit-based) height of everything on the main view except the
+        // speedo, which takes what's left. Never read from layout results.
         property real hudFixedHeight: (0.8 + 1.1 + 0.12 + 1.3 + 1.0 + 0.2 + 1.35 + 0.3 + 1.0) * unit + Math.max(hudLeft.contentHeight, pitch.height)
-        property real maxHeight: Math.max(minHeight, Math.min(root.height / 3, root.height - hudFixedHeight - 1.9 * unit))
+        property real maxHeight: Math.max(minHeight, root.height * 0.4)  // up to 2/5 of the screen
         property real fraction: 0  // 0 = collapsed, 1 = fully up
         property bool dragging: false
 

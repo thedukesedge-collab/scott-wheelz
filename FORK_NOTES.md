@@ -270,3 +270,10 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   with stub VESC Tool modules (tools/qmltest/run.sh), publishing a
   screenshot to the `qml-shots` branch. `Release a commit` workflow builds
   any commit as its own fixed-download release.
+
+### Sheet up to 2/5, main view scales (v1.2.3-rf11)
+- Sheet max height is 40% of the screen. The main view keeps its normal
+  layout (sized for the collapsed sheet) and is scaled down uniformly from
+  the top center (`swHudTop.fitScale`, a Scale transform) to fit above the
+  sheet, so everything stays visible and usable, just smaller. The grid
+  background follows the visible area.
