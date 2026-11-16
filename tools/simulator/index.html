@@ -25,7 +25,7 @@
   #batt { position: relative; background: var(--lightbg); flex: none; overflow: hidden; }
   #battFill { position: absolute; left: 0; top: 0; bottom: 0; transition: width .3s; }
   #battPct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #d9a6ff; text-shadow: 0 0 6px var(--purple), 0 0 12px var(--purple), 0 0 2px #12051f; z-index: 2; }
-  #battV { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; color: #12051f; font-weight: 700; z-index: 2; }
+  #battV { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: #d9a6ff; font-family: Orbitron, monospace; font-weight: 700; text-shadow: 0 0 6px var(--purple), 0 0 12px var(--purple), 0 0 2px #12051f; z-index: 2; }
   #nameRow { display: flex; align-items: center; flex: none; }
   #boardName { flex: 1; color: var(--green); font-family: Orbitron, monospace; font-weight: 700; letter-spacing: .03em; text-shadow: 0 0 1px #0f5a2c, 0 0 8px rgba(57,255,122,.55); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .tronBtn { border-radius: 50%; border: 2px solid var(--purple); background: var(--bg); box-shadow: 0 0 8px rgba(177,76,255,.6); display: flex; align-items: center; justify-content: center; margin-left: 4px; cursor: pointer; }
@@ -204,7 +204,7 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver">Re-RinkFloat 1.2.3-rf29 · simulator</div>
+      <div id="ver">Re-RinkFloat 1.2.3-rf30 · simulator</div>
     </div>
   </div>
 
@@ -299,7 +299,7 @@ function layout() {
   // battery
   css($('batt'), { height: px(0.8 * u) });
   css($('battPct'), { fontSize: px(0.8 * u * 0.62) });
-  css($('battV'), { left: px(0.25 * u), fontSize: px(0.32 * u) });
+  css($('battV'), { left: 0, width: '50%', fontSize: px(0.34 * u) });
   // name row
   css($('nameRow'), { height: px(1.1 * u), marginTop: px(0.06 * u), marginBottom: px(0.06 * u), paddingLeft: px(0.2 * u) });
   css($('boardName'), { fontSize: px(0.5 * u) });

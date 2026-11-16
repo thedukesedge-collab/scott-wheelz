@@ -6595,17 +6595,31 @@ Item {
                     visible: parent.level > 0
                 }
 
-                SwLText {
+                // Re-RinkFloat: voltage in the same glowing purple digital style as the %
+                Glow {
+                    anchors.fill: batteryBarVoltageValue
+                    source: batteryBarVoltageValue
+                    z: 2
+                    radius: Math.round(0.12 * unit)
+                    samples: radius * 2 + 1
+                    spread: 0.45
+                    color: swTheme.neonPurple
+                }
+
+                Text {
                     id: batteryBarVoltageValue
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.horizontalCenterOffset: -parent.width / 4
                     anchors.baseline: batteryBarValue.baseline
                     anchors.leftMargin: 0.3 * unit
-                    z: 2
+                    z: 3
 
-                    font.pixelSize: fontSizeNormal
+                    color: "#d9a6ff"
+                    font.family: "Exan"
+                    font.pixelSize: 0.34 * unit
+                    font.letterSpacing: 0.02 * unit
                     style: Text.Outline
-                    styleColor: "#000000"
+                    styleColor: "#12051f"
                     text: {
                         var voltageString = "";
 
