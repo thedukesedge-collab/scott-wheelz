@@ -2787,7 +2787,7 @@ Item {
 
         property int segments: 40
         property real sweepDeg: 240
-        property real radius: Math.max(unit, Math.min(width * 0.44, (height - 0.45 * unit) / 1.58))
+        property real radius: Math.max(unit, Math.min(width * 0.46, (height - 0.4 * unit) / 1.58))
         property real centerY: radius * 1.08 + 0.05 * unit
 
         Behavior on value {
@@ -6730,7 +6730,7 @@ Item {
             TronSpeedo {
                 id: tronSpeedo
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.max(1.8 * unit, Math.min(5.5 * unit, root.height - bottomSheet.minHeight - 0.1 * unit - bottomSheet.hudFixedHeight))
+                Layout.preferredHeight: Math.max(1.8 * unit, Math.min(7 * unit, root.height - bottomSheet.minHeight - 0.1 * unit - bottomSheet.hudFixedHeight))
 
                 maxValue: preferences.speedDialMax
                 unitText: vescConfig.speedUnit
@@ -6739,55 +6739,128 @@ Item {
                 erpm: Math.abs(state.rtData["motor.erpm"])
                 wheelslip: state.wheelslip
 
-                // Re-RinkFloat: trip (left) and lifetime (right) mileage over the speedo
-                SwStat {
+                // Re-RinkFloat: trip (left) / lifetime (right) mileage, small and
+                // semi-transparent inside the dial, above the big digits
+                component SpeedoMini : Column {
+                    property string labelText
+                    property real value: 0
+                    width: tronSpeedo.radius * 0.36
+                    spacing: 0
+                    opacity: tronSpeedo.wheelslip ? 0 : 0.75
+
+                    Text {
+                        id: miniValue
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        color: "#ead6ff"
+                        font.family: "Exan"
+                        font.pixelSize: Math.max(0.22 * unit, tronSpeedo.radius * 0.1)
+                        fontSizeMode: Text.HorizontalFit
+                        minimumPixelSize: 0.14 * unit
+                        style: Text.Outline
+                        styleColor: "#6a22b8"
+                        text: toFixed1Zero(parent.value) + vescConfig.distanceUnit
+                    }
+
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        color: "#c98bff"
+                        font.family: "Exan"
+                        font.pixelSize: Math.max(0.17 * unit, tronSpeedo.radius * 0.07)
+                        font.letterSpacing: 0.02 * unit
+                        text: parent.labelText
+                    }
+                }
+
+                SpeedoMini {
                     id: tachometer
+                    labelText: "TRIP"
+                    x: tronSpeedo.width / 2 - tronSpeedo.radius * 0.44
+                    y: tronSpeedo.centerY - tronSpeedo.radius * 0.55
+                }
+
+                SpeedoMini {
+                    id: odometer
+                    labelText: "LIFE"
+                    x: tronSpeedo.width / 2 + tronSpeedo.radius * 0.08
+                    y: tronSpeedo.centerY - tronSpeedo.radius * 0.55
+                }
+
+                // Re-RinkFloat: ride peaks as little digital boxes in the top
+                // corners. Press and hold either one to reset both.
+                component PeakBox : Rectangle {
+                    id: peakBox
+                    property string labelText
+                    property string valueText
+                    property bool warn: false
+                    width: 2.0 * unit
+                    height: 0.95 * unit
+                    radius: 0.12 * unit
+                    color: "#0b0718"
+                    border.color: warn ? swTheme.color("red") : swTheme.neonPurple
+                    border.width: 2
+
+                    RectangularGlow {
+                        anchors.fill: parent
+                        z: -1
+                        glowRadius: 0.12 * unit
+                        spread: 0.2
+                        cornerRadius: parent.radius + glowRadius
+                        color: parent.border.color
+                        opacity: 0.4
+                    }
+
+                    Text {
+                        anchors.top: parent.top
+                        anchors.topMargin: 0.06 * unit
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        color: peakBox.warn ? swTheme.color("red") : swTheme.neonGreen
+                        font.family: "Exan"
+                        font.pixelSize: 0.42 * unit
+                        fontSizeMode: Text.HorizontalFit
+                        minimumPixelSize: 0.2 * unit
+                        style: Text.Outline
+                        styleColor: "#0f5a2c"
+                        text: peakBox.valueText
+                    }
+
+                    Text {
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 0.06 * unit
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        color: "#c98bff"
+                        font.family: "Exan"
+                        font.pixelSize: 0.2 * unit
+                        font.letterSpacing: 0.03 * unit
+                        text: peakBox.labelText
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        onPressAndHold: tronSpeedo.resetPeaks()
+                    }
+                }
+
+                PeakBox {
+                    id: peakSpeedStat
                     anchors.top: parent.top
                     anchors.left: parent.left
                     anchors.leftMargin: 0.1 * unit
-                    labelText: "TRIP"
-                    unitText: vescConfig.distanceUnit
+                    labelText: "TOP SPEED"
+                    valueText: toFixed1Zero(swSettings.peakSpeed * vescConfig.imperialFactor) + vescConfig.speedUnit
                 }
 
-                SwStat {
-                    id: odometer
+                PeakBox {
+                    id: peakDutyStat
                     anchors.top: parent.top
                     anchors.right: parent.right
                     anchors.rightMargin: 0.1 * unit
-                    labelText: "LIFE"
-                    unitText: vescConfig.distanceUnit
-                }
-
-                // Re-RinkFloat: ride peaks under trip / life. Press and hold to reset.
-                SwStat {
-                    id: peakSpeedStat
-                    anchors.top: tachometer.bottom
-                    anchors.topMargin: 0.1 * unit
-                    anchors.left: tachometer.left
-                    labelText: "TOP SPEED"
-                    unitText: vescConfig.speedUnit
-                    value: swSettings.peakSpeed * vescConfig.imperialFactor
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onPressAndHold: tronSpeedo.resetPeaks()
-                    }
-                }
-
-                SwStat {
-                    id: peakDutyStat
-                    anchors.top: odometer.bottom
-                    anchors.topMargin: 0.1 * unit
-                    anchors.right: odometer.right
                     labelText: "MAX DUTY"
-                    unitText: "%"
-                    warningThreshold: 89.99
-                    value: swSettings.peakDuty * 100
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onPressAndHold: tronSpeedo.resetPeaks()
-                    }
+                    warn: swSettings.peakDuty >= 0.9
+                    valueText: toFixed1Zero(swSettings.peakDuty * 100) + "%"
                 }
 
                 function resetPeaks() {
@@ -7878,7 +7951,7 @@ Item {
                 property var verticalValueItemHeight: 0.95 * unit
 
                 Layout.fillWidth: true
-                Layout.preferredHeight: 1.3 * unit
+                Layout.preferredHeight: 1.1 * unit
                 Layout.topMargin: parent.centralMargin
 
                 SwStat {
@@ -7917,10 +7990,10 @@ Item {
             RowLayout {
                 id: swTiltRow
                 Layout.fillWidth: true
-                Layout.preferredHeight: 1.0 * unit
+                Layout.preferredHeight: 0.85 * unit
                 Layout.leftMargin: 0.2 * unit
                 Layout.rightMargin: 0.2 * unit
-                Layout.topMargin: 0.2 * unit
+                Layout.topMargin: 0.1 * unit
                 spacing: 0.2 * unit
 
                 SwNeonLabel {
@@ -8147,7 +8220,7 @@ Item {
         property real openMinHeight: handleHeight + bottomStackTabs.implicitHeight + bottomLine.implicitHeight + 2
         // Fixed (unit-based) height of everything on the main view except the
         // speedo, which takes what's left. Never read from layout results.
-        property real hudFixedHeight: (0.8 + 1.1 + 0.12 + 1.3 + 1.0 + 0.2 + 1.75 + 0.5 + 1.0) * unit + Math.max(hudLeft.contentHeight, pitch.height)
+        property real hudFixedHeight: (0.8 + 1.1 + 0.12 + 1.1 + 0.85 + 0.1 + 1.75 + 0.5 + 1.0) * unit + Math.max(hudLeft.contentHeight, pitch.height)
         property real maxHeight: Math.max(openMinHeight, root.height * 0.4)  // up to 2/5 of the screen
         property real fraction: 0  // 0 = collapsed, 1 = fully up
         property bool dragging: false
