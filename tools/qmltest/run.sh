@@ -124,7 +124,7 @@ ApplicationWindow {
     Timer {
         interval: 3000; running: true
         onTriggered: {
-            l.item && l.item.parent && l.item.parent.grabToImage(function(r) { r.saveToFile(Qt.application.arguments[Qt.application.arguments.length - 1]); });
+            l.item && l.item.parent && l.item.parent.grabToImage(function(r) { r.saveToFile("/tmp/shot.png"); });
             function dump(it, depth) {
                 if (depth > 4 || !it) return;
                 for (var i = 0; i < it.children.length; i++) {
@@ -149,7 +149,8 @@ for c in "$@"; do
     printf "[scottWheelz]\nsheetFraction=$frac\n" > ~/.config/QtProject/qmlscene.conf
     git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Rink-Float/g; s/{{VERSION}}/test/g" | python3 rjsmin.py > /tmp/ui.qml
     QML2_IMPORT_PATH=$stubs QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout 30 \
-      /usr/lib/qt5/bin/qmlscene /tmp/wrapper.qml -- /tmp/shots/${c}_sheet$frac.png 2>&1 \
+      /usr/lib/qt5/bin/qmlscene /tmp/wrapper.qml 2>&1 \
       | grep -v "Cannot read property\|is not a function\|of null\|of undefined\|Unable to assign \[undefined\]\|is not defined" | head -120
+    mv /tmp/shot.png /tmp/shots/${c}_sheet$frac.png 2>/dev/null || echo "no screenshot"
   done
 done
