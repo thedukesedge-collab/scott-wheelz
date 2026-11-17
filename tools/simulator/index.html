@@ -237,7 +237,7 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf49 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf50 · sim</span></div>
     </div>
   </div>
 
@@ -599,28 +599,13 @@ function renderHorn() {
     };
     row.querySelectorAll('.stepBtn').forEach(b => {
       let t = null;
-      const nudge = () => { const v = clamp(Math.round((P[k] + +b.dataset.d * stp) / stp) * stp, mn, mx); if (v !== P[k]) { P[k] = v; save(); paint(); if (['hsVol', 'hsPitch', 'hBeep', 'hBeepHz'].includes(k)) hornPreviewSoon(); } };
+      const nudge = () => { const v = clamp(Math.round((P[k] + +b.dataset.d * stp) / stp) * stp, mn, mx); if (v !== P[k]) { P[k] = v; save(); paint(); } };
       b.addEventListener('pointerdown', e => { e.preventDefault(); nudge(); t = setTimeout(function rep() { nudge(); t = setTimeout(rep, 90); }, 450); });
       const stop = () => clearTimeout(t);
       b.addEventListener('pointerup', stop); b.addEventListener('pointerleave', stop); b.addEventListener('pointercancel', stop);
     });
     paint(); box.appendChild(row);
   });
-}
-// a horn setting changed: short beep with the new sound once the arrows settle (idle only)
-let hpT = null;
-function hornPreviewSoon() {
-  clearTimeout(hpT);
-  hpT = setTimeout(() => {
-    if (S.mode !== 'ready' || hornPressed) return;
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-      const ac = playMelody.ac || (playMelody.ac = new AC()); if (ac.state === 'suspended') ac.resume();
-      const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
-      o.type = 'square'; o.frequency.value = P.hAdv ? P.hBeepHz : simplePitchHz(P.hsPitch);
-      g.gain.value = 0.02 + 0.06 * hornVolume(); o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.35);
-    } catch (e) {}
-  }, 450);
 }
 // boot melody: pitch levels 1, 2, 3 (300, 375, 450 Hz), 0.5 s each, at the horn volume
 function hornVolume() { return P.hAdv ? P.hBeep : P.hsVol * 0.5; }  // volts

@@ -278,37 +278,17 @@ Item {
         }
 
         // a horn setting was changed with the arrows: send now and once more
-        // shortly after (in case Bluetooth dropped it), then play a short beep
-        // with the new sound so you can hear it applied (idle only)
-        function changed(preview) {
+        // shortly after, in case Bluetooth dropped it. (No preview beep: only the
+        // HORN button sounds the horn, so presses and setting changes can't mix.)
+        function changed() {
             send();
             hornRetryTimer.restart();
-            if (preview && state.pkgState === state.s_Ready) {
-                hornPreviewTimer.restart();
-            }
         }
 
         property Timer retryTimer: Timer {
             id: hornRetryTimer
             interval: 300
             onTriggered: hornSettingsSender.send()
-        }
-
-        // waits for the arrows to settle, so holding one doesn't beep on every step
-        property Timer previewTimer: Timer {
-            id: hornPreviewTimer
-            interval: 450
-            onTriggered: {
-                if (hornFrame.honking || state.pkgState !== state.s_Ready) return;
-                commands.sendHorn(2);
-                hornPreviewStop.restart();
-            }
-        }
-
-        property Timer previewStop: Timer {
-            id: hornPreviewStop
-            interval: 350
-            onTriggered: if (!hornFrame.honking) commands.sendHorn(0)
         }
 
         // custom melody: notes + rests (level 0), 4 s total, 2 s per note; sent as
@@ -9442,7 +9422,7 @@ Item {
                             value: swSettings.hornSimpleStrength
                             from: 0; to: 10; step: 1
                             valueText: value === 0 ? "OFF" : value + " / 10"
-                            onMoved: { swSettings.hornSimpleStrength = newValue; hornSettingsSender.changed(false); }
+                            onMoved: { swSettings.hornSimpleStrength = newValue; hornSettingsSender.changed(); }
                         }
 
                         SwStepper {
@@ -9451,7 +9431,7 @@ Item {
                             value: swSettings.hornSimpleVolume
                             from: 1; to: 10; step: 1
                             valueText: value + " / 10"
-                            onMoved: { swSettings.hornSimpleVolume = newValue; hornSettingsSender.changed(true); }
+                            onMoved: { swSettings.hornSimpleVolume = newValue; hornSettingsSender.changed(); }
                         }
 
                         SwStepper {
@@ -9460,7 +9440,7 @@ Item {
                             value: swSettings.hornSimplePitch
                             from: 1; to: 10; step: 1
                             valueText: value + " / 10"
-                            onMoved: { swSettings.hornSimplePitch = newValue; hornSettingsSender.changed(true); }
+                            onMoved: { swSettings.hornSimplePitch = newValue; hornSettingsSender.changed(); }
                         }
 
                         // advanced mode
@@ -9469,7 +9449,7 @@ Item {
                             label: "BEEP STRENGTH"
                             value: swSettings.hornBeepStrength
                             from: 0.5; to: 6; step: 0.5; decimals: 1; suffix: " V"
-                            onMoved: { swSettings.hornBeepStrength = newValue; hornSettingsSender.changed(true); }
+                            onMoved: { swSettings.hornBeepStrength = newValue; hornSettingsSender.changed(); }
                         }
 
                         SwStepper {
@@ -9477,7 +9457,7 @@ Item {
                             label: "BEEP PITCH"
                             value: swSettings.hornBeepFreq
                             from: 300; to: 1000; step: 25; suffix: " Hz"
-                            onMoved: { swSettings.hornBeepFreq = newValue; hornSettingsSender.changed(true); }
+                            onMoved: { swSettings.hornBeepFreq = newValue; hornSettingsSender.changed(); }
                         }
 
                         SwStepper {
@@ -9485,7 +9465,7 @@ Item {
                             label: "BUZZ STRENGTH (riding)"
                             value: swSettings.hornBuzzStrength
                             from: 0; to: 15; step: 1; suffix: " A"
-                            onMoved: { swSettings.hornBuzzStrength = newValue; hornSettingsSender.changed(false); }
+                            onMoved: { swSettings.hornBuzzStrength = newValue; hornSettingsSender.changed(); }
                         }
 
                         SwStepper {
@@ -9493,7 +9473,7 @@ Item {
                             label: "BUZZ FREQ (riding)"
                             value: swSettings.hornBuzzFreq
                             from: 30; to: 150; step: 5; suffix: " Hz"
-                            onMoved: { swSettings.hornBuzzFreq = newValue; hornSettingsSender.changed(false); }
+                            onMoved: { swSettings.hornBuzzFreq = newValue; hornSettingsSender.changed(); }
                         }
 
                         // boot melody: OFF / DEFAULT / CUSTOM, CUSTOM MELODY editor, TEST

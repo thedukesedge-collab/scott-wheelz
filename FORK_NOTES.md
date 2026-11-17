@@ -469,3 +469,12 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - A failed horn/melody save is retried at most 3 times (rf48 kept retrying
   every 2 s), so the board never keeps stalling on flash writes, which can
   interrupt VESC Tool reading the package UI over Bluetooth.
+
+### Save retry cap (v1.2.3-rf49), no horn preview beep (v1.2.3-rf50)
+- rf49: a failed horn/melody save is retried at most 3 times.
+- rf50: removed the rf48 preview beep after changing horn settings. It
+  was a delayed horn press from the app, so going back and forth between
+  the HORN button and the settings made the horn seem to fire on its own,
+  and it used up the board's horn time without the app knowing. Only the
+  HORN button sounds the horn now; setting changes are still sent at once
+  plus one retry.
