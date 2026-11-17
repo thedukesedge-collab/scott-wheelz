@@ -464,3 +464,8 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   last one applied from the app if it still matches, else the first match
   (in VESC Tool's limited mode every tune looked like a match).
 - MIXER recorder window is 4 s (board limit 4 s).
+
+### Safer save retry (v1.2.3-rf49)
+- A failed horn/melody save is retried at most 3 times (rf48 kept retrying
+  every 2 s), so the board never keeps stalling on flash writes, which can
+  interrupt VESC Tool reading the package UI over Bluetooth.

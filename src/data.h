@@ -100,6 +100,7 @@ typedef struct {
     volatile uint32_t horn_pending[HORN_EEPROM_WORDS];
     volatile bool horn_save_pending;
     volatile time_t horn_change_time;
+    uint8_t horn_save_retries;  // failed saves retried at most 3 times
     bool boot_melody;
     bool boot_melody_custom;  // play the custom melody at boot
     float boot_melody_volume;

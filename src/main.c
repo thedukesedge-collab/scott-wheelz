@@ -1352,13 +1352,16 @@ static void horn_settings_save_if_due(Data *d) {
         }
     }
     if (ok) {
+        d->horn_save_retries = 0;
         for (int i = 0; i < HORN_EEPROM_WORDS; ++i) {
             d->horn_saved[i] = w[i];
         }
     } else {
-        // try again a little later (unless something newer is queued by then)
+        // try again a little later (unless something newer is queued by then),
+        // at most 3 times so a failing flash is never hammered
         log_error("Failed to save horn settings.");
-        if (!d->horn_save_pending) {
+        if (!d->horn_save_pending && d->horn_save_retries < 3) {
+            ++d->horn_save_retries;
             for (int i = 0; i < HORN_EEPROM_WORDS; ++i) {
                 d->horn_pending[i] = w[i];
             }
