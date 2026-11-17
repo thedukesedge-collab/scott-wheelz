@@ -565,3 +565,5 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - Accuracy depends on the VESC's battery % (Motor Cfg > Additional Info >
   battery cells in series / type) unless a battery LUT is patched in.
 - Test: StatusLedsTestVP. Size 16,136 / 16,320 B.
+- Updated: white above 55 %, yellow 55-41 %, orange 40-30 %, red below 30 %,
+  flashing red at 5 % and below; shown while riding from 40 % down.

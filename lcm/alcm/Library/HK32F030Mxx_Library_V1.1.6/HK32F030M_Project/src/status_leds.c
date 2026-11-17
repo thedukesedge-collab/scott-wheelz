@@ -380,6 +380,10 @@ void display_battery(int16_t battery_level)
         }
         else if (battery_level <= LOW_BATTERY_THRESHOLD)
         {
+            color = &colors.orange;
+        }
+        else if (battery_level <= YELLOW_BATTERY_THRESHOLD)
+        {
             color = &colors.yellow;
         }
 #else

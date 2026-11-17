@@ -18,8 +18,8 @@ HK32F030M-based LCM, with Re-Float Rink-Mixed changes (`VP_LIGHT_CONTROL`):
 Without a VP package that sends light settings, ALCM keeps its saved
 settings and behaves like stock v0.1.1 apart from the button changes.
 
-Battery gauge colors: white above 35 %, yellow 35-20 %, red 20-5 %, flashing
-red at 5 % and below; shown while riding from 35 % down.
+Battery gauge colors: white above 55 %, yellow 55-41 %, orange 40-30 %, red
+below 30 %, flashing red at 5 % and below; shown while riding from 40 % down.
 
 A VESC that stops answering (package install/update, VESC reboot) no longer
 puts the module into a latched, beeping fault unless you are riding; a
