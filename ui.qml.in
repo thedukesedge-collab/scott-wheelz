@@ -271,7 +271,7 @@ Item {
             sendMelody();
         }
 
-        // custom melody: up to 6 notes, 2.5 s total; sent as (level, 20 ms units)
+        // custom melody: up to 6 notes, 5 s total, 2 s per note; sent as (level, 20 ms units)
         function notes() {
             try {
                 var n = JSON.parse(swSettings.melodyRec);
@@ -286,7 +286,7 @@ Item {
             var data = commands.createData(2 + 2 * n.length, commands.c_MELODY_SET);
             for (var i = 0; i < n.length; i++) {
                 data.setUint8(2 + 2 * i, Math.max(0, Math.min(10, n[i][0])));
-                data.setUint8(3 + 2 * i, Math.max(2, Math.min(125, Math.round(n[i][1] / 20))));
+                data.setUint8(3 + 2 * i, Math.max(2, Math.min(100, Math.round(n[i][1] / 20))));
             }
             vescCommands.sendCustomAppData(data.buffer);
         }
@@ -2474,7 +2474,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: Tron grid used behind the main screen and the bottom sheet
+    // Re-RinkFloat: Neon Future grid used behind the main screen and the bottom sheet
     component SwGrid : Canvas {
         contextType: "2d"
         onWidthChanged: requestPaint()
@@ -2878,10 +2878,10 @@ Item {
         bgColor: Utility.getAppHexColor("normalBackground")
     }
 
-    // Re-RinkFloat: Tron-style round button - dark core, neon purple ring
+    // Re-RinkFloat: Neon Future-style round button - dark core, neon purple ring
     // with a soft glow, glowing neon green icon. Flips to solid purple when pressed.
-    component TronToolButton : FloatingToolButton {
-        id: tronButton
+    component NeonToolButton : FloatingToolButton {
+        id: neonButton
         anchors.margins: 0
         iconSize: width * 0.56
         iconLineWidth: 2.5
@@ -2891,20 +2891,20 @@ Item {
 
         background: Item {
             RectangularGlow {
-                anchors.fill: tronRing
+                anchors.fill: neonRing
                 glowRadius: 0.15 * unit
                 spread: 0.15
-                cornerRadius: tronRing.radius + glowRadius
+                cornerRadius: neonRing.radius + glowRadius
                 color: swTheme.neonPurple
-                opacity: tronButton.pressed ? 0.9 : 0.45
+                opacity: neonButton.pressed ? 0.9 : 0.45
             }
 
             Rectangle {
-                id: tronRing
+                id: neonRing
                 anchors.fill: parent
                 anchors.margins: 0.1 * unit
                 radius: width / 2
-                color: tronButton.pressed ? swTheme.neonPurple : swTheme.background
+                color: neonButton.pressed ? swTheme.neonPurple : swTheme.background
                 border.color: swTheme.neonPurple
                 border.width: 2
 
@@ -3100,10 +3100,10 @@ Item {
         }
     }
 
-    // Re-RinkFloat: digital "Tron" speedometer. Segmented neon arc for speed
+    // Re-RinkFloat: digital Neon Future speedometer. Segmented neon arc for speed
     // (green, then purple, red at the top end), thin inner arc for duty, and
     // a big glowing digital readout in the middle.
-    component TronSpeedo : Item {
+    component NeonSpeedo : Item {
         id: speedo
 
         property real value: 0
@@ -5647,7 +5647,8 @@ Item {
 
     // Re-RinkFloat: CUSTOM MELODY pad - half-screen tile keyboard. Hold a tile:
     // the board plays that pitch live and the note is recorded for as long as
-    // it's held. Up to 6 notes / 2.5 s.
+    // it's held. Up to 6 notes / 5 s, each note at most 2 s. Once the melody is
+    // full the tiles still play their note as a preview (not recorded).
     Popup {
         id: melodyPad
         parent: ApplicationWindow.overlay
@@ -5661,7 +5662,9 @@ Item {
         padding: 0.2 * unit
 
         readonly property int maxNotes: 6
-        readonly property int maxMs: 2500
+        readonly property int maxMs: 5000
+        readonly property int maxNoteMs: 2000
+        property bool previewOnly: false
         property var notes: hornSettingsSender.notes()
         property int totalMs: {
             var t = 0;
@@ -5685,9 +5688,9 @@ Item {
         }
 
         function press(level) {
-            if (full) {
-                VescIf.emitStatusMessage("Melody is full (6 notes / 2.5 s)", false);
-                return;
+            previewOnly = full;
+            if (previewOnly) {
+                VescIf.emitStatusMessage("Melody is full (6 notes / 5 s): preview only", false);
             }
             holdLevel = level;
             holdStart = Date.now();
@@ -5700,14 +5703,15 @@ Item {
             if (holdLevel === 0) return;
             holdTimer.stop();
             hornSettingsSender.liveTone(0);
-            var ms = Math.min(Date.now() - holdStart, maxMs - totalMs);
-            if (ms >= 40) {
+            var ms = Math.min(Date.now() - holdStart, maxNoteMs, maxMs - totalMs);
+            if (!previewOnly && ms >= 40) {
                 var n = notes.slice();
                 n.push([holdLevel, Math.max(60, Math.round(ms / 20) * 20)]);
                 store(n);
             }
             holdLevel = 0;
             holdMs = 0;
+            previewOnly = false;
         }
 
         onClosed: release()
@@ -5718,8 +5722,9 @@ Item {
             repeat: true
             onTriggered: {
                 melodyPad.holdMs = Date.now() - melodyPad.holdStart;
-                if (melodyPad.totalMs + melodyPad.holdMs >= melodyPad.maxMs) {
-                    melodyPad.release();  // out of time
+                if (melodyPad.holdMs >= melodyPad.maxNoteMs ||
+                        (!melodyPad.previewOnly && melodyPad.totalMs + melodyPad.holdMs >= melodyPad.maxMs)) {
+                    melodyPad.release();  // 2 s per note, 5 s in total
                 } else {
                     hornSettingsSender.liveTone(melodyPad.holdLevel);  // keepalive
                 }
@@ -5750,7 +5755,7 @@ Item {
                 SwNeonLabel {
                     color: melodyPad.full ? swTheme.color("orange") : "#c98bff"
                     font.pixelSize: 0.26 * unit
-                    text: "%1/6  %2 s / 2.5 s".arg(melodyPad.notes.length + (melodyPad.holdLevel ? 1 : 0)).arg(((melodyPad.totalMs + melodyPad.holdMs) / 1000).toFixed(1))
+                    text: "%1/6  %2 s / 5 s  (2 s max per note)".arg(melodyPad.notes.length + (melodyPad.holdLevel && !melodyPad.previewOnly ? 1 : 0)).arg(((melodyPad.totalMs + (melodyPad.previewOnly ? 0 : melodyPad.holdMs)) / 1000).toFixed(1))
                 }
             }
 
@@ -5790,7 +5795,7 @@ Item {
 
                     // the note being held right now
                     Rectangle {
-                        visible: melodyPad.holdLevel > 0
+                        visible: melodyPad.holdLevel > 0 && !melodyPad.previewOnly
                         height: timeline.height
                         width: Math.max(4, timeline.width * melodyPad.holdMs / melodyPad.maxMs)
                         radius: 3
@@ -5820,7 +5825,7 @@ Item {
                         color: held ? melodyPad.tileColor(level) : "#140a26"
                         border.color: melodyPad.tileColor(level)
                         border.width: 3
-                        opacity: melodyPad.full && !held ? 0.4 : 1
+                        opacity: melodyPad.full && !held ? 0.6 : 1  // still playable as a preview
 
                         Text {
                             anchors.centerIn: parent
@@ -5891,8 +5896,10 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 font.pixelSize: fontSizeSmall
                 wrapMode: Text.WordWrap
-                text: state.pkgState === state.s_Ready
-                    ? "Hold a tile to play and record that note. DONE sets it as your boot melody."
+                text: melodyPad.full
+                    ? "Melody full: tiles still play their note as a preview. UNDO or CLEAR to record more."
+                    : state.pkgState === state.s_Ready
+                    ? "Tap or hold a tile to hear its note and record it (2 s max per note). DONE sets it as your boot melody."
                     : "The board plays notes only when idle (READY); you can still record."
             }
         }
@@ -7091,7 +7098,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: Tron grid behind the main screen stats
+    // Re-RinkFloat: Neon Future grid behind the main screen stats
     Rectangle {
         x: root.x
         y: root.y
@@ -7319,7 +7326,7 @@ Item {
                     Component.onCompleted: load();
                 }
 
-                TronToolButton {
+                NeonToolButton {
                     id: editBoardNameButton
                     Layout.alignment: Qt.AlignVCenter
                     Layout.preferredWidth: 1.1 * unit
@@ -7335,7 +7342,7 @@ Item {
                     }
                 }
 
-                TronToolButton {
+                NeonToolButton {
                     id: settingsButton
                     Layout.alignment: Qt.AlignVCenter
                     Layout.preferredWidth: 1.1 * unit
@@ -7355,9 +7362,9 @@ Item {
 
             Item {Layout.fillHeight: true}  // Re-RinkFloat: spread out to fill the screen
 
-            // Re-RinkFloat: digital Tron speedometer, takes whatever height is left
-            TronSpeedo {
-                id: tronSpeedo
+            // Re-RinkFloat: digital Neon Future speedometer, takes whatever height is left
+            NeonSpeedo {
+                id: neonSpeedo
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.max(1.8 * unit, Math.min(7 * unit, root.height - bottomSheet.minHeight - 0.1 * unit - bottomSheet.hudFixedHeight))
 
@@ -7374,9 +7381,9 @@ Item {
                 component SpeedoMini : Column {
                     property string labelText
                     property real value: 0
-                    width: tronSpeedo.radius * 0.36
+                    width: neonSpeedo.radius * 0.36
                     spacing: 0
-                    opacity: tronSpeedo.wheelslip ? 0 : 0.75
+                    opacity: neonSpeedo.wheelslip ? 0 : 0.75
 
                     Text {
                         id: miniValue
@@ -7384,7 +7391,7 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         color: "#ead6ff"
                         font.family: "Exan"
-                        font.pixelSize: Math.max(0.22 * unit, tronSpeedo.radius * 0.1)
+                        font.pixelSize: Math.max(0.22 * unit, neonSpeedo.radius * 0.1)
                         fontSizeMode: Text.HorizontalFit
                         minimumPixelSize: 0.14 * unit
                         text: toFixed1Zero(parent.value) + vescConfig.distanceUnit
@@ -7395,7 +7402,7 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         color: "#c98bff"
                         font.family: "Exan"
-                        font.pixelSize: Math.max(0.17 * unit, tronSpeedo.radius * 0.07)
+                        font.pixelSize: Math.max(0.17 * unit, neonSpeedo.radius * 0.07)
                         font.letterSpacing: 0.02 * unit
                         text: parent.labelText
                     }
@@ -7404,15 +7411,15 @@ Item {
                 SpeedoMini {
                     id: tachometer
                     labelText: "TRIP"
-                    x: tronSpeedo.width / 2 - tronSpeedo.radius * 0.44
-                    y: tronSpeedo.centerY - tronSpeedo.radius * 0.55
+                    x: neonSpeedo.width / 2 - neonSpeedo.radius * 0.44
+                    y: neonSpeedo.centerY - neonSpeedo.radius * 0.55
                 }
 
                 SpeedoMini {
                     id: odometer
                     labelText: "LIFE"
-                    x: tronSpeedo.width / 2 + tronSpeedo.radius * 0.08
-                    y: tronSpeedo.centerY - tronSpeedo.radius * 0.55
+                    x: neonSpeedo.width / 2 + neonSpeedo.radius * 0.08
+                    y: neonSpeedo.centerY - neonSpeedo.radius * 0.55
                 }
 
                 // Re-RinkFloat: ride peaks as little digital boxes in the top
@@ -7466,7 +7473,7 @@ Item {
 
                     MouseArea {
                         anchors.fill: parent
-                        onPressAndHold: tronSpeedo.resetPeaks()
+                        onPressAndHold: neonSpeedo.resetPeaks()
                     }
                 }
 
@@ -7815,7 +7822,7 @@ Item {
                                     PathSvg {path: "M 45.01 -9 L -45.01 -9 A 3 3 0 0 0 -48 -5.75 L -47 6.25 A 3 3 0 0 0 -44.01 9 L 44.01 9 A 3 3 0 0 0 47 6.25 L 48 -5.75 A 3 3 0 0 0 45.01 -9 M -33.54 9 L -33.01 15 A 38.15 15.07 95.62 0 0 -23.54 37.5 A 35 17.39 0 0 0 23.54 37.5 A 38.15 15.07 -95.62 0 0 33.01 15 L 33.54 9 M 33.54 -9 L 33.01 -15 A 38.15 15.07 95.62 0 0 23.54 -37.5 A 35 17.39 0 0 0 -23.54 -37.5 A 38.15 15.07 84.38 0 0 -33.01 -15 L -33.54 -9 M -36 -3 L 36 -3"}
                                 }
 
-                                // Re-RinkFloat: Tron front view. Tire + nose block roll
+                                // Re-RinkFloat: Neon Future front view. Tire + nose block roll
                                 // together; the nose block (with its lightbar) slides up
                                 // the tire as the nose rises: top of the tire at the
                                 // tail-down rest angle (~20 deg), middle when level.
@@ -8969,7 +8976,7 @@ Item {
                 Layout.fillWidth: true
                 clip: true
 
-                // Re-RinkFloat: Tron-style tab labels
+                // Re-RinkFloat: Neon Future-style tab labels
                 component SwTabButton : TabButton {
                     id: swTab
                     font.family: "Exan"
@@ -9660,7 +9667,7 @@ Item {
                             text: "Before enabling flywheel mode make sure that your board is nose up and perfectly balanced. To turn it off, you must disengage the board first."
                         }
 
-                        // Re-RinkFloat: Tron flywheel switch. Purple when off; neon
+                        // Re-RinkFloat: Neon Future flywheel switch. Purple when off; neon
                         // green, glowing and filled while flywheel mode is running.
                         Button {
                             id: flywheelOnButton

@@ -90,7 +90,7 @@ class _BottomPanelState extends State<BottomPanel> {
                       alignment: Alignment.center,
                       child: FittedBox(child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Text(tabs[i], style: tron(0.27 * u, tab == i ? Neon.green : Neon.lav)),
+                        child: Text(tabs[i], style: neonText(0.27 * u, tab == i ? Neon.green : Neon.lav)),
                       )),
                     ),
                   )),
@@ -99,7 +99,7 @@ class _BottomPanelState extends State<BottomPanel> {
             Expanded(child: AnimatedBuilder(animation: b, builder: (context, _) => _page(context, tab))),
             Padding(
               padding: EdgeInsets.symmetric(vertical: 0.05 * u),
-              child: Text.rich(TextSpan(style: tron(0.24 * u, Neon.dim, spacing: 0.03 * u), children: const [
+              child: Text.rich(TextSpan(style: neonText(0.24 * u, Neon.dim, spacing: 0.03 * u), children: const [
                 TextSpan(text: 'RE:', style: TextStyle(color: Neon.purple)),
                 TextSpan(text: 'FLOAT', style: TextStyle(color: Neon.lavLight)),
                 TextSpan(text: ' — ', style: TextStyle(color: Color(0xFF7A3FC0))),
@@ -158,7 +158,7 @@ class _BottomPanelState extends State<BottomPanel> {
               boxShadow: [BoxShadow(color: (fly ? Neon.green : Neon.purple).withOpacity(fly ? 0.8 : 0.3), blurRadius: 14)],
             ),
             child: FittedBox(child: Text(fly ? 'FLYWHEEL OFF' : 'FLYWHEEL ON',
-                style: tron(0.36 * u, fly ? Neon.green : Neon.purple, spacing: 0.08 * u))),
+                style: neonText(0.36 * u, fly ? Neon.green : Neon.purple, spacing: 0.08 * u))),
           ),
         ),
       )),
@@ -218,7 +218,7 @@ class TunesPage extends StatelessWidget {
                     boxShadow: [BoxShadow(color: Neon.palette[_colorIdx(slot)].withOpacity(0.3), blurRadius: 8)],
                   ),
                   child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text('SLOT $slot', style: tron(0.36 * u, Neon.palette[_colorIdx(slot)], spacing: 0.06 * u)),
+                    Text('SLOT $slot', style: neonText(0.36 * u, Neon.palette[_colorIdx(slot)], spacing: 0.06 * u)),
                     const Text('hold for color', style: TextStyle(color: Neon.dim, fontSize: 11)),
                   ]),
                 ),
@@ -239,7 +239,7 @@ class TunesPage extends StatelessWidget {
         return AlertDialog(
           backgroundColor: Neon.panel,
           shape: RoundedRectangleBorder(side: const BorderSide(color: Neon.purple, width: 2), borderRadius: BorderRadius.circular(10)),
-          title: Text('SLOT $slot COLOR: ${Neon.names[sel].toUpperCase()}', style: tron(14, Neon.mint)),
+          title: Text('SLOT $slot COLOR: ${Neon.names[sel].toUpperCase()}', style: neonText(14, Neon.mint)),
           content: Wrap(spacing: 10, runSpacing: 10, children: [
             for (var i = 0; i < Neon.palette.length; i++)
               GestureDetector(
@@ -257,7 +257,7 @@ class TunesPage extends StatelessWidget {
                 ),
               ),
           ]),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text('DONE', style: tron(11, Neon.green)))],
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text('DONE', style: neonText(11, Neon.green)))],
         );
       }),
     );
@@ -305,7 +305,7 @@ class _DataPageState extends State<DataPage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(color: graph == e.$2 ? Neon.green : Colors.transparent, borderRadius: BorderRadius.circular(99)),
-                  child: Text(e.$1, style: tron(10, graph == e.$2 ? Neon.bg : Neon.lav)),
+                  child: Text(e.$1, style: neonText(10, graph == e.$2 ? Neon.bg : Neon.lav)),
                 ),
               ),
           ]),

@@ -105,22 +105,22 @@ class SpeedoPainter extends CustomPainter {
     // trip / life minis or WHEELSLIP
     final digitsY = cy - r * 0.08;
     if (b.wheelslip) {
-      drawText(c, 'WHEELSLIP', Offset(cx, digitsY - r * 0.33), tron(math.max(9, r * 0.11), Neon.red));
+      drawText(c, 'WHEELSLIP', Offset(cx, digitsY - r * 0.33), neonText(math.max(9, r * 0.11), Neon.red));
     } else {
       final mw = r * 0.36, my = cy - r * 0.55;
       final vs = math.max(0.22 * u, r * 0.1), ls = math.max(0.17 * u, r * 0.07);
       final trip = b.tachAbsM * 0.001 * b.imperial, life = b.odometerM * 0.001 * b.imperial;
       for (final e in [(cx - r * 0.44 + mw / 2, trip, 'TRIP'), (cx + r * 0.08 + mw / 2, life, 'LIFE')]) {
-        drawText(c, '${fx1(e.$2)}${b.distUnit}', Offset(e.$1, my + vs * 0.6), tron(vs, Neon.lavLight), opacity: 0.75);
-        drawText(c, e.$3, Offset(e.$1, my + vs * 1.2 + ls * 0.6), tron(ls, Neon.lav), opacity: 0.75);
+        drawText(c, '${fx1(e.$2)}${b.distUnit}', Offset(e.$1, my + vs * 0.6), neonText(vs, Neon.lavLight), opacity: 0.75);
+        drawText(c, e.$3, Offset(e.$1, my + vs * 1.2 + ls * 0.6), neonText(ls, Neon.lav), opacity: 0.75);
       }
     }
 
     // digits, unit, erpm, duty
     final digits = speed.isFinite ? '${speed.round()}' : '--';
-    drawText(c, digits, Offset(cx, digitsY), tron(r * 0.5, Neon.mint, glow: glowOf(Neon.green, r * 0.12)));
+    drawText(c, digits, Offset(cx, digitsY), neonText(r * 0.5, Neon.mint, glow: glowOf(Neon.green, r * 0.12)));
     var ly = digitsY + r * 0.3;
-    drawText(c, b.speedUnit.toUpperCase(), Offset(cx, ly), tron(math.max(9, r * 0.12), Neon.green, weight: 500));
+    drawText(c, b.speedUnit.toUpperCase(), Offset(cx, ly), neonText(math.max(9, r * 0.12), Neon.green, weight: 500));
     ly += r * 0.13;
     final erpm = b.v('motor.erpm');
     drawText(c, '${erpm.isFinite ? erpm.round() : '--'} ERPM', Offset(cx, ly), mono(math.max(8, r * 0.095), Neon.dim));
@@ -156,9 +156,9 @@ class SpeedoPainter extends CustomPainter {
       }
     }
     c.drawRect(Rect.fromCenter(center: o + Offset(0, r), width: 1, height: lw * 1.3), Paint()..color = Neon.mint);
-    drawText(c, v.isFinite ? '${v.round()}' : '--', o - Offset(size * 0.06, 0), tron(0.4 * u, Neon.lavLight));
-    drawText(c, unit, o + Offset(size * 0.17, 0.04 * u), tron(0.27 * u, Neon.lav), align: TextAlign.left);
-    drawText(c, label, o + Offset(0, r + lw + 0.22 * u), tron(0.27 * u, Neon.lav));
+    drawText(c, v.isFinite ? '${v.round()}' : '--', o - Offset(size * 0.06, 0), neonText(0.4 * u, Neon.lavLight));
+    drawText(c, unit, o + Offset(size * 0.17, 0.04 * u), neonText(0.27 * u, Neon.lav), align: TextAlign.left);
+    drawText(c, label, o + Offset(0, r + lw + 0.22 * u), neonText(0.27 * u, Neon.lav));
   }
 
   @override
@@ -192,8 +192,8 @@ class FootpadPainter extends CustomPainter {
       }
     }
     c.restore();
-    drawText(c, 'ADC1', Offset(s * 0.26, s * 0.47), tron(s * 0.12, left ? Neon.green : const Color(0xFF9B6BD6), weight: 500));
-    drawText(c, 'ADC2', Offset(s * 0.74, s * 0.47), tron(s * 0.12, right ? Neon.green : const Color(0xFF9B6BD6), weight: 500));
+    drawText(c, 'ADC1', Offset(s * 0.26, s * 0.47), neonText(s * 0.12, left ? Neon.green : const Color(0xFF9B6BD6), weight: 500));
+    drawText(c, 'ADC2', Offset(s * 0.74, s * 0.47), neonText(s * 0.12, right ? Neon.green : const Color(0xFF9B6BD6), weight: 500));
     drawText(c, '${fx1(b.v('footpad.adc1'))}V', Offset(s * 0.26, s * 0.92), mono(s * 0.14, Neon.text));
     drawText(c, '${fx1(b.v('footpad.adc2'))}V', Offset(s * 0.74, s * 0.92), mono(s * 0.14, Neon.text));
   }

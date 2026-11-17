@@ -1,4 +1,10 @@
-# Re-RinkFloat fork notes
+# Re-Float Rink-Mixed fork notes
+
+"Neon Future" is the name of the look (neon green/purple digital style on a
+dark grid). Older entries called it "Tron"; renamed in v1.2.3-rf43.
+
+(Renamed from "Re-RinkFloat" in v1.2.3-rf32. The output file is still
+`rinkfloat.vescpkg` so the download link stays the same.)
 
 (Renamed from "Rink-Float" in v1.2.3-rf14. The output file is still
 `rinkfloat.vescpkg` so the download link stays the same.)
@@ -90,7 +96,7 @@ screen, restyled:
   realtime-data rate, with numeric readouts.
 - `imu.yaw` was appended to `RT_DATA_ITEMS` in `src/rt_data.h` (items are
   matched by name, so appending is safe). Yaw is gyro-integrated and drifts.
-- Tron theme on the Board tab: neon green + purple on a dark grid, detailed
+- Neon Future theme on the Board tab: neon green + purple on a dark grid, detailed
   side view (tire tread, hub, fender, rails, bumpers, both footpads) with
   NOSE / TAIL labels, rear view, and top view with heading ticks.
 - Front footpad panel: ADC1 (left half) and ADC2 (right half) light up green
@@ -177,11 +183,11 @@ current and heat, especially at standstill.
   gets stronger as the level drops. Color changes animate over 1.5 s.
   (Replaces the 3-step green/yellow/red from update 6.)
 
-### Tron speedo, TILT slider, big HORN bar (v1.2.3-rf2)
+### Neon Future speedo, TILT slider, big HORN bar (v1.2.3-rf2)
 - Main screen order: battery bar, name row (bigger edit/settings buttons),
-  Tron speedo, footpad + roll | side view, temps/status row, TILT slider,
+  Neon Future speedo, footpad + roll | side view, temps/status row, TILT slider,
   HORN bar, pull-up sheet.
-- `TronSpeedo` component: 40-segment neon arc for speed (green to 70%,
+- `NeonSpeedo` component: 40-segment neon arc for speed (green to 70%,
   purple to 90%, red above, lit segments glow), thin inner duty arc
   (purple, orange >= 80%, red >= 90%), scale labels, big glowing "Exan"
   digits with unit, ERPM and DUTY readouts, WHEELSLIP flash. The current and
@@ -211,7 +217,7 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - App: HORN bar mirrors the budget with a gauge along its bottom edge
   (orange under 1 s), shows WAIT when empty and MAX past the per-press limit.
 
-### Magnetic sheet, Tron tabs (v1.2.3-rf4)
+### Magnetic sheet, Neon Future tabs (v1.2.3-rf4)
 - The pull-up sheet snaps fully up or fully down on release, whichever is
   closer; a tap on the handle toggles between the two.
 - TUNES / CONTROL / DATA tab labels use the "Exan" digital font
@@ -227,7 +233,7 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   flashes). Long-press still flips direction. Saved in
   `swSettings.railStyle`. Display only; no effect on riding.
 
-### Tron front (roll) view (v1.2.3-rf6)
+### Neon Future front (roll) view (v1.2.3-rf6)
 - Redrawn in neon: green tire with tread lines and purple hub, purple nose
   block with a glowing lightbar, a fixed roll scale (ticks every 15 deg)
   with a green pointer. ROLL readout in the Exan font.
@@ -305,3 +311,95 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 ### Battery % (v1.2.3-rf16)
 - Battery % uses the Exan digital font in light purple with a dark outline
   and a neon purple Glow behind it.
+
+### Collapsing sheet, bigger horn (v1.2.3-rf17)
+- The pull-up panel (SUW) collapses all the way down to just the handle
+  bar. It is magnetic: it snaps fully open or fully closed.
+- HORN bar is larger, with a small gap above it.
+- Board name pencil and settings gear restyled as neon round buttons.
+
+### Neon home labels, engine icon, ESC (v1.2.3-rf18)
+- BATTERY AMPS, PITCH, BALANCE, MOTOR, ESC, TRIP and LIFE use the digital
+  speedo font in neon purple. MOTOR is shown as an engine icon,
+  CONTROLLER is now ESC.
+
+### Neon Future makeover (v1.2.3-rf19)
+- Neon digital fonts for CURRENT, DUTY, WH/MI and TILT, neon tabs, and a
+  purple/green MAGIC FLYWHEEL button.
+- TUNES presets are big rounded neon buttons; long-press one to pick its
+  neon color.
+
+### Vertical move slider (v1.2.3-rf20)
+- CONTROL tab slider is vertical: up = forward, down = backward. Works the
+  same as before and springs back to 0.
+
+### Ride peaks, 40 mph speedo (v1.2.3-rf21, rf22)
+- TOP SPEED and MAX DUTY for the ride (long-press to reset).
+- The speedo digits read any speed; the segmented gauge fills up to 40 mph.
+- Peaks ignore wheelslip / free spin so a spinning tire doesn't count.
+
+### ATOM rails (v1.2.3-rf23, rf25)
+- Board Style: ATOM truss rails for the side view, green wheel center kept.
+- rf25 removed the purple fender over the ATOM rails.
+
+### Bigger speedo (v1.2.3-rf24)
+- Larger dial. TRIP and LIFE sit small and see-through inside it; TOP
+  SPEED and MAX DUTY get their own digital boxes in the top corners.
+
+### Side view position, FLIP (v1.2.3-rf26, rf27)
+- Side profile view moved up to line up with the footpad / roll row.
+- Board Style FLIP is back: mirrors the drawing for boards mounted the
+  other way, while the nose always stays on the same side.
+
+### DATA graph / text, neon name and voltage (v1.2.3-rf28 to rf30)
+- DATA tab: GRAPH / TEXT switch (live chart or plain values).
+- Board name in neon green digital font; battery voltage in glowing purple.
+
+### Web simulator, sharper rendering (v1.2.3-rf31)
+- `tools/simulator/index.html`: stand-alone browser simulator of the home
+  screen and panel, kept in step with the package.
+- Package drawings rendered sharper to match the simulator.
+
+### Rename to Re-Float Rink-Mixed (v1.2.3-rf32)
+- New name and RE:FLOAT — RINK-MIXED title strip; the config tab is back
+  to Refloat's own "Refloat Cfg".
+- Rink-Mixed phone app started in `apps/rinkmixed` (Flutter, phase 1:
+  connect + live dashboard).
+
+### Free-spin limiter (v1.2.3-rf33, rf34)
+- CONTROL tab: optional top-speed limit that only acts while the tire is
+  free-spinning (wheelslip). Warning pop-up first; minimum 40 mph
+  (64.3 km/h). A smooth governor holds the tire near the limit instead of
+  stopping it, and normal braking / deceleration always goes through.
+
+### Home layout, °C / °F (v1.2.3-rf35, rf36)
+- WH/MI, BATTERY AMPS, PITCH and BALANCE evenly spaced.
+- Tap the engine icon to switch temperatures between °C and °F.
+
+### Horn out of the box, horn settings (v1.2.3-rf37 to rf39)
+- Horn uses its own minimums (beep 2.5 V, vibrate 8 A) when the Haptic
+  Feedback strengths are lower (Refloat's default Vibrate Strength is 0).
+- HORN SETTINGS in the CONTROL tab, used only for the horn (not for
+  pushback/alerts), with up/down arrows and safe limits.
+- SIMPLE mode (default): STRENGTH, VOLUME, PITCH. ADVANCED mode:
+  beep 0.5-6 V, pitch 300-1000 Hz, buzz 0-15 A, buzz 30-150 Hz.
+
+### Boot melody (v1.2.3-rf40)
+- Plays when the board finishes starting up (READY): pitch 1, 2, 3, half a
+  second each. OFF / DEFAULT / CUSTOM. Horn settings and melody are saved
+  on the board (EEPROM, never written while riding).
+- Volume rescaled: the old 5/10 is now 10/10.
+
+### Custom melody pad (v1.2.3-rf41, rf42)
+- CUSTOM MELODY button opens a half-screen tile keyboard: 10 tiles, pitch
+  1 (low) to 10 (high). Hold a tile to record that note for as long as you
+  hold it. UNDO / CLEAR / PLAY / DONE. Up to 6 notes.
+
+### Longer melodies, tile preview, Neon Future name (v1.2.3-rf43)
+- Melody can be up to 5 s total; each note is at most 2 s, then it ends
+  (a short break is always left between notes).
+- Every tile tap plays its note on the board so you can hear it, even once
+  the melody is full (then it's a preview and isn't recorded). The board
+  only makes sound while idle (READY), and a held tile stops after 2 s.
+- "Tron" renamed to "Neon Future" in the docs, code comments and component
+  names. No look changes.

@@ -43,7 +43,8 @@ typedef enum {
 
 // Re-RinkFloat: melodies are up to 8 notes and 4 s long
 #define MELODY_MAX_NOTES 6
-#define MELODY_MAX_LENGTH 2.5f
+#define MELODY_MAX_LENGTH 5.0f  // whole melody (s)
+#define MELODY_MAX_NOTE 2.0f  // one note / one held tile (s)
 #define MELODY_UNIT 0.02f  // note length unit (s)
 
 // a note is 2 bytes: pitch level 0-10 (0 = rest), length in 20 ms units
@@ -89,6 +90,7 @@ typedef struct {
     volatile uint8_t melody_count;
     volatile uint16_t live_hz;
     volatile time_t live_timer;
+    volatile time_t live_start;
     volatile float live_volume;
     bool live_playing;
 } HapticFeedback;

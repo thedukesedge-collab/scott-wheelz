@@ -117,9 +117,9 @@ class _DashboardState extends State<Dashboard> {
           child: Container(decoration: BoxDecoration(color: col, boxShadow: [BoxShadow(color: col, blurRadius: 8 + (1 - lvl) * 14)]))),
         Positioned.fill(
           child: Row(children: [
-            Expanded(child: Center(child: Text('${fx1(b.vIn)}V', style: tron(0.34 * u, const Color(0xFFD9A6FF), glow: glowOf(Neon.purple, 6))))),
+            Expanded(child: Center(child: Text('${fx1(b.vIn)}V', style: neonText(0.34 * u, const Color(0xFFD9A6FF), glow: glowOf(Neon.purple, 6))))),
             Expanded(child: Center(child: Text(b.batteryLevel.isFinite ? '${(lvl * 100).round()}%' : '--%',
-                style: tron(0.5 * u, const Color(0xFFD9A6FF), glow: glowOf(Neon.purple, 8))))),
+                style: neonText(0.5 * u, const Color(0xFFD9A6FF), glow: glowOf(Neon.purple, 8))))),
             const Expanded(child: SizedBox()),
           ]),
         ),
@@ -135,13 +135,13 @@ class _DashboardState extends State<Dashboard> {
         child: Row(children: [
           Expanded(
             child: Text(b.prefs.boardName, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: tron(0.5 * u, Neon.green, spacing: 0.03 * u, glow: glowOf(Neon.green.withOpacity(0.55), 8))),
+                style: neonText(0.5 * u, Neon.green, spacing: 0.03 * u, glow: glowOf(Neon.green.withOpacity(0.55), 8))),
           ),
-          TronIconButton(path: pencilPath, size: 0.9 * u, onTap: () async {
+          NeonIconButton(path: pencilPath, size: 0.9 * u, onTap: () async {
             final name = await askText(context, 'BOARD NAME', b.prefs.boardName);
             if (name != null && name.isNotEmpty) b.prefs.boardName = name;
           }),
-          TronIconButton(path: gearPath, size: 0.9 * u, onTap: () => _settings(context)),
+          NeonIconButton(path: gearPath, size: 0.9 * u, onTap: () => _settings(context)),
         ]),
       ),
     );
@@ -156,7 +156,7 @@ class _DashboardState extends State<Dashboard> {
         return Padding(
           padding: const EdgeInsets.all(16),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('SETTINGS', style: tron(16, Neon.mint)),
+            Text('SETTINGS', style: neonText(16, Neon.mint)),
             const SizedBox(height: 12),
             Text('Speed dial max: ${p.dialMax} ${b.speedUnit}', style: const TextStyle(color: Neon.text)),
             Slider(value: p.dialMax.toDouble(), min: 20, max: 80, divisions: 12, activeColor: Neon.green,
@@ -195,8 +195,8 @@ class _DashboardState extends State<Dashboard> {
               boxShadow: [BoxShadow(color: (warn ? Neon.red : Neon.purple).withOpacity(0.45), blurRadius: 8)],
             ),
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              FittedBox(child: Text(value, style: tron(0.4 * u, warn ? Neon.red : Neon.green))),
-              Text(label, style: tron(0.18 * u, Neon.lav)),
+              FittedBox(child: Text(value, style: neonText(0.4 * u, warn ? Neon.red : Neon.green))),
+              Text(label, style: neonText(0.18 * u, Neon.lav)),
             ]),
           ),
         );
@@ -214,7 +214,7 @@ class _DashboardState extends State<Dashboard> {
     final tw = 1.4 * u;
     final battA = b.v('motor.batt_current');
     Widget stat(String value, String label, Color vc) => Column(mainAxisSize: MainAxisSize.min, children: [
-          FittedBox(child: Text(value, style: tron(0.4 * u, vc))),
+          FittedBox(child: Text(value, style: neonText(0.4 * u, vc))),
           NeonLabel(label, size: 0.27 * u),
         ]);
     return Stack(clipBehavior: Clip.none, children: [
@@ -223,8 +223,8 @@ class _DashboardState extends State<Dashboard> {
       Positioned(left: 0, bottom: 0.1 * u, width: 1.3 * u, child: stat(fx1(b.whPerDist), 'WH/${b.distUnit.toUpperCase()}', Neon.lavLight)),
       Positioned(left: 1.3 * u, bottom: 0, width: halfW - 1.3 * u, child: Column(mainAxisSize: MainAxisSize.min, children: [
         Text.rich(TextSpan(children: [
-          TextSpan(text: fx1(battA), style: tron(0.4 * u, Neon.lavLight)),
-          TextSpan(text: ' A', style: tron(0.27 * u, Neon.lav)),
+          TextSpan(text: fx1(battA), style: neonText(0.4 * u, Neon.lavLight)),
+          TextSpan(text: ' A', style: neonText(0.27 * u, Neon.lav)),
         ])),
         SizedBox(height: 0.06 * u),
         SizedBox(width: 2.8 * u, height: 0.14 * u, child: CustomPaint(painter: _BarPainter(battA.isFinite ? battA / 60 : 0))),
@@ -254,16 +254,16 @@ class _DashboardState extends State<Dashboard> {
         behavior: HitTestBehavior.opaque,
         onTap: () => b.prefs.tempF = !f,
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          FittedBox(child: Text(t(mt), style: tron(0.4 * u, mWarn ? Neon.red : Neon.lavLight))),
+          FittedBox(child: Text(t(mt), style: neonText(0.4 * u, mWarn ? Neon.red : Neon.lavLight))),
           SizedBox(width: 0.75 * u, height: 0.55 * u, child: CustomPaint(painter: IconPainter(enginePath, mWarn ? Neon.red : Neon.lav, box: 48, lineWidth: 3))),
         ]),
       )),
       Positioned(right: 0, top: 0, bottom: 0, width: 1.7 * u, child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        FittedBox(child: Text(t(et), style: tron(0.4 * u, eWarn ? Neon.red : Neon.lavLight))),
+        FittedBox(child: Text(t(et), style: neonText(0.4 * u, eWarn ? Neon.red : Neon.lavLight))),
         NeonLabel('ESC', size: 0.3 * u),
       ])),
       Positioned(left: 1.9 * u, right: 1.9 * u, top: 0, bottom: 0, child: Center(child: FittedBox(
-        child: Text(_status(), style: tron(0.42 * u, Neon.mint, glow: glowOf(Neon.green, 8))),
+        child: Text(_status(), style: neonText(0.42 * u, Neon.mint, glow: glowOf(Neon.green, 8))),
       ))),
     ]);
   }
@@ -306,7 +306,7 @@ class _DashboardState extends State<Dashboard> {
           onHeld: b.setTiltHeld,
         )),
         SizedBox(width: 1.5 * u, child: Text('${deg > 0 ? '+' : ''}${deg.toStringAsFixed(1)}°', textAlign: TextAlign.right,
-            style: tron(0.36 * u, on ? Neon.green : Neon.lavLight))),
+            style: neonText(0.36 * u, on ? Neon.green : Neon.lavLight))),
       ]),
     );
   }
@@ -377,7 +377,7 @@ class HornButton extends StatelessWidget {
             boxShadow: [BoxShadow(color: Neon.purple.withOpacity(honk ? 0.9 : 0.3), blurRadius: 0.25 * u * 2)],
           ),
           child: Stack(children: [
-            Center(child: Text(label, style: tron(0.75 * u, honk ? Neon.bg : Neon.purple, spacing: 0.2 * u))),
+            Center(child: Text(label, style: neonText(0.75 * u, honk ? Neon.bg : Neon.purple, spacing: 0.2 * u))),
             Positioned(
               left: 0.3 * u, bottom: 0.12 * u,
               child: Opacity(

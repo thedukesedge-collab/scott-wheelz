@@ -1,4 +1,4 @@
-// Small shared widgets: neon texts, spring-back sliders, tron buttons.
+// Small shared widgets: neon texts, spring-back sliders, neon buttons.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -17,21 +17,21 @@ class NeonLabel extends StatelessWidget {
   Widget build(BuildContext context) => FittedBox(
         fit: BoxFit.scaleDown,
         alignment: align == TextAlign.left ? Alignment.centerLeft : Alignment.center,
-        child: Text(text, textAlign: align, maxLines: 1, softWrap: false, style: tron(size, color)),
+        child: Text(text, textAlign: align, maxLines: 1, softWrap: false, style: neonText(size, color)),
       );
 }
 
-class TronIconButton extends StatefulWidget {
-  const TronIconButton({super.key, required this.path, required this.size, required this.onTap});
+class NeonIconButton extends StatefulWidget {
+  const NeonIconButton({super.key, required this.path, required this.size, required this.onTap});
   final Path path;
   final double size;
   final VoidCallback onTap;
 
   @override
-  State<TronIconButton> createState() => _TronIconButtonState();
+  State<NeonIconButton> createState() => _NeonIconButtonState();
 }
 
-class _TronIconButtonState extends State<TronIconButton> {
+class _NeonIconButtonState extends State<NeonIconButton> {
   bool down = false;
 
   @override
@@ -182,7 +182,7 @@ class Pill extends StatelessWidget {
             border: Border.all(color: on ? Neon.green : Neon.purple, width: 2),
             borderRadius: BorderRadius.circular(99),
           ),
-          child: Text(text, style: tron(11, on ? Neon.bg : Neon.purple)),
+          child: Text(text, style: neonText(11, on ? Neon.bg : Neon.purple)),
         ),
       );
 }
@@ -194,11 +194,11 @@ Future<String?> askText(BuildContext context, String title, String initial) {
     builder: (ctx) => AlertDialog(
       backgroundColor: Neon.panel,
       shape: RoundedRectangleBorder(side: const BorderSide(color: Neon.purple, width: 2), borderRadius: BorderRadius.circular(10)),
-      title: Text(title, style: tron(15, Neon.mint)),
+      title: Text(title, style: neonText(15, Neon.mint)),
       content: TextField(controller: ctl, autofocus: true, maxLength: 20, style: const TextStyle(color: Neon.mint)),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: Text('CANCEL', style: tron(11, Neon.lav))),
-        TextButton(onPressed: () => Navigator.pop(ctx, ctl.text.trim()), child: Text('SAVE', style: tron(11, Neon.green))),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text('CANCEL', style: neonText(11, Neon.lav))),
+        TextButton(onPressed: () => Navigator.pop(ctx, ctl.text.trim()), child: Text('SAVE', style: neonText(11, Neon.green))),
       ],
     ),
   );

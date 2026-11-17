@@ -15,7 +15,7 @@
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; touch-action: none; }
   body { font-family: -apple-system, system-ui, Roboto, sans-serif; color: var(--text); user-select: none; -webkit-user-select: none; }
   #phone { position: relative; margin: 0 auto; height: 100%; max-width: 430px; background: #0b0b0b; overflow: hidden; }
-  .tron { font-family: Orbitron, monospace; }
+  .nf { font-family: Orbitron, monospace; }
   .abs { position: absolute; }
   canvas { display: block; }
   #mainBg { position: absolute; left: 5px; top: 5px; border: 1px solid var(--purple); border-radius: 4px; background-color: var(--bg); }
@@ -28,10 +28,10 @@
   #battV { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: #d9a6ff; font-family: Orbitron, monospace; font-weight: 700; text-shadow: 0 0 6px var(--purple), 0 0 12px var(--purple), 0 0 2px #12051f; z-index: 2; }
   #nameRow { display: flex; align-items: center; flex: none; }
   #boardName { flex: 1; color: var(--green); font-family: Orbitron, monospace; font-weight: 700; letter-spacing: .03em; text-shadow: 0 0 1px #0f5a2c, 0 0 8px rgba(57,255,122,.55); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .tronBtn { border-radius: 50%; border: 2px solid var(--purple); background: var(--bg); box-shadow: 0 0 8px rgba(177,76,255,.6); display: flex; align-items: center; justify-content: center; margin-left: 4px; cursor: pointer; }
-  .tronBtn:active { background: var(--purple); }
-  .tronBtn svg { filter: drop-shadow(0 0 3px var(--green)); }
-  .tronBtn:active svg path, .tronBtn:active svg circle { stroke: var(--bg); }
+  .neonBtn { border-radius: 50%; border: 2px solid var(--purple); background: var(--bg); box-shadow: 0 0 8px rgba(177,76,255,.6); display: flex; align-items: center; justify-content: center; margin-left: 4px; cursor: pointer; }
+  .neonBtn:active { background: var(--purple); }
+  .neonBtn svg { filter: drop-shadow(0 0 3px var(--green)); }
+  .neonBtn:active svg path, .neonBtn:active svg circle { stroke: var(--bg); }
   #speedoWrap { position: relative; flex: none; }
   .peak { position: absolute; top: 0; border: 2px solid var(--purple); border-radius: 5px; background: #0b0718; box-shadow: 0 0 8px rgba(177,76,255,.5); text-align: center; cursor: pointer; }
   .peak .v { color: var(--green); text-shadow: 0 0 1px #0f5a2c, 0 0 6px rgba(57,255,122,.6); white-space: nowrap; }
@@ -145,17 +145,17 @@
 <div id="phone">
   <div id="mainBg" class="gridbg"></div>
   <div id="hud">
-    <div id="batt"><div id="battFill"></div><div id="battV"></div><div id="battPct" class="tron"></div></div>
+    <div id="batt"><div id="battFill"></div><div id="battV"></div><div id="battPct" class="nf"></div></div>
     <div id="nameRow">
       <div id="boardName"></div>
-      <div class="tronBtn" id="btnEdit"><svg viewBox="0 0 50 50"><path d="M 10.59 24 L 17.63 32.42 L 6 35 L 10.59 24 M 10.59 24 L 34.39 4 L 41.49 12.42 L 17.69 32.42 M 4 42 L 46 42" fill="none" stroke="#39ff7a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-      <div class="tronBtn" id="btnSettings"><svg viewBox="0 0 50 50"><path d="M 14.25 37.81 L 10.59 39.42 A 3 3 0 0 1 6.98 38.47 A 22.5 22.5 0 0 1 4.32 33.87 A 3 3 0 0 1 5.30 30.27 L 8.53 27.9 A 3.6 3.6 0 0 0 8.53 22.1 L 5.30 19.73 A 3 3 0 0 1 4.32 16.13 A 22.5 22.5 0 0 1 6.98 11.53 A 3 3 0 0 1 10.59 10.58 L 14.25 12.19 A 3.6 3.6 0 0 0 19.28 9.29 L 19.79 5.31 A 3 3 0 0 1 22.35 2.66 A 22.5 22.5 0 0 1 27.65 2.66 A 3 3 0 0 1 30.28 5.31 L 30.72 9.29 A 3.6 3.6 0 0 0 35.75 12.19 L 39.41 10.58 A 3 3 0 0 1 43.02 11.53 A 22.5 22.5 0 0 1 45.67 16.13 A 3 3 0 0 1 44.7 19.73 L 41.47 22.1 A 3.6 3.6 0 0 0 41.47 27.9 L 44.7 30.27 A 3 3 0 0 1 45.68 33.87 A 22.5 22.5 0 0 1 43.02 38.47 A 3 3 0 0 1 39.41 39.42 L 35.75 37.81 A 3.6 3.6 0 0 0 30.72 40.71 L 30.28 44.69 A 3 3 0 0 1 27.65 47.34 A 22.5 22.5 0 0 1 22.35 47.34 A 3 3 0 0 1 19.72 44.69 L 19.28 40.71 A 3.6 3.6 0 0 0 14.25 37.81" fill="none" stroke="#39ff7a" stroke-width="3" stroke-linejoin="round"/><circle cx="25" cy="25" r="6.5" fill="none" stroke="#39ff7a" stroke-width="3"/></svg></div>
+      <div class="neonBtn" id="btnEdit"><svg viewBox="0 0 50 50"><path d="M 10.59 24 L 17.63 32.42 L 6 35 L 10.59 24 M 10.59 24 L 34.39 4 L 41.49 12.42 L 17.69 32.42 M 4 42 L 46 42" fill="none" stroke="#39ff7a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="neonBtn" id="btnSettings"><svg viewBox="0 0 50 50"><path d="M 14.25 37.81 L 10.59 39.42 A 3 3 0 0 1 6.98 38.47 A 22.5 22.5 0 0 1 4.32 33.87 A 3 3 0 0 1 5.30 30.27 L 8.53 27.9 A 3.6 3.6 0 0 0 8.53 22.1 L 5.30 19.73 A 3 3 0 0 1 4.32 16.13 A 22.5 22.5 0 0 1 6.98 11.53 A 3 3 0 0 1 10.59 10.58 L 14.25 12.19 A 3.6 3.6 0 0 0 19.28 9.29 L 19.79 5.31 A 3 3 0 0 1 22.35 2.66 A 22.5 22.5 0 0 1 27.65 2.66 A 3 3 0 0 1 30.28 5.31 L 30.72 9.29 A 3.6 3.6 0 0 0 35.75 12.19 L 39.41 10.58 A 3 3 0 0 1 43.02 11.53 A 22.5 22.5 0 0 1 45.67 16.13 A 3 3 0 0 1 44.7 19.73 L 41.47 22.1 A 3.6 3.6 0 0 0 41.47 27.9 L 44.7 30.27 A 3 3 0 0 1 45.68 33.87 A 22.5 22.5 0 0 1 43.02 38.47 A 3 3 0 0 1 39.41 39.42 L 35.75 37.81 A 3.6 3.6 0 0 0 30.72 40.71 L 30.28 44.69 A 3 3 0 0 1 27.65 47.34 A 22.5 22.5 0 0 1 22.35 47.34 A 3 3 0 0 1 19.72 44.69 L 19.28 40.71 A 3.6 3.6 0 0 0 14.25 37.81" fill="none" stroke="#39ff7a" stroke-width="3" stroke-linejoin="round"/><circle cx="25" cy="25" r="6.5" fill="none" stroke="#39ff7a" stroke-width="3"/></svg></div>
     </div>
     <div class="spacer"></div>
     <div id="speedoWrap">
       <canvas id="speedo"></canvas>
-      <div class="peak tron" id="pkSpeed"><div class="v"></div><div class="l">TOP SPEED</div></div>
-      <div class="peak tron" id="pkDuty"><div class="v"></div><div class="l">MAX DUTY</div></div>
+      <div class="peak nf" id="pkSpeed"><div class="v"></div><div class="l">TOP SPEED</div></div>
+      <div class="peak nf" id="pkDuty"><div class="v"></div><div class="l">MAX DUTY</div></div>
     </div>
     <div class="spacer"></div>
     <div id="hudRow">
@@ -171,7 +171,7 @@
     <div class="spacer"></div>
     <div id="midRow">
       <div class="abs" id="motorStat" style="text-align:center"><div class="neonV" id="motorV"></div><svg id="engine" viewBox="0 0 48 48"><path d="M14 8 L14 12 L20 12 L20 16 L14 16 L10 20 L10 26 L6 26 L6 20 L2 20 L2 36 L6 36 L6 30 L10 30 L10 36 L16 36 L20 40 L36 40 L36 32 L40 32 L40 38 L46 38 L46 18 L40 18 L40 24 L36 24 L36 16 L24 16 L24 12 L30 12 L30 8 Z" fill="none" stroke="#c98bff" stroke-width="3" stroke-linejoin="round"/></svg></div>
-      <div id="status" class="tron"></div>
+      <div id="status" class="nf"></div>
       <div class="abs" id="escStat" style="text-align:center"><div class="neonV" id="escV"></div><div class="neonL">ESC</div></div>
     </div>
     <div id="tiltRow">
@@ -179,7 +179,7 @@
       <div id="tiltTrack"><div class="bar"></div><div class="fill" id="tiltFill"></div><div id="tiltKnob"></div></div>
       <div class="neonV" id="tiltV" style="text-align:right"></div>
     </div>
-    <div id="horn"><div id="hornText" class="tron">HORN</div><div id="hornGauge"></div></div>
+    <div id="horn"><div id="hornText" class="nf">HORN</div><div id="hornGauge"></div></div>
   </div>
 
   <div id="sheet" class="gridbg anim">
@@ -227,7 +227,7 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver" class="tron"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf42 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf43 · sim</span></div>
     </div>
   </div>
 
@@ -237,7 +237,7 @@
     <div id="padLine" style="height:22px;background:#140a26;border:1px solid #3d2266;border-radius:4px;display:flex;gap:2px;padding:2px;overflow:hidden"></div>
     <div id="padTiles" style="flex:1;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:1fr 1fr;gap:8px"></div>
     <div class="pills"><div class="pill" id="padUndo">UNDO</div><div class="pill" id="padClear">CLEAR</div><div class="pill" id="padPlay">PLAY</div><div class="pill on" id="padDone">DONE</div></div>
-    <div id="padHint" style="text-align:center;font-size:11px;color:var(--text)">Hold a tile to play and record that note. DONE sets it as your boot melody.</div>
+    <div id="padHint" style="text-align:center;font-size:11px;color:var(--text)">Tap or hold a tile to hear its note and record it (2 s max per note). DONE sets it as your boot melody.</div>
   </div>
   <div class="modalBack" id="modal"><div class="modal" id="modalBox"></div></div>
   <div id="toast"></div>
@@ -638,7 +638,7 @@ function renderMelody() {
 $('melTest').onclick = () => { if (S.mode !== 'ready') { toast('Melody test works when the board is idle (READY)'); return; } playMelody(P.hBootCustom && P.rec.length ? P.rec : null); toast('Playing boot melody'); };
 
 // ---------- CUSTOM MELODY pad ----------
-const PAD_MAX_N = 6, PAD_MAX_MS = 2500;
+const PAD_MAX_N = 6, PAD_MAX_MS = 5000, PAD_NOTE_MS = 2000;
 const padTotal = () => P.rec.reduce((a, n) => a + n[1], 0);
 const tileCol = l => { const f = (l - 1) / 9; return 'rgb(' + Math.round(177 * (1 - f) + 57 * f) + ',' + Math.round(76 * (1 - f) + 255 * f) + ',' + Math.round(255 * (1 - f) + 122 * f) + ')'; };
 let hold = null, liveOsc = null;
@@ -653,38 +653,39 @@ function liveStart(level) {
 function liveStop() { try { if (liveOsc) liveOsc.stop(); } catch (e) {} liveOsc = null; }
 function padFull() { return P.rec.length >= PAD_MAX_N || padTotal() >= PAD_MAX_MS - 40; }
 function renderPad() {
-  const held = hold ? Math.min(Date.now() - hold.t, PAD_MAX_MS - padTotal()) : 0;
-  $('padInfo').textContent = (P.rec.length + (hold ? 1 : 0)) + '/6  ' + ((padTotal() + held) / 1000).toFixed(1) + ' s / 2.5 s';
+  const rec = hold && !hold.preview;
+  const held = rec ? Math.min(Date.now() - hold.t, PAD_NOTE_MS, PAD_MAX_MS - padTotal()) : 0;
+  $('padInfo').textContent = (P.rec.length + (rec ? 1 : 0)) + '/6  ' + ((padTotal() + held) / 1000).toFixed(1) + ' s / 5 s  (2 s max per note)';
   $('padInfo').style.color = padFull() ? 'var(--orange)' : 'var(--lav)';
   const line = $('padLine'); line.innerHTML = '';
   const W = line.clientWidth - 4;
-  P.rec.concat(hold ? [[hold.l, held]] : []).forEach(([l, ms], k) => {
+  P.rec.concat(rec ? [[hold.l, held]] : []).forEach(([l, ms], k) => {
     const b = document.createElement('div');
-    b.style.cssText = 'height:100%;border-radius:3px;font:700 10px Orbitron,monospace;color:#05060d;display:flex;align-items:center;justify-content:center;background:' + tileCol(l) + ';width:' + Math.max(3, W * ms / PAD_MAX_MS - 2) + 'px;opacity:' + (hold && k === P.rec.length ? 0.7 : 1);
+    b.style.cssText = 'height:100%;border-radius:3px;font:700 10px Orbitron,monospace;color:#05060d;display:flex;align-items:center;justify-content:center;background:' + tileCol(l) + ';width:' + Math.max(3, W * ms / PAD_MAX_MS - 2) + 'px;opacity:' + (rec && k === P.rec.length ? 0.7 : 1);
     b.textContent = W * ms / PAD_MAX_MS > 16 ? l : ''; line.appendChild(b);
   });
   document.querySelectorAll('#padTiles .tile').forEach(t => {
     const l = +t.dataset.l, on = hold && hold.l === l;
     t.style.background = on ? tileCol(l) : '#140a26'; t.style.color = on ? '#05060d' : tileCol(l);
-    t.style.opacity = padFull() && !on ? 0.4 : 1;
+    t.style.opacity = padFull() && !on ? 0.6 : 1;
   });
-  $('padHint').textContent = S.mode === 'ready' ? 'Hold a tile to play and record that note. DONE sets it as your boot melody.' : 'The board plays notes only when idle (READY); you can still record.';
+  $('padHint').textContent = padFull() ? 'Melody full: tiles still play their note as a preview. UNDO or CLEAR to record more.' : S.mode === 'ready' ? 'Tap or hold a tile to hear its note and record it (2 s max per note). DONE sets it as your boot melody.' : 'The board plays notes only when idle (READY); you can still record.';
 }
 for (let l = 1; l <= 10; l++) {
   const t = document.createElement('div'); t.className = 'tile'; t.dataset.l = l; t.textContent = l;
   t.style.cssText = 'border:3px solid ' + tileCol(l) + ';border-radius:12px;display:flex;align-items:center;justify-content:center;font:700 22px Orbitron,monospace;touch-action:none;user-select:none;cursor:pointer';
   t.addEventListener('pointerdown', e => {
-    e.preventDefault(); if (padFull()) { toast('Melody is full (6 notes / 2.5 s)'); return; }
-    t.setPointerCapture(e.pointerId); hold = { l, t: Date.now() }; if (S.mode === 'ready') liveStart(l);
-    const tick = () => { if (!hold) return; if (padTotal() + Date.now() - hold.t >= PAD_MAX_MS) { padRelease(); return; } renderPad(); hold.raf = requestAnimationFrame(tick); }; tick();
+    e.preventDefault(); padRelease(); const preview = padFull(); if (preview) toast('Melody is full (6 notes / 5 s): preview only');
+    t.setPointerCapture(e.pointerId); hold = { l, t: Date.now(), preview }; if (S.mode === 'ready') liveStart(l);
+    const tick = () => { if (!hold) return; const ms = Date.now() - hold.t; if (ms >= PAD_NOTE_MS || (!hold.preview && padTotal() + ms >= PAD_MAX_MS)) { padRelease(); return; } renderPad(); hold.raf = requestAnimationFrame(tick); }; tick();
   });
   t.addEventListener('pointerup', padRelease); t.addEventListener('pointercancel', padRelease);
   $('padTiles').appendChild(t);
 }
 function padRelease() {
   if (!hold) return; liveStop();
-  const ms = Math.min(Date.now() - hold.t, PAD_MAX_MS - padTotal());
-  if (ms >= 40) P.rec = P.rec.concat([[hold.l, Math.max(60, Math.round(ms / 20) * 20)]]);
+  const ms = Math.min(Date.now() - hold.t, PAD_NOTE_MS, PAD_MAX_MS - padTotal());
+  if (!hold.preview && ms >= 40) P.rec = P.rec.concat([[hold.l, Math.max(60, Math.round(ms / 20) * 20)]]);
   hold = null; save(); renderPad();
 }
 function padOpen(on) { $('pad').style.display = on ? 'flex' : 'none'; $('padBack').style.display = on ? 'block' : 'none'; if (on) renderPad(); else padRelease(); }

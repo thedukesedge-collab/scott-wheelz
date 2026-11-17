@@ -105,26 +105,26 @@ class _ScanScreenState extends State<ScanScreen> {
           padding: const EdgeInsets.all(18),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             const SizedBox(height: 20),
-            Center(child: Text.rich(TextSpan(style: tron(34, Neon.lavLight), children: const [
+            Center(child: Text.rich(TextSpan(style: neonText(34, Neon.lavLight), children: const [
               TextSpan(text: 'RE:', style: TextStyle(color: Neon.purple)),
               TextSpan(text: 'FLOAT'),
             ]))),
             const SizedBox(height: 10),
             Row(children: [
               Expanded(child: Container(height: 2, color: Neon.purple)),
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text('RINK-MIXED', style: tron(18, Neon.green))),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text('RINK-MIXED', style: neonText(18, Neon.green))),
               Expanded(child: Container(height: 2, color: Neon.purple)),
             ]),
             const SizedBox(height: 8),
-            Center(child: Text('A CUSTOM REFLOAT REMIX', style: tron(11, Neon.dim, weight: 500, spacing: 1))),
+            Center(child: Text('A CUSTOM REFLOAT REMIX', style: neonText(11, Neon.dim, weight: 500, spacing: 1))),
             const SizedBox(height: 28),
             Row(children: [
-              Text('BOARDS', style: tron(13, Neon.lav)),
+              Text('BOARDS', style: neonText(13, Neon.lav)),
               const Spacer(),
               if (scanning) const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Neon.green)),
               TextButton(
                 onPressed: adapter == BluetoothAdapterState.on && !scanning ? _scan : null,
-                child: Text('SCAN', style: tron(12, Neon.green)),
+                child: Text('SCAN', style: neonText(12, Neon.green)),
               ),
             ]),
             if (adapter != BluetoothAdapterState.on && adapter != BluetoothAdapterState.unknown)
@@ -148,11 +148,11 @@ class _ScanScreenState extends State<ScanScreen> {
                           ),
                           child: ListTile(
                             title: Text(r.advertisementData.advName.isNotEmpty ? r.advertisementData.advName : r.device.platformName,
-                                style: tron(14, Neon.mint)),
+                                style: neonText(14, Neon.mint)),
                             subtitle: Text('${r.device.remoteId.str}   ${r.rssi} dBm', style: const TextStyle(color: Neon.dim, fontSize: 11)),
                             trailing: connectingId == r.device.remoteId.str
                                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Neon.green))
-                                : Text('CONNECT', style: tron(11, Neon.green)),
+                                : Text('CONNECT', style: neonText(11, Neon.green)),
                             onTap: () => _connect(r.device),
                           ),
                         ),
@@ -161,7 +161,7 @@ class _ScanScreenState extends State<ScanScreen> {
             OutlinedButton(
               style: OutlinedButton.styleFrom(side: const BorderSide(color: Neon.purple, width: 2), padding: const EdgeInsets.all(14)),
               onPressed: () => widget.onLink(DemoLink()),
-              child: Text('TRY THE DEMO BOARD', style: tron(13, Neon.purple)),
+              child: Text('TRY THE DEMO BOARD', style: neonText(13, Neon.purple)),
             ),
           ]),
         ),

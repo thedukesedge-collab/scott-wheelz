@@ -25,7 +25,7 @@ class Neon {
 }
 
 /// The digital font used everywhere (Orbitron, bundled).
-TextStyle tron(double size, Color color, {double weight = 700, double spacing = 0, List<Shadow>? glow}) {
+TextStyle neonText(double size, Color color, {double weight = 700, double spacing = 0, List<Shadow>? glow}) {
   return TextStyle(
     fontFamily: 'Orbitron',
     fontSize: size,

@@ -71,6 +71,7 @@ void haptic_feedback_init(HapticFeedback *hf) {
     hf->horn_custom = false;
     hf->melody_active = false;
     hf->live_hz = 0;
+    hf->live_start = 0;
     hf->live_playing = false;
 }
 
@@ -102,6 +103,7 @@ void haptic_feedback_play_melody(
         if (len <= 0.0f) {
             break;
         }
+        len = fminf(len, MELODY_MAX_NOTE);
         len = fminf(len, MELODY_MAX_LENGTH - total);
         if (len < 0.04f) {
             break;
@@ -121,8 +123,13 @@ void haptic_feedback_play_melody(
 }
 
 void haptic_feedback_live_tone(HapticFeedback *hf, const Time *time, uint8_t level, float volume) {
+    uint16_t hz = melody_level_hz(level);
+    // a new note (different tile, or after a stop / timeout) restarts the 2 s cap
+    if (hz != hf->live_hz || timer_older(time, hf->live_timer, 0.3f)) {
+        hf->live_start = time->now;
+    }
     hf->live_volume = clampf(volume, 0.5f, 6.0f);
-    hf->live_hz = melody_level_hz(level);
+    hf->live_hz = hz;
     hf->live_timer = time->now;
 }
 
@@ -342,15 +349,18 @@ void haptic_feedback_update(
     }
 
     // Re-RinkFloat: live tone from the melody tiles (READY only)
-    bool live =
-        hf->live_hz > 0 && state->state == STATE_READY && !timer_older(time, hf->live_timer, 0.3f);
+    // (a single held tile sounds for at most MELODY_MAX_NOTE)
+    bool live = hf->live_hz > 0 && state->state == STATE_READY &&
+        !timer_older(time, hf->live_timer, 0.3f) &&
+        !timer_older(time, hf->live_start, MELODY_MAX_NOTE);
     if (live) {
         foc_play_tone(0, hf->live_hz, hf->live_volume);
         hf->live_playing = true;
         return;
     } else if (hf->live_playing) {
+        // live_hz is kept so further keepalives of the same held tile
+        // stay silent after the 2 s cap; a stop or a new tile clears it
         hf->live_playing = false;
-        hf->live_hz = 0;
         foc_play_tone(0, 1, 0.0f);
         hf->is_playing = false;
         hf->type_playing = HAPTIC_FEEDBACK_NONE;
