@@ -3527,7 +3527,9 @@ Item {
         Layout.fillWidth: true
         Layout.leftMargin: 0.1 * unit
         Layout.rightMargin: 0.1 * unit
-        implicitHeight: scardCol.implicitHeight + 0.5 * unit
+        // delayed: the wrapped texts' height depends on the card's width,
+        // which the layout sets - a direct binding loops
+        Binding on implicitHeight { value: scardCol.implicitHeight + 0.5 * unit; delayed: true }
         radius: 0.22 * unit
         color: "#100a24"
         border.color: "#3a2266"
