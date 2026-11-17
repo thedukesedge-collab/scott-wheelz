@@ -69,14 +69,14 @@ void lcm_configure(LcmData *lcm, const Leds *leds) {
 }
 
 void lcm_poll_request(LcmData *lcm, uint8_t *buffer, size_t len) {
-    if (!lcm->enabled) {
-        return;
-    }
+    // Re-Float Rink-Mixed: the name is kept whatever the LED mode (the app
+    // uses it to tell which LCM firmware is fitted: "VPBL-..." = ALCM VP
+    // with the bootloader), and `i >= len` (stock read one byte past it)
 
     // Optionally pass in LCM name and version in a single string
     if (len > 0) {
         for (size_t i = 0; i < MAX_LCM_NAME_LENGTH; i++) {
-            if (i > len || i > MAX_LCM_NAME_LENGTH - 1 || buffer[i] == '\0') {
+            if (i >= len || i > MAX_LCM_NAME_LENGTH - 1 || buffer[i] == '\0') {
                 lcm->name[i] = '\0';
                 break;
             }
@@ -198,8 +198,9 @@ void lcm_device_info_response(const LcmData *lcm) {
     buffer[ind++] = 101;  // Package ID
     buffer[ind++] = COMMAND_LCM_DEVICE_INFO;
 
-    if (lcm->enabled) {
-        // Write LCM firmware name into the buffer
+    {
+        // Write LCM firmware name into the buffer (Re-Float Rink-Mixed:
+        // whatever the LED mode, "" when no LCM has named itself)
         for (int i = 0; i < MAX_LCM_NAME_LENGTH; i++) {
             buffer[ind++] = lcm->name[i];
             if (lcm->name[i] == '\0') {

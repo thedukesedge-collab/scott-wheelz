@@ -39,7 +39,7 @@ typedef enum {
     LCM_FW_ERR_NONE = 0,
     LCM_FW_ERR_RUNNING = 1,  // board running: not started
     LCM_FW_ERR_BAD_IMAGE = 2,  // size not whole pages / too big
-    LCM_FW_ERR_NO_BOOTLOADER = 3,  // the LCM never asked for pages
+    LCM_FW_ERR_NO_BOOTLOADER = 3,  // the LCM has no bootloader / never asked for pages
     LCM_FW_ERR_LCM_GAVE_UP = 4,  // bootloader: nothing came, back to the old app
     LCM_FW_ERR_CRC = 5,  // bootloader: image CRC mismatch (it retries)
 } LcmFwError;
@@ -55,14 +55,34 @@ typedef struct {
     bool page_ok[2];
     uint8_t page[2][LCM_FW_PAGE];
     time_t staged_time;
+    bool bl_seen;  // a bootloader asked for a page...
+    time_t bl_seen_time;  // ...last at this time
 } LcmFw;
+
+// STATUS flags
+#define LCM_FW_FLAG_BL_ACTIVE 0x01  // a bootloader asked for a page in the last few seconds
+#define LCM_FW_FLAG_CAPABLE 0x02  // the LCM named itself "VPBL-..." (has the bootloader)
+#define LCM_FW_BL_RECENT_S 5.0f
 
 void lcm_fw_init(LcmFw *fw);
 
 // All sub-commands of COMMAND_LCM_FW, from the phone or the LCM bootloader;
 // replies right away (the VESC sends a reply back on the interface the
 // command came in on). `buf` starts after the package id and command.
-void lcm_fw_command(LcmFw *fw, const State *state, const Time *time, const uint8_t *buf, int len);
+//
+// Fail-safe: START is refused (LCM_FW_ERR_NO_BOOTLOADER) unless the LCM
+// named itself as an ALCM VP build with the bootloader (`has_bootloader`,
+// its poll name starts with "VPBL") or a bootloader is asking for pages
+// right now (recovery after an interrupted update). An LCM without the
+// bootloader is never sent the update flag.
+void lcm_fw_command(
+    LcmFw *fw,
+    const State *state,
+    const Time *time,
+    bool has_bootloader,
+    const uint8_t *buf,
+    int len
+);
 
 // True while the VP block should carry the update flag (staged, board not
 // running). Also times out a staged update the LCM never picks up.

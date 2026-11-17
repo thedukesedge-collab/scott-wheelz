@@ -41,7 +41,7 @@ jobs:
         run: |
           make -C lcm/alcm/gcc VP=1 BL=1
           python3 lcm/tools/lcm_images.py lcm/bootloader/build/lcm_bootloader.hex \
-            lcm/alcm/gcc/build/ALCM_VP_BL_app.hex lcm/alcm/gcc/build "$(git rev-parse --short HEAD)"
+            lcm/alcm/gcc/build/ALCM_VP_BL_app.hex lcm/alcm/gcc/build "$(git rev-parse --short=7 HEAD:lcm/alcm)"
           ls -la lcm/alcm/gcc/build/ALCM_VP_BL_full.hex lcm/alcm/gcc/build/ALCM_VP_app.bin
           # the app's own .hex parser (ui.qml.in) must produce the same update image
           node tools/hexparse/test.js ui.qml.in lcm/alcm/gcc/build/

@@ -25,10 +25,14 @@ void lcm_fw_init(LcmFw *fw) {
     memset(fw, 0, sizeof(*fw));
 }
 
+static bool bl_active(const LcmFw *fw, const Time *time) {
+    return fw->bl_seen && !timer_older(time, fw->bl_seen_time, LCM_FW_BL_RECENT_S);
+}
+
 // STATUS reply: 101, 128, 0x03, state, error, wanted offset (u32), image
-// size (u32) - 13 bytes
-static void send_status(const LcmFw *fw) {
-    uint8_t b[13];
+// size (u32), flags - 14 bytes
+static void send_status(const LcmFw *fw, const Time *time, bool has_bootloader) {
+    uint8_t b[14];
     b[0] = 101;
     b[1] = COMMAND_LCM_FW;
     b[2] = LCM_FW_STATUS;
@@ -36,6 +40,8 @@ static void send_status(const LcmFw *fw) {
     b[4] = fw->error;
     put_u32(&b[5], fw->want);
     put_u32(&b[9], fw->size);
+    b[13] = (bl_active(fw, time) ? LCM_FW_FLAG_BL_ACTIVE : 0) |
+        (has_bootloader ? LCM_FW_FLAG_CAPABLE : 0);
     VESC_IF->send_app_data(b, sizeof(b));
 }
 
@@ -61,17 +67,28 @@ static void send_page(const LcmFw *fw, uint32_t offset) {
     }
 }
 
-void lcm_fw_command(LcmFw *fw, const State *state, const Time *time, const uint8_t *buf, int len) {
+void lcm_fw_command(
+    LcmFw *fw,
+    const State *state,
+    const Time *time,
+    bool has_bootloader,
+    const uint8_t *buf,
+    int len
+) {
     if (len < 1) {
         return;
     }
 
     switch (buf[0]) {
-    case LCM_FW_START:
+    case LCM_FW_START: {
         if (len < 7) {
             return;
         }
+        bool seen = fw->bl_seen;
+        time_t seen_time = fw->bl_seen_time;
         lcm_fw_init(fw);
+        fw->bl_seen = seen;
+        fw->bl_seen_time = seen_time;
         fw->size = get_u32(&buf[1]);
         fw->crc = ((uint16_t) buf[5] << 8) | buf[6];
         fw->want = LCM_FW_PAGE;
@@ -81,12 +98,18 @@ void lcm_fw_command(LcmFw *fw, const State *state, const Time *time, const uint8
         } else if (fw->size == 0 || fw->size > LCM_FW_MAX_SIZE || fw->size % LCM_FW_PAGE) {
             fw->state = LCM_FW_FAILED;
             fw->error = LCM_FW_ERR_BAD_IMAGE;
+        } else if (!has_bootloader && !bl_active(fw, time)) {
+            // stock / ALCM VP without the bootloader: it would ignore the
+            // update flag at best, so don't even raise it
+            fw->state = LCM_FW_FAILED;
+            fw->error = LCM_FW_ERR_NO_BOOTLOADER;
         } else {
             fw->state = LCM_FW_STAGED;
             fw->staged_time = time->now;
         }
-        send_status(fw);
+        send_status(fw, time, has_bootloader);
         return;
+    }
 
     case LCM_FW_DATA: {
         if (len < 5 + LCM_FW_PAGE) {
@@ -100,26 +123,34 @@ void lcm_fw_command(LcmFw *fw, const State *state, const Time *time, const uint8
             fw->page_off[slot] = offset;
             fw->page_ok[slot] = true;
         }
-        send_status(fw);
+        send_status(fw, time, has_bootloader);
         return;
     }
 
     case LCM_FW_STATUS:
         lcm_fw_update_flag(fw, state, time);  // (runs the staged timeout)
-        send_status(fw);
+        send_status(fw, time, has_bootloader);
         return;
 
     case LCM_FW_CANCEL:
         // An LCM already in its bootloader keeps waiting (power held) or
         // goes back to its old app after 20 s if it hadn't erased anything.
-        lcm_fw_init(fw);
-        send_status(fw);
+        {
+            bool seen = fw->bl_seen;
+            time_t seen_time = fw->bl_seen_time;
+            lcm_fw_init(fw);
+            fw->bl_seen = seen;
+            fw->bl_seen_time = seen_time;
+        }
+        send_status(fw, time, has_bootloader);
         return;
 
     case LCM_FW_REQ:
         if (len < 5) {
             return;
         }
+        fw->bl_seen = true;
+        fw->bl_seen_time = time->now;
         if (fw->state == LCM_FW_STAGED) {
             fw->state = LCM_FW_SENDING;  // the bootloader is up: stop flagging
         }

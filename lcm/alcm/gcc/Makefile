@@ -34,9 +34,18 @@ INC := -I$(L)/HK32F030M/HK32F030M_Lib/inc -I$(L)/HK32F030M/CMSIS/CM0/Core \
 DEF := -DHK32F030M -DHK32F030MF4P6 $(if $(filter 1,$(VP)),-DVP_LIGHT_CONTROL) \
        $(if $(filter 1,$(BL)),-DLCM_BOOTLOADER -DVECT_TAB_OFFSET=0x600)
 LDS := $(if $(filter 1,$(BL)),build/app_bl.ld,hk32f030m.ld)
+
+# firmware name sent in every LCM poll (VP builds): "VPBL-<lcm source hash>"
+# with the bootloader, "VP-<hash>" without. The hash is git's tree hash of
+# lcm/alcm, so it only changes when the LCM code changes; the package build
+# labels its embedded LCM image with the same hash (lcm_images.py).
+LCM_HASH ?= $(shell git rev-parse --short=7 HEAD:lcm/alcm 2>/dev/null || echo 0000000)
+LCM_NAME := $(if $(filter 1,$(BL)),VPBL,VP)-$(LCM_HASH)
+TAG_H := build/lcm_tag_$(if $(filter 1,$(BL)),bl,vp).h
+CFLAGS_TAG := $(if $(filter 1,$(VP)),-include $(TAG_H))
 ARCH := -mcpu=cortex-m0 -mthumb
-CFLAGS := $(ARCH) -Oz -std=gnu99 -ffunction-sections -fdata-sections -flto \
-          -fno-common -Wall -Wno-unused-parameter $(DEF) $(INC)
+CFLAGS = $(ARCH) -Oz -std=gnu99 -ffunction-sections -fdata-sections -flto \
+          -fno-common -Wall -Wno-unused-parameter $(DEF) $(INC) $(CFLAGS_TAG)
 LDFLAGS := $(ARCH) -Oz -flto -nostartfiles -specs=nano.specs -specs=nosys.specs \
            -Wl,--gc-sections -Wl,-Map=build/$(NAME).map -T $(LDS)
 
@@ -49,7 +58,15 @@ build/app_bl.ld: hk32f030m.ld
 	sed 's/ORIGIN = 0x08000000, LENGTH = 0x3FC0/ORIGIN = 0x08000600, LENGTH = 0x3980/' $< > $@
 	grep -q 'ORIGIN = 0x08000600, LENGTH = 0x3980' $@
 
-build/$(NAME).elf: $(SRC) $(ASM) $(LDS)
+$(TAG_H): FORCE
+	@mkdir -p build
+	python3 ../../tools/lcm_tag.py $(LCM_NAME) $@.tmp
+	cmp -s $@.tmp $@ || mv $@.tmp $@
+	rm -f $@.tmp
+
+FORCE:
+
+build/$(NAME).elf: $(SRC) $(ASM) $(LDS) $(if $(filter 1,$(VP)),$(TAG_H))
 	@mkdir -p build
 	sed 's/LENGTH = 0x3FC0/LENGTH = 0x10000/; s/LENGTH = 0x3980/LENGTH = 0x10000/' $(LDS) > build/measure.ld
 	$(CC) $(CFLAGS) $(SRC) $(ASM) $(subst $(LDS),build/measure.ld,$(LDFLAGS)) -o build/$(NAME)_measure.elf
@@ -64,7 +81,7 @@ build/$(NAME).hex: build/$(NAME).elf
 
 # per-function / per-file sizes without LTO (LTO merges everything into
 # Reset_Handler), to see where the bytes go
-analyze: $(SRC) $(ASM)
+analyze: $(SRC) $(ASM) $(if $(filter 1,$(VP)),$(TAG_H))
 	@mkdir -p build/obj
 	for f in $(SRC); do $(CC) $(subst -flto,,$(CFLAGS)) -c $$f -o build/obj/$$(basename $$f .c).o; done
 	$(CC) $(subst -flto,,$(CFLAGS)) -c $(ASM) -o build/obj/ws2812.o
@@ -77,4 +94,4 @@ analyze: $(SRC) $(ASM)
 clean:
 	rm -rf build
 
-.PHONY: all clean analyze
+.PHONY: all clean analyze FORCE

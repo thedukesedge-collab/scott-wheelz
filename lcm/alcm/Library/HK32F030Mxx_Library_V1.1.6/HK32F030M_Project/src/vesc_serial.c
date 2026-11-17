@@ -1117,11 +1117,20 @@ TIMER_CALLBACK(vesc_serial, tx)
      * byte 7: end byte (0x03)
      */
 #if defined(ENABLE_IMU_EVENTS) && defined(ENABLE_APP_INTEGRATION)
-#define BYTE_LENGTH 26U
+    /* Re-Float Rink-Mixed: the GCC build passes in an LCM_POLL segment that
+     * carries the firmware name ("VPBL-<build>" with the bootloader,
+     * "VP-<build>" without), generated with its CRC by lcm/tools/lcm_tag.py.
+     * Refloat stores it (lcm_poll_request) so the app can tell which LCM
+     * firmware is fitted. Without it: the plain poll, as stock. */
+#ifndef LCM_POLL_SEGMENT
+#define LCM_POLL_SEGMENT 0x02, 0x03, 0x24, 0x65, 0x18, 0x3d, 0xe0, 0x03
+#define LCM_POLL_SEGMENT_LENGTH 8U
+#endif
+#define BYTE_LENGTH (18U + LCM_POLL_SEGMENT_LENGTH)
     uint8_t buffer[BYTE_LENGTH] = {
         0x02, 0x05, 0x33, 0x00, 0x01, 0x01, 0xb8, 0xc0, 0xee, 0x03,
         0x02, 0x03, 0x41, 0x00, 0x03, 0x1a, 0xfe, 0x03,
-        0x02, 0x03, 0x24, 0x65, 0x18, 0x3d, 0xe0, 0x03
+        LCM_POLL_SEGMENT
     };
 #elif defined(ENABLE_IMU_EVENTS)
 #define BYTE_LENGTH 18U

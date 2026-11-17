@@ -2752,7 +2752,14 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
         return;
     }
     case COMMAND_LCM_FW: {
-        lcm_fw_command(&d->lcm_fw, &d->state, &d->time, &buffer[2], len - 2);
+        lcm_fw_command(
+            &d->lcm_fw,
+            &d->state,
+            &d->time,
+            strncmp(d->lcm.name, "VPBL", 4) == 0,
+            &buffer[2],
+            len - 2
+        );
         return;
     }
     case COMMAND_LCM_BATTERY: {

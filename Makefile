@@ -43,7 +43,7 @@ $(LCM_FW_JSON): $(wildcard lcm/bootloader/*.c lcm/bootloader/*.h lcm/alcm/Librar
 	$(MAKE) -C lcm/bootloader
 	$(MAKE) -C lcm/alcm/gcc VP=1 BL=1
 	python3 lcm/tools/lcm_images.py lcm/bootloader/build/lcm_bootloader.hex \
-		lcm/alcm/gcc/build/ALCM_VP_BL_app.hex lcm/alcm/gcc/build `git rev-parse --short HEAD`
+		lcm/alcm/gcc/build/ALCM_VP_BL_app.hex lcm/alcm/gcc/build `git rev-parse --short=7 HEAD:lcm/alcm`
 
 ifeq ($(strip $(LCM_FW)),1)
     LCM_FW_DEP = $(LCM_FW_JSON)

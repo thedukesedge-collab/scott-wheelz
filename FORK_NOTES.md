@@ -644,3 +644,34 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   (same maker) and are marked approximate. DC resistance from Molicel
   datasheets: P28A 20, P30B 17, P45B 15, P50B 12.8 mOhm; others estimated.
 - Package unchanged (the app sends the resulting points + resistance).
+
+### LCM firmware: tucked away, auto-detected, fail-safe (v1.2.3-rf63)
+- The LCM FIRMWARE tile is gone from the LEDS grid. The tools sit behind a
+  dim "LCM firmware tools" link at the very bottom of the LEDS tab that
+  opens only after a 2 s press and hold (a tap just says "HOLD 2 s TO
+  OPEN"). While an update runs the link shows its progress and opens at
+  once.
+- The ALCM VP firmware names itself in its LCM_POLL packets (Refloat's own
+  name field): `VPBL-<hash>` built for the bootloader, `VP-<hash>` without
+  it. `<hash>` is the git tree hash of `lcm/alcm` (`git rev-parse
+  --short=7 HEAD:lcm/alcm`), so it changes only when the LCM code does,
+  and the package's embedded image carries the same hash as its version.
+  `lcm/tools/lcm_tag.py` precomputes the packet bytes and CRC (the BL app
+  has ~30 bytes free; the name costs ~12).
+- Package: the LCM's name is stored whatever the LED mode (stock Refloat
+  only did with LCM lights enabled, and read one byte past the payload)
+  and always reported by COMMAND_LCM_DEVICE_INFO (27).
+- Fail-safe in the package (lcm_fw.c): START is refused with "no
+  bootloader" unless the LCM named itself `VPBL-...`, or a bootloader asked
+  for a page in the last 5 s (recovery after an interrupted update, when
+  there's no app to name itself). An LCM without the bootloader is never
+  sent the update flag. STATUS gains a flags byte (14 bytes): bit0 a
+  bootloader is asking, bit1 the LCM is VPBL.
+- The app polls the name and STATUS while the tools are open and shows what
+  is fitted: VPBL (with "up to date" / "this package carries build ..."),
+  VP without bootloader, other/stock, none, or bootloader waiting
+  (recovery). FLASH LCM and the firmware picker exist only for VPBL or
+  recovery; otherwise it explains the one-time ST-Link install.
+- Every package build embeds the bootloader-build LCM image built from the
+  same commit (`make`, `LCM_FW ?= 1`), so app, package and LCM stay
+  matched.

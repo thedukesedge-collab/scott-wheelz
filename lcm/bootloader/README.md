@@ -109,7 +109,13 @@ UART, VESC packets: `0x02, len, payload, crc16 BE, 0x03`. Command
 | VESC → LCM | `36, 101, 128, 0x10, offset u32, image size u32, image CRC16 u16, 128 data bytes`; size 0 = not there yet (asked again 20 ms later) |
 | LCM → VESC | `36, 101, 128, 0x11 (DONE), status` (0 ok, 1 CRC mismatch / starting over, 2 nothing came, back to the old app) |
 | phone → package | `101, 128, 0x01 START, size u32, crc u16` / `0x02 DATA, offset u32, 128 bytes` / `0x03 STATUS` / `0x04 CANCEL` |
-| package → phone | `101, 128, 0x03, state, error, wanted offset u32, size u32` |
+| package → phone | `101, 128, 0x03, state, error, wanted offset u32, size u32, flags` (flags: bit0 a bootloader asked in the last 5 s, bit1 the LCM named itself `VPBL-...`) |
+
+**Fail-safe:** the package refuses START (error 3, no bootloader) unless the
+LCM's poll name starts with `VPBL` (ALCM VP built with `BL=1` names itself
+`VPBL-<lcm/alcm tree hash>`, without the bootloader `VP-<hash>`) or a
+bootloader is asking for pages right now (recovery after an interrupted
+update). The app hides FLASH LCM in the same cases.
 
 The image is the app area from `0x08000600`, padded with `0xFF` to whole
 128-byte pages; CRC16-CCITT (XMODEM), the same as the VESC packet CRC.

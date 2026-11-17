@@ -484,11 +484,56 @@ Item {
         property string message: builtin ? "" : "This build has no LCM firmware image: pick a .hex file."
         property int noReply: 0
 
+        // --- what's fitted (fail-safe): the LCM names itself in its polls
+        // ("VPBL-<hash>" = ALCM VP with the bootloader, "VP-<hash>" = ALCM VP
+        // without it, anything else / nothing = stock or other firmware).
+        // FLASH LCM only exists for a VPBL LCM, or when a bootloader is
+        // asking for pages right now (recovery after an interrupted update).
+        property string lcmName: ""
+        property bool nameKnown: false  // the package answered at least once
+        property bool blActive: false  // STATUS flag: a bootloader is asking
+        readonly property bool hasBootloader: lcmName.indexOf("VPBL-") === 0
+        readonly property bool canFlash: hasBootloader || blActive || active
+        readonly property bool upToDate: hasBootloader && !!builtin && lcmName === "VPBL-" + builtin.version
+        readonly property string fitted: blActive && !hasBootloader ? "recovery"
+            : (hasBootloader ? "vpbl" : (lcmName.indexOf("VP-") === 0 ? "vp" : (lcmName !== "" ? "other" : "none")))
+        readonly property string fittedText: !nameKnown ? "Checking the light module..."
+            : fitted === "recovery" ? "LCM bootloader is waiting for firmware (an earlier update didn't finish). Flash it now to recover the light module."
+            : fitted === "vpbl" ? "ALCM VP with bootloader · build " + lcmName.substr(5)
+                + (builtin ? (upToDate ? " · up to date with this package" : " · this package carries build " + builtin.version) : "")
+            : fitted === "vp" ? "ALCM VP build " + lcmName.substr(3) + " WITHOUT the bootloader. It can't be flashed from the app: install ALCM_VP_BL_full.hex once with an ST-Link, after that updates work from here."
+            : fitted === "other" ? "Light module firmware "" + lcmName + "" can't be flashed from the app. It needs ALCM VP with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
+            : "No ALCM VP light module answered (stock or other LCM firmware, or none). Flashing from the app needs ALCM VP with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
+
+        function probe() {
+            vescCommands.sendCustomAppData(commands.createData(2, commands.c_LCM_DEVICE_INFO).buffer);
+            if (!active) send(3, []);
+        }
+
+        function onName(dv, ind) {
+            var n = "";
+            while (ind < dv.byteLength) {
+                var c = dv.getUint8(ind++);
+                if (c === 0) break;
+                n += String.fromCharCode(c);
+            }
+            lcmName = n;
+            nameKnown = true;
+        }
+
+        property Timer probeTimer: Timer {
+            interval: 1000
+            repeat: true
+            triggeredOnStart: true
+            running: ledWindow.opened && ledWindow.section === "fw"
+            onTriggered: lcmFw.probe()
+        }
+
         readonly property var errorText: [
             "",
             "The board is running. Stop riding and try again.",
             "The firmware image is broken (bad size).",
-            "The LCM didn't start updating. It needs the LCM bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex).",
+            "The LCM didn't start updating: it has no bootloader. Install ALCM_VP_BL_full.hex once with an ST-Link.",
             "The LCM got nothing and went back to its old firmware.",
             "Checksum mismatch: the LCM is retrying."
         ]
@@ -595,7 +640,7 @@ Item {
         }
 
         function start() {
-            if (!image || active) return;
+            if (!image || active || !canFlash) return;
             decode();
             // the update flag rides in the VP block, so the LED settings must be on
             swSettings.ledConfigured = true;
@@ -622,12 +667,15 @@ Item {
             send(2, d);
         }
 
-        // STATUS reply: state, error, wanted offset (u32), size (u32)
+        // STATUS reply: state, error, wanted offset (u32), size (u32), flags
         function onReply(dv, ind) {
             if (dv.byteLength < ind + 11 || dv.getUint8(ind++) !== 3) return;
             pkgState = dv.getUint8(ind++);
             pkgError = dv.getUint8(ind++);
             want = dv.getUint32(ind); ind += 4;
+            ind += 4;  // size
+            // flags (older packages: none) - bit0 a bootloader is asking
+            blActive = dv.byteLength > ind ? (dv.getUint8(ind) & 1) !== 0 : false;
             noReply = 0;
             if (!active) return;
             var pages = image.size / 128;
@@ -1393,6 +1441,7 @@ Item {
         readonly property int c_LCM_TEST_BEEP: 127  // Re-RinkFloat: light module test beep
         readonly property int c_LCM_FW: 128  // Re-RinkFloat: LCM firmware update relay
         readonly property int c_LCM_BATTERY: 129  // Re-RinkFloat: battery curve for the LCM status bar
+        readonly property int c_LCM_DEVICE_INFO: 27  // Refloat: the LCM's own name (Re-Float: "VPBL-<hash>")
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
         // Dynamic range: +-131008.0
@@ -1614,6 +1663,8 @@ Item {
                 state.commsState = state.comms_RTDataIDs;
             } else if (msgtype === c_LCM_FW) {
                 lcmFw.onReply(dv, ind);
+            } else if (msgtype === c_LCM_DEVICE_INFO) {
+                lcmFw.onName(dv, ind);
             } else if (msgtype === c_LCM_BATTERY) {
                 batteryCurve.onReply(dv, ind);
             } else if (msgtype == c_LIGHTS_CONTROL) {
@@ -6790,9 +6841,31 @@ Item {
                         spacing: 0.14 * unit
                         visible: ledWindow.section === "fw"
 
-                        LedHeading { text: "Firmware to flash" }
+                        LedHeading { text: "Light module" }
+
+                        Rectangle {
+                            width: parent.width
+                            height: lcmFittedText.implicitHeight + 0.24 * unit
+                            radius: 0.08 * unit
+                            color: lcmFw.canFlash ? "#0d2a12" : "#2A1F00"
+                            border.color: lcmFw.canFlash ? swTheme.neonGreen : "#FFB300"
+                            border.width: 2
+                            Text {
+                                id: lcmFittedText
+                                anchors.centerIn: parent
+                                width: parent.width - 0.24 * unit
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                color: lcmFw.canFlash ? swTheme.neonGreen : "#FFB300"
+                                font.pixelSize: fontSizeSmall
+                                text: lcmFw.fittedText
+                            }
+                        }
+
+                        LedHeading { visible: lcmFw.canFlash; text: "Firmware to flash" }
 
                         Flow {
+                            visible: lcmFw.canFlash
                             width: parent.width
                             spacing: 0.12 * unit
                             SwPill {
@@ -6823,6 +6896,7 @@ Item {
                         }
 
                         SwLText {
+                            visible: lcmFw.canFlash
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
@@ -6834,6 +6908,7 @@ Item {
                         }
 
                         Rectangle {
+                            visible: lcmFw.canFlash
                             anchors.horizontalCenter: parent.horizontalCenter
                             width: Math.min(parent.width, 4.6 * unit)
                             height: 1.4 * unit
@@ -6852,7 +6927,7 @@ Item {
                             MouseArea {
                                 id: fwBtnArea
                                 anchors.fill: parent
-                                enabled: !!lcmFw.image && !lcmFw.active
+                                enabled: !!lcmFw.image && !lcmFw.active && lcmFw.canFlash
                                 onClicked: { lcmFwConfirm.ack = false; lcmFwConfirm.open(); }
                             }
                         }
@@ -7212,7 +7287,7 @@ Item {
                     onClicked: {
                         if (!lcmFwConfirm.ack) return;
                         lcmFwConfirm.close();
-                        lcmFw.start();
+                        if (lcmFw.canFlash) lcmFw.start();
                     }
                 }
             }
@@ -12064,6 +12139,7 @@ Item {
                                 onClicked: ledWindow.show("sound")
                             }
                             LedTile {
+                                Layout.columnSpan: 2
                                 title: "BATTERY GAUGE"
                                 glyph: "\u25AE"
                                 lit: swSettings.batCurveOn
@@ -12073,14 +12149,6 @@ Item {
                                     : "VESC BATTERY %"
                                 onClicked: ledWindow.show("battery")
                             }
-                            LedTile {
-                                title: "LCM FIRMWARE"
-                                glyph: "\u21BB"
-                                lit: lcmFw.active
-                                summary: lcmFw.active ? "FLASHING \u00B7 " + Math.round(lcmFw.progress * 100) + "%"
-                                    : (lcmFw.image ? "FLASH LCM FROM THE APP \u00B7 BOOTLOADER LCMs ONLY" : "NOT IN THIS BUILD")
-                                onClicked: ledWindow.show("fw")
-                            }
                         }
 
                         SwLText {
@@ -12089,6 +12157,59 @@ Item {
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
                             text: "Headlight and status bar levels are kept in step with Refloat's LED settings (VESC Tool \u203A Refloat Cfg \u203A LEDs), both ways."
+                        }
+
+                        Item { width: parent.width; height: 0.6 * unit }
+
+                        // Re-Float Rink-Mixed: LCM firmware tools, tucked away
+                        // on purpose - a 2 s press and hold opens them
+                        Item {
+                            id: lcmToolsLink
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: lcmToolsText.implicitWidth + 0.4 * unit
+                            height: 0.62 * unit
+                            property real hold: 0
+                            property bool hint: false
+
+                            Text {
+                                id: lcmToolsText
+                                anchors.centerIn: parent
+                                text: lcmFw.active ? "LCM FIRMWARE \u00B7 FLASHING " + Math.round(lcmFw.progress * 100) + "%"
+                                    : (lcmToolsLink.hint ? "HOLD 2 s TO OPEN" : "LCM firmware tools")
+                                color: lcmFw.active ? swTheme.neonGreen : "#5c5470"
+                                font.pixelSize: 0.2 * unit
+                                font.letterSpacing: 0.02 * unit
+                            }
+                            Rectangle {
+                                anchors.bottom: parent.bottom
+                                x: 0.2 * unit
+                                height: 2
+                                width: (parent.width - 0.4 * unit) * lcmToolsLink.hold
+                                color: swTheme.neonGreen
+                            }
+                            NumberAnimation {
+                                id: lcmToolsHoldAnim
+                                target: lcmToolsLink
+                                property: "hold"
+                                from: 0; to: 1
+                                duration: 2000
+                                onFinished: if (lcmToolsArea.pressed) { lcmToolsLink.hold = 0; ledWindow.show("fw"); }
+                            }
+                            Timer { id: lcmToolsHint; interval: 2500; onTriggered: lcmToolsLink.hint = false }
+                            MouseArea {
+                                id: lcmToolsArea
+                                anchors.fill: parent
+                                onPressed: {
+                                    if (lcmFw.active) { ledWindow.show("fw"); return; }  // follow a running update
+                                    lcmToolsHoldAnim.restart();
+                                }
+                                onReleased: {
+                                    if (lcmToolsLink.hold < 1 && lcmToolsLink.hold > 0) { lcmToolsLink.hint = true; lcmToolsHint.restart(); }
+                                    lcmToolsHoldAnim.stop();
+                                    lcmToolsLink.hold = 0;
+                                }
+                                onCanceled: { lcmToolsHoldAnim.stop(); lcmToolsLink.hold = 0; }
+                            }
                         }
 
                         Item { width: parent.width; height: 0.3 * unit }

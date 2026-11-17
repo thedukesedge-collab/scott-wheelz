@@ -90,6 +90,7 @@ static vesc_c_if iface = {send_app_data};
 vesc_c_if *VESC_IF = &iface;
 
 /* the LCM's UART packets arrive at the package */
+static int lcm_named_vpbl = 1; /* the LCM app's poll name starts with "VPBL" */
 static uint8_t from_lcm[64];
 static int from_lcm_n;
 void bl_uart_put(uint32_t b)
@@ -105,7 +106,7 @@ void bl_uart_put(uint32_t b)
         /* 36, 101, 128, sub... -> on_command_received(101, 128, ...) */
         assert(from_lcm[2] == 36 && from_lcm[3] == 101 && from_lcm[4] == 128);
         reply_to = TO_LCM;
-        lcm_fw_command(&fw, &st, &tm, &from_lcm[5], len - 3);
+        lcm_fw_command(&fw, &st, &tm, lcm_named_vpbl, &from_lcm[5], len - 3);
     }
 }
 
@@ -120,13 +121,14 @@ int bl_uart_get(void)
 
 static const uint8_t *img;
 static uint32_t img_size;
+static int phone_recover; /* phone (re)starts once it sees a bootloader asking */
 
 static void phone_cmd(const uint8_t *d, int n)
 {
     /* d starts after 101, 128 */
     reply_to = TO_PHONE;
     phone_rx_len = 0;
-    lcm_fw_command(&fw, &st, &tm, d, n);
+    lcm_fw_command(&fw, &st, &tm, lcm_named_vpbl, d, n);
 }
 
 static void phone_start(void)
@@ -136,7 +138,7 @@ static void phone_start(void)
     uint16_t c = crc16(img, img_size);
     b[5] = c >> 8, b[6] = c & 0xFF;
     phone_cmd(b, 7);
-    assert(phone_rx_len == 13 && phone_rx[0] == 101 && phone_rx[1] == 128 && phone_rx[2] == LCM_FW_STATUS);
+    assert(phone_rx_len == 14 && phone_rx[0] == 101 && phone_rx[1] == 128 && phone_rx[2] == LCM_FW_STATUS);
 }
 
 static void phone_send_page(uint32_t off)
@@ -157,8 +159,16 @@ static void phone_tick(void)
         return;
     uint8_t s = LCM_FW_STATUS;
     phone_cmd(&s, 1);
-    assert(phone_rx_len == 13);
+    assert(phone_rx_len == 14);
     uint32_t want = ((uint32_t)phone_rx[5] << 24) | (phone_rx[6] << 16) | (phone_rx[7] << 8) | phone_rx[8];
+    if (phone_recover && (phone_rx[13] & LCM_FW_FLAG_BL_ACTIVE) &&
+        (phone_rx[3] == LCM_FW_IDLE || phone_rx[3] == LCM_FW_FAILED))
+    {
+        phone_recover = 0;
+        phone_start();
+        assert(phone_rx[3] == LCM_FW_STAGED);
+        return;
+    }
     if (phone_rx[3] == LCM_FW_STAGED || phone_rx[3] == LCM_FW_SENDING)
     {
         phone_send_page(want);
@@ -306,7 +316,21 @@ int main(void)
     tm.now += 16 * SYSTEM_TICK_RATE_HZ;
     assert(!lcm_fw_update_flag(&fw, &st, &tm) && fw.state == LCM_FW_FAILED &&
            fw.error == LCM_FW_ERR_NO_BOOTLOADER);
-    printf("ok  LCM without bootloader: NO_BOOTLOADER after 15 s\n");
+    printf("ok  LCM named VPBL but never asks: NO_BOOTLOADER after 15 s\n");
+
+    /* 3b. fail-safe: the LCM doesn't name itself VPBL (stock, or ALCM VP
+     * without the bootloader): START refused at once, the flag never raised */
+    lcm_named_vpbl = 0;
+    lcm_fw_init(&fw);
+    phone_start();
+    assert(fw.state == LCM_FW_FAILED && fw.error == LCM_FW_ERR_NO_BOOTLOADER && !(phone_rx[13] & LCM_FW_FLAG_CAPABLE));
+    assert(!lcm_fw_update_flag(&fw, &st, &tm));
+    lcm_named_vpbl = 1;
+    lcm_fw_init(&fw);
+    phone_start();
+    assert(fw.state == LCM_FW_STAGED && (phone_rx[13] & LCM_FW_FLAG_CAPABLE));
+    lcm_fw_init(&fw);
+    printf("ok  LCM without the bootloader: START refused, update flag never sent\n");
 
     /* 4. phone goes away mid-update: no partial app; at the next power-up the
      * bootloader holds the power and waits; a new phone session finishes */
@@ -328,11 +352,18 @@ int main(void)
         assert(r == SIM_POWER_OFF); /* nothing for 5 min: power released */
     }
     assert(!bl_app_valid());
-    /* power-up: package restarted too (fresh state), phone starts again */
+    /* power-up: package restarted too (fresh state, and no app on the LCM to
+     * name itself), the bootloader asks for pages, the phone sees that and
+     * starts again (recovery) */
     lcm_fw_init(&fw);
+    lcm_named_vpbl = 0;
     phone_start();
+    assert(fw.error == LCM_FW_ERR_NO_BOOTLOADER); /* not before the bootloader asks */
+    phone_recover = 1;
     assert(power_up() == SIM_APP_STARTED && app_is(img_b, size_b) && fw.state == LCM_FW_OK);
-    printf("ok  phone lost mid-update: no partial app, next power-up finishes it\n");
+    assert(!phone_recover);
+    lcm_named_vpbl = 1;
+    printf("ok  phone lost mid-update: no partial app, next power-up recovers it\n");
 
     printf("all relay tests passed\n");
     return 0;

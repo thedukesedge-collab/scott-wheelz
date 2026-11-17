@@ -78,6 +78,10 @@
   .secTitle:not(.neonL) { color: var(--green); font-family: Orbitron, monospace; font-size: 15px; letter-spacing: .04em; text-shadow: 0 0 6px rgba(57,255,122,.45); }
   .pills { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
   .pill { border: 2px solid var(--purple); color: var(--purple); border-radius: 999px; padding: 6px 14px; font-family: Orbitron, monospace; font-size: 11px; cursor: pointer; }
+  #lcmTools { position: relative; width: max-content; margin: 0 auto; padding: 6px 10px; font-size: 10px; letter-spacing: .5px; color: #5c5470; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; }
+  #lcmTools i { position: absolute; left: 10px; bottom: 2px; height: 2px; width: 0; background: var(--green); }
+  .fwFit { border: 2px solid #FFB300; background: #2A1F00; color: #FFB300; border-radius: 8px; padding: 7px 8px; font-size: 11px; text-align: center; margin: 4px 0 8px; }
+  .fwFit.ok { border-color: var(--green); background: #0d2a12; color: var(--green); }
   .ledTiles { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 10px 6px 0; }
   .ledTile { position: relative; height: 92px; border: 2px solid var(--purple); border-radius: 12px; background: #0b0718; cursor: pointer; padding: 8px 10px; box-sizing: border-box; }
   .ledTile.lit { border-color: var(--green); }
@@ -264,14 +268,15 @@
             <div class="ledTile" data-w="bar"><span class="g">&#9609;</span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
             <div class="ledTile" data-w="anim"><span class="g">&#10022;</span><span class="sw" id="ltSw"></span><b>ANIMATIONS</b><small id="ltAnim"></small><i>&#8250;</i></div>
             <div class="ledTile" data-w="sound"><span class="g">&#9834;</span><b>SOUND</b><small id="ltSound"></small><i>&#8250;</i></div>
-            <div class="ledTile" data-w="battery"><span class="g">&#9646;</span><b>BATTERY GAUGE</b><small id="ltBat"></small><i>&#8250;</i></div>
-            <div class="ledTile" data-w="fw"><span class="g">&#8635;</span><b>LCM FIRMWARE</b><small id="ltFw"></small><i>&#8250;</i></div>
+            <div class="ledTile wide" data-w="battery"><span class="g">&#9646;</span><b>BATTERY GAUGE</b><small id="ltBat"></small><i>&#8250;</i></div>
           </div>
           <p style="font-size:11px;color:var(--text);text-align:center;margin:8px 6px">Headlight and status bar levels are kept in step with Refloat's LED settings (VESC Tool &#8250; Refloat Cfg &#8250; LEDs), both ways.</p>
+          <div style="height:22px"></div>
+          <div id="lcmTools"><span id="lcmToolsText">LCM firmware tools</span><i id="lcmToolsFill"></i></div>
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf62 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf63 · sim</span></div>
     </div>
   </div>
 
@@ -306,6 +311,11 @@
         <div class="pills"><div class="pill" id="batAdvOpen">ADVANCED &#8250;</div></div>
       </div>
       <div class="ledSec" data-s="fw">
+        <div class="secTitle">Light module</div>
+        <div class="fwFit" id="fwFit"></div>
+        <p class="ledHint" style="text-align:center;opacity:.7">Simulator only - pretend the LCM is:</p>
+        <div class="pills" id="fwSimLcm"><div class="pill" data-k="vpbl">VP + BOOTLOADER</div><div class="pill" data-k="vp">VP, NO BL</div><div class="pill" data-k="other">STOCK</div><div class="pill" data-k="recovery">RECOVERY</div></div>
+        <div id="fwCan">
         <div class="secTitle">Firmware to flash</div>
         <div class="pills"><div class="pill on" id="fwSrcBuiltin">BUILT-IN</div><div class="pill" id="fwSrcPick">PICK .HEX FILE...</div><div class="pill" id="fwSrcChange" style="display:none">CHANGE...</div></div>
         <input type="file" id="fwFile" accept=".hex" style="display:none">
@@ -314,6 +324,7 @@
         <div class="fwBar" id="fwBar"><i id="fwFill"></i></div>
         <p class="ledHint" id="fwMsg" style="text-align:center;color:var(--green)"></p>
         <div class="pills"><div class="pill" id="fwCancel" style="display:none">CANCEL</div></div>
+        </div>
         <p class="ledHint">&#8226; Only for LCMs with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex). Stock LCM firmware can't be flashed from the app: it has no update code and only listens for the VESC's basic data.<br>&#8226; Board powered on and idle. The update is refused while riding; don't ride until it's done.<br>&#8226; Headlights and beeper go off while it updates (about a minute). Keep the app connected.<br>&#8226; If it's interrupted, the LCM keeps the power on and waits for the update. Press FLASH LCM again, or power the board off and on first. Hold the button 2 s to power off.</p>
       </div>
       <div class="ledSec" data-s="sound">
@@ -940,7 +951,7 @@ function renderLedsSoft() {
   $('ltBat').textContent = P.batOn ? (P.batCell === 'MY CELL' && P.batCustom ? P.batCustom.name : P.batCell) + ' · ' + P.batPar + 'P · ' + STYLES[P.batStyle + 1] : 'VESC BATTERY %';
   $('batPill').textContent = 'BATTERY CURVE ' + (P.batOn ? 'ON' : 'OFF'); $('batPill').classList.toggle('on', P.batOn);
   $('batLive').textContent = batLive(); $('batAdvLive').textContent = batLive();
-  $('ltFw').textContent = FW.active ? 'FLASHING · ' + Math.round(FW.p * 100) + '%' : 'FLASH LCM FROM THE APP · BOOTLOADER LCMs ONLY';
+  if (!lcmHold.t) { $('lcmToolsText').textContent = FW.active ? 'LCM FIRMWARE · FLASHING ' + Math.round(FW.p * 100) + '%' : (lcmHold.hint ? 'HOLD 2 s TO OPEN' : 'LCM firmware tools'); $('lcmToolsText').style.color = FW.active ? 'var(--green)' : ''; }
   document.querySelectorAll('.ledTile').forEach(t => t.classList.toggle('lit', t.dataset.w === 'head' ? P.ledHead : t.dataset.w === 'bar' ? P.ledBar : t.dataset.w === 'sound' ? P.ledBeep : true));
   $('ledBeepHint').textContent = P.ledBeep ? "The light module plays one short beep. No beep = the module isn't running the ALCM VP firmware or isn't connected."
     : 'The LCM beeper is off, so the test beep is silent. Turn it on above first.';
@@ -1020,6 +1031,7 @@ const ledWin = w => {
   if (!w) return;
   $('ledWinTitle').textContent = LED_TITLES[w];
   document.querySelectorAll('.ledSec').forEach(x => x.classList.toggle('on', x.dataset.s === w));
+  if (w === 'fw') fwFitPaint();
 };
 document.querySelectorAll('.ledTile').forEach(t => t.onclick = () => ledWin(t.dataset.w));
 $('ledWinBack').onclick = $('ledWinDim').onclick = () => ledWin(null);
@@ -1036,8 +1048,45 @@ $('ledTestBeep').onclick = () => {
   } catch (e) {}
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
-const FW = { active: false, p: 0, t: null };
+const FW = { active: false, p: 0, t: null, kind: 'vpbl' };
+const FW_BUILD = '0c01814';
+// fail-safe: the LCM names itself ("VPBL-<hash>" = with the bootloader);
+// FLASH LCM only exists for those, or while a bootloader is asking (recovery)
+const fwCan = () => FW.active || FW.kind === 'vpbl' || FW.kind === 'recovery';
+function fwFitPaint() {
+  const k = FW.kind, t = {
+    vpbl: 'ALCM VP with bootloader · build ' + FW_BUILD + ' · up to date with this package',
+    recovery: "LCM bootloader is waiting for firmware (an earlier update didn't finish). Flash it now to recover the light module.",
+    vp: "ALCM VP build " + FW_BUILD + " WITHOUT the bootloader. It can't be flashed from the app: install ALCM_VP_BL_full.hex once with an ST-Link, after that updates work from here.",
+    other: "No ALCM VP light module answered (stock or other LCM firmware, or none). Flashing from the app needs ALCM VP with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
+  }[k];
+  $('fwFit').textContent = t; $('fwFit').classList.toggle('ok', fwCan());
+  $('fwCan').style.display = fwCan() ? 'block' : 'none';
+  document.querySelectorAll('#fwSimLcm .pill').forEach(x => x.classList.toggle('on', x.dataset.k === k));
+}
+document.querySelectorAll('#fwSimLcm .pill').forEach(x => x.onclick = () => { if (FW.active) return; FW.kind = x.dataset.k; fwFitPaint(); });
+// tucked away: a 2 s press and hold opens the LCM firmware tools
+const lcmHold = { t: null, t0: 0, hint: false, ht: null };
+function lcmHoldEnd() {
+  if (!lcmHold.t) return;
+  const p = (performance.now() - lcmHold.t0) / 2000;
+  clearInterval(lcmHold.t); lcmHold.t = null; $('lcmToolsFill').style.width = 0;
+  if (p < 1) { lcmHold.hint = true; clearTimeout(lcmHold.ht); lcmHold.ht = setTimeout(() => { lcmHold.hint = false; renderLedsSoft(); }, 2500); }
+  renderLedsSoft();
+}
+$('lcmTools').onpointerdown = e => {
+  e.preventDefault();
+  if (FW.active) { ledWin('fw'); return; }
+  lcmHold.t0 = performance.now();
+  lcmHold.t = setInterval(() => {
+    const p = (performance.now() - lcmHold.t0) / 2000;
+    $('lcmToolsFill').style.width = Math.min(1, p) * ($('lcmTools').clientWidth - 20) + 'px';
+    if (p >= 1) { clearInterval(lcmHold.t); lcmHold.t = null; $('lcmToolsFill').style.width = 0; ledWin('fw'); renderLedsSoft(); }
+  }, 30);
+};
+$('lcmTools').onpointerup = $('lcmTools').onpointerleave = $('lcmTools').onpointercancel = lcmHoldEnd;
 function fwPaint(msg) {
+  fwFitPaint();
   $('fwBar').style.display = FW.active || FW.p > 0 ? 'block' : 'none';
   $('fwFill').style.width = (FW.p * 100) + '%';
   $('fwBtn').style.opacity = FW.active ? 0.4 : 1;
@@ -1139,9 +1188,9 @@ const fwAck = on => { $('fwAck').style.display = $('fwAckBack').style.display = 
 $('fwAckBox').onchange = () => { const c = $('fwAckBox').checked; $('fwAckYes').style.opacity = c ? 1 : 0.4; $('fwAckYes').classList.toggle('on', c); };
 $('fwAckNo').onclick = $('fwAckBack').onclick = () => fwAck(false);
 $('fwAckYes').onclick = () => { if (!$('fwAckBox').checked) return; fwAck(false); fwStart(); };
-$('fwBtn').onclick = () => { if (!FW.active) fwAck(true); };
+$('fwBtn').onclick = () => { if (!FW.active && fwCan()) fwAck(true); };
 function fwStart() {
-  if (FW.active) return;
+  if (FW.active || !fwCan()) return;
   if (running()) { fwPaint("The board is running. Stop riding and try again."); return; }
   FW.active = true; FW.p = 0; P.ledCfg = true; save();
   fwPaint('Waiting for the LCM to start its bootloader...');
@@ -1149,7 +1198,7 @@ function fwStart() {
   FW.t = setInterval(() => {
     if (++k < 15) return;
     FW.p = Math.min(1, FW.p + 1 / 115);
-    if (FW.p >= 1) { clearInterval(FW.t); FW.active = false; fwPaint('Done: the LCM firmware is updated and running.'); return; }
+    if (FW.p >= 1) { clearInterval(FW.t); FW.active = false; FW.kind = 'vpbl'; fwPaint('Done: the LCM firmware is updated and running.'); return; }
     fwPaint('Updating the LCM: ' + Math.round(FW.p * 100) + "%. Keep the app connected, don't ride.");
   }, 80);
 }
