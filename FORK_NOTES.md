@@ -528,7 +528,7 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 
 ### LEDS tab compatibility notice (v1.2.3-rf56)
 - The top of the LEDS tab now shows an amber "UPDATED LCM FIRMWARE REQUIRED"
-  notice: the settings only work on ADV100 controllers (XRV, GTV, PintV) with
+  notice: the settings only work on ADV200 controllers (XRV, GTV, PintV) with
   the light module flashed to the ALCM VP firmware, and do nothing elsewhere.
 - Same notice in the simulator and in the package README.
 
@@ -589,3 +589,15 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   (battery % from the VESC).
 - Releases (lcm-latest): ALCM_VP.hex (no bootloader), ALCM_VP_BL_full.hex
   (ST-Link, once), ALCM_VP_app.bin.
+
+### FLASH LCM warning, ADV200 (v1.2.3-rf59)
+- The LCM update button is now FLASH LCM and opens a warning that must be
+  ticked ("I understand and my board is idle on a stand") before it starts.
+- ADV100 corrected to ADV200 everywhere (XRV, GTV, PintV).
+- Checked: the STOCK LCM firmware cannot be flashed or changed from the
+  package. Its source (floatwheel LCM) has no flash-write / update code, it
+  only polls COMM_GET_VALUES (answered by the VESC firmware, not the
+  package), and its UART receive (8-bit index into a 256-byte buffer) has no
+  overflow to exploit. The HK32F030M's own boot modes need hardware pins,
+  not reachable over the VESC link. So the ALCM VP bootloader still needs one
+  ST-Link flash per board.

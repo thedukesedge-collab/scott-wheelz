@@ -522,7 +522,7 @@ Item {
             send(4, []);
             active = false;
             lcmFwTimer.stop();
-            message = "Cancelled. If the LCM had already started, power the board off and on, then press UPDATE again.";
+            message = "Cancelled. If the LCM had already started, power the board off and on, then press FLASH LCM again.";
         }
 
         function sendPage(off) {
@@ -571,7 +571,7 @@ Item {
                 if (++lcmFw.noReply > 150) {  // ~12 s without any reply
                     lcmFw.active = false;
                     stop();
-                    lcmFw.message = "Lost the connection to the board. The LCM keeps its power on and waits: reconnect and press UPDATE again (or power the board off and on).";
+                    lcmFw.message = "Lost the connection to the board. The LCM keeps its power on and waits: reconnect and press FLASH LCM again (or power the board off and on).";
                     return;
                 }
                 lcmFw.send(3, []);
@@ -6421,7 +6421,7 @@ Item {
                             border.width: 3
                             Text {
                                 anchors.centerIn: parent
-                                text: lcmFw.active ? "UPDATING..." : "\u21BB  UPDATE LCM"
+                                text: lcmFw.active ? "FLASHING..." : "\u21BB  FLASH LCM"
                                 color: fwBtnArea.pressed ? swTheme.background : swTheme.neonGreen
                                 font.family: "Exan"
                                 font.pixelSize: 0.36 * unit
@@ -6430,7 +6430,7 @@ Item {
                                 id: fwBtnArea
                                 anchors.fill: parent
                                 enabled: !!lcmFw.image && !lcmFw.active
-                                onClicked: lcmFw.start()
+                                onClicked: { lcmFwConfirm.ack = false; lcmFwConfirm.open(); }
                             }
                         }
 
@@ -6473,10 +6473,10 @@ Item {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: "\u2022 Only for LCMs with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex). Others ignore this.\n"
+                            text: "\u2022 Only for LCMs with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex). Stock LCM firmware can't be flashed from the app: it has no update code and only listens for the VESC's basic data.\n"
                                 + "\u2022 Board powered on and idle. The update is refused while riding; don't ride until it's done.\n"
                                 + "\u2022 Headlights and beeper go off while it updates (about a minute). Keep the app connected.\n"
-                                + "\u2022 If it's interrupted, the LCM keeps the power on and waits for the update. Press UPDATE again, or power the board off and on first. Hold the button 2 s to power off."
+                                + "\u2022 If it's interrupted, the LCM keeps the power on and waits for the update. Press FLASH LCM again, or power the board off and on first. Hold the button 2 s to power off."
                         }
                     }
                 }
@@ -6488,7 +6488,97 @@ Item {
                 wrapMode: Text.WordWrap
                 font.pixelSize: 0.17 * unit
                 color: "#FFB300"
-                text: "\u26A0 ADV100 (XRV / GTV / PintV) + ALCM VP light module firmware only"
+                text: "\u26A0 ADV200 (XRV / GTV / PintV) + ALCM VP light module firmware only"
+            }
+        }
+    }
+
+    // Re-RinkFloat: FLASH LCM warning - must be acknowledged first
+    Popup {
+        id: lcmFwConfirm
+        parent: mainItem
+        x: (mainItem.width - width) / 2
+        y: (mainItem.height - height) / 2
+        width: mainItem.width * 0.92
+        modal: true
+        dim: true
+        padding: 0.3 * unit
+        closePolicy: Popup.CloseOnEscape
+
+        property bool ack: false
+
+        background: Rectangle {
+            color: "#140d02"
+            radius: 0.25 * unit
+            border.color: "#FFB300"
+            border.width: 3
+        }
+
+        Column {
+            width: parent.width
+            spacing: 0.18 * unit
+
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: "\u26A0 FLASH LCM FIRMWARE"
+                color: "#FFB300"
+                font.family: "Exan"
+                font.pixelSize: 0.36 * unit
+            }
+
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: "#ffe3a3"
+                font.pixelSize: fontSizeSmall
+                text: "This rewrites the firmware of your board's light control module (LCM), the part that also switches the board's power.\n\n"
+                    + "\u2022 Only for ADV200 controllers (XRV, GTV, PintV) whose LCM already has the ALCM VP bootloader (ALCM_VP_BL_full.hex, flashed once with an ST-Link). Stock LCM firmware can't be flashed from the app.\n"
+                    + "\u2022 Board powered on, idle, on a stand. Do not ride, step on it or switch it off until it says Done (about a minute).\n"
+                    + "\u2022 Headlights and beeper are off while it flashes. Keep this app open and connected.\n"
+                    + "\u2022 If it's interrupted, the LCM keeps the board on and waits: press FLASH LCM again (power-cycle first if needed). Hold the button 2 s to power off.\n"
+                    + "\u2022 Experimental, at your own risk. Keep an ST-Link and your old LCM firmware as a fallback."
+            }
+
+            Row {
+                spacing: 0.15 * unit
+                Rectangle {
+                    width: 0.5 * unit; height: width; radius: 0.08 * unit
+                    color: lcmFwConfirm.ack ? "#FFB300" : "transparent"
+                    border.color: "#FFB300"; border.width: 2
+                    Text { anchors.centerIn: parent; text: lcmFwConfirm.ack ? "\u2713" : ""; color: "#140d02"; font.pixelSize: 0.36 * unit }
+                    MouseArea { anchors.fill: parent; onClicked: lcmFwConfirm.ack = !lcmFwConfirm.ack }
+                }
+                Text {
+                    width: lcmFwConfirm.width - 1.4 * unit
+                    anchors.verticalCenter: parent.verticalCenter
+                    wrapMode: Text.WordWrap
+                    color: "#ffe3a3"
+                    font.pixelSize: fontSizeSmall
+                    text: "I understand and my board is idle on a stand"
+                    MouseArea { anchors.fill: parent; onClicked: lcmFwConfirm.ack = !lcmFwConfirm.ack }
+                }
+            }
+
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 0.3 * unit
+                SwPill {
+                    minWidth: 2.2 * unit
+                    label: "CANCEL"
+                    onClicked: lcmFwConfirm.close()
+                }
+                SwPill {
+                    minWidth: 2.6 * unit
+                    label: "FLASH LCM"
+                    lit: lcmFwConfirm.ack
+                    enabledLook: lcmFwConfirm.ack
+                    onClicked: {
+                        if (!lcmFwConfirm.ack) return;
+                        lcmFwConfirm.close();
+                        lcmFw.start();
+                    }
+                }
             }
         }
     }
@@ -11262,7 +11352,7 @@ Item {
                         Item { width: parent.width; height: 0.05 * unit }
 
                         // Compatibility notice: these settings only work with the
-                        // ALCM VP light-module firmware on ADV100 controllers.
+                        // ALCM VP light-module firmware on ADV200 controllers.
                         Rectangle {
                             width: parent.width
                             height: ledCompatText.implicitHeight + 0.2 * unit
@@ -11280,7 +11370,7 @@ Item {
                                 font.pixelSize: fontSizeSmall
                                 textFormat: Text.StyledText
                                 text: "<b>&#9888; UPDATED LCM FIRMWARE REQUIRED</b><br>"
-                                    + "These settings only work on ADV100 controllers (XRV, GTV, PintV) "
+                                    + "These settings only work on ADV200 controllers (XRV, GTV, PintV) "
                                     + "with the light module flashed to the ALCM VP firmware. "
                                     + "On any other controller or LCM firmware they do nothing."
                             }
@@ -11343,8 +11433,8 @@ Item {
                                 title: "LCM FIRMWARE"
                                 glyph: "\u21BB"
                                 lit: lcmFw.active
-                                summary: lcmFw.active ? "UPDATING \u00B7 " + Math.round(lcmFw.progress * 100) + "%"
-                                    : (lcmFw.image ? "UPDATE OVER BLUETOOTH \u00B7 BOOTLOADER LCMs ONLY" : "NOT IN THIS BUILD")
+                                summary: lcmFw.active ? "FLASHING \u00B7 " + Math.round(lcmFw.progress * 100) + "%"
+                                    : (lcmFw.image ? "FLASH LCM FROM THE APP \u00B7 BOOTLOADER LCMs ONLY" : "NOT IN THIS BUILD")
                                 onClicked: ledWindow.show("fw")
                             }
                         }

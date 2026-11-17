@@ -1,6 +1,6 @@
 /*
  * LCM bootloader for the HK32F030MF4P6 light control module
- * (Floatwheel ADV100 boards: XRV, GTV, PintV) running ALCM VP.
+ * (Floatwheel ADV200 boards: XRV, GTV, PintV) running ALCM VP.
  *
  * Part of Re-Float Rink-Mixed. GPL-3.0-or-later.
  *

@@ -1,12 +1,22 @@
 # LCM bootloader: firmware updates over Bluetooth
 
 Update the LCM (light control module) firmware from the phone app instead of
-with an ST-Link. Only for **ADV100 controllers (Floatwheel XRV, GTV, PintV)**
+with an ST-Link. Only for **ADV200 controllers (Floatwheel XRV, GTV, PintV)**
 running the ALCM VP light firmware. Started on the PC, finished in the
 `lcm-bootloader` branch.
 
 > **Status: built and host-tested, not yet tried on a board.** The first
 > install needs the ST-Link anyway; keep it connected for the first test.
+
+## Why not from the stock LCM firmware?
+
+Checked (Nov 2026): the stock Floatwheel LCM firmware can't be flashed or
+changed from the package. It has no code that writes its own flash, it only
+polls the VESC for `COMM_GET_VALUES` (answered by the VESC firmware, not the
+package), and its UART receive can't overflow (8-bit index into a 256-byte
+buffer) - nothing to hook into. The chip's own boot modes need hardware pins
+that aren't wired to the VESC. So every board needs this bootloader flashed
+once with an ST-Link; after that, everything goes through the app.
 
 ## How it works
 

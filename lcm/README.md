@@ -5,7 +5,7 @@
 > light firmware) is flashed once with the ST-Link; after that the LCM is
 > updated from the phone app (LEDS › LCM FIRMWARE). See
 > [bootloader/README.md](bootloader/README.md).
-> **Compatibility:** for ADV100 controllers (Floatwheel XRV, GTV, PintV) and their light modules only. The package's LEDS tab does nothing unless the LCM runs this ALCM VP firmware.
+> **Compatibility:** for ADV200 controllers (Floatwheel XRV, GTV, PintV) and their light modules only. The package's LEDS tab does nothing unless the LCM runs this ALCM VP firmware.
 
 `alcm/` is [ALCM](https://github.com/MrTheConductor/alcm) v0.1.1 by
 Mitchell White (GPL-3.0), the light control module firmware for the
