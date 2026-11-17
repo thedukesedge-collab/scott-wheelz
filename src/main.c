@@ -857,10 +857,14 @@ static void refloat_thd(void *arg) {
                     beep_alert(d, 1, true);
                 }
 
-                // Re-RinkFloat: boot melody at the saved horn volume
+                // Re-RinkFloat: boot melody (default or custom) at the saved horn volume
                 if (d->boot_melody) {
                     haptic_feedback_play_melody(
-                        &d->haptic_feedback, &d->time, d->boot_melody_volume
+                        &d->haptic_feedback,
+                        &d->time,
+                        d->boot_melody_volume,
+                        d->melody_custom,
+                        d->boot_melody_custom ? sizeof(d->melody_custom) : 0
                     );
                 }
             }
@@ -1231,15 +1235,15 @@ static void read_cfg_from_eeprom(Data *d) {
 #define HORN_EEPROM_ADDR 120
 #define HORN_EEPROM_MAGIC 0xB0u
 
-static uint32_t horn_pack0(float beep, float buzz, bool melody) {
-    return (HORN_EEPROM_MAGIC << 24) | ((melody ? 1u : 0u) << 16) |
+static uint32_t horn_pack0(float beep, float buzz, bool melody, bool custom) {
+    return (HORN_EEPROM_MAGIC << 24) | ((melody ? 1u : 0u) << 16) | ((custom ? 2u : 0u) << 16) |
         ((uint32_t) (beep * 10.0f + 0.5f) << 8) | (uint32_t) (buzz * 10.0f + 0.5f);
 }
 
 static void horn_settings_load(Data *d) {
     d->boot_melody = true;
     d->boot_melody_volume = 2.5f;
-    eeprom_var v0, v1;
+    eeprom_var v0, v1, v2, v3;
     if (!VESC_IF->read_eeprom_var(&v0, HORN_EEPROM_ADDR) ||
         !VESC_IF->read_eeprom_var(&v1, HORN_EEPROM_ADDR + 1) ||
         (v0.as_u32 >> 24) != HORN_EEPROM_MAGIC) {
@@ -1247,6 +1251,17 @@ static void horn_settings_load(Data *d) {
     }
     d->horn_saved[0] = v0.as_u32;
     d->horn_saved[1] = v1.as_u32;
+    // custom melody (words 2-3); older saves don't have it
+    if (VESC_IF->read_eeprom_var(&v2, HORN_EEPROM_ADDR + 2) &&
+        VESC_IF->read_eeprom_var(&v3, HORN_EEPROM_ADDR + 3)) {
+        d->horn_saved[2] = v2.as_u32;
+        d->horn_saved[3] = v3.as_u32;
+        for (int i = 0; i < 4; ++i) {
+            d->melody_custom[i] = (v2.as_u32 >> (24 - 8 * i)) & 0xFF;
+            d->melody_custom[4 + i] = (v3.as_u32 >> (24 - 8 * i)) & 0xFF;
+        }
+    }
+    d->boot_melody_custom = (v0.as_u32 >> 17) & 1;
     float beep = ((v0.as_u32 >> 8) & 0xFF) * 0.1f;
     float buzz = (v0.as_u32 & 0xFF) * 0.1f;
     d->boot_melody = (v0.as_u32 >> 16) & 1;
@@ -1256,18 +1271,51 @@ static void horn_settings_load(Data *d) {
     );
 }
 
+static void horn_settings_queue_save(Data *d, uint32_t w0, uint32_t w1) {
+    uint32_t w[4] = {w0, w1, 0, 0};
+    for (int i = 0; i < 4; ++i) {
+        w[2] |= (uint32_t) d->melody_custom[i] << (24 - 8 * i);
+        w[3] |= (uint32_t) d->melody_custom[4 + i] << (24 - 8 * i);
+    }
+    bool changed = false, differs = !d->horn_save_pending;
+    for (int i = 0; i < 4; ++i) {
+        changed |= w[i] != d->horn_saved[i];
+        differs |= w[i] != d->horn_pending[i];
+    }
+    if (!changed) {
+        d->horn_save_pending = false;
+        return;
+    }
+    if (differs) {
+        for (int i = 0; i < 4; ++i) {
+            d->horn_pending[i] = w[i];
+        }
+        d->horn_change_time = d->time.now;
+        d->horn_save_pending = true;
+    }
+}
+
 static void horn_settings_save_if_due(Data *d) {
     if (!d->horn_save_pending || d->state.state == STATE_RUNNING ||
         !timer_older(&d->time, d->horn_change_time, 2.0f)) {
         return;
     }
-    uint32_t w0 = d->horn_pending[0], w1 = d->horn_pending[1];
+    uint32_t w[4];
+    for (int i = 0; i < 4; ++i) {
+        w[i] = d->horn_pending[i];
+    }
     d->horn_save_pending = false;
-    eeprom_var v0 = {.as_u32 = w0}, v1 = {.as_u32 = w1};
-    if (VESC_IF->store_eeprom_var(&v0, HORN_EEPROM_ADDR) &&
-        VESC_IF->store_eeprom_var(&v1, HORN_EEPROM_ADDR + 1)) {
-        d->horn_saved[0] = w0;
-        d->horn_saved[1] = w1;
+    bool ok = true;
+    for (int i = 0; i < 4 && ok; ++i) {
+        if (w[i] != d->horn_saved[i]) {
+            eeprom_var v = {.as_u32 = w[i]};
+            ok = VESC_IF->store_eeprom_var(&v, HORN_EEPROM_ADDR + i);
+        }
+    }
+    if (ok) {
+        for (int i = 0; i < 4; ++i) {
+            d->horn_saved[i] = w[i];
+        }
     } else {
         log_error("Failed to save horn settings.");
     }
@@ -1363,7 +1411,8 @@ enum {
     // horn-only sound: u8 beep V x10, u16 beep Hz, u8 buzz A x10, u16 buzz Hz
     // optional 9th byte: flags, bit 0 = boot melody on
     COMMAND_HORN_SETTINGS = 122,
-    COMMAND_PLAY_MELODY = 123,  // play the boot melody now (READY only)
+    COMMAND_PLAY_MELODY = 123,  // play a melody now (READY only): u8 0 = default, 1 = custom
+    COMMAND_MELODY_SET = 124,  // custom melody: up to 8 note bytes (see haptic_feedback.h)
 
     // commands above 200 are unstable and can change protocol at any time
 } Commands;
@@ -2463,30 +2512,51 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
                 buffer[5] * 0.1f,
                 (buffer[6] << 8) | buffer[7]
             );
-            bool melody = len == 9 ? (buffer[8] & 1) : d->boot_melody;
-            d->boot_melody = melody;
-            d->boot_melody_volume = hf->horn_beep_strength;
-            // remember on the board (written later, only if it changed)
-            uint32_t w0 = horn_pack0(hf->horn_beep_strength, hf->horn_buzz_strength, melody);
-            uint32_t w1 = ((uint32_t) hf->horn_beep_frequency << 16) | hf->horn_buzz_frequency;
-            if (w0 != d->horn_saved[0] || w1 != d->horn_saved[1]) {
-                if (!d->horn_save_pending || w0 != d->horn_pending[0] || w1 != d->horn_pending[1]) {
-                    d->horn_pending[0] = w0;
-                    d->horn_pending[1] = w1;
-                    d->horn_change_time = d->time.now;
-                    d->horn_save_pending = true;
-                }
-            } else {
-                d->horn_save_pending = false;
+            if (len == 9) {
+                d->boot_melody = buffer[8] & 1;
+                d->boot_melody_custom = (buffer[8] >> 1) & 1;
             }
+            d->boot_melody_volume = hf->horn_beep_strength;
+            d->horn_last_w0 = horn_pack0(
+                hf->horn_beep_strength,
+                hf->horn_buzz_strength,
+                d->boot_melody,
+                d->boot_melody_custom
+            );
+            d->horn_last_w1 = ((uint32_t) hf->horn_beep_frequency << 16) | hf->horn_buzz_frequency;
+            // remember on the board (written later, only if it changed)
+            horn_settings_queue_save(d, d->horn_last_w0, d->horn_last_w1);
         } else {
             log_error("Command data length incorrect: %u", len);
         }
         return;
     }
     case COMMAND_PLAY_MELODY: {
+        // optional byte: 0 = default melody, 1 = custom melody
+        bool custom = len >= 3 && buffer[2] == 1;
         if (d->state.state == STATE_READY) {
-            haptic_feedback_play_melody(&d->haptic_feedback, &d->time, d->boot_melody_volume);
+            haptic_feedback_play_melody(
+                &d->haptic_feedback,
+                &d->time,
+                d->boot_melody_volume,
+                d->melody_custom,
+                custom ? sizeof(d->melody_custom) : 0
+            );
+        }
+        return;
+    }
+    case COMMAND_MELODY_SET: {
+        // up to 8 note bytes; missing ones end the melody
+        if (len >= 2 && len <= 10) {
+            for (uint32_t i = 0; i < sizeof(d->melody_custom); ++i) {
+                d->melody_custom[i] = i + 2 < len ? buffer[i + 2] : 0;
+            }
+            // only saved once the horn settings have been received too
+            if (d->horn_last_w0) {
+                horn_settings_queue_save(d, d->horn_last_w0, d->horn_last_w1);
+            }
+        } else {
+            log_error("Command data length incorrect: %u", len);
         }
         return;
     }

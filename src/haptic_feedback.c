@@ -53,10 +53,8 @@
 #define HORN_MIN_VIBRATE_STRENGTH 8.0f
 #define HORN_DEFAULT_BEEP_FREQUENCY 495
 #define HORN_DEFAULT_VIBRATE_FREQUENCY 70
-// - boot melody: horn pitch levels 1, 2, 3, half a second each
-#define MELODY_STEP 0.5f
-static const uint16_t melody_notes[] = {300, 375, 450};
-#define MELODY_NOTES (sizeof(melody_notes) / sizeof(melody_notes[0]))
+// - default boot melody: horn pitch levels 1, 2, 3, half a second each
+static const uint8_t default_melody[] = {0x12, 0x22, 0x32};
 
 void haptic_feedback_init(HapticFeedback *hf) {
     hf->type_playing = HAPTIC_FEEDBACK_NONE;
@@ -74,7 +72,46 @@ void haptic_feedback_init(HapticFeedback *hf) {
     hf->melody_active = false;
 }
 
-void haptic_feedback_play_melody(HapticFeedback *hf, const Time *time, float volume) {
+uint16_t melody_level_hz(uint8_t level) {
+    if (level == 0) {
+        return 0;
+    }
+    if (level > 10) {
+        level = 10;
+    }
+    // same scale as the horn PITCH setting: 1 = 300 Hz ... 10 = 1000 Hz
+    float hz = 300.0f + (level - 1) * 700.0f / 9.0f;
+    return (uint16_t) (25.0f * (int) (hz / 25.0f + 0.5f));
+}
+
+void haptic_feedback_play_melody(
+    HapticFeedback *hf, const Time *time, float volume, const uint8_t *notes, uint8_t count
+) {
+    if (count == 0) {
+        notes = default_melody;
+        count = sizeof(default_melody);
+    }
+    hf->melody_active = false;
+    float total = 0.0f;
+    uint8_t n = 0;
+    for (uint8_t i = 0; i < count && n < MELODY_MAX_NOTES; ++i) {
+        uint8_t units = notes[i] & 0x0F;
+        if (units == 0) {
+            break;
+        }
+        float len = fminf(units, 4) * 0.25f;
+        if (total + len > MELODY_MAX_LENGTH) {
+            break;
+        }
+        hf->melody_freq[n] = melody_level_hz(notes[i] >> 4);
+        hf->melody_len[n] = len;
+        total += len;
+        ++n;
+    }
+    if (n == 0) {
+        return;
+    }
+    hf->melody_count = n;
     hf->melody_volume = clampf(volume, 0.5f, 6.0f);
     hf->melody_start = time->now;
     hf->melody_active = true;
@@ -270,15 +307,27 @@ void haptic_feedback_update(
 ) {
     // Re-RinkFloat: boot melody takes over the tone while it plays (READY only)
     if (hf->melody_active) {
-        uint32_t step = (uint32_t) (timer_age(time, hf->melody_start) / MELODY_STEP);
-        if (state->state != STATE_READY || step >= MELODY_NOTES) {
+        float age = timer_age(time, hf->melody_start);
+        uint8_t step = 0;
+        while (step < hf->melody_count && age >= hf->melody_len[step]) {
+            age -= hf->melody_len[step];
+            ++step;
+        }
+        if (state->state != STATE_READY || step >= hf->melody_count) {
             hf->melody_active = false;
             foc_play_tone(0, 1, 0.0f);
             hf->is_playing = false;
             hf->type_playing = HAPTIC_FEEDBACK_NONE;
             hf->can_change_type = true;
         } else {
-            foc_play_tone(0, melody_notes[step], hf->melody_volume);
+            uint16_t hz = hf->melody_freq[step];
+            // short gap at the end of each note so repeated pitches are heard
+            bool gap = age > hf->melody_len[step] - 0.04f;
+            if (hz == 0 || gap) {
+                foc_play_tone(0, 1, 0.0f);
+            } else {
+                foc_play_tone(0, hz, hf->melody_volume);
+            }
             return;
         }
     }

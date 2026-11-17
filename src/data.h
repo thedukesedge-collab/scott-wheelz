@@ -93,12 +93,15 @@ typedef struct {
     // Re-RinkFloat: horn settings + boot melody switch, remembered on the board
     // (2 custom EEPROM words after the config). Written from the aux thread,
     // only when changed and never while riding.
-    volatile uint32_t horn_saved[2];
-    volatile uint32_t horn_pending[2];
+    volatile uint32_t horn_saved[4];
+    volatile uint32_t horn_pending[4];
     volatile bool horn_save_pending;
     volatile time_t horn_change_time;
     bool boot_melody;
+    bool boot_melody_custom;  // play the custom melody at boot
     float boot_melody_volume;
+    uint8_t melody_custom[8];  // note bytes, 0 = end
+    uint32_t horn_last_w0, horn_last_w1;  // last horn settings words from the app
 
     // Config values
     uint32_t loop_time_us;

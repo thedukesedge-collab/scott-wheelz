@@ -41,6 +41,13 @@ typedef enum {
     HORN_MODE_BOTH = 3,  // beep and buzz together
 } HornMode;
 
+// Re-RinkFloat: melodies are up to 8 notes and 4 s long
+#define MELODY_MAX_NOTES 8
+#define MELODY_MAX_LENGTH 4.0f
+
+// note byte: pitch level 0-10 (0 = rest) << 4 | length in 0.25 s units (1-4)
+uint16_t melody_level_hz(uint8_t level);
+
 typedef struct {
     const CfgHapticFeedback *cfg;
     float duty_solid_threshold;
@@ -72,10 +79,13 @@ typedef struct {
     volatile float horn_buzz_strength;  // A, 0 = no buzz
     volatile uint16_t horn_buzz_frequency;  // Hz
 
-    // Re-RinkFloat: boot melody (3 rising notes while READY)
+    // Re-RinkFloat: melody player (boot melody / custom melody), READY only
     volatile bool melody_active;
     volatile time_t melody_start;
     volatile float melody_volume;  // V
+    uint16_t melody_freq[MELODY_MAX_NOTES];  // Hz, 0 = rest
+    float melody_len[MELODY_MAX_NOTES];  // s
+    volatile uint8_t melody_count;
 } HapticFeedback;
 
 void haptic_feedback_init(HapticFeedback *hf);
@@ -105,9 +115,12 @@ void haptic_feedback_horn(HapticFeedback *hf, const Time *time, uint8_t req, uin
 // external beeper on the PPM pin).
 bool haptic_feedback_horn_playing(const HapticFeedback *hf);
 
-// Re-RinkFloat: plays the boot melody (pitch levels 1, 2, 3; 0.5 s each) at the
-// given beep volume. Only sounds while the board is READY; stops if it engages.
-void haptic_feedback_play_melody(HapticFeedback *hf, const Time *time, float volume);
+// Re-RinkFloat: plays a melody of note bytes (see above) at the given beep
+// volume; count 0 plays the default boot melody (levels 1, 2, 3; 0.5 s each).
+// Only sounds while the board is READY; stops if it engages.
+void haptic_feedback_play_melody(
+    HapticFeedback *hf, const Time *time, float volume, const uint8_t *notes, uint8_t count
+);
 
 void haptic_feedback_update(
     HapticFeedback *hf,

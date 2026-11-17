@@ -266,13 +266,34 @@ Item {
             data.setUint16(3, v[1]);
             data.setUint8(5, Math.round(v[2] * 10));
             data.setUint16(6, v[3]);
-            data.setUint8(8, swSettings.hornBootMelody ? 1 : 0);
+            data.setUint8(8, (swSettings.hornBootMelody ? 1 : 0) | (swSettings.hornBootCustom ? 2 : 0));
+            vescCommands.sendCustomAppData(data.buffer);
+            sendMelody();
+        }
+
+        // custom melody -> note bytes (pitch << 4 | length units)
+        function notes() {
+            try {
+                var n = JSON.parse(swSettings.melodyNotes);
+                return Array.isArray(n) ? n.slice(0, 8) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function sendMelody() {
+            var n = notes();
+            var data = commands.createData(2 + n.length, commands.c_MELODY_SET);
+            for (var i = 0; i < n.length; i++) {
+                data.setUint8(2 + i, (Math.max(0, Math.min(10, n[i][0])) << 4) | Math.max(1, Math.min(4, n[i][1])));
+            }
             vescCommands.sendCustomAppData(data.buffer);
         }
 
-        function playMelody() {
-            send();  // so it plays at the current volume
-            var data = commands.createData(2, commands.c_PLAY_MELODY);
+        function playMelody(custom) {
+            send();  // so it plays with the current volume / notes
+            var data = commands.createData(3, commands.c_PLAY_MELODY);
+            data.setUint8(2, custom ? 1 : 0);
             vescCommands.sendCustomAppData(data.buffer);
         }
     }
@@ -753,6 +774,7 @@ Item {
         readonly property int c_FREESPIN_LIMIT: 121  // Re-RinkFloat
         readonly property int c_HORN_SETTINGS: 122  // Re-RinkFloat
         readonly property int c_PLAY_MELODY: 123  // Re-RinkFloat
+        readonly property int c_MELODY_SET: 124  // Re-RinkFloat
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
         // Dynamic range: +-131008.0
@@ -1131,6 +1153,8 @@ Item {
         // simple mode (default): plain 0-10 levels mapped onto the values above
         property bool hornAdvanced: false
         property bool hornBootMelody: true    // 3 rising notes at power-up
+        property bool hornBootCustom: false   // play the custom melody at boot instead
+        property string melodyNotes: "[[1,2],[2,2],[3,2]]"  // [pitch 0-10 (0 = rest), length x0.25 s]
         property int hornSimpleStrength: 5    // 0-10 -> buzz 0-15 A
         property int hornSimpleVolume: 5      // 1-10 -> beep 0.5-5 V
         property int hornSimplePitch: 3       // 1-10 -> beep 300-1000 Hz
@@ -2527,6 +2551,86 @@ Item {
             ctx.strokeStyle = engineIcon.color;
             ctx.lineWidth = 3;
             ctx.stroke();
+        }
+    }
+
+    // Re-RinkFloat: small up/down arrow button with hold-to-repeat
+    component SwArrow : Rectangle {
+        id: arrow
+        property bool up: true
+        property bool atLimit: false
+        signal step()
+        width: 0.8 * unit
+        height: 0.7 * unit
+        radius: 0.12 * unit
+        color: arrowArea.pressed && !atLimit ? swTheme.neonPurple : "#140a26"
+        border.color: atLimit ? "#4a2a73" : swTheme.neonPurple
+        border.width: 2
+
+        Canvas {
+            anchors.centerIn: parent
+            width: 0.32 * unit
+            height: 0.24 * unit
+            property color col: arrow.atLimit ? "#4a2a73" : arrowArea.pressed ? swTheme.background : swTheme.neonGreen
+            onColChanged: requestPaint()
+            onPaint: {
+                var ctx = getContext("2d");
+                ctx.reset();
+                ctx.beginPath();
+                if (arrow.up) {
+                    ctx.moveTo(0, height); ctx.lineTo(width / 2, 0); ctx.lineTo(width, height);
+                } else {
+                    ctx.moveTo(0, 0); ctx.lineTo(width / 2, height); ctx.lineTo(width, 0);
+                }
+                ctx.closePath();
+                ctx.fillStyle = col;
+                ctx.fill();
+            }
+        }
+
+        MouseArea {
+            id: arrowArea
+            anchors.fill: parent
+            onPressed: { if (!arrow.atLimit) arrow.step(); arrowRepeat.interval = 450; arrowRepeat.start(); }
+            onReleased: arrowRepeat.stop()
+            onCanceled: arrowRepeat.stop()
+        }
+
+        Timer {
+            id: arrowRepeat
+            repeat: true
+            onTriggered: { interval = 110; if (!arrow.atLimit) arrow.step(); }
+        }
+    }
+
+    // Re-RinkFloat: neon pill button
+    component SwPill : Rectangle {
+        id: pill
+        property string label
+        property bool lit: false
+        property bool enabledLook: true
+        signal clicked()
+        width: Math.max(2.0 * unit, pillText.implicitWidth + 0.6 * unit)
+        height: 0.72 * unit
+        radius: height / 2
+        opacity: enabledLook ? 1 : 0.4
+        color: lit || pillArea.pressed ? swTheme.neonGreen : "transparent"
+        border.color: lit || pillArea.pressed ? swTheme.neonGreen : swTheme.neonPurple
+        border.width: 2
+
+        Text {
+            id: pillText
+            anchors.centerIn: parent
+            text: pill.label
+            color: pill.lit || pillArea.pressed ? swTheme.background : swTheme.neonPurple
+            font.family: "Exan"
+            font.pixelSize: 0.24 * unit
+        }
+
+        MouseArea {
+            id: pillArea
+            anchors.fill: parent
+            onClicked: pill.clicked()
         }
     }
 
@@ -8651,6 +8755,7 @@ Item {
                 SwTabButton {text: "CONTROL"}
                 SwTabButton {text: "DATA"}
                 SwTabButton {text: "BOARD STYLE"}
+                SwTabButton {text: "MELODY"}
 
                 background: Rectangle {
                     color: "#0b0718"
@@ -9235,7 +9340,7 @@ Item {
                                                     swSettings.hornBootMelody = !swSettings.hornBootMelody;
                                                     hornSettingsSender.send();
                                                 } else if (state.pkgState === state.s_Ready) {
-                                                    hornSettingsSender.playMelody();
+                                                    hornSettingsSender.playMelody(swSettings.hornBootCustom);
                                                 } else {
                                                     VescIf.emitStatusMessage("Melody test works when the board is idle (READY)", false);
                                                 }
@@ -9696,6 +9801,249 @@ Item {
                         Item {
                             width: parent.width
                             height: 0.2 * unit
+                        }
+                    }
+                }
+
+                // Re-RinkFloat: MELODY - make your own boot melody
+                ScrollView {
+                    id: melodyPage
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    contentWidth: availableWidth
+                    clip: true
+
+                    property var notes: hornSettingsSender.notes()
+                    property real total: {
+                        var t = 0;
+                        for (var i = 0; i < notes.length; i++) t += notes[i][1] * 0.25;
+                        return t;
+                    }
+
+                    function store(n) {
+                        swSettings.melodyNotes = JSON.stringify(n);
+                        hornSettingsSender.sendMelody();
+                    }
+
+                    function edit(i, field, delta) {
+                        var n = notes.slice();
+                        var note = n[i].slice();
+                        if (field === 0) {
+                            note[0] = Math.max(0, Math.min(10, note[0] + delta));
+                        } else {
+                            var next = Math.max(1, Math.min(4, note[1] + delta));
+                            if (total - note[1] * 0.25 + next * 0.25 > 4.0 + 1e-6) return;
+                            note[1] = next;
+                        }
+                        n[i] = note;
+                        store(n);
+                    }
+
+                    Column {
+                        anchors.fill: parent
+                        anchors.leftMargin: 0.15 * unit
+                        anchors.rightMargin: 0.15 * unit
+                        spacing: 0.15 * unit
+
+                        Item {
+                            width: parent.width
+                            height: 0.1 * unit
+                        }
+
+                        SwNeonLabel {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            font.pixelSize: 0.45 * unit
+                            font.letterSpacing: 0.06 * unit
+                            text: "MELODY MAKER"
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            font.pixelSize: fontSizeNormal
+                            wrapMode: Text.WordWrap
+                            text: "Up to 8 notes, 4 s total. PITCH uses the horn's 1-10 scale (0 = rest), LENGTH is 0.25 - 1 s. Plays at your horn VOLUME, only while the board is idle."
+                        }
+
+                        SwNeonLabel {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            color: melodyPage.total > 3.99 ? swTheme.color("orange") : "#c98bff"
+                            text: "LENGTH %1 s / 4.0 s".arg(melodyPage.total.toFixed(2))
+                        }
+
+                        // column headings
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.15 * unit
+
+                            Item { width: 0.7 * unit; height: 1 }
+                            SwNeonLabel { width: 3.1 * unit; horizontalAlignment: Text.AlignHCenter; font.pixelSize: 0.22 * unit; text: "PITCH" }
+                            SwNeonLabel { width: 3.1 * unit; horizontalAlignment: Text.AlignHCenter; font.pixelSize: 0.22 * unit; text: "LENGTH" }
+                            Item { width: 0.8 * unit; height: 1 }
+                        }
+
+                        Repeater {
+                            model: melodyPage.notes.length
+
+                            Row {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                spacing: 0.15 * unit
+                                property var note: melodyPage.notes[index]
+
+                                Text {
+                                    width: 0.7 * unit
+                                    height: 0.7 * unit
+                                    verticalAlignment: Text.AlignVCenter
+                                    color: "#c98bff"
+                                    font.family: "Exan"
+                                    font.pixelSize: 0.3 * unit
+                                    text: index + 1
+                                }
+
+                                SwArrow {
+                                    up: false
+                                    atLimit: note[0] <= 0
+                                    onStep: melodyPage.edit(index, 0, -1)
+                                }
+
+                                Text {
+                                    width: 1.3 * unit
+                                    height: 0.7 * unit
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    color: note[0] === 0 ? "#7d68ab" : swTheme.neonGreen
+                                    font.family: "Exan"
+                                    font.pixelSize: 0.3 * unit
+                                    text: note[0] === 0 ? "REST" : note[0]
+                                }
+
+                                SwArrow {
+                                    up: true
+                                    atLimit: note[0] >= 10
+                                    onStep: melodyPage.edit(index, 0, 1)
+                                }
+
+                                SwArrow {
+                                    up: false
+                                    atLimit: note[1] <= 1
+                                    onStep: melodyPage.edit(index, 1, -1)
+                                }
+
+                                Text {
+                                    width: 1.3 * unit
+                                    height: 0.7 * unit
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    color: swTheme.neonGreen
+                                    font.family: "Exan"
+                                    font.pixelSize: 0.3 * unit
+                                    text: (note[1] * 0.25).toFixed(2) + "s"
+                                }
+
+                                SwArrow {
+                                    up: true
+                                    atLimit: note[1] >= 4 || melodyPage.total + 0.25 > 4.0 + 1e-6
+                                    onStep: melodyPage.edit(index, 1, 1)
+                                }
+
+                                // remove note
+                                Rectangle {
+                                    width: 0.8 * unit
+                                    height: 0.7 * unit
+                                    radius: 0.12 * unit
+                                    color: removeArea.pressed ? swTheme.color("red") : "transparent"
+                                    border.color: melodyPage.notes.length > 1 ? swTheme.color("red") : "#4a2a73"
+                                    border.width: 2
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "\u2715"
+                                        color: melodyPage.notes.length > 1 ? swTheme.color("red") : "#4a2a73"
+                                        font.pixelSize: 0.3 * unit
+                                    }
+
+                                    MouseArea {
+                                        id: removeArea
+                                        anchors.fill: parent
+                                        onClicked: {
+                                            if (melodyPage.notes.length <= 1) return;
+                                            var n = melodyPage.notes.slice();
+                                            n.splice(index, 1);
+                                            melodyPage.store(n);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.2 * unit
+
+                            SwPill {
+                                label: "ADD NOTE"
+                                enabledLook: melodyPage.notes.length < 8 && melodyPage.total + 0.5 <= 4.0 + 1e-6
+                                onClicked: {
+                                    if (!enabledLook) {
+                                        VescIf.emitStatusMessage("Max 8 notes / 4 s", false);
+                                        return;
+                                    }
+                                    var n = melodyPage.notes.slice();
+                                    var last = n.length ? n[n.length - 1][0] : 3;
+                                    n.push([Math.min(10, Math.max(1, last)), 2]);
+                                    melodyPage.store(n);
+                                }
+                            }
+
+                            SwPill {
+                                label: "PLAY"
+                                enabledLook: state.pkgState === state.s_Ready
+                                onClicked: {
+                                    if (state.pkgState === state.s_Ready) {
+                                        hornSettingsSender.playMelody(true);
+                                    } else {
+                                        VescIf.emitStatusMessage("Melody plays when the board is idle (READY)", false);
+                                    }
+                                }
+                            }
+
+                            SwPill {
+                                label: "RESET"
+                                onClicked: melodyPage.store([[1, 2], [2, 2], [3, 2]])
+                            }
+                        }
+
+                        SwNeonLabel {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            font.pixelSize: 0.3 * unit
+                            text: "AT POWER-UP PLAY"
+                        }
+
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.2 * unit
+
+                            SwPill {
+                                label: "OFF"
+                                lit: !swSettings.hornBootMelody
+                                onClicked: { swSettings.hornBootMelody = false; hornSettingsSender.send(); }
+                            }
+
+                            SwPill {
+                                label: "DEFAULT"
+                                lit: swSettings.hornBootMelody && !swSettings.hornBootCustom
+                                onClicked: { swSettings.hornBootMelody = true; swSettings.hornBootCustom = false; hornSettingsSender.send(); }
+                            }
+
+                            SwPill {
+                                label: "MY MELODY"
+                                lit: swSettings.hornBootMelody && swSettings.hornBootCustom
+                                onClicked: { swSettings.hornBootMelody = true; swSettings.hornBootCustom = true; hornSettingsSender.send(); }
+                            }
+                        }
+
+                        Item {
+                            width: parent.width
+                            height: 0.3 * unit
                         }
                     }
                 }
