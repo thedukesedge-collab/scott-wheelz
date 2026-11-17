@@ -707,3 +707,15 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   update the VESC package; DOWNGRADE ANYWAY), DIFFERENT BUILD (same
   revision, other code, e.g. custom: FLASH PACKAGE BUILD). rf63/rf64 LCM
   builds (hash-only names) count as older.
+
+### Animation names light up like the animation (v1.2.3-rf66)
+- LEDS > ANIMATIONS: each animation's name is drawn letter by letter as if
+  the letters were the status bar LEDs (AnimName in ui.qml.in, following
+  status_leds.c): RAINBOW SCAN a sweeping spot cycling hues, RAINBOW MIRROR
+  a mirrored flowing rainbow, KNIGHT RIDER a red scanner, RAINBOW BAR a
+  scrolling rainbow, THE FUZZ red/blue strobes, FIRE flicker, PULSE OUT/IN
+  the personal color pulsing out from / in to the centre, 120 SCROLL and
+  COMP. WAVE gradients from the personal color, CLASSIC a left-to-right
+  fill, COLOR SCAN a personal-color scanner, STANDARD plain white. A
+  blurred copy of the letters behind them gives the neon glow. Animates
+  only while the window is open.
