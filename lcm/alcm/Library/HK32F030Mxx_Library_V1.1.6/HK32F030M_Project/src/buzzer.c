@@ -227,6 +227,7 @@ EVENT_HANDLER(buzzer, board_mode)
     // Configuration mode is confusing to navigate with no audible feedback,
     // so the beeper is forced on for its duration regardless of the user's
     // enable_beep setting, then restored to that setting on exit
+#ifndef VP_LIGHT_CONTROL // no config mode in the VP build
     if ((data->board_mode.mode == BOARD_MODE_IDLE) &&
         (data->board_mode.submode == BOARD_SUBMODE_IDLE_CONFIG))
     {
@@ -237,6 +238,7 @@ EVENT_HANDLER(buzzer, board_mode)
     {
         buzzer_hw_enable(buzzer_settings->enable_beep);
     }
+#endif
 
     switch (data->board_mode.mode)
     {

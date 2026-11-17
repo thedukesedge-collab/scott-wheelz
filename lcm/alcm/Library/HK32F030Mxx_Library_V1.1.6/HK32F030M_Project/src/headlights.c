@@ -373,6 +373,7 @@ EVENT_HANDLER(headlights, state_change)
         // the user's enable_headlights setting, then restored to that
         // setting on exit - mirrors the same treatment given to the beeper
         // and status LEDs
+#ifndef VP_LIGHT_CONTROL // no config mode in the VP build
         if ((board_mode_get() == BOARD_MODE_IDLE) && (board_submode_get() == BOARD_SUBMODE_IDLE_CONFIG))
         {
             enable_control = 255U;
@@ -391,6 +392,7 @@ EVENT_HANDLER(headlights, state_change)
                 headlights_set_enable_animation(HEADLIGHTS_ENABLE_ANIMATION_FADE_OUT);
             }
         }
+#endif
 
         switch (board_mode_get())
         {

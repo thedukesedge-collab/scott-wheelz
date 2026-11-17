@@ -80,7 +80,9 @@ lcm_status_t board_mode_init(void)
     SUBSCRIBE_EVENT(board_mode, EVENT_BUTTON_DOWN, command);
     SUBSCRIBE_EVENT(board_mode, EVENT_COMMAND_SHUTDOWN, command);
     SUBSCRIBE_EVENT(board_mode, EVENT_COMMAND_BOOT, command);
+#ifndef VP_LIGHT_CONTROL
     SUBSCRIBE_EVENT(board_mode, EVENT_COMMAND_MODE_CONFIG, command);
+#endif
     SUBSCRIBE_EVENT(board_mode, EVENT_RPM_CHANGED, rpm_changed);
     SUBSCRIBE_EVENT(board_mode, EVENT_EMERGENCY_FAULT, fault);
     SUBSCRIBE_EVENT(board_mode, EVENT_VESC_FAULT_CHANGED, fault);
@@ -283,6 +285,7 @@ EVENT_HANDLER(board_mode, command)
          */
         set_board_mode(BOARD_MODE_IDLE, BOARD_SUBMODE_IDLE_SHUTTING_DOWN);
         break;
+#ifndef VP_LIGHT_CONTROL // no config mode in the VP build (never pushed)
     case EVENT_COMMAND_MODE_CONFIG:
         if (data->enable)
         {
@@ -303,6 +306,7 @@ EVENT_HANDLER(board_mode, command)
             set_board_mode(BOARD_MODE_IDLE, BOARD_SUBMODE_IDLE_ACTIVE);
         }
         break;
+#endif
     case EVENT_BUTTON_UP:
         // Abort shutdown if the user releases the button
         if (board_mode == BOARD_MODE_IDLE && board_submode == BOARD_SUBMODE_IDLE_SHUTTING_DOWN)

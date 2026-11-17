@@ -663,6 +663,7 @@ void status_leds_handle_idle_dozing(event_type_t event)
     }
 }
 
+#ifndef VP_LIGHT_CONTROL // no config mode in the VP build
 void status_leds_handle_idle_config(event_type_t event)
 {
     switch (event)
@@ -684,6 +685,7 @@ void status_leds_handle_idle_config(event_type_t event)
         break;
     }
 }
+#endif
 
 /**
  * @brief Shared solid-red sine-brightness "pulse/breathe" animation, used by
@@ -825,9 +827,11 @@ void update_display(event_type_t event)
         case BOARD_SUBMODE_IDLE_DOZING:
             status_leds_handle_idle_dozing(event);
             break;
+#ifndef VP_LIGHT_CONTROL
         case BOARD_SUBMODE_IDLE_CONFIG:
             status_leds_handle_idle_config(event);
             break;
+#endif
         default:
             fault(EMERGENCY_FAULT_INVALID_STATE);
             break;
@@ -959,6 +963,7 @@ EVENT_HANDLER(status_leds, state_changed)
 {
     bool_t leds_enabled = status_leds_settings->enable_status_leds;
     board_mode_t current_mode = board_mode_get();
+#ifndef VP_LIGHT_CONTROL // no config mode in the VP build
     bool_t is_config =
         (current_mode == BOARD_MODE_IDLE) && (board_submode_get() == BOARD_SUBMODE_IDLE_CONFIG);
 
@@ -990,6 +995,7 @@ EVENT_HANDLER(status_leds, state_changed)
     // The config-mode indicator must stay visible even if status LEDs are
     // otherwise disabled by the user
     leds_enabled = leds_enabled || is_config;
+#endif
 
 #ifdef ENABLE_APP_INTEGRATION
     if (event == EVENT_BOARD_MODE_CHANGED)
