@@ -30,15 +30,22 @@ INC := -I$(L)/HK32F030M/HK32F030M_Lib/inc -I$(L)/HK32F030M/CMSIS/CM0/Core \
        -I$(L)/HK32F030M/CMSIS/HK32F030M/Include -I$(L)/HK32F030M_Project/inc
 DEF := -DHK32F030M -DHK32F030MF4P6 $(if $(filter 1,$(VP)),-DVP_LIGHT_CONTROL)
 ARCH := -mcpu=cortex-m0 -mthumb
-CFLAGS := $(ARCH) -Os -std=gnu99 -ffunction-sections -fdata-sections -flto \
+CFLAGS := $(ARCH) -Oz -std=gnu99 -ffunction-sections -fdata-sections -flto \
           -fno-common -Wall -Wno-unused-parameter $(DEF) $(INC)
-LDFLAGS := $(ARCH) -Os -flto -nostartfiles -specs=nano.specs -specs=nosys.specs \
+LDFLAGS := $(ARCH) -Oz -flto -nostartfiles -specs=nano.specs -specs=nosys.specs \
            -Wl,--gc-sections -Wl,-Map=build/$(NAME).map -T hk32f030m.ld
 
 all: build/$(NAME).hex
 
+# measure first with an oversized flash region, so the real size and the
+# biggest functions are printed even when it doesn't fit
 build/$(NAME).elf: $(SRC) $(ASM) hk32f030m.ld
 	@mkdir -p build
+	sed 's/LENGTH = 0x3FC0/LENGTH = 0x10000/' hk32f030m.ld > build/measure.ld
+	$(CC) $(CFLAGS) $(SRC) $(ASM) $(subst hk32f030m.ld,build/measure.ld,$(LDFLAGS)) -o build/$(NAME)_measure.elf
+	$(SIZE) build/$(NAME)_measure.elf
+	arm-none-eabi-nm --size-sort -S build/$(NAME)_measure.elf | tail -40
+	@echo "limit: text+data must be <= 16320 bytes (0x3FC0)"
 	$(CC) $(CFLAGS) $(SRC) $(ASM) $(LDFLAGS) -o $@
 	$(SIZE) $@
 
