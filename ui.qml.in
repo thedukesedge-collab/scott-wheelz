@@ -2619,8 +2619,9 @@ Item {
         property bool lit: false
         property bool enabledLook: true
         signal clicked()
-        width: Math.max(2.0 * unit, pillText.implicitWidth + 0.6 * unit)
-        height: 0.72 * unit
+        // implicit size, so pills also work inside Row/ColumnLayouts
+        implicitWidth: Math.max(2.0 * unit, pillText.implicitWidth + 0.6 * unit)
+        implicitHeight: 0.72 * unit
         radius: height / 2
         opacity: enabledLook ? 1 : 0.4
         color: lit || pillArea.pressed ? swTheme.neonGreen : "transparent"
