@@ -209,8 +209,8 @@
           <div id="hornSteps"></div>
           <div class="secTitle neonL" style="font-size:12px;margin-top:10px">BOOT MELODY</div>
           <div class="pills" id="melBoot"></div>
-          <div id="melSaved" style="display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:8px"></div>
-          <div class="pills" style="margin-top:6px"><div class="pill" id="padOpen">CUSTOM MELODY &#9834;</div><div class="pill" id="melTest">TEST</div></div>
+          <div id="melCur" style="text-align:center;font-size:11px;color:#c98bff;margin-top:6px"></div>
+          <div class="pills" style="margin-top:6px"><div class="pill" id="myMelOpen">MY MELODIES</div><div class="pill" id="padOpen">RECORD &#9834;</div><div class="pill" id="melTest">TEST</div></div>
           <div style="text-align:center;margin-top:6px"><div class="pill" id="hornReset" style="display:inline-block">RESET HORN</div></div>
           <div class="secTitle neonL" style="font-size:16px;margin-top:14px">MAGIC FLYWHEEL</div>
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Before enabling flywheel mode make sure that your board is nose up and perfectly balanced. To turn it off, you must disengage the board first.</p>
@@ -237,10 +237,17 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf50 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf51 · sim</span></div>
     </div>
   </div>
 
+  <div id="myMelBack" style="position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:44;display:none"></div>
+  <div id="myMel" style="position:absolute;left:0;right:0;bottom:0;height:60%;z-index:45;display:none;flex-direction:column;gap:8px;background:#0b0718;border:2px solid var(--purple);border-radius:14px 14px 0 0;padding:12px">
+    <div style="display:flex;align-items:center"><span class="neonL" style="flex:1;font-size:16px">MY MELODIES</span><div class="pill" id="myMelClose">&#10005;</div></div>
+    <div style="font-size:11px;color:var(--text)">Tap a melody to play it at bootup. &#9998; re-records it, &#10005; (tap twice) deletes it.</div>
+    <div id="melSaved" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:6px"></div>
+    <div class="pills"><div class="pill" id="myMelDefault">DEFAULT 1-2-3</div><div class="pill on" id="myMelNew">+ RECORD NEW</div></div>
+  </div>
   <div class="modalBack" id="modal"><div class="modal" id="modalBox"></div></div>
   <div id="toast"></div>
 
@@ -653,17 +660,26 @@ function renderMelody() {
   });
   // saved melodies: tap a name to use it as the boot melody, pencil to edit, x to delete
   const list = $('melSaved'); list.innerHTML = ''; const cur = savedCurrent();
+  $('myMelOpen').textContent = 'MY MELODIES' + (P.saved.length ? ' (' + P.saved.length + ')' : '');
+  $('melCur').textContent = P.hMelody && P.hBootCustom ? 'Custom: ' + (cur || 'unsaved recording') : '';
+  $('myMelDefault').classList.toggle('on', P.hMelody && !P.hBootCustom);
   if (!P.saved.length) { const t = document.createElement('div'); t.style.cssText = 'font-size:11px;color:var(--text);text-align:center'; t.textContent = 'No saved melodies yet: record one in MIXER \u25B8 REC, then SAVE.'; list.appendChild(t); }
   P.saved.forEach(m => {
     const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:6px';
     const mk = (txt, on, w, fn) => { const p = document.createElement('div'); p.className = 'pill' + (on ? ' on' : ''); p.textContent = txt; p.style.cssText = 'min-width:' + w + 'px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'; p.onclick = fn; row.appendChild(p); };
     mk(m.name, P.hMelody && P.hBootCustom && cur === m.name, 170, () => { melDel = ''; P.rec = m.notes.slice(); P.hMelody = true; P.hBootCustom = true; save(); renderMelody(); toast('Boot melody: ' + m.name); });
-    mk('\u270E', false, 26, () => { melDel = ''; P.rec = m.notes.slice(); save(); $('padOpen').onclick(); });
+    mk('\u270E', false, 26, () => { melDel = ''; P.rec = m.notes.slice(); save(); myMel(false); $('padOpen').onclick(); });
     mk(melDel === m.name ? 'DELETE?' : '\u2715', melDel === m.name, 26, () => { if (melDel === m.name) { melDel = ''; P.saved = P.saved.filter(x => x.name !== m.name); save(); } else melDel = m.name; renderMelody(); });
     list.appendChild(row);
   });
 }
 let melDel = '';
+function myMel(on) { $('myMel').style.display = on ? 'flex' : 'none'; $('myMelBack').style.display = on ? 'block' : 'none'; melDel = ''; renderMelody(); }
+$('myMelOpen').onclick = () => myMel(true);
+$('myMelClose').onclick = () => myMel(false);
+$('myMelBack').onclick = () => myMel(false);
+$('myMelDefault').onclick = () => { P.hMelody = true; P.hBootCustom = false; save(); renderMelody(); };
+$('myMelNew').onclick = () => { myMel(false); $('padOpen').onclick(); };
 function savedCurrent() { const c = JSON.stringify(P.rec); const m = P.saved.find(x => JSON.stringify(x.notes) === c); return m ? m.name : ''; }
 function saveMelodyAs() {
   if (!P.rec.length) return;

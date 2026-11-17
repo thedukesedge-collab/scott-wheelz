@@ -5797,6 +5797,155 @@ Item {
         }
     }
 
+    // Re-RinkFloat: MY MELODIES window (CONTROL > BOOT MELODY): the saved
+    // melodies, kept out of the CONTROL tab so it stays short. Tap a name to
+    // make it the boot melody, pencil to re-record it, x twice to delete.
+    Popup {
+        id: myMelodiesPopup
+        parent: mainItem
+        x: 0
+        width: mainItem.width
+        height: mainItem.height * 0.6
+        y: mainItem.height - height
+        modal: true
+        dim: true
+        padding: 0.3 * unit
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        onClosed: savedMelodyList.deleteArmed = ""
+
+        background: Rectangle {
+            color: "#0b0718"
+            radius: 0.3 * unit
+            border.color: swTheme.neonPurple
+            border.width: 2
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 0.2 * unit
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                SwNeonLabel {
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignLeft
+                    font.pixelSize: 0.36 * unit
+                    text: "MY MELODIES"
+                }
+
+                SwPill {
+                    minWidth: 1.0 * unit
+                    label: "\u2715"
+                    onClicked: myMelodiesPopup.close()
+                }
+            }
+
+            SwLText {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                font.pixelSize: fontSizeSmall
+                text: "Tap a melody to play it at bootup. \u270E re-records it, \u2715 (tap twice) deletes it."
+            }
+
+            Flickable {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                contentHeight: savedMelodyList.height
+                boundsBehavior: Flickable.StopAtBounds
+
+                Item {
+                    width: parent.width
+                    height: savedMelodyList.height
+
+                    Column {
+                        id: savedMelodyList
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 0.12 * unit
+                        property string deleteArmed: ""
+                        property string current: {
+                            swSettings.melodyRec;  // re-evaluate when the melody changes
+                            return melodyLib.currentName();
+                        }
+
+                        SwLText {
+                            width: 8.4 * unit
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            visible: melodyLib.items.length === 0
+                            font.pixelSize: fontSizeSmall
+                            text: "No saved melodies yet: record one in MIXER \u25B8 REC, then SAVE."
+                        }
+
+                        Repeater {
+                            model: melodyLib.items
+
+                            Row {
+                                spacing: 0.12 * unit
+                                property string name: modelData.name
+
+                                SwPill {
+                                    width: 4.6 * unit
+                                    label: parent.name
+                                    lit: swSettings.hornBootMelody && swSettings.hornBootCustom && savedMelodyList.current === parent.name
+                                    onClicked: { savedMelodyList.deleteArmed = ""; melodyLib.select(parent.name); }
+                                }
+
+                                SwPill {
+                                    minWidth: 1.0 * unit
+                                    label: "\u270E"
+                                    onClicked: {
+                                        // open it in the MIXER recorder (boot setting unchanged)
+                                        savedMelodyList.deleteArmed = "";
+                                        var i = melodyLib.find(parent.name);
+                                        if (i >= 0) {
+                                            swSettings.melodyRec = JSON.stringify(melodyLib.items[i].notes);
+                                            hornSettingsSender.sendMelody();
+                                        }
+                                        myMelodiesPopup.close();
+                    melodyPad.startRecording();
+                                    }
+                                }
+
+                                SwPill {
+                                    minWidth: savedMelodyList.deleteArmed === parent.name ? 1.9 * unit : 1.0 * unit
+                                    label: savedMelodyList.deleteArmed === parent.name ? "DELETE?" : "\u2715"
+                                    lit: savedMelodyList.deleteArmed === parent.name
+                                    onClicked: {
+                                        if (savedMelodyList.deleteArmed === parent.name) {
+                                            savedMelodyList.deleteArmed = "";
+                                            melodyLib.remove(parent.name);
+                                        } else {
+                                            savedMelodyList.deleteArmed = parent.name;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row {
+                Layout.alignment: Qt.AlignHCenter
+                spacing: 0.2 * unit
+
+                SwPill {
+                    label: "DEFAULT 1-2-3"
+                    lit: swSettings.hornBootMelody && !swSettings.hornBootCustom
+                    onClicked: { swSettings.hornBootMelody = true; swSettings.hornBootCustom = false; hornSettingsSender.send(); }
+                }
+
+                SwPill {
+                    label: "+ RECORD NEW"
+                    lit: true
+                    onClicked: { myMelodiesPopup.close(); melodyPad.startRecording(); }
+                }
+            }
+        }
+    }
+
     // Re-RinkFloat: name a melody from the MIXER recorder
     BaseDialog {
         id: saveMelodyDialog
@@ -9506,69 +9655,16 @@ Item {
                             }
                         }
 
-                        // saved melodies: tap a name to use it as the boot melody
-                        Column {
-                            id: savedMelodyList
+                        // which custom melody is in use (the list lives in MY MELODIES)
+                        SwLText {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 0.12 * unit
-                            property string deleteArmed: ""
-                            property string current: {
+                            visible: swSettings.hornBootMelody && swSettings.hornBootCustom
+                            font.pixelSize: fontSizeSmall
+                            color: "#c98bff"
+                            text: {
                                 swSettings.melodyRec;  // re-evaluate when the melody changes
-                                return melodyLib.currentName();
-                            }
-
-                            SwLText {
-                                width: 8.4 * unit
-                                horizontalAlignment: Text.AlignHCenter
-                                wrapMode: Text.WordWrap
-                                visible: melodyLib.items.length === 0
-                                font.pixelSize: fontSizeSmall
-                                text: "No saved melodies yet: record one in MIXER \u25B8 REC, then SAVE."
-                            }
-
-                            Repeater {
-                                model: melodyLib.items
-
-                                Row {
-                                    spacing: 0.12 * unit
-                                    property string name: modelData.name
-
-                                    SwPill {
-                                        width: 4.6 * unit
-                                        label: parent.name
-                                        lit: swSettings.hornBootMelody && swSettings.hornBootCustom && savedMelodyList.current === parent.name
-                                        onClicked: { savedMelodyList.deleteArmed = ""; melodyLib.select(parent.name); }
-                                    }
-
-                                    SwPill {
-                                        minWidth: 1.0 * unit
-                                        label: "\u270E"
-                                        onClicked: {
-                                            // open it in the MIXER recorder (boot setting unchanged)
-                                            savedMelodyList.deleteArmed = "";
-                                            var i = melodyLib.find(parent.name);
-                                            if (i >= 0) {
-                                                swSettings.melodyRec = JSON.stringify(melodyLib.items[i].notes);
-                                                hornSettingsSender.sendMelody();
-                                            }
-                                            melodyPad.startRecording();
-                                        }
-                                    }
-
-                                    SwPill {
-                                        minWidth: savedMelodyList.deleteArmed === parent.name ? 1.9 * unit : 1.0 * unit
-                                        label: savedMelodyList.deleteArmed === parent.name ? "DELETE?" : "\u2715"
-                                        lit: savedMelodyList.deleteArmed === parent.name
-                                        onClicked: {
-                                            if (savedMelodyList.deleteArmed === parent.name) {
-                                                savedMelodyList.deleteArmed = "";
-                                                melodyLib.remove(parent.name);
-                                            } else {
-                                                savedMelodyList.deleteArmed = parent.name;
-                                            }
-                                        }
-                                    }
-                                }
+                                var n = melodyLib.currentName();
+                                return "Custom: " + (n.length ? n : "unsaved recording");
                             }
                         }
 
@@ -9577,7 +9673,12 @@ Item {
                             spacing: 0.2 * unit
 
                             SwPill {
-                                label: "CUSTOM MELODY \u266A"
+                                label: "MY MELODIES" + (melodyLib.items.length ? " (" + melodyLib.items.length + ")" : "")
+                                onClicked: myMelodiesPopup.open()
+                            }
+
+                            SwPill {
+                                label: "RECORD \u266A"
                                 onClicked: melodyPad.startRecording()
                             }
 

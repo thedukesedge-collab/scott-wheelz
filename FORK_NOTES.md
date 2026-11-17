@@ -478,3 +478,11 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   and it used up the board's horn time without the app knowing. Only the
   HORN button sounds the horn now; setting changes are still sent at once
   plus one retry.
+
+### MY MELODIES window (v1.2.3-rf51)
+- The saved-melody list moved off the CONTROL tab into its own MY MELODIES
+  window, so CONTROL stays short. BOOT MELODY now shows OFF / DEFAULT /
+  CUSTOM, the name of the custom melody in use, and MY MELODIES (count),
+  RECORD and TEST buttons.
+- MY MELODIES: tap a melody to use it at bootup, pencil to re-record it,
+  x twice to delete; DEFAULT 1-2-3 and + RECORD NEW at the bottom.

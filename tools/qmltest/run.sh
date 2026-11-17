@@ -149,16 +149,18 @@ cd "$here/../.."
 mkdir -p /tmp/shots
 for c in "$@"; do
   # frame 0: collapsed, 1: open on TUNES, 2: open on MIXER (REC mode)
-  for shot in 0 1 2; do
+  # 3: CONTROL tab with the MY MELODIES window open (sample melodies)
+  for shot in 0 1 2 3; do
     frac=$([ $shot = 0 ] && echo 0 || echo 1)
-    tab=$([ $shot = 2 ] && echo 2 || echo 0)
+    tab=$([ $shot = 2 ] && echo 2 || ([ $shot = 3 ] && echo 1 || echo 0))
+    pop=$([ $shot = 3 ] && echo true || echo false)
     rec=$([ $shot = 2 ] && echo true || echo false)
     echo "=================== $c (shot $shot, sheetFraction=$frac)"
     mkdir -p ~/.config/QtProject
     # mark first-run hints as seen so they don't pop the sheet open
     printf "[scottWheelz]\nsheetFraction=$frac\nrailStyle=$frac\n\n[uiHints]\nstatusText=true\nplotCursor=true\ndrGeneral=true\ndrStartStop=true\ndrDownload=true\n" > ~/.config/QtProject/qmlscene.conf
     git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Re-RinkFloat/g; s/{{VERSION}}/test/g" \
-      | sed "s/category: \"scottWheelz\"/category: \"scottWheelzTest$shot\"/; s/property int railStyle: 0 /property int railStyle: $((2 - 2 * frac)) /; s/property bool flipView: false /property bool flipView: $([ $frac = 1 ] && echo true || echo false) /; s/property real sheetFraction: 0 /property real sheetFraction: $frac /; s/bottomSheet.open();//; s/bottomStackTabs.currentIndex = 3;//; s/id: bottomStackTabs$/id: bottomStackTabs; currentIndex: $tab/; s/id: bottomStackLayout$/id: bottomStackLayout; currentIndex: $tab/; s/property bool recording: false/property bool recording: $rec/; s/Component.onCompleted: fraction = swSettings.sheetFraction >= 0.5 ? 1 : 0/Component.onCompleted: fraction = $frac/" \
+      | sed "s/category: \"scottWheelz\"/category: \"scottWheelzTest$shot\"/; s/property int railStyle: 0 /property int railStyle: $((2 - 2 * frac)) /; s/property bool flipView: false /property bool flipView: $([ $frac = 1 ] && echo true || echo false) /; s/property real sheetFraction: 0 /property real sheetFraction: $frac /; s/bottomSheet.open();//; s/bottomStackTabs.currentIndex = 3;//; s/id: bottomStackTabs$/id: bottomStackTabs; currentIndex: $tab/; s/id: bottomStackLayout$/id: bottomStackLayout; currentIndex: $tab/; s/property bool recording: false/property bool recording: $rec/; s/id: myMelodiesPopup$/id: myMelodiesPopup; visible: $pop/; s/property string savedMelodies: \"\[\]\"/property string savedMelodies: '[{\"name\":\"Wake Up\",\"notes\":[[3,200]]},{\"name\":\"Mario\",\"notes\":[[1,500],[2,500],[3,500]]},{\"name\":\"Jingle\",\"notes\":[[5,300]]}]'/; s/Component.onCompleted: fraction = swSettings.sheetFraction >= 0.5 ? 1 : 0/Component.onCompleted: fraction = $frac/" \
       | python3 rjsmin.py > /tmp/ui.qml
     QML2_IMPORT_PATH=$stubs QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout 30 \
       /usr/lib/qt5/bin/qmlscene /tmp/wrapper.qml 2>&1 \
