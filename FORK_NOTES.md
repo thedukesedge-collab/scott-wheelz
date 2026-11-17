@@ -403,3 +403,14 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   only makes sound while idle (READY), and a held tile stops after 2 s.
 - "Tron" renamed to "Neon Future" in the docs, code comments and component
   names. No look changes.
+
+### MIXER tab (v1.2.3-rf44)
+- New MIXER tab in the panel (TUNES / CONTROL / MIXER / DATA / BOARD
+  STYLE) with the 10 note tiles. The panel opens to half the screen on
+  this tab.
+- LIVE mode: tap or hold tiles and the board plays the notes (idle /
+  READY only, 2 s max per hold). Nothing is recorded.
+- REC mode: the custom melody recorder (timeline, UNDO / CLEAR / PLAY /
+  DONE, 6 notes / 5 s / 2 s per note). The CONTROL tab's CUSTOM MELODY
+  button jumps to MIXER in REC mode; DONE sets it as the boot melody and
+  goes back to LIVE. The old pop-up pad is gone.

@@ -91,6 +91,8 @@
   #dataSwitch div { padding: 4px 12px; border-radius: 999px; font-family: Orbitron, monospace; font-size: 10px; color: var(--lav); cursor: pointer; }
   #dataSwitch div.on { background: var(--green); color: var(--bg); }
   #pgData { padding: 0; }
+  #pgMixer.on { display: flex; flex-direction: column; gap: 7px; overflow: hidden; padding: 8px; }
+  #pgMixer:not(.rec) .recOnly { display: none !important; }
   #dataText { position: absolute; inset: 0; overflow-y: auto; padding: 40px 10px 10px; }
   #dataGraph { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 38px 6px 4px; }
   #plotWrap { position: relative; flex: 1; min-height: 60px; touch-action: none; }
@@ -186,7 +188,7 @@
     <div id="sheetInner">
       <div id="handle"><div class="grip"></div></div>
       <div id="tabs">
-        <div class="tab on" data-i="0">TUNES</div><div class="tab" data-i="1">CONTROL</div><div class="tab" data-i="2">DATA</div><div class="tab" data-i="3">BOARD STYLE</div>
+        <div class="tab on" data-i="0">TUNES</div><div class="tab" data-i="1">CONTROL</div><div class="tab" data-i="2">MIXER</div><div class="tab" data-i="3">DATA</div><div class="tab" data-i="4">BOARD STYLE</div>
       </div>
       <div id="pages">
         <div class="page on" id="pgTunes"><div class="tunes" id="tunes"></div></div>
@@ -213,6 +215,14 @@
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Before enabling flywheel mode make sure that your board is nose up and perfectly balanced. To turn it off, you must disengage the board first.</p>
           <div class="fly" id="flyBtn">FLYWHEEL ON</div>
         </div>
+        <div class="page" id="pgMixer">
+          <div style="display:flex;align-items:center;gap:8px"><div class="pill" id="mxPlay">LIVE</div><div class="pill" id="mxRec">&#9679; REC</div><span style="flex:1"></span><span class="neonL" id="mxHint" style="font-size:10px">TAP TO PLAY</span></div>
+          <div class="recOnly" style="display:flex;align-items:center"><span class="neonL" style="flex:1;font-size:13px">CUSTOM MELODY</span><span class="neonL" id="padInfo" style="font-size:10px"></span></div>
+          <div class="recOnly" id="padLine" style="height:22px;background:#140a26;border:1px solid #3d2266;border-radius:4px;display:flex;gap:2px;padding:2px;overflow:hidden"></div>
+          <div id="padTiles" style="flex:1;min-height:0;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:1fr 1fr;gap:8px"></div>
+          <div class="pills recOnly"><div class="pill" id="padUndo">UNDO</div><div class="pill" id="padClear">CLEAR</div><div class="pill" id="padPlay">PLAY</div><div class="pill on" id="padDone">DONE</div></div>
+          <div class="recOnly" id="padHint" style="text-align:center;font-size:11px;color:var(--text)"></div>
+        </div>
         <div class="page" id="pgData">
           <div id="dataSwitch"><div data-v="1" class="on">GRAPH</div><div data-v="0">TEXT</div></div>
           <div id="dataGraph"><div id="plotWrap"><canvas id="plot"></canvas></div><div id="legend"></div></div>
@@ -227,18 +237,10 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf43 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf44 · sim</span></div>
     </div>
   </div>
 
-  <div id="padBack" style="position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:44;display:none"></div>
-  <div id="pad" style="position:absolute;left:0;right:0;bottom:0;height:50%;z-index:45;display:none;flex-direction:column;gap:8px;background:#0b0718;border:2px solid var(--purple);border-radius:14px 14px 0 0;padding:10px">
-    <div style="display:flex;align-items:center"><span class="neonL" style="flex:1;font-size:15px">CUSTOM MELODY</span><span class="neonL" id="padInfo" style="font-size:11px"></span></div>
-    <div id="padLine" style="height:22px;background:#140a26;border:1px solid #3d2266;border-radius:4px;display:flex;gap:2px;padding:2px;overflow:hidden"></div>
-    <div id="padTiles" style="flex:1;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:1fr 1fr;gap:8px"></div>
-    <div class="pills"><div class="pill" id="padUndo">UNDO</div><div class="pill" id="padClear">CLEAR</div><div class="pill" id="padPlay">PLAY</div><div class="pill on" id="padDone">DONE</div></div>
-    <div id="padHint" style="text-align:center;font-size:11px;color:var(--text)">Tap or hold a tile to hear its note and record it (2 s max per note). DONE sets it as your boot melody.</div>
-  </div>
   <div class="modalBack" id="modal"><div class="modal" id="modalBox"></div></div>
   <div id="toast"></div>
 
@@ -316,14 +318,14 @@ function layout() {
   const handleH = 0.75 * u;
   sheetMin = handleH + 1;
   const tabsH = 0.85 * u, verH = 0.32 * u;
-  sheetMax = Math.max(handleH + tabsH + verH + 2, rootH * 0.4);
+  sheetMax = Math.max(handleH + tabsH + verH + 2, rootH * (P.tab === 2 ? 0.5 : 0.4));  // 1/2 on MIXER
   // sheet inner fixed at full size; the sheet clips it
   css($('sheet'), { width: px(rootW), bottom: px(5) });
   css($('sheetInner'), { height: px(sheetMax - 2) });
   css($('handle'), { height: px(handleH) });
   css($('handle').firstChild, { width: px(1.4 * u), height: px(0.12 * u) });
   css($('tabs'), { height: px(tabsH) });
-  document.querySelectorAll('.tab').forEach(t => t.style.fontSize = px(0.27 * u));
+  document.querySelectorAll('.tab').forEach(t => { let f = 0.27 * u; t.style.fontSize = px(f); while (t.scrollWidth > t.clientWidth && f > 0.16 * u) { f -= 0.5; t.style.fontSize = px(f); } });
   css($('ver'), { height: px(verH + 0.08 * u), fontSize: px(0.24 * u), lineHeight: px(verH + 0.08 * u), letterSpacing: '.03em' });
 
   const hudH = rootH - sheetMin - 0.1 * u;
@@ -428,7 +430,7 @@ function setSheet(f) { sheetF = f; P.sheet = f; save(); $('sheet').classList.add
   const end = () => { if (!dragging) return; dragging = false; hd.classList.remove('drag'); if (!moved) setSheet(sheetF < 0.5 ? 1 : 0); else setSheet(sheetF < 0.5 ? 0 : 1); };
   hd.addEventListener('pointerup', end); hd.addEventListener('pointercancel', end);
 })();
-function setTab(i) { P.tab = i; save(); document.querySelectorAll('.tab').forEach((t, k) => t.classList.toggle('on', k === i)); document.querySelectorAll('.page').forEach((p, k) => p.classList.toggle('on', k === i)); }
+function setTab(i) { const was = P.tab; P.tab = i; save(); if (i !== 2 && typeof padRelease === 'function') padRelease(); if ((was === 2) !== (i === 2)) layout(); document.querySelectorAll('.tab').forEach((t, k) => t.classList.toggle('on', k === i)); document.querySelectorAll('.page').forEach((p, k) => p.classList.toggle('on', k === i)); if (i === 2) renderPad(); }
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setTab(+t.dataset.i)));
 
 // ---------- long press helper ----------
@@ -641,7 +643,7 @@ $('melTest').onclick = () => { if (S.mode !== 'ready') { toast('Melody test work
 const PAD_MAX_N = 6, PAD_MAX_MS = 5000, PAD_NOTE_MS = 2000;
 const padTotal = () => P.rec.reduce((a, n) => a + n[1], 0);
 const tileCol = l => { const f = (l - 1) / 9; return 'rgb(' + Math.round(177 * (1 - f) + 57 * f) + ',' + Math.round(76 * (1 - f) + 255 * f) + ',' + Math.round(255 * (1 - f) + 122 * f) + ')'; };
-let hold = null, liveOsc = null;
+let hold = null, liveOsc = null, mxRec = false;
 function liveStart(level) {
   try {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
@@ -667,15 +669,17 @@ function renderPad() {
   document.querySelectorAll('#padTiles .tile').forEach(t => {
     const l = +t.dataset.l, on = hold && hold.l === l;
     t.style.background = on ? tileCol(l) : '#140a26'; t.style.color = on ? '#05060d' : tileCol(l);
-    t.style.opacity = padFull() && !on ? 0.6 : 1;
+    t.style.opacity = mxRec && padFull() && !on ? 0.6 : 1;
   });
-  $('padHint').textContent = padFull() ? 'Melody full: tiles still play their note as a preview. UNDO or CLEAR to record more.' : S.mode === 'ready' ? 'Tap or hold a tile to hear its note and record it (2 s max per note). DONE sets it as your boot melody.' : 'The board plays notes only when idle (READY); you can still record.';
+  $('padHint').textContent = padFull() ? 'Melody full: tiles still play as a preview. UNDO or CLEAR to record more.' : S.mode === 'ready' ? 'Hold a tile to record that note (2 s max). DONE sets it as your boot melody.' : 'The board plays notes only when idle (READY); you can still record.';
+  $('mxHint').textContent = S.mode === 'ready' ? 'TAP TO PLAY' : 'BOARD PLAYS WHEN IDLE'; $('mxHint').style.display = mxRec ? 'none' : '';
+  $('pgMixer').classList.toggle('rec', mxRec); $('mxPlay').classList.toggle('on', !mxRec); $('mxRec').classList.toggle('on', mxRec);
 }
 for (let l = 1; l <= 10; l++) {
   const t = document.createElement('div'); t.className = 'tile'; t.dataset.l = l; t.textContent = l;
   t.style.cssText = 'border:3px solid ' + tileCol(l) + ';border-radius:12px;display:flex;align-items:center;justify-content:center;font:700 22px Orbitron,monospace;touch-action:none;user-select:none;cursor:pointer';
   t.addEventListener('pointerdown', e => {
-    e.preventDefault(); padRelease(); const preview = padFull(); if (preview) toast('Melody is full (6 notes / 5 s): preview only');
+    e.preventDefault(); padRelease(); const preview = !mxRec || padFull(); if (mxRec && padFull()) toast('Melody is full (6 notes / 5 s): preview only');
     t.setPointerCapture(e.pointerId); hold = { l, t: Date.now(), preview }; if (S.mode === 'ready') liveStart(l);
     const tick = () => { if (!hold) return; const ms = Date.now() - hold.t; if (ms >= PAD_NOTE_MS || (!hold.preview && padTotal() + ms >= PAD_MAX_MS)) { padRelease(); return; } renderPad(); hold.raf = requestAnimationFrame(tick); }; tick();
   });
@@ -688,13 +692,15 @@ function padRelease() {
   if (!hold.preview && ms >= 40) P.rec = P.rec.concat([[hold.l, Math.max(60, Math.round(ms / 20) * 20)]]);
   hold = null; save(); renderPad();
 }
-function padOpen(on) { $('pad').style.display = on ? 'flex' : 'none'; $('padBack').style.display = on ? 'block' : 'none'; if (on) renderPad(); else padRelease(); }
-$('padOpen').onclick = () => padOpen(true);
-$('padBack').onclick = () => padOpen(false);
+function mxMode(rec) { padRelease(); mxRec = rec; renderPad(); }
+$('mxPlay').onclick = () => mxMode(false);
+$('mxRec').onclick = () => mxMode(true);
+// CONTROL tab's CUSTOM MELODY button: open the MIXER tab in REC mode
+$('padOpen').onclick = () => { mxRec = true; setTab(2); sheetF = 1; P.sheet = 1; save(); $('sheet').classList.add('anim'); applySheet(); renderPad(); };
 $('padUndo').onclick = () => { P.rec = P.rec.slice(0, -1); save(); renderPad(); };
 $('padClear').onclick = () => { P.rec = []; save(); renderPad(); };
 $('padPlay').onclick = () => { if (S.mode !== 'ready') { toast('Melody plays when the board is idle (READY)'); return; } if (P.rec.length) playMelody(P.rec); };
-$('padDone').onclick = () => { if (P.rec.length) { P.hMelody = true; P.hBootCustom = true; save(); renderMelody(); } padOpen(false); };
+$('padDone').onclick = () => { if (P.rec.length) { P.hMelody = true; P.hBootCustom = true; save(); renderMelody(); toast('Custom melody set as boot melody'); } mxMode(false); };
 $('hornReset').onclick = () => { Object.assign(P, { hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, hsStr: 5, hsVol: 5, hsPitch: 3 }); save(); renderHorn(); toast('Horn settings reset'); };
 
 // ---------- flywheel ----------
@@ -1272,7 +1278,7 @@ function frame(now) {
 }
 
 // ---------- start ----------
-layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); renderHorn(); renderMelody(); setTab(Math.min(P.tab || 0, 3));
+layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); renderHorn(); renderMelody(); setTab(Math.min(P.tab || 0, 4));
 window.addEventListener('resize', () => { layout(); renderTunes(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { layout(); renderTunes(); });
 requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
