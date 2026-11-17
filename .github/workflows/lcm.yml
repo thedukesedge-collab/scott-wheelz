@@ -1,0 +1,49 @@
+# LCM firmware (lcm/alcm): build the .hex with arm-none-eabi-gcc (VP and
+# stock), check it fits below the battery LUT block, run ALCM's unit tests
+# (stock + VP builds), and publish ALCM_VP.hex to the "lcm-latest" release.
+name: LCM firmware
+
+on:
+  push:
+    branches: [main]
+    paths: ['lcm/**', '.github/workflows/lcm.yml']
+  workflow_dispatch:
+
+jobs:
+  firmware:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ARM GCC
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gcc-arm-none-eabi libnewlib-arm-none-eabi
+
+      - name: Build (VP and stock)
+        working-directory: lcm/alcm/gcc
+        run: |
+          arm-none-eabi-gcc --version | head -1
+          make VP=0
+          make VP=1
+          ls -la build/*.hex
+
+      - name: Unit tests (stock + VP)
+        if: always()
+        working-directory: lcm/alcm/Library/HK32F030Mxx_Library_V1.1.6/HK32F030M_Project
+        run: |
+          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCLANG_TIDY_EXE=OFF
+          cmake --build build -j4
+          cd build && ctest --output-on-failure
+
+      - name: Publish ALCM_VP.hex
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          F=lcm/alcm/gcc/build
+          gh release view lcm-latest >/dev/null 2>&1 || gh release create lcm-latest --prerelease \
+            --title "LCM firmware (ALCM VP)" --notes "ALCM with VP light control." --target "$GITHUB_SHA"
+          gh release edit lcm-latest --notes "ALCM v0.1.1 + VP light control, built from ${GITHUB_SHA::7}. ALCM_VP.hex = lights set from the Re-Float Rink-Mixed package, button keeps power on/off. ALCM_stock_gcc.hex = same build without the VP changes (for comparison/fallback)."
+          cp $F/ALCM.hex $F/ALCM_stock_gcc.hex
+          gh release upload lcm-latest $F/ALCM_VP.hex $F/ALCM_stock_gcc.hex --clobber

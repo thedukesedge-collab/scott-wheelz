@@ -1,0 +1,21 @@
+# Ignore project and build directoires
+Project/**
+Testing
+build
+StatusBarSimulator
+**.orig
+**.hex
+**/build_test/
+
+# Python (tools/battery_lut_patch/)
+**/__pycache__/
+*.pyc
+.pytest_cache/
+
+# Except
+!Project/MDK5/
+!Project/MDK5/ALCM.uvoptx
+!Project/MDK5/ALCM.uvprojx
+
+#
+.claude/**
