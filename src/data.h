@@ -41,6 +41,9 @@
 
 #include <vesc_c_if.h>
 
+// Re-RinkFloat: horn settings + custom melody in custom EEPROM words
+#define HORN_EEPROM_WORDS 5
+
 typedef struct {
     lib_thread main_thread;
     lib_thread aux_thread;
@@ -93,14 +96,14 @@ typedef struct {
     // Re-RinkFloat: horn settings + boot melody switch, remembered on the board
     // (2 custom EEPROM words after the config). Written from the aux thread,
     // only when changed and never while riding.
-    volatile uint32_t horn_saved[4];
-    volatile uint32_t horn_pending[4];
+    volatile uint32_t horn_saved[HORN_EEPROM_WORDS];
+    volatile uint32_t horn_pending[HORN_EEPROM_WORDS];
     volatile bool horn_save_pending;
     volatile time_t horn_change_time;
     bool boot_melody;
     bool boot_melody_custom;  // play the custom melody at boot
     float boot_melody_volume;
-    uint8_t melody_custom[8];  // note bytes, 0 = end
+    uint8_t melody_custom[12];  // 6 notes x (pitch level, length in 20 ms), 0 length = end
     uint32_t horn_last_w0, horn_last_w1;  // last horn settings words from the app
 
     // Config values

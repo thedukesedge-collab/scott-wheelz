@@ -54,7 +54,7 @@
 #define HORN_DEFAULT_BEEP_FREQUENCY 495
 #define HORN_DEFAULT_VIBRATE_FREQUENCY 70
 // - default boot melody: horn pitch levels 1, 2, 3, half a second each
-static const uint8_t default_melody[] = {0x12, 0x22, 0x32};
+static const uint8_t default_melody[] = {1, 25, 2, 25, 3, 25};
 
 void haptic_feedback_init(HapticFeedback *hf) {
     hf->type_playing = HAPTIC_FEEDBACK_NONE;
@@ -70,6 +70,8 @@ void haptic_feedback_init(HapticFeedback *hf) {
     hf->horn_mode = HORN_MODE_BOTH;
     hf->horn_custom = false;
     hf->melody_active = false;
+    hf->live_hz = 0;
+    hf->live_playing = false;
 }
 
 uint16_t melody_level_hz(uint8_t level) {
@@ -89,21 +91,22 @@ void haptic_feedback_play_melody(
 ) {
     if (count == 0) {
         notes = default_melody;
-        count = sizeof(default_melody);
+        count = sizeof(default_melody) / 2;
     }
     hf->melody_active = false;
     float total = 0.0f;
     uint8_t n = 0;
     for (uint8_t i = 0; i < count && n < MELODY_MAX_NOTES; ++i) {
-        uint8_t units = notes[i] & 0x0F;
-        if (units == 0) {
+        uint8_t level = notes[2 * i];
+        float len = notes[2 * i + 1] * MELODY_UNIT;
+        if (len <= 0.0f) {
             break;
         }
-        float len = fminf(units, 4) * 0.25f;
-        if (total + len > MELODY_MAX_LENGTH) {
+        len = fminf(len, MELODY_MAX_LENGTH - total);
+        if (len < 0.04f) {
             break;
         }
-        hf->melody_freq[n] = melody_level_hz(notes[i] >> 4);
+        hf->melody_freq[n] = melody_level_hz(level);
         hf->melody_len[n] = len;
         total += len;
         ++n;
@@ -115,6 +118,12 @@ void haptic_feedback_play_melody(
     hf->melody_volume = clampf(volume, 0.5f, 6.0f);
     hf->melody_start = time->now;
     hf->melody_active = true;
+}
+
+void haptic_feedback_live_tone(HapticFeedback *hf, const Time *time, uint8_t level, float volume) {
+    hf->live_volume = clampf(volume, 0.5f, 6.0f);
+    hf->live_hz = melody_level_hz(level);
+    hf->live_timer = time->now;
 }
 
 void haptic_feedback_horn_settings(
@@ -322,7 +331,7 @@ void haptic_feedback_update(
         } else {
             uint16_t hz = hf->melody_freq[step];
             // short gap at the end of each note so repeated pitches are heard
-            bool gap = age > hf->melody_len[step] - 0.04f;
+            bool gap = age > hf->melody_len[step] - 0.03f;
             if (hz == 0 || gap) {
                 foc_play_tone(0, 1, 0.0f);
             } else {
@@ -330,6 +339,22 @@ void haptic_feedback_update(
             }
             return;
         }
+    }
+
+    // Re-RinkFloat: live tone from the melody tiles (READY only)
+    bool live =
+        hf->live_hz > 0 && state->state == STATE_READY && !timer_older(time, hf->live_timer, 0.3f);
+    if (live) {
+        foc_play_tone(0, hf->live_hz, hf->live_volume);
+        hf->live_playing = true;
+        return;
+    } else if (hf->live_playing) {
+        hf->live_playing = false;
+        hf->live_hz = 0;
+        foc_play_tone(0, 1, 0.0f);
+        hf->is_playing = false;
+        hf->type_playing = HAPTIC_FEEDBACK_NONE;
+        hf->can_change_type = true;
     }
 
     // Re-RinkFloat: horn heat budget (main loop only)

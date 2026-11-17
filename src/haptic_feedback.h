@@ -42,10 +42,11 @@ typedef enum {
 } HornMode;
 
 // Re-RinkFloat: melodies are up to 8 notes and 4 s long
-#define MELODY_MAX_NOTES 8
-#define MELODY_MAX_LENGTH 4.0f
+#define MELODY_MAX_NOTES 6
+#define MELODY_MAX_LENGTH 2.5f
+#define MELODY_UNIT 0.02f  // note length unit (s)
 
-// note byte: pitch level 0-10 (0 = rest) << 4 | length in 0.25 s units (1-4)
+// a note is 2 bytes: pitch level 0-10 (0 = rest), length in 20 ms units
 uint16_t melody_level_hz(uint8_t level);
 
 typedef struct {
@@ -86,6 +87,10 @@ typedef struct {
     uint16_t melody_freq[MELODY_MAX_NOTES];  // Hz, 0 = rest
     float melody_len[MELODY_MAX_NOTES];  // s
     volatile uint8_t melody_count;
+    volatile uint16_t live_hz;
+    volatile time_t live_timer;
+    volatile float live_volume;
+    bool live_playing;
 } HapticFeedback;
 
 void haptic_feedback_init(HapticFeedback *hf);
@@ -115,12 +120,16 @@ void haptic_feedback_horn(HapticFeedback *hf, const Time *time, uint8_t req, uin
 // external beeper on the PPM pin).
 bool haptic_feedback_horn_playing(const HapticFeedback *hf);
 
-// Re-RinkFloat: plays a melody of note bytes (see above) at the given beep
-// volume; count 0 plays the default boot melody (levels 1, 2, 3; 0.5 s each).
-// Only sounds while the board is READY; stops if it engages.
+// Re-RinkFloat: plays a melody of `count` notes (2 bytes each, see above) at
+// the given beep volume; count 0 plays the default boot melody (levels 1, 2,
+// 3; 0.5 s each). Only sounds while the board is READY; stops if it engages.
 void haptic_feedback_play_melody(
     HapticFeedback *hf, const Time *time, float volume, const uint8_t *notes, uint8_t count
 );
+
+// Re-RinkFloat: live tone for the melody tiles: plays pitch `level` (0 = stop)
+// while keepalives arrive (stops 0.3 s after the last one). READY only.
+void haptic_feedback_live_tone(HapticFeedback *hf, const Time *time, uint8_t level, float volume);
 
 void haptic_feedback_update(
     HapticFeedback *hf,

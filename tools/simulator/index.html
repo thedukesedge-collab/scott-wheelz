@@ -186,7 +186,7 @@
     <div id="sheetInner">
       <div id="handle"><div class="grip"></div></div>
       <div id="tabs">
-        <div class="tab on" data-i="0">TUNES</div><div class="tab" data-i="1">CONTROL</div><div class="tab" data-i="2">DATA</div><div class="tab" data-i="3">BOARD STYLE</div><div class="tab" data-i="4">MELODY</div>
+        <div class="tab on" data-i="0">TUNES</div><div class="tab" data-i="1">CONTROL</div><div class="tab" data-i="2">DATA</div><div class="tab" data-i="3">BOARD STYLE</div>
       </div>
       <div id="pages">
         <div class="page on" id="pgTunes"><div class="tunes" id="tunes"></div></div>
@@ -205,7 +205,9 @@
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Used only for the HORN button, separate from the Haptic Feedback settings. You feel the buzz only while riding; the beep plays any time.</p>
           <div style="display:flex;justify-content:center;margin:8px 0"><div id="hornMode" style="display:flex;border:2px solid var(--purple);border-radius:999px;background:#0b0718;padding:2px"><div data-v="0" style="padding:5px 14px;border-radius:999px;font-family:Orbitron,monospace;font-size:10px;cursor:pointer">SIMPLE</div><div data-v="1" style="padding:5px 14px;border-radius:999px;font-family:Orbitron,monospace;font-size:10px;cursor:pointer">ADVANCED</div></div></div>
           <div id="hornSteps"></div>
-          <div class="stepRow"><span class="lbl">BOOT MELODY (3 rising notes at power-up)</span><span class="stepCtl"><span class="pill" id="melTest">TEST</span><span class="pill" id="melOn">ON</span></span></div>
+          <div class="secTitle neonL" style="font-size:12px;margin-top:10px">BOOT MELODY</div>
+          <div class="pills" id="melBoot"></div>
+          <div class="pills" style="margin-top:6px"><div class="pill" id="padOpen">CUSTOM MELODY &#9834;</div><div class="pill" id="melTest">TEST</div></div>
           <div style="text-align:center;margin-top:6px"><div class="pill" id="hornReset" style="display:inline-block">RESET HORN</div></div>
           <div class="secTitle neonL" style="font-size:16px;margin-top:14px">MAGIC FLYWHEEL</div>
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Before enabling flywheel mode make sure that your board is nose up and perfectly balanced. To turn it off, you must disengage the board first.</p>
@@ -224,20 +226,19 @@
           <div class="secTitle">View</div>
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
-        <div class="page" id="pgMelody">
-          <div class="secTitle neonL" style="font-size:16px">MELODY MAKER</div>
-          <p style="font-size:12px;color:#d6ffe4;margin:0 4px 6px">Up to 8 notes, 4 s total. PITCH uses the horn's 1-10 scale (0 = rest), LENGTH is 0.25 - 1 s. Plays at your horn VOLUME, only while the board is idle.</p>
-          <div id="melTotal" class="neonL" style="text-align:center;font-size:12px;margin-bottom:6px"></div>
-          <div id="melRows"></div>
-          <div class="pills" style="margin-top:8px"><div class="pill" id="melAdd">ADD NOTE</div><div class="pill" id="melPlay">PLAY</div><div class="pill" id="melReset">RESET</div></div>
-          <div class="secTitle neonL" style="font-size:12px;margin-top:12px">AT POWER-UP PLAY</div>
-          <div class="pills" id="melBoot"></div>
-        </div>
       </div>
-      <div id="ver" class="tron"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf41 · sim</span></div>
+      <div id="ver" class="tron"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf42 · sim</span></div>
     </div>
   </div>
 
+  <div id="padBack" style="position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:44;display:none"></div>
+  <div id="pad" style="position:absolute;left:0;right:0;bottom:0;height:50%;z-index:45;display:none;flex-direction:column;gap:8px;background:#0b0718;border:2px solid var(--purple);border-radius:14px 14px 0 0;padding:10px">
+    <div style="display:flex;align-items:center"><span class="neonL" style="flex:1;font-size:15px">CUSTOM MELODY</span><span class="neonL" id="padInfo" style="font-size:11px"></span></div>
+    <div id="padLine" style="height:22px;background:#140a26;border:1px solid #3d2266;border-radius:4px;display:flex;gap:2px;padding:2px;overflow:hidden"></div>
+    <div id="padTiles" style="flex:1;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:1fr 1fr;gap:8px"></div>
+    <div class="pills"><div class="pill" id="padUndo">UNDO</div><div class="pill" id="padClear">CLEAR</div><div class="pill" id="padPlay">PLAY</div><div class="pill on" id="padDone">DONE</div></div>
+    <div id="padHint" style="text-align:center;font-size:11px;color:var(--text)">Hold a tile to play and record that note. DONE sets it as your boot melody.</div>
+  </div>
   <div class="modalBack" id="modal"><div class="modal" id="modalBox"></div></div>
   <div id="toast"></div>
 
@@ -279,7 +280,7 @@ const NEON = ['#39ff7a', '#b14cff', '#00f0ff', '#ff2bd6', '#ff8a1f', '#f5ff3b', 
 const fx1 = v => (isFinite(v) ? (Math.round(v * 10) / 10).toFixed(1) : '-.-');
 
 // ---------- persisted prefs (this browser only) ----------
-const defaults = { melody: [[1,2],[2,2],[3,2]], hBootCustom: false, hMelody: true, hAdv: false, hsStr: 5, hsVol: 5, hsPitch: 3, hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, tempF: false, fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
+const defaults = { rec: [[1,500],[2,500],[3,500]], hBootCustom: false, hMelody: true, hAdv: false, hsStr: 5, hsVol: 5, hsPitch: 3, hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, tempF: false, fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
 let P = Object.assign({}, defaults);
 try { Object.assign(P, JSON.parse(localStorage.getItem('rrfSim') || '{}')); } catch (e) {}
 const save = () => { try { localStorage.setItem('rrfSim', JSON.stringify(P)); } catch (e) {} };
@@ -607,69 +608,92 @@ function renderHorn() {
 // boot melody: pitch levels 1, 2, 3 (300, 375, 450 Hz), 0.5 s each, at the horn volume
 function hornVolume() { return P.hAdv ? P.hBeep : P.hsVol * 0.5; }  // volts
 function playMelody(notes) {
-  notes = notes || [[1, 2], [2, 2], [3, 2]];
+  notes = notes || [[1, 500], [2, 500], [3, 500]];
   try {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     const ac = playMelody.ac || (playMelody.ac = new AC());
     if (ac.state === 'suspended') ac.resume();
     const t0 = ac.currentTime + 0.05, gainV = 0.02 + 0.06 * hornVolume();
     let t = t0;
-    notes.forEach(([lvl, units]) => {
-      const len = units * 0.25;
+    notes.forEach(([lvl, ms]) => {
+      const len = ms / 1000;
       if (lvl > 0) {
         const o = ac.createOscillator(), g = ac.createGain();
         o.type = 'square'; o.frequency.value = simplePitchHz(lvl);
         g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gainV, t + 0.01);
-        g.gain.setValueAtTime(gainV, t + len - 0.05); g.gain.linearRampToValueAtTime(0, t + len - 0.04);
+        g.gain.setValueAtTime(gainV, t + len - 0.04); g.gain.linearRampToValueAtTime(0, t + len - 0.03);
         o.connect(g).connect(ac.destination); o.start(t); o.stop(t + len);
       }
       t += len;
     });
   } catch (e) {}
 }
-function renderMelody() { $('melOn').textContent = P.hMelody ? 'ON' : 'OFF'; $('melOn').classList.toggle('on', !!P.hMelody); }
-$('melOn').onclick = () => { P.hMelody = !P.hMelody; save(); renderMelody(); renderMelodyTab(); };
-$('melTest').onclick = () => { if (S.mode !== 'ready') { toast('Melody test works when the board is idle (READY)'); return; } playMelody(P.hBootCustom ? P.melody : null); toast('Playing boot melody'); };
-
-// ---------- MELODY tab ----------
-const melTotal = () => P.melody.reduce((a, n) => a + n[1] * 0.25, 0);
-function renderMelodyTab() {
-  const tot = melTotal();
-  $('melTotal').textContent = 'LENGTH ' + tot.toFixed(2) + ' s / 4.0 s';
-  const rows = $('melRows'); rows.innerHTML = '';
-  const hdr = document.createElement('div'); hdr.className = 'stepRow';
-  hdr.innerHTML = '<span class="lbl" style="width:22px"></span><span class="lbl" style="flex:1;text-align:center">PITCH</span><span class="lbl" style="flex:1;text-align:center">LENGTH</span><span style="width:34px"></span>';
-  rows.appendChild(hdr);
-  P.melody.forEach((n, i) => {
-    const r = document.createElement('div'); r.className = 'stepRow'; r.style.gap = '4px';
-    const lim = (c) => c ? ' lim' : '';
-    r.innerHTML = '<span class="lbl" style="width:22px">' + (i + 1) + '</span>' +
-      '<span class="stepBtn' + lim(n[0] <= 0) + '" data-f="0" data-d="-1">&#9660;</span><span class="stepVal" style="width:50px">' + (n[0] === 0 ? 'REST' : n[0]) + '</span><span class="stepBtn' + lim(n[0] >= 10) + '" data-f="0" data-d="1">&#9650;</span>' +
-      '<span class="stepBtn' + lim(n[1] <= 1) + '" data-f="1" data-d="-1">&#9660;</span><span class="stepVal" style="width:50px">' + (n[1] * 0.25).toFixed(2) + 's</span><span class="stepBtn' + lim(n[1] >= 4 || tot + 0.25 > 4.0001) + '" data-f="1" data-d="1">&#9650;</span>' +
-      '<span class="stepBtn" data-x="1" style="width:34px;border-color:' + (P.melody.length > 1 ? '#ff2b4f' : '#4a2a73') + ';color:' + (P.melody.length > 1 ? '#ff2b4f' : '#4a2a73') + '">&#10005;</span>';
-    r.querySelectorAll('.stepBtn').forEach(b => b.onclick = () => {
-      const m = P.melody.map(x => x.slice());
-      if (b.dataset.x) { if (m.length > 1) m.splice(i, 1); }
-      else if (b.dataset.f === '0') m[i][0] = clamp(m[i][0] + +b.dataset.d, 0, 10);
-      else { const nx = clamp(m[i][1] + +b.dataset.d, 1, 4); if (melTotal() - m[i][1] * 0.25 + nx * 0.25 <= 4.0001) m[i][1] = nx; }
-      P.melody = m; save(); renderMelodyTab();
-    });
-    rows.appendChild(r);
-  });
-  $('melAdd').style.opacity = P.melody.length < 8 && tot + 0.5 <= 4.0001 ? 1 : 0.4;
+function renderMelody() {
   const boot = $('melBoot'); boot.innerHTML = '';
-  [['OFF', !P.hMelody, () => { P.hMelody = false; }], ['DEFAULT', P.hMelody && !P.hBootCustom, () => { P.hMelody = true; P.hBootCustom = false; }], ['MY MELODY', P.hMelody && P.hBootCustom, () => { P.hMelody = true; P.hBootCustom = true; }]].forEach(([t, on, fn]) => {
+  [['OFF', !P.hMelody, () => { P.hMelody = false; }], ['DEFAULT', P.hMelody && !P.hBootCustom, () => { P.hMelody = true; P.hBootCustom = false; }], ['CUSTOM', P.hMelody && P.hBootCustom, () => { P.hMelody = true; P.hBootCustom = true; }]].forEach(([t, on, fn]) => {
     const p = document.createElement('div'); p.className = 'pill' + (on ? ' on' : ''); p.textContent = t;
-    p.onclick = () => { fn(); save(); renderMelodyTab(); renderMelody(); }; boot.appendChild(p);
+    p.onclick = () => { fn(); save(); renderMelody(); }; boot.appendChild(p);
   });
 }
-$('melAdd').onclick = () => {
-  if (!(P.melody.length < 8 && melTotal() + 0.5 <= 4.0001)) { toast('Max 8 notes / 4 s'); return; }
-  const last = P.melody.length ? P.melody[P.melody.length - 1][0] : 3;
-  P.melody = P.melody.concat([[clamp(last, 1, 10), 2]]); save(); renderMelodyTab();
-};
-$('melPlay').onclick = () => { if (S.mode !== 'ready') { toast('Melody plays when the board is idle (READY)'); return; } playMelody(P.melody); };
-$('melReset').onclick = () => { P.melody = [[1, 2], [2, 2], [3, 2]]; save(); renderMelodyTab(); };
+$('melTest').onclick = () => { if (S.mode !== 'ready') { toast('Melody test works when the board is idle (READY)'); return; } playMelody(P.hBootCustom && P.rec.length ? P.rec : null); toast('Playing boot melody'); };
+
+// ---------- CUSTOM MELODY pad ----------
+const PAD_MAX_N = 6, PAD_MAX_MS = 2500;
+const padTotal = () => P.rec.reduce((a, n) => a + n[1], 0);
+const tileCol = l => { const f = (l - 1) / 9; return 'rgb(' + Math.round(177 * (1 - f) + 57 * f) + ',' + Math.round(76 * (1 - f) + 255 * f) + ',' + Math.round(255 * (1 - f) + 122 * f) + ')'; };
+let hold = null, liveOsc = null;
+function liveStart(level) {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    const ac = playMelody.ac || (playMelody.ac = new AC()); if (ac.state === 'suspended') ac.resume();
+    const o = ac.createOscillator(), g = ac.createGain(); o.type = 'square'; o.frequency.value = simplePitchHz(level);
+    g.gain.value = 0.02 + 0.06 * hornVolume(); o.connect(g).connect(ac.destination); o.start(); liveOsc = o;
+  } catch (e) {}
+}
+function liveStop() { try { if (liveOsc) liveOsc.stop(); } catch (e) {} liveOsc = null; }
+function padFull() { return P.rec.length >= PAD_MAX_N || padTotal() >= PAD_MAX_MS - 40; }
+function renderPad() {
+  const held = hold ? Math.min(Date.now() - hold.t, PAD_MAX_MS - padTotal()) : 0;
+  $('padInfo').textContent = (P.rec.length + (hold ? 1 : 0)) + '/6  ' + ((padTotal() + held) / 1000).toFixed(1) + ' s / 2.5 s';
+  $('padInfo').style.color = padFull() ? 'var(--orange)' : 'var(--lav)';
+  const line = $('padLine'); line.innerHTML = '';
+  const W = line.clientWidth - 4;
+  P.rec.concat(hold ? [[hold.l, held]] : []).forEach(([l, ms], k) => {
+    const b = document.createElement('div');
+    b.style.cssText = 'height:100%;border-radius:3px;font:700 10px Orbitron,monospace;color:#05060d;display:flex;align-items:center;justify-content:center;background:' + tileCol(l) + ';width:' + Math.max(3, W * ms / PAD_MAX_MS - 2) + 'px;opacity:' + (hold && k === P.rec.length ? 0.7 : 1);
+    b.textContent = W * ms / PAD_MAX_MS > 16 ? l : ''; line.appendChild(b);
+  });
+  document.querySelectorAll('#padTiles .tile').forEach(t => {
+    const l = +t.dataset.l, on = hold && hold.l === l;
+    t.style.background = on ? tileCol(l) : '#140a26'; t.style.color = on ? '#05060d' : tileCol(l);
+    t.style.opacity = padFull() && !on ? 0.4 : 1;
+  });
+  $('padHint').textContent = S.mode === 'ready' ? 'Hold a tile to play and record that note. DONE sets it as your boot melody.' : 'The board plays notes only when idle (READY); you can still record.';
+}
+for (let l = 1; l <= 10; l++) {
+  const t = document.createElement('div'); t.className = 'tile'; t.dataset.l = l; t.textContent = l;
+  t.style.cssText = 'border:3px solid ' + tileCol(l) + ';border-radius:12px;display:flex;align-items:center;justify-content:center;font:700 22px Orbitron,monospace;touch-action:none;user-select:none;cursor:pointer';
+  t.addEventListener('pointerdown', e => {
+    e.preventDefault(); if (padFull()) { toast('Melody is full (6 notes / 2.5 s)'); return; }
+    t.setPointerCapture(e.pointerId); hold = { l, t: Date.now() }; if (S.mode === 'ready') liveStart(l);
+    const tick = () => { if (!hold) return; if (padTotal() + Date.now() - hold.t >= PAD_MAX_MS) { padRelease(); return; } renderPad(); hold.raf = requestAnimationFrame(tick); }; tick();
+  });
+  t.addEventListener('pointerup', padRelease); t.addEventListener('pointercancel', padRelease);
+  $('padTiles').appendChild(t);
+}
+function padRelease() {
+  if (!hold) return; liveStop();
+  const ms = Math.min(Date.now() - hold.t, PAD_MAX_MS - padTotal());
+  if (ms >= 40) P.rec = P.rec.concat([[hold.l, Math.max(60, Math.round(ms / 20) * 20)]]);
+  hold = null; save(); renderPad();
+}
+function padOpen(on) { $('pad').style.display = on ? 'flex' : 'none'; $('padBack').style.display = on ? 'block' : 'none'; if (on) renderPad(); else padRelease(); }
+$('padOpen').onclick = () => padOpen(true);
+$('padBack').onclick = () => padOpen(false);
+$('padUndo').onclick = () => { P.rec = P.rec.slice(0, -1); save(); renderPad(); };
+$('padClear').onclick = () => { P.rec = []; save(); renderPad(); };
+$('padPlay').onclick = () => { if (S.mode !== 'ready') { toast('Melody plays when the board is idle (READY)'); return; } if (P.rec.length) playMelody(P.rec); };
+$('padDone').onclick = () => { if (P.rec.length) { P.hMelody = true; P.hBootCustom = true; save(); renderMelody(); } padOpen(false); };
 $('hornReset').onclick = () => { Object.assign(P, { hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, hsStr: 5, hsVol: 5, hsPitch: 3 }); save(); renderHorn(); toast('Horn settings reset'); };
 
 // ---------- flywheel ----------
@@ -1247,7 +1271,7 @@ function frame(now) {
 }
 
 // ---------- start ----------
-layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); renderHorn(); renderMelody(); renderMelodyTab(); setTab(P.tab || 0);
+layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); renderHorn(); renderMelody(); setTab(Math.min(P.tab || 0, 3));
 window.addEventListener('resize', () => { layout(); renderTunes(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { layout(); renderTunes(); });
 requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
