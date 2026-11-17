@@ -189,6 +189,16 @@ target_include_directories(test_alcm_vp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/incl
 target_link_libraries(test_alcm_vp PRIVATE alcm_vp cmocka)
 add_test(NAME ALCMTestVP COMMAND test_alcm_vp)
 
+add_executable(test_board_mode_vp
+    board_mode_vp_main.c
+    mocks/mock_event_queue.c
+    mocks/mock_timer.c
+    mocks/mock_footpads.c
+    mocks/mock_vesc_serial.c
+    )
+target_link_libraries(test_board_mode_vp PRIVATE board_mode_vp cmocka)
+add_test(NAME BoardModeTestVP COMMAND test_board_mode_vp)
+
 add_executable(test_command_processor_vp
     command_processor_vp_main.c
     mocks/mock_event_queue.c

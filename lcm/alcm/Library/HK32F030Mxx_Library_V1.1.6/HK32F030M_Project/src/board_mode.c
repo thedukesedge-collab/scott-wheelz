@@ -45,6 +45,11 @@ static board_submode_t board_submode = BOARD_SUBMODE_UNDEFINED;
 
 // The idle timer is used to shutdown the board after a period of inactivity
 static timer_id_t board_mode_idle_timer_id = INVALID_TIMER_ID;
+#ifdef VP_LIGHT_CONTROL
+// Set while in internal fault because the VESC stopped answering mid-ride;
+// cleared (back to idle) as soon as it answers again
+static bool_t board_mode_comm_lost = false;
+#endif
 
 // Hysteresis values for RPM and duty cycle
 static hysteresis_t stopped_rpm_hysteresis;
@@ -66,6 +71,9 @@ lcm_status_t board_mode_init(void)
     lcm_status_t status = LCM_SUCCESS;
     board_mode = BOARD_MODE_OFF;
     board_submode = BOARD_SUBMODE_UNDEFINED;
+#ifdef VP_LIGHT_CONTROL
+    board_mode_comm_lost = false;
+#endif
 
     // Subscribe to events
     SUBSCRIBE_EVENT(board_mode, EVENT_BUTTON_UP, command);
@@ -245,6 +253,15 @@ EVENT_HANDLER(board_mode, vesc_alive)
     {
         set_board_mode(BOARD_MODE_IDLE, BOARD_SUBMODE_IDLE_ACTIVE);
     }
+#ifdef VP_LIGHT_CONTROL
+    // VESC answering again after a mid-ride comm loss: clear the fault
+    else if (event == EVENT_VESC_ALIVE && board_mode == BOARD_MODE_FAULT &&
+             board_submode == BOARD_SUBMODE_FAULT_INTERNAL && board_mode_comm_lost)
+    {
+        board_mode_comm_lost = false;
+        set_board_mode(BOARD_MODE_IDLE, BOARD_SUBMODE_IDLE_ACTIVE);
+    }
+#endif
 }
 
 EVENT_HANDLER(board_mode, command)
@@ -520,6 +537,24 @@ EVENT_HANDLER(board_mode, fault)
          * Emergency fault occurred, transition to internal fault mode 
          */
         case EVENT_EMERGENCY_FAULT:
+#ifdef VP_LIGHT_CONTROL
+            /*
+             * The VESC stops answering for a few seconds when a package is
+             * installed (flash write, package restart) or the VESC reboots.
+             * That is not an LCM fault: unless riding, keep the current mode
+             * (power stays on) and carry on when it answers again. Mid-ride
+             * it is still a fault (warning), but it clears itself on the
+             * next answer instead of latching until the button kills power.
+             */
+            if (data->emergency_fault == EMERGENCY_FAULT_VESC_COMM_TIMEOUT)
+            {
+                if (board_mode != BOARD_MODE_RIDING)
+                {
+                    break;
+                }
+                board_mode_comm_lost = true;
+            }
+#endif
             // Intentional fallthrough
         default:
             // Unexpected event

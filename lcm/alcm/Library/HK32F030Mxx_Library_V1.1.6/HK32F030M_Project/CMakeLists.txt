@@ -173,6 +173,12 @@ add_library(alcm_vp STATIC
     src/ring_buffer.c
     src/vesc_serial.c
 )
+add_library(board_mode_vp STATIC
+    src/board_mode.c
+    src/hysteresis.c
+)
+target_include_directories(board_mode_vp PUBLIC inc tests/mocks)
+target_compile_definitions(board_mode_vp PUBLIC VP_LIGHT_CONTROL)
 add_library(command_processor_vp STATIC
     src/command_processor.c
     src/function_generator.c
