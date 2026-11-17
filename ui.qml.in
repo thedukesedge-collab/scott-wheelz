@@ -216,7 +216,8 @@ Item {
             if (++count >= 10) {
                 count = 0;
                 send();
-                hornSettingsSender.send();
+                // horn settings every second; the melody only when it changed, or every 10 s
+                hornSettingsSender.send(++hornSettingsSender.melodyTick % 10 === 0);
             }
         }
     }
@@ -259,7 +260,10 @@ Item {
             send();
         }
 
-        function send() {
+        property string lastMelody: ""
+        property int melodyTick: 0
+
+        function send(forceMelody) {
             var v = values();
             var data = commands.createData(9, commands.c_HORN_SETTINGS);
             data.setUint8(2, Math.round(v[0] * 10));
@@ -268,10 +272,46 @@ Item {
             data.setUint16(6, v[3]);
             data.setUint8(8, (swSettings.hornBootMelody ? 1 : 0) | (swSettings.hornBootCustom ? 2 : 0));
             vescCommands.sendCustomAppData(data.buffer);
-            sendMelody();
+            // the melody is a big packet: only when it changed (keeps Bluetooth free
+            // so setting changes aren't dropped)
+            if (forceMelody || swSettings.melodyRec !== lastMelody) sendMelody();
         }
 
-        // custom melody: notes + rests (level 0), 5 s total, 2 s per note; sent as
+        // a horn setting was changed with the arrows: send now and once more
+        // shortly after (in case Bluetooth dropped it), then play a short beep
+        // with the new sound so you can hear it applied (idle only)
+        function changed(preview) {
+            send();
+            hornRetryTimer.restart();
+            if (preview && state.pkgState === state.s_Ready) {
+                hornPreviewTimer.restart();
+            }
+        }
+
+        property Timer retryTimer: Timer {
+            id: hornRetryTimer
+            interval: 300
+            onTriggered: hornSettingsSender.send()
+        }
+
+        // waits for the arrows to settle, so holding one doesn't beep on every step
+        property Timer previewTimer: Timer {
+            id: hornPreviewTimer
+            interval: 450
+            onTriggered: {
+                if (hornFrame.honking || state.pkgState !== state.s_Ready) return;
+                commands.sendHorn(2);
+                hornPreviewStop.restart();
+            }
+        }
+
+        property Timer previewStop: Timer {
+            id: hornPreviewStop
+            interval: 350
+            onTriggered: if (!hornFrame.honking) commands.sendHorn(0)
+        }
+
+        // custom melody: notes + rests (level 0), 4 s total, 2 s per note; sent as
         // (level, 20 ms units). Levels 1-10 are the notes E4 F4 G4 A4 B4 C5 D5 E5 F5 G5.
         function notes() {
             try {
@@ -284,6 +324,7 @@ Item {
 
         function sendMelody() {
             var n = notes();
+            lastMelody = swSettings.melodyRec;
             var data = commands.createData(2 + 2 * n.length, commands.c_MELODY_SET);
             for (var i = 0; i < n.length; i++) {
                 data.setUint8(2 + 2 * i, Math.max(0, Math.min(10, n[i][0])));
@@ -1228,6 +1269,7 @@ Item {
         property bool flipView: false  // side view mirrored: nose on the right
         property real sheetFraction: 0      // bottom sheet: 0 = collapsed, 1 = fully up
         property string tuneColors: "{}"    // tune slot -> neon palette index (JSON)
+        property int activeTuneSlot: 0      // last tune applied from this app (0 = none yet)
         // free-spin limiter (sent to the board, which doesn't save it)
         property bool freespinOn: false
         property bool tempF: false  // show temperatures in °F (tap the engine icon)
@@ -8931,6 +8973,25 @@ Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
+                    // Only one tune shows ACTIVE: the last one applied here if it still
+                    // matches the board, else the first matching one. (In VESC Tool's
+                    // limited mode the board config isn't read, so every tune "matches".)
+                    property var tuneDiffs: {
+                        var d = [];
+                        for (var i = 1; i <= preferences.tuneSlotCount; i++) {
+                            d.push(tuneManager.tunes[i] ? packageConfig.diffConfig(tuneManager.tunes[i]).differs.length : -1);
+                        }
+                        return d;
+                    }
+                    property int activeSlot: {
+                        var a = swSettings.activeTuneSlot;
+                        if (a > 0 && tuneDiffs[a - 1] === 0) return a;
+                        for (var i = 0; i < tuneDiffs.length; i++) {
+                            if (tuneDiffs[i] === 0) return i + 1;
+                        }
+                        return 0;
+                    }
+
                     GridLayout {
                         property int spacing: 0.6 * unit
                         anchors.fill: parent
@@ -8955,7 +9016,8 @@ Item {
                                 property int slot: index + 1
 
                                 property var tuneName: tuneManager.tunes[slot] ? tuneManager.tunes[slot].name : ""
-                                property var tuneDiff: tuneManager.tunes[slot] ? packageConfig.diffConfig(tuneManager.tunes[slot]).differs.length : -1
+                                property var tuneDiff: tunesPage.tuneDiffs[index] !== undefined ? tunesPage.tuneDiffs[index] : -1
+                                property bool active: !!tuneName && tunesPage.activeSlot === slot
 
                                 property real buttonItemHeight: unit
                                 property real buttonItemMargin: 0.15 * unit
@@ -8974,6 +9036,7 @@ Item {
                                     if (tuneName) {
                                         var tune = tuneManager.loadTune(slot);
                                         packageConfig.applyConfig(tune);
+                                        swSettings.activeTuneSlot = slot;
                                     }
                                 }
 
@@ -9019,7 +9082,7 @@ Item {
                                         Text {
                                             anchors.horizontalCenter: parent.horizontalCenter
                                             anchors.top: tuneButtonText.bottom
-                                            visible: button.tuneDiff === 0
+                                            visible: button.active
                                             color: button.pressed ? swTheme.background : button.neon
                                             font.family: "Exan"
                                             font.pixelSize: 0.2 * unit
@@ -9052,7 +9115,9 @@ Item {
                                     radius: 0.3 * unit
                                     border.width: 3
                                     border.color: tuneName ? button.neon : swTheme.color("disabledText")
-                                    color: button.pressed && tuneName ? button.neon : button.tuneDiff === 0 ? Qt.rgba(button.neon.r, button.neon.g, button.neon.b, 0.18) : "#0b0718"
+                                    // always opaque, so the glow behind never shows through
+                                    // and washes out the name (like the simulator)
+                                    color: button.pressed && tuneName ? button.neon : button.active ? Qt.tint("#0b0718", Qt.rgba(button.neon.r, button.neon.g, button.neon.b, 0.18)) : "#0b0718"
 
                                     Behavior on color {
                                         ColorAnimation {duration: 150}
@@ -9066,7 +9131,7 @@ Item {
                                         spread: 0.2
                                         cornerRadius: parent.radius + glowRadius
                                         color: button.neon
-                                        opacity: button.pressed || button.tuneDiff === 0 ? 0.9 : 0.3
+                                        opacity: button.pressed || button.active ? 0.9 : 0.3
                                     }
                                 }
                             }
@@ -9373,11 +9438,11 @@ Item {
                         // simple mode
                         SwStepper {
                             visible: !swSettings.hornAdvanced
-                            label: "STRENGTH (buzz you feel)"
+                            label: "STRENGTH (buzz, riding only)"
                             value: swSettings.hornSimpleStrength
                             from: 0; to: 10; step: 1
                             valueText: value === 0 ? "OFF" : value + " / 10"
-                            onMoved: { swSettings.hornSimpleStrength = newValue; hornSettingsSender.send(); }
+                            onMoved: { swSettings.hornSimpleStrength = newValue; hornSettingsSender.changed(false); }
                         }
 
                         SwStepper {
@@ -9386,7 +9451,7 @@ Item {
                             value: swSettings.hornSimpleVolume
                             from: 1; to: 10; step: 1
                             valueText: value + " / 10"
-                            onMoved: { swSettings.hornSimpleVolume = newValue; hornSettingsSender.send(); }
+                            onMoved: { swSettings.hornSimpleVolume = newValue; hornSettingsSender.changed(true); }
                         }
 
                         SwStepper {
@@ -9395,7 +9460,7 @@ Item {
                             value: swSettings.hornSimplePitch
                             from: 1; to: 10; step: 1
                             valueText: value + " / 10"
-                            onMoved: { swSettings.hornSimplePitch = newValue; hornSettingsSender.send(); }
+                            onMoved: { swSettings.hornSimplePitch = newValue; hornSettingsSender.changed(true); }
                         }
 
                         // advanced mode
@@ -9404,7 +9469,7 @@ Item {
                             label: "BEEP STRENGTH"
                             value: swSettings.hornBeepStrength
                             from: 0.5; to: 6; step: 0.5; decimals: 1; suffix: " V"
-                            onMoved: { swSettings.hornBeepStrength = newValue; hornSettingsSender.send(); }
+                            onMoved: { swSettings.hornBeepStrength = newValue; hornSettingsSender.changed(true); }
                         }
 
                         SwStepper {
@@ -9412,23 +9477,23 @@ Item {
                             label: "BEEP PITCH"
                             value: swSettings.hornBeepFreq
                             from: 300; to: 1000; step: 25; suffix: " Hz"
-                            onMoved: { swSettings.hornBeepFreq = newValue; hornSettingsSender.send(); }
+                            onMoved: { swSettings.hornBeepFreq = newValue; hornSettingsSender.changed(true); }
                         }
 
                         SwStepper {
                             visible: swSettings.hornAdvanced
-                            label: "BUZZ STRENGTH"
+                            label: "BUZZ STRENGTH (riding)"
                             value: swSettings.hornBuzzStrength
                             from: 0; to: 15; step: 1; suffix: " A"
-                            onMoved: { swSettings.hornBuzzStrength = newValue; hornSettingsSender.send(); }
+                            onMoved: { swSettings.hornBuzzStrength = newValue; hornSettingsSender.changed(false); }
                         }
 
                         SwStepper {
                             visible: swSettings.hornAdvanced
-                            label: "BUZZ FREQUENCY"
+                            label: "BUZZ FREQ (riding)"
                             value: swSettings.hornBuzzFreq
                             from: 30; to: 150; step: 5; suffix: " Hz"
-                            onMoved: { swSettings.hornBuzzFreq = newValue; hornSettingsSender.send(); }
+                            onMoved: { swSettings.hornBuzzFreq = newValue; hornSettingsSender.changed(false); }
                         }
 
                         // boot melody: OFF / DEFAULT / CUSTOM, CUSTOM MELODY editor, TEST
@@ -9666,9 +9731,9 @@ Item {
                 // Re-RinkFloat: MIXER tab - tile keyboard, real notes E4 ... G5 (white keys).
                 // LIVE mode: tap / hold a tile and the board plays that note live.
                 // REC mode (like making a custom vibration on iOS): the first tap
-                // starts a 5 s recording, a playhead sweeps across the timeline at a
+                // starts a 4 s recording, a playhead sweeps across the timeline at a
                 // steady rate, and every tap is placed where it happened, so the gaps
-                // between taps become rests. It stops by itself at 5 s. A held tile
+                // between taps become rests. It stops by itself at 4 s. A held tile
                 // stops at 2 s, like the horn (also enforced on the board). The board
                 // only makes sound while idle (READY). The CONTROL tab's CUSTOM MELODY
                 // button opens this tab in REC mode.
@@ -9680,7 +9745,7 @@ Item {
                     property bool recording: false  // REC mode
                     property bool armed: false  // REC: waiting for the first tap
                     property bool capturing: false  // REC: a take is running
-                    readonly property int windowMs: 5000
+                    readonly property int windowMs: 4000
                     readonly property int maxNoteMs: 2000
                     readonly property int maxEntries: 64  // notes + rests the board holds
                     property var notes: hornSettingsSender.notes()
@@ -9884,14 +9949,14 @@ Item {
                                 text: !melodyPad.recording
                                     ? (state.pkgState === state.s_Ready ? "TAP TO PLAY" : "BOARD PLAYS WHEN IDLE")
                                     : melodyPad.capturing
-                                    ? "● REC  %1 / 5.0 s".arg((melodyPad.recMs / 1000).toFixed(1))
+                                    ? "● REC  %1 / 4.0 s".arg((melodyPad.recMs / 1000).toFixed(1))
                                     : melodyPad.armed
                                     ? "TAP A TILE TO START"
                                     : "%1 s MELODY".arg((melodyPad.totalMs / 1000).toFixed(1))
                             }
                         }
 
-                        // timeline: 5 s wide; notes sit where they were played, a
+                        // timeline: 4 s wide; notes sit where they were played, a
                         // playhead moves across while recording / playing
                         Rectangle {
                             id: timelineBox
@@ -9909,10 +9974,10 @@ Item {
 
                                 // 1 s grid marks
                                 Repeater {
-                                    model: 4
+                                    model: 3
 
                                     Rectangle {
-                                        x: timeline.width * (index + 1) / 5
+                                        x: timeline.width * (index + 1) / 4
                                         width: 1
                                         height: timeline.height
                                         color: "#3d2266"
@@ -10068,9 +10133,9 @@ Item {
                             font.pixelSize: fontSizeSmall
                             wrapMode: Text.WordWrap
                             text: (melodyPad.capturing
-                                ? "Recording... tap the tiles. It stops by itself at 5 s."
+                                ? "Recording... tap the tiles. It stops by itself at 4 s."
                                 : melodyPad.armed
-                                ? "Your first tap starts a 5 s recording. Gaps between taps are kept; each note stops at 2 s."
+                                ? "Your first tap starts a 4 s recording. Gaps between taps are kept; each note stops at 2 s."
                                 : "PLAY to hear it, SAVE to keep it, DONE to use it at boot. CLEAR to record again.")
                                 + (state.pkgState === state.s_Ready ? "" : " (The board plays notes only when idle.)")
                         }

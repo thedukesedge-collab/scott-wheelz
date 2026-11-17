@@ -1259,9 +1259,11 @@ static void horn_settings_load(Data *d) {
     }
     uint32_t magic = v[0].as_u32 >> 24;
     if (magic == HORN_EEPROM_MAGIC) {
+        // melody words that were always 0 were never written, and reading an
+        // unwritten EEPROM variable fails: those are simply 0 (empty)
         for (int i = 2; i < HORN_EEPROM_WORDS; ++i) {
             if (!VESC_IF->read_eeprom_var(&v[i], horn_eeprom_addr(i))) {
-                return;
+                v[i].as_u32 = 0;
             }
         }
         for (int i = 0; i < HORN_EEPROM_WORDS; ++i) {
@@ -1271,7 +1273,7 @@ static void horn_settings_load(Data *d) {
         // rf45 save: 32-note melody in words 100-115; re-saved in the new layout
         for (int i = 2; i < 18; ++i) {
             if (!VESC_IF->read_eeprom_var(&v[i], 100 + i - 2)) {
-                return;
+                v[i].as_u32 = 0;
             }
         }
         for (int i = 18; i < HORN_EEPROM_WORDS; ++i) {
@@ -1281,7 +1283,7 @@ static void horn_settings_load(Data *d) {
         // older save: 6-note melody in words 122-124; re-saved in the new layout
         for (int i = 2; i < 5; ++i) {
             if (!VESC_IF->read_eeprom_var(&v[i], HORN_EEPROM_ADDR + i)) {
-                return;
+                v[i].as_u32 = 0;
             }
         }
         for (int i = 5; i < HORN_EEPROM_WORDS; ++i) {
@@ -1339,8 +1341,11 @@ static void horn_settings_save_if_due(Data *d) {
         w[i] = d->horn_pending[i];
     }
     d->horn_save_pending = false;
+    // melody words first, then the settings words (word 0 holds the magic),
+    // so an interrupted save never pairs a new magic with an old melody
     bool ok = true;
-    for (int i = 0; i < HORN_EEPROM_WORDS && ok; ++i) {
+    for (int k = 0; k < HORN_EEPROM_WORDS && ok; ++k) {
+        int i = (k + 2) % HORN_EEPROM_WORDS;
         if (w[i] != d->horn_saved[i]) {
             eeprom_var v = {.as_u32 = w[i]};
             ok = VESC_IF->store_eeprom_var(&v, horn_eeprom_addr(i));
@@ -1351,7 +1356,15 @@ static void horn_settings_save_if_due(Data *d) {
             d->horn_saved[i] = w[i];
         }
     } else {
+        // try again a little later (unless something newer is queued by then)
         log_error("Failed to save horn settings.");
+        if (!d->horn_save_pending) {
+            for (int i = 0; i < HORN_EEPROM_WORDS; ++i) {
+                d->horn_pending[i] = w[i];
+            }
+            d->horn_change_time = d->time.now;
+            d->horn_save_pending = true;
+        }
     }
 }
 

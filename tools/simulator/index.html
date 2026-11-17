@@ -237,7 +237,7 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf47 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf48 · sim</span></div>
     </div>
   </div>
 
@@ -572,10 +572,10 @@ $('motorStat').onclick = () => { P.tempF = !P.tempF; save(); toast(P.tempF ? 'Te
 // ---------- horn settings (horn only) ----------
 const HORN_ADV = [
   ['hBeep', 'BEEP STRENGTH', 0.5, 6, 0.5, 1, ' V'], ['hBeepHz', 'BEEP PITCH', 300, 1000, 25, 0, ' Hz'],
-  ['hBuzz', 'BUZZ STRENGTH', 0, 15, 1, 0, ' A'], ['hBuzzHz', 'BUZZ FREQUENCY', 30, 150, 5, 0, ' Hz'],
+  ['hBuzz', 'BUZZ STRENGTH (riding)', 0, 15, 1, 0, ' A'], ['hBuzzHz', 'BUZZ FREQ (riding)', 30, 150, 5, 0, ' Hz'],
 ];
 const HORN_SIMPLE = [
-  ['hsStr', 'STRENGTH (buzz you feel)', 0, 10, 1, 0, ' / 10'], ['hsVol', 'VOLUME (beep loudness)', 1, 10, 1, 0, ' / 10'],
+  ['hsStr', 'STRENGTH (buzz, riding only)', 0, 10, 1, 0, ' / 10'], ['hsVol', 'VOLUME (beep loudness)', 1, 10, 1, 0, ' / 10'],
   ['hsPitch', 'PITCH (low - high)', 1, 10, 1, 0, ' / 10'],
 ];
 const simplePitchHz = l => Math.round((300 + (l - 1) * 700 / 9) / 25) * 25;
@@ -599,13 +599,28 @@ function renderHorn() {
     };
     row.querySelectorAll('.stepBtn').forEach(b => {
       let t = null;
-      const nudge = () => { const v = clamp(Math.round((P[k] + +b.dataset.d * stp) / stp) * stp, mn, mx); if (v !== P[k]) { P[k] = v; save(); paint(); } };
+      const nudge = () => { const v = clamp(Math.round((P[k] + +b.dataset.d * stp) / stp) * stp, mn, mx); if (v !== P[k]) { P[k] = v; save(); paint(); if (['hsVol', 'hsPitch', 'hBeep', 'hBeepHz'].includes(k)) hornPreviewSoon(); } };
       b.addEventListener('pointerdown', e => { e.preventDefault(); nudge(); t = setTimeout(function rep() { nudge(); t = setTimeout(rep, 90); }, 450); });
       const stop = () => clearTimeout(t);
       b.addEventListener('pointerup', stop); b.addEventListener('pointerleave', stop); b.addEventListener('pointercancel', stop);
     });
     paint(); box.appendChild(row);
   });
+}
+// a horn setting changed: short beep with the new sound once the arrows settle (idle only)
+let hpT = null;
+function hornPreviewSoon() {
+  clearTimeout(hpT);
+  hpT = setTimeout(() => {
+    if (S.mode !== 'ready' || hornPressed) return;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      const ac = playMelody.ac || (playMelody.ac = new AC()); if (ac.state === 'suspended') ac.resume();
+      const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+      o.type = 'square'; o.frequency.value = P.hAdv ? P.hBeepHz : simplePitchHz(P.hsPitch);
+      g.gain.value = 0.02 + 0.06 * hornVolume(); o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.35);
+    } catch (e) {}
+  }, 450);
 }
 // boot melody: pitch levels 1, 2, 3 (300, 375, 450 Hz), 0.5 s each, at the horn volume
 function hornVolume() { return P.hAdv ? P.hBeep : P.hsVol * 0.5; }  // volts
@@ -679,10 +694,10 @@ $('melTest').onclick = () => { if (S.mode !== 'ready') { toast('Melody test work
 
 // ---------- CUSTOM MELODY pad ----------
 // MIXER: real notes E4..G5 (white keys), REC works like a custom iOS vibration:
-// the first tap starts a 5 s take, a playhead sweeps across, gaps become rests
+// the first tap starts a 4 s take, a playhead sweeps across, gaps become rests
 const NOTE_HZ = [330, 349, 392, 440, 494, 523, 587, 659, 698, 784], NOTE_NAMES = ['E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5', 'F5', 'G5'];
 const noteHz = l => NOTE_HZ[Math.max(1, Math.min(10, l)) - 1];
-const REC_MS = 5000, PAD_NOTE_MS = 2000, MAX_ENTRIES = 64, SAVED_MAX = 12;
+const REC_MS = 4000, PAD_NOTE_MS = 2000, MAX_ENTRIES = 64, SAVED_MAX = 12;
 const padTotal = () => P.rec.reduce((a, n) => a + n[1], 0);
 const tileCol = l => { const f = (l - 1) / 9; return 'rgb(' + Math.round(177 * (1 - f) + 57 * f) + ',' + Math.round(76 * (1 - f) + 255 * f) + ',' + Math.round(255 * (1 - f) + 122 * f) + ')'; };
 let hold = null, liveOsc = null, mxRec = false, armed = false, take = null, playT0 = 0;
@@ -714,7 +729,7 @@ function padBlocks() {
 }
 function renderPad() {
   const line = $('padLine'); line.innerHTML = ''; const W = line.clientWidth;
-  for (let k = 1; k < 5; k++) { const g = document.createElement('div'); g.style.cssText = 'position:absolute;top:0;bottom:0;width:1px;background:#3d2266;left:' + (W * k / 5) + 'px'; line.appendChild(g); }
+  for (let k = 1; k < 4; k++) { const g = document.createElement('div'); g.style.cssText = 'position:absolute;top:0;bottom:0;width:1px;background:#3d2266;left:' + (W * k / 4) + 'px'; line.appendChild(g); }
   padBlocks().forEach(([l, s, e]) => {
     const b = document.createElement('div'), w = Math.max(3, W * (e - s) / REC_MS - 1);
     b.style.cssText = 'position:absolute;top:2px;bottom:2px;border-radius:3px;font:700 10px Orbitron,monospace;color:#05060d;display:flex;align-items:center;justify-content:center;background:' + tileCol(l) + ';left:' + (W * s / REC_MS) + 'px;width:' + w + 'px';
@@ -728,8 +743,8 @@ function renderPad() {
     t.style.background = on ? tileCol(l) : '#140a26'; t.style.color = on ? '#05060d' : tileCol(l);
   });
   const idle = S.mode === 'ready' ? '' : ' (The board plays notes only when idle.)';
-  $('padHint').textContent = (take ? 'Recording... tap the tiles. It stops by itself at 5 s.' : armed ? 'Your first tap starts a 5 s recording. Gaps between taps are kept; each note stops at 2 s.' : 'PLAY to hear it, SAVE to keep it, DONE to use it at boot. CLEAR to record again.') + idle;
-  $('mxHint').textContent = !mxRec ? (S.mode === 'ready' ? 'TAP TO PLAY' : 'BOARD PLAYS WHEN IDLE') : take ? '● REC  ' + (Math.min(REC_MS, Date.now() - take.t0) / 1000).toFixed(1) + ' / 5.0 s' : armed ? 'TAP A TILE TO START' : (padTotal() / 1000).toFixed(1) + ' s MELODY';
+  $('padHint').textContent = (take ? 'Recording... tap the tiles. It stops by itself at 4 s.' : armed ? 'Your first tap starts a 4 s recording. Gaps between taps are kept; each note stops at 2 s.' : 'PLAY to hear it, SAVE to keep it, DONE to use it at boot. CLEAR to record again.') + idle;
+  $('mxHint').textContent = !mxRec ? (S.mode === 'ready' ? 'TAP TO PLAY' : 'BOARD PLAYS WHEN IDLE') : take ? '● REC  ' + (Math.min(REC_MS, Date.now() - take.t0) / 1000).toFixed(1) + ' / 4.0 s' : armed ? 'TAP A TILE TO START' : (padTotal() / 1000).toFixed(1) + ' s MELODY';
   $('mxHint').style.color = take ? '#ff4d6d' : '';
   $('padClear').textContent = take ? '■ STOP' : 'CLEAR'; $('padClear').classList.toggle('on', !!take);
   const ready = !take && !armed && P.rec.length;

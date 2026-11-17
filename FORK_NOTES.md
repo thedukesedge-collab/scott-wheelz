@@ -447,3 +447,20 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   450 Hz, half a second each, as one smooth rising tone (no gaps). It no
   longer follows the MIXER note tiles, which had made it E4 F4 G4 in rf46.
   Custom melodies keep the real notes and the short gaps between notes.
+
+### Fixes: boot melody save, horn settings, tune buttons; 4 s recorder (v1.2.3-rf48)
+- Custom boot melody now survives a power cycle. Unused (zero) melody
+  words are never written to the EEPROM, and reading an unwritten variable
+  fails; the loader treated that as "no saved settings" and fell back to
+  the defaults. Missing words now read as empty, the magic word is written
+  last, and a failed save is retried.
+- Horn settings apply reliably: each arrow tap sends the new settings at
+  once and again 0.3 s later, the big melody packet is only sent when the
+  melody changes (or every 10 s) instead of with every setting, and
+  changing VOLUME / PITCH (or beep V / Hz) plays a short preview beep when
+  the board is idle. The buzz is only felt while riding; labels say so.
+- Tune buttons: opaque background so the glow can't wash the name out
+  (some phones rendered them solid), and only one tune shows ACTIVE: the
+  last one applied from the app if it still matches, else the first match
+  (in VESC Tool's limited mode every tune looked like a match).
+- MIXER recorder window is 4 s (board limit 4 s).
