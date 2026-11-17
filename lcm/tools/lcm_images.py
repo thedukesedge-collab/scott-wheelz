@@ -103,6 +103,7 @@ def main():
     json.dump({"size": size, "crc": crc, "version": version,
                "b64": base64.b64encode(image).decode()},
               open(os.path.join(out_dir, "ALCM_VP_app.json"), "w"))
+    print(f"app hex: {len(app)} bytes at {min(app):#x}-{max(app):#x}")
     print(f"bootloader {max(bl) + 1 - BL_START} bytes, app image {size} bytes "
           f"({APP_END - APP_START - size} free), crc {crc:#06x}")
 

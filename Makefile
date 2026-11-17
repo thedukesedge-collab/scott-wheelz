@@ -4,6 +4,9 @@ VESC_TOOL ?= vesc_tool
 MINIFY_QML ?= 1
 # use `make OLDVT=1` to build with old vesc_tool which doesn't support pkgdesc.qml
 OLDVT ?= 0
+# use `make LCM_FW=0` to build without the LCM firmware update image (needs
+# arm-none-eabi-gcc with newlib-nano and python3 otherwise)
+LCM_FW ?= 1
 
 all: rinkfloat.vescpkg
 
@@ -34,14 +37,29 @@ package_README-gen.md: package_README.md version
 	echo "- Build Date: `date --rfc-3339=seconds`" >> $@
 	echo "- Git Commit: #`git rev-parse --short HEAD`" >> $@
 
-ui.qml: ui.qml.in package_name version
-	cat $< | \
+LCM_FW_JSON := lcm/alcm/gcc/build/ALCM_VP_app.json
+
+$(LCM_FW_JSON): $(wildcard lcm/bootloader/*.c lcm/bootloader/*.h lcm/alcm/Library/HK32F030Mxx_Library_V1.1.6/HK32F030M_Project/src/*.c lcm/alcm/Library/HK32F030Mxx_Library_V1.1.6/HK32F030M_Project/inc/*.h)
+	$(MAKE) -C lcm/bootloader
+	$(MAKE) -C lcm/alcm/gcc VP=1 BL=1
+	python3 lcm/tools/lcm_images.py lcm/bootloader/build/lcm_bootloader.hex \
+		lcm/alcm/gcc/build/ALCM_VP_BL_app.hex lcm/alcm/gcc/build `git rev-parse --short HEAD`
+
+ifeq ($(strip $(LCM_FW)),1)
+    LCM_FW_DEP = $(LCM_FW_JSON)
+else
+    LCM_FW_DEP =
+endif
+
+ui.qml: ui.qml.in package_name version $(LCM_FW_DEP)
+	python3 lcm/tools/embed_lcm_fw.py $< $(LCM_FW_DEP) | \
 	sed "s/{{PACKAGE_NAME}}/${PACKAGE_NAME}/g" | \
 	sed "s/{{VERSION}}/${VERSION}/g" | \
 	${MINIFY_CMD} > $@
 
 clean:
 	rm -f rinkfloat.vescpkg package_README-gen.md ui.qml
+	rm -rf lcm/bootloader/build lcm/alcm/gcc/build
 	$(MAKE) -C src clean
 
 .PHONY: all clean src
