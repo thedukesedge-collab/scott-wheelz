@@ -12760,8 +12760,8 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: !lights.enabled
-                                ? "Refloat's LEDs aren't set up on this board, so there are no LIGHTS / HEADLIGHTS buttons. Set them up in VESC Tool \u25B8 Refloat Cfg \u25B8 Hardware (LED Mode, type, pin)."
+                            text: !lights.enabled && !slcmDetect.present
+                                ? "No SLCM found and Refloat's LEDs aren't set up on this board (VESC Tool \u25B8 Refloat Cfg \u25B8 Hardware: LED Mode, type, pin), so the light switches are hidden."
                                 : (!lights.lcm && !slcmDetect.present
                                     ? "Using a light module (LCM)? Set Refloat Cfg \u25B8 Hardware \u25B8 LED Mode to External (or Internal and External) and write the config, so it follows these buttons."
                                     : (swSettings.ledConfigured && slcmDetect.present
