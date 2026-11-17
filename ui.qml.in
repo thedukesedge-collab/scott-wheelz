@@ -332,7 +332,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: light module settings (ALCM VP build, see lcm/README.md).
+    // Re-RinkFloat: light module settings (SLCM build, see lcm/README.md).
     // Sent on every change (plus one retry) and every 5 s once the LEDS tab
     // has been used; the board stores them and passes them to the light
     // module in every poll reply, so they also apply without the phone.
@@ -465,6 +465,27 @@ Item {
     // the package (lcm/alcm, BL=1) and embedded here. The package relays it
     // to the LCM bootloader two 128-byte pages at a time: we poll STATUS and
     // send the page the LCM wants plus the next one. See lcm_fw.h.
+    // Re-Float Rink-Mixed: is an SLCM (Smart LCM: our ALCM-based light
+    // module firmware) answering? It names itself "VP-..." / "VPBL-..." in its
+    // LCM polls; the package passes the name on (COMMAND_LCM_DEVICE_INFO).
+    // Asked every few seconds while the LEDS tab is open. Only decides what the
+    // LEDS tab shows; flashing still needs CHECK LCM. Any other controller /
+    // LCM keeps Refloat's own LED controls.
+    QtObject {
+        id: slcmDetect
+        readonly property bool present: lcmFw.lcmName.indexOf("VP-") === 0 || lcmFw.lcmName.indexOf("VPBL-") === 0
+        readonly property bool known: lcmFw.nameKnown
+        readonly property string version: lcmFw.verText(lcmFw.lcmVer)
+        property bool tabOpen: false
+        property Timer pollTimer: Timer {
+            interval: 3000
+            repeat: true
+            triggeredOnStart: true
+            running: slcmDetect.tabOpen && !lcmFw.active && lcmFw.checkState !== 1
+            onTriggered: vescCommands.sendCustomAppData(commands.createData(2, commands.c_LCM_DEVICE_INFO).buffer)
+        }
+    }
+
     QtObject {
         id: lcmFw
 
@@ -488,7 +509,7 @@ Item {
         property int noReply: 0
 
         // --- what's fitted (fail-safe): the LCM names itself in its polls
-        // ("VPBL-<hash>" = ALCM VP with the bootloader, "VP-<hash>" = ALCM VP
+        // ("VPBL-<hash>" = SLCM with the bootloader, "VP-<hash>" = ALCM VP
         // without it, anything else / nothing = stock or other firmware).
         // The rider must press CHECK LCM first; FLASH LCM only appears after
         // the check passed (a VPBL LCM, or a bootloader asking for pages right
@@ -562,10 +583,10 @@ Item {
             : fit === "older" ? "UPDATE AVAILABLE" : fit === "newer" ? "LCM NEWER THAN THIS PACKAGE"
             : fit === "other" ? "DIFFERENT BUILD" : ""
         readonly property string fitText: !pkgVer ? "This package has no built-in LCM firmware to compare with."
-            : fit === "same" ? "Your LCM runs ALCM VP " + verText(lcmVer) + ", the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed " + pkgVersion + "). Nothing to update. You can still reflash it if you want."
-            : fit === "older" ? "Your LCM runs ALCM VP " + verText(lcmVer) + ". This package (" + pkgVersion + ") carries " + verText(pkgVer) + ", the LCM firmware built and tested with it. Updating is recommended so the LCM and package stay matched."
-            : fit === "newer" ? "Your LCM runs ALCM VP " + verText(lcmVer) + ", newer than the " + verText(pkgVer) + " this package (" + pkgVersion + ") carries. Best fit: update the VESC package to the latest build so they match. Flashing from this package would downgrade the LCM."
-            : fit === "other" ? "Your LCM runs a different ALCM VP build (" + verText(lcmVer) + ") than the one made for this package (" + verText(pkgVer) + "), for example a custom build. Flashing this package's build is recommended for the best fit."
+            : fit === "same" ? "Your LCM runs SLCM " + verText(lcmVer) + ", the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed " + pkgVersion + "). Nothing to update. You can still reflash it if you want."
+            : fit === "older" ? "Your LCM runs SLCM " + verText(lcmVer) + ". This package (" + pkgVersion + ") carries " + verText(pkgVer) + ", the LCM firmware built and tested with it. Updating is recommended so the LCM and package stay matched."
+            : fit === "newer" ? "Your LCM runs SLCM " + verText(lcmVer) + ", newer than the " + verText(pkgVer) + " this package (" + pkgVersion + ") carries. Best fit: update the VESC package to the latest build so they match. Flashing from this package would downgrade the LCM."
+            : fit === "other" ? "Your LCM runs a different SLCM build (" + verText(lcmVer) + ") than the one made for this package (" + verText(pkgVer) + "), for example a custom build. Flashing this package's build is recommended for the best fit."
             : ""
         readonly property string continueLabel: fitted === "recovery" ? "CONTINUE TO FLASH"
             : fit === "same" ? "REFLASH ANYWAY" : fit === "older" ? "UPDATE LCM"
@@ -576,12 +597,12 @@ Item {
             : checkState === 1 ? "Checking the light module..."
             : !nameKnown && !gotStatus ? "The board didn't answer. Check the connection and that the board is powered on, then press CHECK LCM again."
             : fitted === "recovery" ? "LCM bootloader is waiting for firmware (an earlier update didn't finish). Flash it now to recover the light module."
-            : fitted === "vpbl" ? "ALCM VP with bootloader \u00B7 " + verText(lcmVer)
+            : fitted === "vpbl" ? "SLCM with bootloader \u00B7 " + verText(lcmVer)
                 + (fitTitle ? " \u00B7 " + fitTitle.toLowerCase() : "")
                 + (pkgVer && !upToDate ? " (this package: " + verText(pkgVer) + ")" : "")
-            : fitted === "vp" ? "ALCM VP " + verText(lcmVer) + " WITHOUT the bootloader. It can't be flashed from the app: install ALCM_VP_BL_full.hex once with an ST-Link, after that updates work from here."
-            : fitted === "other" ? "Light module firmware \u201C" + lcmName + "\u201D can't be flashed from the app. It needs ALCM VP with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
-            : "No ALCM VP light module answered (stock or other LCM firmware, or none). Flashing from the app needs ALCM VP with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
+            : fitted === "vp" ? "SLCM " + verText(lcmVer) + " WITHOUT the bootloader. It can't be flashed from the app: install ALCM_VP_BL_full.hex once with an ST-Link, after that updates work from here."
+            : fitted === "other" ? "Light module firmware \u201C" + lcmName + "\u201D can't be flashed from the app. It needs SLCM with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
+            : "No SLCM light module answered (stock or other LCM firmware, or none). Flashing from the app needs SLCM with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
 
         function probe() {
             vescCommands.sendCustomAppData(commands.createData(2, commands.c_LCM_DEVICE_INFO).buffer);
@@ -1902,7 +1923,7 @@ Item {
         property bool hornBootCustom: false   // play the custom melody at boot instead
         property string melodyRec: "[[1,500],[2,500],[3,500]]"  // custom melody: [pitch 1-10, ms]
         property string savedMelodies: "[]"  // saved melodies: [{name, notes}]
-        // light module (ALCM VP build) - defaults match ALCM's own
+        // light module (SLCM build) - defaults match ALCM's own
         property bool ledConfigured: false  // set once the LEDS tab is used
         property bool ledHeadlights: true
         property bool ledStatusBar: true
@@ -3428,9 +3449,11 @@ Item {
         property string glyph
         property bool lit: false
         property color swatch: "transparent"
+        property bool slcmOnly: false  // needs the SLCM light module firmware
         signal clicked()
         Layout.fillWidth: true
         Layout.preferredHeight: 1.9 * unit
+        opacity: slcmOnly && !slcmDetect.present ? 0.5 : 1
         radius: 0.22 * unit
         color: tileArea.pressed ? "#1b2a1f" : "#0b0718"
         border.color: lit ? swTheme.neonGreen : swTheme.neonPurple
@@ -3451,6 +3474,27 @@ Item {
             anchors.margins: 0.22 * unit
             width: 0.3 * unit; height: width; radius: width / 2
             color: tile.swatch
+        }
+        Rectangle {
+            visible: tile.slcmOnly
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.topMargin: 0.2 * unit
+            anchors.rightMargin: tile.swatch.a > 0 ? 0.65 * unit : 0.2 * unit
+            width: slcmBadge.implicitWidth + 0.2 * unit
+            height: 0.34 * unit
+            radius: height / 2
+            color: "transparent"
+            border.width: 1
+            border.color: slcmDetect.present ? swTheme.neonGreen : "#FFB300"
+            Text {
+                id: slcmBadge
+                anchors.centerIn: parent
+                text: "SLCM"
+                color: parent.border.color
+                font.family: "Exan"
+                font.pixelSize: 0.16 * unit
+            }
         }
         Text {
             anchors.right: parent.right
@@ -6912,7 +6956,7 @@ Item {
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
                             text: swSettings.ledBeep
-                            ? "The light module plays one short beep. No beep = the module isn't running the ALCM VP firmware or isn't connected."
+                            ? "The light module plays one short beep. No beep = the module isn't running the SLCM firmware or isn't connected."
                             : "The LCM beeper is off, so the test beep is silent. Turn it on above first."
                         }
                     }
@@ -7125,7 +7169,7 @@ Item {
                             text: lcmFw.usePicked && lcmFw.picked
                                 ? "File: " + lcmFw.picked.version + " (" + lcmFw.picked.size + " bytes). Must be built for the bootloader: ALCM_VP_BL_full.hex works (only its app part is sent)."
                                 : (lcmFw.builtin
-                                    ? "Built into this package: ALCM VP build " + lcmFw.builtin.version + " (" + lcmFw.builtin.size + " bytes)."
+                                    ? "Built into this package: SLCM build " + lcmFw.builtin.version + " (" + lcmFw.builtin.size + " bytes)."
                                     : "This build of the package has no LCM firmware image: pick a .hex file.")
                         }
 
@@ -7210,8 +7254,11 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
                 font.pixelSize: 0.17 * unit
-                color: "#FFB300"
-                text: "\u26A0 ADV200 (XRV / GTV / PintV) + ALCM VP light module firmware only"
+                color: slcmDetect.present ? swTheme.neonGreen : "#FFB300"
+                text: slcmDetect.present ? "\u2714 SLCM " + slcmDetect.version + " detected"
+                    : (ledWindow.section === "head" || ledWindow.section === "bar"
+                        ? "Brightness also sets Refloat's own LEDs (any controller); the rest needs SLCM"
+                        : "\u26A0 Needs the SLCM light module firmware")
             }
         }
     }
@@ -7417,7 +7464,7 @@ Item {
                             + " \u00F7 " + swSettings.batParallel + " \u2248 " + (2 * batteryCurve.autoRes) + " m\u03A9"
                             + (batteryCurve.current.irEst ? " (cell resistance estimated)" : "") + ". "
                             + "It adds back the voltage drop while riding so the gauge doesn't dip under load. Raise it if the gauge still drops when you accelerate, lower it if it jumps up.\n\n"
-                            + "The package turns the voltage into a % with the curve and sends it to the LCM status bar (ALCM VP firmware). Series cells come from the VESC motor config (Additional Info \u203A battery cells in series)."
+                            + "The package turns the voltage into a % with the curve and sends it to the LCM status bar (SLCM firmware). Series cells come from the VESC motor config (Additional Info \u203A battery cells in series)."
                     }
                 }
             }
@@ -7465,8 +7512,8 @@ Item {
                 font.pixelSize: fontSizeSmall
                 text: "This rewrites the firmware of your board's light control module (LCM), the part that also switches the board's power.\n\n"
                     + "Firmware: " + (lcmFw.image ? (lcmFw.usePicked ? "file " : "built-in ") + lcmFw.image.version + " (" + lcmFw.image.size + " bytes)" : "none") + "\n\n"
-                    + "\u2022 Only for ADV200 controllers (XRV, GTV, PintV) whose LCM already has the ALCM VP bootloader (ALCM_VP_BL_full.hex, flashed once with an ST-Link). Stock LCM firmware can't be flashed from the app.\n"
-                    + "\u2022 Only flash files built for this bootloader (ALCM VP) from a source you trust.\n"
+                    + "\u2022 Only for light modules (Floatwheel LCM board, tested target: XRV) that already have the SLCM bootloader (ALCM_VP_BL_full.hex, flashed once with an ST-Link). Stock LCM firmware can't be flashed from the app.\n"
+                    + "\u2022 Only flash files built for this bootloader (SLCM) from a source you trust.\n"
                     + "\u2022 Board powered on, idle, on a stand. Do not ride, step on it or switch it off until it says Done (about a minute).\n"
                     + "\u2022 Headlights and beeper are off while it flashes. Keep this app open and connected.\n"
                     + "\u2022 If it's interrupted, the LCM keeps the board on and waits: press FLASH LCM again (power-cycle first if needed). Hold the button 2 s to power off.\n"
@@ -7579,14 +7626,14 @@ Item {
                 text: lcmCheckPopup.passed
                     ? (lcmFw.fitted === "recovery"
                         ? "The LCM bootloader is waiting for firmware (an earlier update didn't finish). Continue to flash it and recover the light module."
-                        : "Found ALCM VP light module firmware with the bootloader, so the package can update it over Bluetooth.\n\n"
+                        : "Found SLCM light module firmware with the bootloader, so the package can update it over Bluetooth.\n\n"
                             + lcmFw.fitText)
                     : "This is most likely because your board is running a version of LCM firmware that doesn't contain a bootloader for flashing over BLE.\n\n"
                         + "To resolve this, first flash the LCM with an ST-Link using the correct firmware: ALCM_VP_BL_full.hex (lcm-latest release). After that, CHECK LCM passes and future updates work from the app.\n\n"
                         + "What the package saw: " + (!lcmFw.nameKnown && !lcmFw.gotStatus ? "no answer from the board (check the connection)."
-                            : lcmFw.fitted === "vp" ? "ALCM VP " + lcmFw.verText(lcmFw.lcmVer) + " without the bootloader."
+                            : lcmFw.fitted === "vp" ? "SLCM " + lcmFw.verText(lcmFw.lcmVer) + " without the bootloader."
                             : lcmFw.fitted === "other" ? "LCM firmware \u201C" + lcmFw.lcmName + "\u201D."
-                            : "no ALCM VP light module (stock or other LCM firmware, or none connected).")
+                            : "no SLCM light module (stock or other LCM firmware, or none connected).")
             }
 
             Row {
@@ -12398,7 +12445,7 @@ Item {
                     }
                 }
 
-                // Re-RinkFloat: LEDS - light module (ALCM VP build) settings
+                // Re-RinkFloat: LEDS - light module (SLCM build) settings
                 ScrollView {
                     Layout.fillHeight: true
                     Layout.fillWidth: true
@@ -12414,14 +12461,16 @@ Item {
 
                         Item { width: parent.width; height: 0.05 * unit }
 
-                        // Compatibility notice: these settings only work with the
-                        // ALCM VP light-module firmware on ADV200 controllers.
+                        // what's fitted: SLCM detected or not (asked while this tab is open)
+                        Binding { target: slcmDetect; property: "tabOpen"; value: ledsPage.visible }
+
                         Rectangle {
                             width: parent.width
                             height: ledCompatText.implicitHeight + 0.2 * unit
                             radius: 0.08 * unit
-                            color: "#2A1F00"
-                            border.color: "#FFB300"
+                            readonly property color tone: slcmDetect.present ? swTheme.neonGreen : (slcmDetect.known ? "#FFB300" : swTheme.neonPurple)
+                            color: slcmDetect.present ? "#0d2a12" : (slcmDetect.known ? "#2A1F00" : "#140c26")
+                            border.color: tone
                             border.width: 2
                             Text {
                                 id: ledCompatText
@@ -12429,13 +12478,40 @@ Item {
                                 width: parent.width - 0.2 * unit
                                 horizontalAlignment: Text.AlignHCenter
                                 wrapMode: Text.WordWrap
-                                color: "#FFB300"
+                                color: parent.tone === swTheme.neonPurple ? "#ead6ff" : parent.tone
                                 font.pixelSize: fontSizeSmall
                                 textFormat: Text.StyledText
-                                text: "<b>&#9888; UPDATED LCM FIRMWARE REQUIRED</b><br>"
-                                    + "These settings only work on ADV200 controllers (XRV, GTV, PintV) "
-                                    + "with the light module flashed to the ALCM VP firmware. "
-                                    + "On any other controller or LCM firmware they do nothing."
+                                text: slcmDetect.present
+                                    ? "<b>&#10004; SLCM DETECTED</b> &middot; " + slcmDetect.version + "<br>All the light settings below work on this board."
+                                    : slcmDetect.known
+                                        ? "<b>NO SLCM DETECTED</b><br>LIGHTS / HEADLIGHTS and the headlight and status bar brightness use Refloat's own LED controls and work on any controller (Thor, Floatwheel, ...). "
+                                            + "Tiles marked SLCM need a light module running the SLCM firmware."
+                                        : "Looking for an SLCM light module..."
+                            }
+                        }
+
+                        // Refloat's own light controls: every controller (as in stock Refloat)
+                        LedHeading { visible: lights.enabled; text: "Lights" }
+
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            visible: lights.enabled
+                            spacing: 0.2 * unit
+
+                            SwPill {
+                                minWidth: 2.8 * unit
+                                implicitHeight: 0.75 * unit
+                                label: lights.on ? "LIGHTS ON" : "LIGHTS OFF"
+                                lit: lights.on
+                                onClicked: commands.sendLightsControl(!lights.on)
+                            }
+
+                            SwPill {
+                                minWidth: 3.4 * unit
+                                implicitHeight: 0.75 * unit
+                                label: lights.headlightsOn ? "HEADLIGHTS ON" : "HEADLIGHTS OFF"
+                                lit: lights.headlightsOn
+                                onClicked: commands.sendLightsControl(undefined, !lights.headlightsOn)
                             }
                         }
 
@@ -12444,9 +12520,13 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: swSettings.ledConfigured
-                                ? "Sent to the light module (ALCM VP firmware) and stored on the board, so it applies even without the phone."
-                                : "For a light module running the ALCM VP firmware. Nothing is sent until you change a setting here; until then the module keeps its own settings."
+                            text: !lights.enabled
+                                ? "Refloat's LEDs aren't set up on this board, so there are no LIGHTS / HEADLIGHTS buttons. Set them up in VESC Tool \u25B8 Refloat Cfg \u25B8 Hardware (LED Mode, type, pin)."
+                                : (!lights.lcm && !slcmDetect.present
+                                    ? "Using a light module (LCM)? Set Refloat Cfg \u25B8 Hardware \u25B8 LED Mode to External (or Internal and External) and write the config, so it follows these buttons."
+                                    : (swSettings.ledConfigured && slcmDetect.present
+                                        ? "SLCM settings are stored on the board, so they apply even without the phone."
+                                        : "SLCM settings are only sent once you change one here; until then the light module keeps its own."))
                         }
 
                         // Each tile opens its settings in a full-screen window
@@ -12475,6 +12555,7 @@ Item {
                                 onClicked: ledWindow.show("bar")
                             }
                             LedTile {
+                                slcmOnly: true
                                 title: "ANIMATIONS"
                                 glyph: "\u2726"
                                 lit: true
@@ -12484,6 +12565,7 @@ Item {
                                 onClicked: ledWindow.show("anim")
                             }
                             LedTile {
+                                slcmOnly: true
                                 title: "SOUND"
                                 glyph: "\u266A"
                                 lit: swSettings.ledBeep
@@ -12492,6 +12574,7 @@ Item {
                             }
                             LedTile {
                                 Layout.columnSpan: 2
+                                slcmOnly: true
                                 title: "BATTERY GAUGE"
                                 glyph: "\u25AE"
                                 lit: swSettings.batCurveOn

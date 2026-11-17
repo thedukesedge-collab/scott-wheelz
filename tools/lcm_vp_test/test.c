@@ -21,6 +21,15 @@ int main(void){
     uint8_t in[11] = {0x06, 80, 30, 90, 4, 6, 9, 11, 0, 0x01, 0x2C};
     assert(lcm_vp_set(&lcm, in, 11) == true);
     assert(lcm_vp_set(&lcm, in, 11) == false);  /* same again: no change */
+    /* an LCM that didn't name itself SLCM gets no VP block (stock reply) */
+    lcm_poll_response(&lcm, &st, 0, &md, 0);
+    assert(sent_len == 2);
+    uint8_t other[] = "ALCM v0.1.1"; lcm_poll_request(&lcm, other, sizeof other - 1);
+    lcm_poll_response(&lcm, &st, 0, &md, 0);
+    assert(sent_len == 2);
+    /* SLCM names itself: VP block */
+    uint8_t nm[] = "VPBL-r15-79f773f"; lcm_poll_request(&lcm, nm, sizeof nm - 1);
+    assert(strcmp(lcm.name, "VPBL-r15-79f773f") == 0);
     lcm_poll_response(&lcm, &st, 0, &md, 0);
     /* package buffer = ALCM payload minus the leading COMM_CUSTOM_APP_DATA (36)
        byte, so ALCM offset N is package index N-1; ALCM sees 25 bytes */

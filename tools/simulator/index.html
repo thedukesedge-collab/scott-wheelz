@@ -86,6 +86,9 @@
   .ledTiles { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 10px 6px 0; }
   .ledTile { position: relative; height: 92px; border: 2px solid var(--purple); border-radius: 12px; background: #0b0718; cursor: pointer; padding: 8px 10px; box-sizing: border-box; }
   .ledTile.lit { border-color: var(--green); }
+  .ledTile .slcmTag { position: absolute; right: 30px; top: 9px; font-style: normal; font-family: Orbitron, monospace; font-size: 8px; padding: 1px 6px; border: 1px solid #FFB300; color: #FFB300; border-radius: 999px; }
+  .slcmOn .ledTile .slcmTag { border-color: var(--green); color: var(--green); }
+  .slcmOff .ledTile.slcm { opacity: .5; }
   .ledTile.wide { grid-column: 1 / span 2; height: 74px; }
   .fwBar { height: 12px; border: 2px solid var(--purple); border-radius: 999px; margin: 10px 4px; overflow: hidden; display: none; }
   .fwBar i { display: block; height: 100%; width: 0; background: var(--green); border-radius: 999px; }
@@ -264,14 +267,18 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
         <div class="page" id="pgLeds">
-          <div style="border:2px solid #FFB300;background:#2A1F00;color:#FFB300;border-radius:8px;padding:7px 8px;margin:4px 6px;font-size:11px;text-align:center"><b>&#9888; UPDATED LCM FIRMWARE REQUIRED</b><br>These settings only work on ADV200 controllers (XRV, GTV, PintV) with the light module flashed to the ALCM VP firmware. On any other controller or LCM firmware they do nothing.</div>
+          <div class="fwFit" id="slcmBanner" style="margin:4px 6px"></div>
+          <p class="ledHint" style="text-align:center;opacity:.7;margin:2px 0">Simulator only - pretend the board is:</p>
+          <div class="pills" id="simSetup"><div class="pill" data-k="slcm">XRV + SLCM</div><div class="pill" data-k="refloat">THOR (REFLOAT LEDS)</div><div class="pill" data-k="none">NO LEDS SET UP</div></div>
+          <div id="lightsBox"><div class="secTitle" style="text-align:center;margin-top:6px">Lights</div>
+          <div class="pills"><div class="pill" id="lightsPill">LIGHTS OFF</div><div class="pill" id="headPill2">HEADLIGHTS OFF</div></div></div>
           <p id="ledNote" style="font-size:11px;color:var(--text);text-align:center;margin:4px 6px"></p>
           <div class="ledTiles">
             <div class="ledTile" data-w="head"><span class="g">&#9673;</span><b>HEADLIGHTS</b><small id="ltHead"></small><i>&#8250;</i></div>
             <div class="ledTile" data-w="bar"><span class="g">&#9609;</span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
-            <div class="ledTile" data-w="anim"><span class="g">&#10022;</span><span class="sw" id="ltSw"></span><b>ANIMATIONS</b><small id="ltAnim"></small><i>&#8250;</i></div>
-            <div class="ledTile" data-w="sound"><span class="g">&#9834;</span><b>SOUND</b><small id="ltSound"></small><i>&#8250;</i></div>
-            <div class="ledTile wide" data-w="battery"><span class="g">&#9646;</span><b>BATTERY GAUGE</b><small id="ltBat"></small><i>&#8250;</i></div>
+            <div class="ledTile slcm" data-w="anim"><em class="slcmTag">SLCM</em><span class="g">&#10022;</span><span class="sw" id="ltSw"></span><b>ANIMATIONS</b><small id="ltAnim"></small><i>&#8250;</i></div>
+            <div class="ledTile slcm" data-w="sound"><em class="slcmTag">SLCM</em><span class="g">&#9834;</span><b>SOUND</b><small id="ltSound"></small><i>&#8250;</i></div>
+            <div class="ledTile wide slcm" data-w="battery"><em class="slcmTag">SLCM</em><span class="g">&#9646;</span><b>BATTERY GAUGE</b><small id="ltBat"></small><i>&#8250;</i></div>
           </div>
           <p style="font-size:11px;color:var(--text);text-align:center;margin:8px 6px">Headlight and status bar levels are kept in step with Refloat's LED settings (VESC Tool &#8250; Refloat Cfg &#8250; LEDs), both ways.</p>
           <div style="height:22px"></div>
@@ -279,7 +286,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf66 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf67 · sim</span></div>
     </div>
   </div>
 
@@ -324,7 +331,7 @@
         <div class="secTitle">Firmware to flash</div>
         <div class="pills"><div class="pill on" id="fwSrcBuiltin">BUILT-IN</div><div class="pill" id="fwSrcPick">PICK .HEX FILE...</div><div class="pill" id="fwSrcChange" style="display:none">CHANGE...</div></div>
         <input type="file" id="fwFile" accept=".hex" style="display:none">
-        <p class="ledHint" id="fwSrcText">Built into this package: ALCM VP build (simulated, 14592 bytes).</p>
+        <p class="ledHint" id="fwSrcText">Built into this package: SLCM build (simulated, 14592 bytes).</p>
         <div id="fwBtn" class="bigBeep">&#8635;&nbsp; FLASH LCM</div>
         <div class="fwBar" id="fwBar"><i id="fwFill"></i></div>
         <p class="ledHint" id="fwMsg" style="text-align:center;color:var(--green)"></p>
@@ -338,7 +345,7 @@
         <p class="ledHint" id="ledBeepHint"></p>
       </div>
     </div>
-    <p style="font-size:10px;color:#FFB300;text-align:center;margin:0">&#9888; ADV200 (XRV / GTV / PintV) + ALCM VP light module firmware only</p>
+    <p id="slcmFooter" style="font-size:10px;color:#FFB300;text-align:center;margin:0"></p>
   </div>
 
   <div id="batAdv" style="position:absolute;inset:0;z-index:47;display:none;flex-direction:column;gap:8px;background:#0b0718;border:2px solid var(--purple);padding:10px 12px">
@@ -365,7 +372,7 @@
   <div id="fwAck" style="position:absolute;left:4%;right:4%;top:50%;transform:translateY(-50%);z-index:48;display:none;background:#140d02;border:3px solid #FFB300;border-radius:12px;padding:12px;color:#ffe3a3;font-size:12px">
     <div style="text-align:center;color:#FFB300;font-family:Orbitron,monospace;font-size:16px;margin-bottom:8px">&#9888; FLASH LCM FIRMWARE</div>
     <p style="margin:0 0 6px">This rewrites the firmware of your board's light control module (LCM), the part that also switches the board's power.</p>
-    <p style="margin:0">&#8226; Only for ADV200 controllers (XRV, GTV, PintV) whose LCM already has the ALCM VP bootloader (ALCM_VP_BL_full.hex, flashed once with an ST-Link). Stock LCM firmware can't be flashed from the app.<br>&#8226; Board powered on, idle, on a stand. Do not ride, step on it or switch it off until it says Done (about a minute).<br>&#8226; Headlights and beeper are off while it flashes. Keep this app open and connected.<br>&#8226; If it's interrupted, the LCM keeps the board on and waits: press FLASH LCM again (power-cycle first if needed). Hold the button 2 s to power off.<br>&#8226; Experimental, at your own risk. Keep an ST-Link and your old LCM firmware as a fallback.</p>
+    <p style="margin:0">&#8226; Only for light modules (Floatwheel LCM board, tested target: XRV) that already have the SLCM bootloader (ALCM_VP_BL_full.hex, flashed once with an ST-Link). Stock LCM firmware can't be flashed from the app.<br>&#8226; Board powered on, idle, on a stand. Do not ride, step on it or switch it off until it says Done (about a minute).<br>&#8226; Headlights and beeper are off while it flashes. Keep this app open and connected.<br>&#8226; If it's interrupted, the LCM keeps the board on and waits: press FLASH LCM again (power-cycle first if needed). Hold the button 2 s to power off.<br>&#8226; Experimental, at your own risk. Keep an ST-Link and your old LCM firmware as a fallback.</p>
     <label style="display:flex;gap:8px;align-items:center;margin:10px 0;cursor:pointer"><input type="checkbox" id="fwAckBox" style="width:20px;height:20px;accent-color:#FFB300">I understand and my board is idle on a stand</label>
     <div class="pills"><div class="pill" id="fwAckNo">CANCEL</div><div class="pill" id="fwAckYes" style="opacity:.4">FLASH LCM</div></div>
   </div>
@@ -936,7 +943,7 @@ $('padSave').onclick = () => { if (take || armed) return; padRelease(); saveMelo
 $('padDone').onclick = () => { if (take) return; if (!armed && P.rec.length) { P.hMelody = true; P.hBootCustom = true; save(); toast('Custom melody set as boot melody'); } renderMelody(); mxMode(false); };
 $('hornReset').onclick = () => { Object.assign(P, { hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, hsStr: 5, hsVol: 5, hsPitch: 3, bootVol: 6 }); save(); renderHorn(); renderMelody(); toast('Horn settings reset'); };
 
-// ---------- LEDS tab (light module, ALCM VP firmware; simulated) ----------
+// ---------- LEDS tab (light module, SLCM firmware; simulated) ----------
 const LED_ANIMS = ['STANDARD', 'RAINBOW SCAN', 'RAINBOW MIRROR', 'KNIGHT RIDER', 'RAINBOW BAR', 'THE FUZZ', 'FIRE',
   'PULSE OUT', 'PULSE IN', '120 SCROLL', 'COMP. WAVE', 'CLASSIC', 'COLOR SCAN'];
 const LED_DEF = { ledCfg: false, ledHead: true, ledBar: true, ledBeep: true, ledHeadPct: 80, ledHeadIdlePct: 50, ledIdlePct: 80, ledRidePct: 80,
@@ -989,8 +996,20 @@ setInterval(() => {
   });
 }, 50);
 function renderLedsSoft() {
-  $('ledNote').textContent = P.ledCfg ? 'Sent to the light module (ALCM VP firmware) and stored on the board, so it applies even without the phone.'
-    : 'For a light module running the ALCM VP firmware. Nothing is sent until you change a setting here; until then the module keeps its own settings.';
+  const setup = P.simSetup || 'slcm', slcm = setup === 'slcm', lightsOk = setup !== 'none';
+  $('pgLeds').classList.toggle('slcmOn', slcm); $('pgLeds').classList.toggle('slcmOff', !slcm);
+  document.querySelectorAll('#simSetup .pill').forEach(x => x.classList.toggle('on', x.dataset.k === setup));
+  $('slcmBanner').className = 'fwFit' + (slcm ? ' ok' : '');
+  $('slcmBanner').innerHTML = slcm ? '<b>&#10004; SLCM DETECTED</b> · ' + FW_BUILD + '<br>All the light settings below work on this board.'
+    : "<b>NO SLCM DETECTED</b><br>LIGHTS / HEADLIGHTS and the headlight and status bar brightness use Refloat's own LED controls and work on any controller (Thor, Floatwheel, ...). Tiles marked SLCM need a light module running the SLCM firmware.";
+  $('lightsBox').style.display = lightsOk ? '' : 'none';
+  const pl = (id, on, txt) => { $(id).textContent = txt + (on ? ' ON' : ' OFF'); $(id).classList.toggle('on', on); };
+  pl('lightsPill', !!P.lightsOn, 'LIGHTS'); pl('headPill2', !!P.ledHead, 'HEADLIGHTS');
+  $('slcmFooter').style.color = slcm ? 'var(--green)' : '#FFB300';
+  $('slcmFooter').innerHTML = slcm ? '&#10004; SLCM ' + FW_BUILD + ' detected' : "&#9888; Needs the SLCM light module firmware (brightness also sets Refloat's own LEDs)";
+  $('ledNote').textContent = !lightsOk ? "Refloat's LEDs aren't set up on this board, so there are no LIGHTS / HEADLIGHTS buttons. Set them up in VESC Tool \u25B8 Refloat Cfg \u25B8 Hardware (LED Mode, type, pin)."
+    : !slcm ? "Using a light module (LCM)? Set Refloat Cfg \u25B8 Hardware \u25B8 LED Mode to External (or Internal and External) and write the config, so it follows these buttons."
+    : P.ledCfg ? 'SLCM settings are stored on the board, so they apply even without the phone.' : 'SLCM settings are only sent once you change one here; until then the light module keeps its own.';
   const pill = (id, on, txt) => { $(id).textContent = txt + (on ? ' ON' : ' OFF'); $(id).classList.toggle('on', on); };
   pill('ledHeadPill', P.ledHead, 'HEADLIGHTS'); pill('ledBarPill', P.ledBar, 'STATUS BAR'); pill('ledBeepPill', P.ledBeep, 'LCM BEEPER');
   $('ledSwatch').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
@@ -1007,7 +1026,7 @@ function renderLedsSoft() {
   $('batLive').textContent = batLive(); $('batAdvLive').textContent = batLive();
   if (!lcmHold.t) { $('lcmToolsText').textContent = FW.active ? 'LCM FIRMWARE · FLASHING ' + Math.round(FW.p * 100) + '%' : (lcmHold.hint ? 'HOLD 2 s TO OPEN' : 'LCM firmware tools'); $('lcmToolsText').style.color = FW.active ? 'var(--green)' : ''; }
   document.querySelectorAll('.ledTile').forEach(t => t.classList.toggle('lit', t.dataset.w === 'head' ? P.ledHead : t.dataset.w === 'bar' ? P.ledBar : t.dataset.w === 'sound' ? P.ledBeep : true));
-  $('ledBeepHint').textContent = P.ledBeep ? "The light module plays one short beep. No beep = the module isn't running the ALCM VP firmware or isn't connected."
+  $('ledBeepHint').textContent = P.ledBeep ? "The light module plays one short beep. No beep = the module isn't running the SLCM firmware or isn't connected."
     : 'The LCM beeper is off, so the test beep is silent. Turn it on above first.';
 }
 function renderLeds() {
@@ -1106,19 +1125,19 @@ const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: fal
 const FW_BUILD = 'r14 (5b2e9c1)', FW_OLD = 'r12 (0c01814)', FW_NEW = 'r16 (a7d40e3)', PKG_VER = '1.2.3-rf65';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
-  vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs ALCM VP ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
-  vpbl_old: ['UPDATE AVAILABLE', 'Your LCM runs ALCM VP ' + FW_OLD + '. This package (' + PKG_VER + ') carries ' + FW_BUILD + ', the LCM firmware built and tested with it. Updating is recommended so the LCM and package stay matched.', 'UPDATE LCM', 'update available (this package: ' + FW_BUILD + ')', FW_OLD],
-  vpbl_new: ['LCM NEWER THAN THIS PACKAGE', 'Your LCM runs ALCM VP ' + FW_NEW + ', newer than the ' + FW_BUILD + ' this package (' + PKG_VER + ') carries. Best fit: update the VESC package to the latest build so they match. Flashing from this package would downgrade the LCM.', 'DOWNGRADE ANYWAY', 'lcm newer than this package (this package: ' + FW_BUILD + ')', FW_NEW],
+  vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
+  vpbl_old: ['UPDATE AVAILABLE', 'Your LCM runs SLCM ' + FW_OLD + '. This package (' + PKG_VER + ') carries ' + FW_BUILD + ', the LCM firmware built and tested with it. Updating is recommended so the LCM and package stay matched.', 'UPDATE LCM', 'update available (this package: ' + FW_BUILD + ')', FW_OLD],
+  vpbl_new: ['LCM NEWER THAN THIS PACKAGE', 'Your LCM runs SLCM ' + FW_NEW + ', newer than the ' + FW_BUILD + ' this package (' + PKG_VER + ') carries. Best fit: update the VESC package to the latest build so they match. Flashing from this package would downgrade the LCM.', 'DOWNGRADE ANYWAY', 'lcm newer than this package (this package: ' + FW_BUILD + ')', FW_NEW],
 };
 // fail-safe: the LCM names itself ("VPBL-<hash>" = with the bootloader);
 // FLASH LCM only exists for those, or while a bootloader is asking (recovery)
 const fwCapable = () => !!FW_FIT[FW.kind] || FW.kind === 'recovery';
 const fwCan = () => FW.active || (FW.unlocked && fwCapable());
 function fwFitPaint() {
-  const k = FW.kind, f = FW_FIT[k], t = f ? 'ALCM VP with bootloader · ' + f[4] + ' · ' + f[3] : {
+  const k = FW.kind, f = FW_FIT[k], t = f ? 'SLCM with bootloader · ' + f[4] + ' · ' + f[3] : {
     recovery: "LCM bootloader is waiting for firmware (an earlier update didn't finish). Flash it now to recover the light module.",
-    vp: "ALCM VP " + FW_BUILD + " WITHOUT the bootloader. It can't be flashed from the app: install ALCM_VP_BL_full.hex once with an ST-Link, after that updates work from here.",
-    other: "No ALCM VP light module answered (stock or other LCM firmware, or none). Flashing from the app needs ALCM VP with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
+    vp: "SLCM " + FW_BUILD + " WITHOUT the bootloader. It can't be flashed from the app: install ALCM_VP_BL_full.hex once with an ST-Link, after that updates work from here.",
+    other: "No SLCM light module answered (stock or other LCM firmware, or none). Flashing from the app needs SLCM with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
   }[k];
   const chk = FW.active ? 2 : FW.check;
   $('fwFit').textContent = chk === 0 ? 'Press CHECK LCM to see whether this light module can be updated from the app.' : chk === 1 ? 'Checking the light module...' : t;
@@ -1144,9 +1163,9 @@ $('fwCheckBtn').onclick = () => {
     $('fwChkTitle').innerHTML = ok ? '&#10004; LCM CHECK PASSED' : '&#9888; LCM CHECK FAILED';
     $('fwChkText').textContent = ok
       ? (FW.kind === 'recovery' ? "The LCM bootloader is waiting for firmware (an earlier update didn't finish). Continue to flash it and recover the light module."
-        : 'Found ALCM VP light module firmware with the bootloader, so the package can update it over Bluetooth.\n\n' + FW_FIT[FW.kind][1])
+        : 'Found SLCM light module firmware with the bootloader, so the package can update it over Bluetooth.\n\n' + FW_FIT[FW.kind][1])
       : "This is most likely because your board is running a version of LCM firmware that doesn't contain a bootloader for flashing over BLE.\n\nTo resolve this, first flash the LCM with an ST-Link using the correct firmware: ALCM_VP_BL_full.hex (lcm-latest release). After that, CHECK LCM passes and future updates work from the app.\n\nWhat the package saw: "
-        + (FW.kind === 'vp' ? 'ALCM VP ' + FW_BUILD + ' without the bootloader.' : 'no ALCM VP light module (stock or other LCM firmware, or none connected).');
+        + (FW.kind === 'vp' ? 'SLCM ' + FW_BUILD + ' without the bootloader.' : 'no SLCM light module (stock or other LCM firmware, or none connected).');
     const f = FW_FIT[FW.kind];
     $('fwChkFit').style.display = f ? '' : 'none';
     if (f) { $('fwChkFit').textContent = f[0]; const c = FW.kind === 'vpbl' ? 'var(--green)' : '#FFB300'; $('fwChkFit').style.color = $('fwChkFit').style.borderColor = c; }
@@ -1260,7 +1279,7 @@ function fwSrcPaint() {
   $('fwSrcPick').textContent = FW.picked ? 'PICKED .HEX' : 'PICK .HEX FILE...';
   $('fwSrcChange').style.display = FW.picked ? 'inline-block' : 'none';
   $('fwSrcText').textContent = FW.usePicked && FW.picked ? 'File: ' + FW.picked.version + ' (' + FW.picked.size + ' bytes). Must be built for the bootloader: ALCM_VP_BL_full.hex works (only its app part is sent).'
-    : 'Built into this package: ALCM VP build (simulated, 14592 bytes).';
+    : 'Built into this package: SLCM build (simulated, 14592 bytes).';
 }
 $('fwSrcBuiltin').onclick = () => { if (!FW.active) { FW.usePicked = false; fwSrcPaint(); } };
 $('fwSrcPick').onclick = () => { if (FW.active) return; if (FW.picked && !FW.usePicked) { FW.usePicked = true; fwSrcPaint(); } else $('fwFile').click(); };
@@ -1296,6 +1315,9 @@ function fwStart() {
   }, 80);
 }
 $('fwCancel').onclick = () => { clearInterval(FW.t); FW.active = false; fwPaint('Cancelled. If the LCM had already started, power the board off and on, then press FLASH LCM again.'); };
+document.querySelectorAll('#simSetup .pill').forEach(x => x.onclick = () => { P.simSetup = x.dataset.k; save(); renderLedsSoft(); });
+$('lightsPill').onclick = () => { P.lightsOn = !P.lightsOn; save(); renderLedsSoft(); };
+$('headPill2').onclick = () => { P.ledHead = !P.ledHead; save(); renderLedsSoft(); };
 $('ledHeadPill').onclick = ledToggle('ledHead'); $('ledBarPill').onclick = ledToggle('ledBar'); $('ledBeepPill').onclick = ledToggle('ledBeep');
 
 // ---------- flywheel ----------

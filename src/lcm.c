@@ -68,6 +68,11 @@ void lcm_configure(LcmData *lcm, const Leds *leds) {
     lcm->lights_off_when_lifted = cfg->lights_off_when_lifted;
 }
 
+bool lcm_is_slcm(const LcmData *lcm) {
+    return lcm->vp.valid && lcm->name[0] == 'V' && lcm->name[1] == 'P' &&
+        (lcm->name[2] == '-' || lcm->name[2] == 'B');
+}
+
 void lcm_poll_request(LcmData *lcm, uint8_t *buffer, size_t len) {
     // Re-Float Rink-Mixed: the name is kept whatever the LED mode (the app
     // uses it to tell which LCM firmware is fitted: "VPBL-..." = ALCM VP
@@ -99,9 +104,11 @@ void lcm_poll_response(
     buffer[ind++] = 101;  // Package ID
     buffer[ind++] = COMMAND_LCM_POLL;
 
-    // Re-Float Rink-Mixed: the VP light settings are sent whenever they've been
-    // set from the app, whatever the LED Mode
-    if (lcm->enabled || lcm->vp.valid) {
+    // Re-Float Rink-Mixed: the VP light settings (and the VP block) only go to
+    // an SLCM - an LCM that named itself "VP-..." / "VPBL-..." in its poll -
+    // whatever the LED Mode. Any other LCM gets exactly stock Refloat's reply.
+    const bool slcm = lcm_is_slcm(lcm);
+    if (lcm->enabled || slcm) {
         uint8_t send_state = state_compat(state) & 0xF;
         send_state += fs_state << 4;
         if (state->mode == MODE_HANDTEST) {
@@ -122,7 +129,7 @@ void lcm_poll_response(
         buffer_append_float16(buffer, VESC_IF->mc_get_tot_current_in(), 1e0, &ind);
         buffer_append_float16(buffer, VESC_IF->mc_get_input_voltage_filtered(), 1e1, &ind);
 
-        if (lcm->vp.valid) {
+        if (slcm) {
             // Re-Float Rink-Mixed: brightness from the app (status bar level
             // depends on riding / not riding), then the VP block (ALCM VP
             // build); 25 bytes in total, ALCM accepts up to 32

@@ -719,3 +719,22 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   fill, COLOR SCAN a personal-color scanner, STANDARD plain white. A
   blurred copy of the letters behind them gives the neon glow. Animates
   only while the window is open.
+
+### SLCM name, works on any controller (v1.2.3-rf67)
+- Our ALCM-based light module firmware is now called **SLCM** (Smart LCM) in
+  the app. File names (ALCM_VP_BL_full.hex etc.) unchanged for now.
+- Package: the VP block (and the app's brightness values) only go to an LCM
+  that named itself SLCM ("VP-..."/"VPBL-..." in its poll). Any other LCM
+  gets exactly stock Refloat's poll reply again, whatever was set in the
+  LEDS tab (before, a stock / third-party LCM got the extra VP bytes once
+  the LEDS tab had been used).
+- App, LEDS tab: Refloat's own LIGHTS ON/OFF and HEADLIGHTS ON/OFF buttons
+  are back (they were dropped when the LEDS tab replaced them in rf~53):
+  they work on every controller (Thor, Floatwheel, ...) like stock Refloat.
+  Headlight on/off and headlight / status bar brightness keep syncing with
+  Refloat's LED config, so they work on any controller too.
+- SLCM detection: while the LEDS tab is open the app asks the package for
+  the LCM's name every 3 s. Banner: SLCM DETECTED (with version) or NO
+  SLCM DETECTED (explains what works anyway). ANIMATIONS, SOUND and BATTERY
+  GAUGE tiles carry an SLCM badge and are dimmed without one. No controller
+  picker: what matters is whether an SLCM answers, not the controller.

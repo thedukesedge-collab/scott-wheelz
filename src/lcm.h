@@ -87,6 +87,10 @@ void lcm_configure(LcmData *lcm, const Leds *leds);
  */
 void lcm_poll_request(LcmData *lcm, uint8_t *buffer, size_t len);
 
+// Re-Float Rink-Mixed: VP settings set from the app and the LCM named itself
+// as SLCM ("VP-..." / "VPBL-..."): only then is the VP block sent
+bool lcm_is_slcm(const LcmData *lcm);
+
 /**
  * Response to the LCM poll request to get data from the package.
  */
