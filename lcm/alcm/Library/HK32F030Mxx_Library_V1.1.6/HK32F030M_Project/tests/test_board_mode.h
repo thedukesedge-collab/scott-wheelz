@@ -55,8 +55,10 @@ int board_mode_setup(void **state)
     expect_any(subscribe_event, callback);
     expect_value(subscribe_event, event, EVENT_COMMAND_BOOT);
     expect_any(subscribe_event, callback);
+#ifndef VP_LIGHT_CONTROL // no config mode in the VP build
     expect_value(subscribe_event, event, EVENT_COMMAND_MODE_CONFIG);
     expect_any(subscribe_event, callback);
+#endif
     expect_value(subscribe_event, event, EVENT_RPM_CHANGED);
     expect_any(subscribe_event, callback);
     expect_value(subscribe_event, event, EVENT_EMERGENCY_FAULT);
@@ -328,6 +330,7 @@ void step_off_board(void)
     event_queue_call_mocked_callback(EVENT_FOOTPAD_CHANGED, &footpad_event_data);
 }
 
+#ifndef VP_LIGHT_CONTROL
 void enable_config_mode()
 {
     board_mode_event_data_t expected_state = {0};
@@ -348,6 +351,7 @@ void enable_config_mode()
     config_event_data.enable = true;
     event_queue_call_mocked_callback(EVENT_COMMAND_MODE_CONFIG, &config_event_data);
 }
+#endif
 
 void trigger_emergency_fault()
 {
@@ -387,12 +391,14 @@ void test_board_mode_footpads(void **state)
     // Step off
     step_off_board();
 
+#ifndef VP_LIGHT_CONTROL // no config mode in the VP build
     // Enable config mode
     enable_config_mode();
 
     // In config mode, the footpads are used as controls, so no state change
     footpad_event_data.footpads_state = RIGHT_FOOTPAD;
     event_queue_call_mocked_callback(EVENT_FOOTPAD_CHANGED, &footpad_event_data);
+#endif
 }
 
 void test_board_mode_duty_cycle(void **state)

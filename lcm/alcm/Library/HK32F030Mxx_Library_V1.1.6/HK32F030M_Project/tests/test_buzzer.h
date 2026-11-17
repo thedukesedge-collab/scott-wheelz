@@ -307,6 +307,7 @@ static void test_buzzer_board_mode_dispatch(void **state)
     buzzer_board_mode_event_handler(EVENT_BOARD_MODE_CHANGED, &data);
     // buzzer_timer_id remains INVALID.
 
+#ifndef VP_LIGHT_CONTROL // no config mode in the VP build
     // 9) Entering config mode forces the beeper on, independent of the
     // mode-specific dispatch (which, for IDLE/ACTIVE with a non-BOOTING
     // previous mode, still lands on "silence" - already INVALID, so no
@@ -330,6 +331,7 @@ static void test_buzzer_board_mode_dispatch(void **state)
     expect_value(buzzer_hw_enable, enable, false);
     expect_function_call(buzzer_off);
     buzzer_board_mode_event_handler(EVENT_BOARD_MODE_CHANGED, &data);
+#endif
 }
 
 /**
