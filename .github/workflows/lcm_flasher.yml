@@ -29,7 +29,8 @@ jobs:
         run: >
           pyinstaller --noconfirm --onefile --windowed --name LCM_Flasher
           --collect-all pyocd --collect-all cmsis_pack_manager
-          --collect-all libusb_package --collect-all pylink
+          --collect-all libusb_package --collect-all pylink --collect-all hid
+          --recursive-copy-metadata pyocd
           --add-data "lcm/alcm/tools/battery_lut_patch/HKMicroChip.HK32F030xMxx_DFP.1.0.17.pack;."
           lcm/flasher/LCM_Flasher.pyw
 
