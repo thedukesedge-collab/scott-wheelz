@@ -466,7 +466,13 @@ Item {
         id: lcmFw
 
         // {size, crc, version, b64}, or null if this build has no LCM image
-        readonly property var image: {{LCM_FW_JSON}}
+        readonly property var builtin: {{LCM_FW_JSON}}
+        // a .hex picked by the user: {size, crc, version (file name), bytes}
+        property var picked: null
+        property bool usePicked: false
+        // what FLASH LCM sends
+        readonly property var image: usePicked && picked ? picked : builtin
+        property var builtinBytes: null
         property var bytes: null
 
         // package state: 0 idle, 1 staged, 2 sending, 3 ok, 4 failed
@@ -475,13 +481,13 @@ Item {
         property int want: 0
         property bool active: false  // an update this app started is in progress
         property real progress: 0
-        property string message: image ? "" : "This build has no LCM firmware image."
+        property string message: builtin ? "" : "This build has no LCM firmware image: pick a .hex file."
         property int noReply: 0
 
         readonly property var errorText: [
             "",
             "The board is running. Stop riding and try again.",
-            "The firmware image is broken (this build).",
+            "The firmware image is broken (bad size).",
             "The LCM didn't start updating. It needs the LCM bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex).",
             "The LCM got nothing and went back to its old firmware.",
             "Checksum mismatch: the LCM is retrying."
@@ -497,11 +503,95 @@ Item {
         function u32(v) { return [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255]; }
 
         function decode() {
-            if (bytes) return;
-            var s = Qt.atob(image.b64);
-            var b = new Uint8Array(s.length);
-            for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 255;
-            bytes = b;
+            if (image.bytes) {
+                bytes = image.bytes;
+                return;
+            }
+            if (!builtinBytes) {
+                var s = Qt.atob(image.b64);
+                var b = new Uint8Array(s.length);
+                for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 255;
+                builtinBytes = b;
+            }
+            bytes = builtinBytes;
+        }
+
+        function crc16(b, n) {
+            var crc = 0;
+            for (var i = 0; i < n; i++) {
+                crc ^= b[i] << 8;
+                for (var k = 0; k < 8; k++) {
+                    crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+                }
+            }
+            return crc;
+        }
+
+        // Intel .hex -> update image, with the bootloader's own checks.
+        // Returns {size, crc, version, bytes} or {error}.
+        function parseHex(text, name) {
+            var APP = 0x08000600, END = 0x08003F80;
+            var mem = {}, base = 0, maxA = -1, n = 0;
+            var lines = text.split(/\r?\n/);
+            for (var li = 0; li < lines.length; li++) {
+                var l = lines[li].trim();
+                if (l === "") continue;
+                if (l[0] !== ":" || l.length < 11 || (l.length - 1) % 2) return {error: "Not an Intel .hex file (line " + (li + 1) + ")."};
+                var r = [];
+                for (var i = 1; i < l.length; i += 2) {
+                    var v = parseInt(l.substr(i, 2), 16);
+                    if (isNaN(v)) return {error: "Not an Intel .hex file (line " + (li + 1) + ")."};
+                    r.push(v);
+                }
+                var sum = 0;
+                for (i = 0; i < r.length; i++) sum = (sum + r[i]) & 255;
+                if (sum !== 0 || r.length !== r[0] + 5) return {error: "Checksum error in the .hex (line " + (li + 1) + ")."};
+                var type = r[3], addr = (r[1] << 8) | r[2];
+                if (type === 0) {
+                    for (i = 0; i < r[0]; i++) {
+                        var a = base + addr + i;
+                        if (a >= APP && a < END) {
+                            mem[a] = r[4 + i];
+                            if (a > maxA) maxA = a;
+                            n++;
+                        } else if (a >= END && a < 0x08004000) {
+                            return {error: "This .hex writes the battery LUT page (0x08003F80+): not an update image."};
+                        }
+                        // anything below 0x08000600 (a full image's bootloader part) is ignored
+                    }
+                } else if (type === 4) {
+                    base = ((r[4] << 8) | r[5]) * 65536;
+                } else if (type === 2) {
+                    base = ((r[4] << 8) | r[5]) * 16;
+                } else if (type === 1) {
+                    break;
+                }
+            }
+            if (n === 0) {
+                return {error: "No firmware for 0x08000600 in this .hex. It must be built for the bootloader (ALCM_VP_BL_full.hex or a BL=1 build), not a plain ALCM .hex."};
+            }
+            var size = Math.ceil((maxA + 1 - APP) / 128) * 128;
+            var b = new Uint8Array(size);
+            for (i = 0; i < size; i++) b[i] = mem[APP + i] !== undefined ? mem[APP + i] : 0xFF;
+            var sp = (b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24)) >>> 0;
+            var pc = (b[4] | (b[5] << 8) | (b[6] << 16) | (b[7] << 24)) >>> 0;
+            if (sp < 0x20000001 || sp > 0x20000800 || !(pc & 1) || pc < APP || pc >= END) {
+                return {error: "The vector table at 0x08000600 doesn't look like an ALCM app built for the bootloader."};
+            }
+            return {size: size, crc: crc16(b, size), version: name, bytes: b};
+        }
+
+        function loadHexText(text, name) {
+            var r = parseHex(text, name);
+            if (r.error) {
+                message = r.error;
+                return false;
+            }
+            picked = r;
+            usePicked = true;
+            progress = 0;
+            message = "Picked " + name + " (" + r.size + " bytes). It's checked like the built-in one; flashing still needs the bootloader.";
+            return true;
         }
 
         function start() {
@@ -5690,6 +5780,34 @@ Item {
         }
     }
 
+    // Re-RinkFloat: pick an LCM firmware .hex for FLASH LCM
+    Dl.FileDialog {
+        id: hexLoadDialog
+        title: "Choose an LCM firmware .hex"
+        nameFilters: ["Intel HEX (*.hex)", "All files (*)"]
+        selectExisting: true
+
+        function show() {
+            if (!Utility.requestFilePermission()) {
+                VescIf.emitMessageDialog("File Permissions", "Unable to request file system permission.", false, false);
+                return;
+            }
+            open();
+        }
+
+        onAccepted: {
+            var fUrl = fileUrl.toString();
+            var request = new XMLHttpRequest();
+            request.open("GET", fUrl, false);
+            request.send(null);
+            if (request.status === 200 || (request.status === 0 && request.responseText.length > 0)) {
+                lcmFw.loadHexText(request.responseText, decodeURIComponent(fUrl.split("/").pop()));
+            } else {
+                lcmFw.message = "Couldn't open the file (%1).".arg(request.status);
+            }
+        }
+    }
+
     Dl.FileDialog {
         id: jsonLoadDialog
         title: "Choose a file to load"
@@ -6285,13 +6403,14 @@ Item {
         id: ledWindow
         parent: mainItem
         x: 0
-        y: 0
+        // half the screen, from the bottom (the LEDS tiles stay visible above)
         width: mainItem.width
-        height: mainItem.height
+        height: mainItem.height * 0.5
+        y: mainItem.height - height
         modal: true
         dim: true
-        padding: 0.3 * unit
-        closePolicy: Popup.CloseOnEscape
+        padding: 0.25 * unit
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         property string section: "head"
         readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "ANIMATIONS", "sound": "SOUND", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE"})
@@ -6304,35 +6423,33 @@ Item {
 
         background: Rectangle {
             color: "#0b0718"
+            radius: 0.3 * unit
             border.color: swTheme.neonPurple
             border.width: 2
         }
 
         ColumnLayout {
             anchors.fill: parent
-            spacing: 0.2 * unit
+            spacing: 0.15 * unit
 
             RowLayout {
                 Layout.fillWidth: true
 
                 SwPill {
-                    minWidth: 1.0 * unit
-                    label: "\u2039"
+                    minWidth: 1.8 * unit
+                    label: "\u2039 BACK"
                     onClicked: ledWindow.close()
                 }
 
                 SwNeonLabel {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
-                    font.pixelSize: 0.4 * unit
+                    font.pixelSize: 0.36 * unit
                     text: ledWindow.titles[ledWindow.section] || ""
                 }
 
-                SwPill {
-                    minWidth: 1.0 * unit
-                    label: "\u2715"
-                    onClicked: ledWindow.close()
-                }
+                // balances the BACK pill so the title stays centred
+                Item { implicitWidth: 1.8 * unit; implicitHeight: 1 }
             }
 
             Rectangle { Layout.fillWidth: true; height: 2; color: swTheme.neonPurple; opacity: 0.6 }
@@ -6588,13 +6705,47 @@ Item {
                         spacing: 0.14 * unit
                         visible: ledWindow.section === "fw"
 
+                        LedHeading { text: "Firmware to flash" }
+
+                        Flow {
+                            width: parent.width
+                            spacing: 0.12 * unit
+                            SwPill {
+                                minWidth: 2.4 * unit
+                                label: "BUILT-IN"
+                                lit: !lcmFw.usePicked
+                                enabledLook: !!lcmFw.builtin && !lcmFw.active
+                                onClicked: if (lcmFw.builtin && !lcmFw.active) lcmFw.usePicked = false
+                            }
+                            SwPill {
+                                minWidth: 2.4 * unit
+                                label: lcmFw.picked ? "PICKED .HEX" : "PICK .HEX FILE..."
+                                lit: lcmFw.usePicked
+                                enabledLook: !lcmFw.active
+                                onClicked: {
+                                    if (lcmFw.active) return;
+                                    if (lcmFw.picked && !lcmFw.usePicked) lcmFw.usePicked = true;
+                                    else hexLoadDialog.show();
+                                }
+                            }
+                            SwPill {
+                                visible: !!lcmFw.picked
+                                minWidth: 1.6 * unit
+                                label: "CHANGE..."
+                                enabledLook: !lcmFw.active
+                                onClicked: if (!lcmFw.active) hexLoadDialog.show()
+                            }
+                        }
+
                         SwLText {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: lcmFw.image
-                                ? "Firmware in this package: ALCM VP build " + lcmFw.image.version + " (" + lcmFw.image.size + " bytes)."
-                                : "This build of the package has no LCM firmware image."
+                            text: lcmFw.usePicked && lcmFw.picked
+                                ? "File: " + lcmFw.picked.version + " (" + lcmFw.picked.size + " bytes). Must be built for the bootloader: ALCM_VP_BL_full.hex works (only its app part is sent)."
+                                : (lcmFw.builtin
+                                    ? "Built into this package: ALCM VP build " + lcmFw.builtin.version + " (" + lcmFw.builtin.size + " bytes)."
+                                    : "This build of the package has no LCM firmware image: pick a .hex file.")
                         }
 
                         Rectangle {
@@ -6644,7 +6795,10 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            color: lcmFw.pkgState === 4 ? "#FFB300" : swTheme.neonGreen
+                            color: lcmFw.pkgState === 4 || lcmFw.message.indexOf("Not ") === 0 || lcmFw.message.indexOf("No ") === 0
+                                   || lcmFw.message.indexOf("This .hex") === 0 || lcmFw.message.indexOf("The vector") === 0
+                                   || lcmFw.message.indexOf("Checksum") === 0 || lcmFw.message.indexOf("Couldn't") === 0
+                                   ? "#FFB300" : swTheme.neonGreen
                             text: lcmFw.message
                         }
 
@@ -6720,7 +6874,9 @@ Item {
                 color: "#ffe3a3"
                 font.pixelSize: fontSizeSmall
                 text: "This rewrites the firmware of your board's light control module (LCM), the part that also switches the board's power.\n\n"
+                    + "Firmware: " + (lcmFw.image ? (lcmFw.usePicked ? "file " : "built-in ") + lcmFw.image.version + " (" + lcmFw.image.size + " bytes)" : "none") + "\n\n"
                     + "\u2022 Only for ADV200 controllers (XRV, GTV, PintV) whose LCM already has the ALCM VP bootloader (ALCM_VP_BL_full.hex, flashed once with an ST-Link). Stock LCM firmware can't be flashed from the app.\n"
+                    + "\u2022 Only flash files built for this bootloader (ALCM VP) from a source you trust.\n"
                     + "\u2022 Board powered on, idle, on a stand. Do not ride, step on it or switch it off until it says Done (about a minute).\n"
                     + "\u2022 Headlights and beeper are off while it flashes. Keep this app open and connected.\n"
                     + "\u2022 If it's interrupted, the LCM keeps the board on and waits: press FLASH LCM again (power-cycle first if needed). Hold the button 2 s to power off.\n"

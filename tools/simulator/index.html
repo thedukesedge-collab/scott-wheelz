@@ -271,12 +271,13 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf60 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf61 · sim</span></div>
     </div>
   </div>
 
-  <div id="ledWin" style="position:absolute;inset:0;z-index:46;display:none;flex-direction:column;gap:8px;background:#0b0718;border:2px solid var(--purple);padding:12px">
-    <div style="display:flex;align-items:center;gap:6px"><div class="pill" id="ledWinBack">&#8249;</div><span class="neonL" id="ledWinTitle" style="flex:1;text-align:center;font-size:17px"></span><div class="pill" id="ledWinClose">&#10005;</div></div>
+  <div id="ledWinDim" style="position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:45;display:none"></div>
+  <div id="ledWin" style="position:absolute;left:0;right:0;bottom:0;height:50%;z-index:46;display:none;flex-direction:column;gap:8px;background:#0b0718;border:2px solid var(--purple);border-radius:14px 14px 0 0;padding:10px 12px">
+    <div style="display:flex;align-items:center;gap:6px"><div class="pill" id="ledWinBack" style="min-width:64px;text-align:center">&#8249; BACK</div><span class="neonL" id="ledWinTitle" style="flex:1;text-align:center;font-size:16px"></span><div style="min-width:64px"></div></div>
     <div style="height:2px;background:var(--purple);opacity:.6"></div>
     <div style="flex:1;overflow-y:auto">
       <div class="ledSec" data-s="head">
@@ -304,7 +305,10 @@
         <p class="ledHint">The package turns the battery voltage into a % with this curve and sends it to the LCM status bar (ALCM VP firmware), instead of the VESC's own %. Cell count comes from the VESC motor config (Additional Info &#8250; battery cells in series). Presets are Floatwheel's own tables. P28A isn't one of them: start from VTC6 (also an 18650 high-drain cell) and adjust the points. SAG COMP. is the pack's resistance: it adds back the voltage drop while riding, so the gauge doesn't dip under load (for 18s2p P28A roughly 100-150 m&#937;; 0 = off).</p>
       </div>
       <div class="ledSec" data-s="fw">
-        <p class="ledHint">Firmware in this package: ALCM VP build (simulated, 14592 bytes).</p>
+        <div class="secTitle">Firmware to flash</div>
+        <div class="pills"><div class="pill on" id="fwSrcBuiltin">BUILT-IN</div><div class="pill" id="fwSrcPick">PICK .HEX FILE...</div><div class="pill" id="fwSrcChange" style="display:none">CHANGE...</div></div>
+        <input type="file" id="fwFile" accept=".hex" style="display:none">
+        <p class="ledHint" id="fwSrcText">Built into this package: ALCM VP build (simulated, 14592 bytes).</p>
         <div id="fwBtn" class="bigBeep">&#8635;&nbsp; FLASH LCM</div>
         <div class="fwBar" id="fwBar"><i id="fwFill"></i></div>
         <p class="ledHint" id="fwMsg" style="text-align:center;color:var(--green)"></p>
@@ -952,12 +956,13 @@ $('batPill').onclick = () => { P.batOn = !P.batOn; save(); renderLedsSoft(); };
 const LED_TITLES = { head: 'HEADLIGHTS', bar: 'STATUS BAR', anim: 'ANIMATIONS', sound: 'SOUND', battery: 'BATTERY GAUGE', fw: 'LCM FIRMWARE' };
 const ledWin = w => {
   $('ledWin').style.display = w ? 'flex' : 'none';
+  $('ledWinDim').style.display = w ? 'block' : 'none';
   if (!w) return;
   $('ledWinTitle').textContent = LED_TITLES[w];
   document.querySelectorAll('.ledSec').forEach(x => x.classList.toggle('on', x.dataset.s === w));
 };
 document.querySelectorAll('.ledTile').forEach(t => t.onclick = () => ledWin(t.dataset.w));
-$('ledWinBack').onclick = $('ledWinClose').onclick = () => ledWin(null);
+$('ledWinBack').onclick = $('ledWinDim').onclick = () => ledWin(null);
 $('ledTestBeep').onclick = () => {
   P.ledCfg = true; save(); renderLedsSoft();
   if (!P.ledBeep) { toast('Test beep sent - turn the LCM beeper on to hear it'); return; }
@@ -981,6 +986,95 @@ function fwPaint(msg) {
   if (msg !== undefined) $('fwMsg').textContent = msg;
   renderLedsSoft();
 }
+function crc16(b, n) {
+    var crc = 0;
+    for (var i = 0; i < n; i++) {
+        crc ^= b[i] << 8;
+        for (var k = 0; k < 8; k++) {
+            crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+        }
+    }
+    return crc;
+}
+
+// Intel .hex -> update image, with the bootloader's own checks.
+// Returns {size, crc, version, bytes} or {error}.
+function parseHex(text, name) {
+    var APP = 0x08000600, END = 0x08003F80;
+    var mem = {}, base = 0, maxA = -1, n = 0;
+    var lines = text.split(/\r?\n/);
+    for (var li = 0; li < lines.length; li++) {
+        var l = lines[li].trim();
+        if (l === "") continue;
+        if (l[0] !== ":" || l.length < 11 || (l.length - 1) % 2) return {error: "Not an Intel .hex file (line " + (li + 1) + ")."};
+        var r = [];
+        for (var i = 1; i < l.length; i += 2) {
+            var v = parseInt(l.substr(i, 2), 16);
+            if (isNaN(v)) return {error: "Not an Intel .hex file (line " + (li + 1) + ")."};
+            r.push(v);
+        }
+        var sum = 0;
+        for (i = 0; i < r.length; i++) sum = (sum + r[i]) & 255;
+        if (sum !== 0 || r.length !== r[0] + 5) return {error: "Checksum error in the .hex (line " + (li + 1) + ")."};
+        var type = r[3], addr = (r[1] << 8) | r[2];
+        if (type === 0) {
+            for (i = 0; i < r[0]; i++) {
+                var a = base + addr + i;
+                if (a >= APP && a < END) {
+                    mem[a] = r[4 + i];
+                    if (a > maxA) maxA = a;
+                    n++;
+                } else if (a >= END && a < 0x08004000) {
+                    return {error: "This .hex writes the battery LUT page (0x08003F80+): not an update image."};
+                }
+                // anything below 0x08000600 (a full image's bootloader part) is ignored
+            }
+        } else if (type === 4) {
+            base = ((r[4] << 8) | r[5]) * 65536;
+        } else if (type === 2) {
+            base = ((r[4] << 8) | r[5]) * 16;
+        } else if (type === 1) {
+            break;
+        }
+    }
+    if (n === 0) {
+        return {error: "No firmware for 0x08000600 in this .hex. It must be built for the bootloader (ALCM_VP_BL_full.hex or a BL=1 build), not a plain ALCM .hex."};
+    }
+    var size = Math.ceil((maxA + 1 - APP) / 128) * 128;
+    var b = new Uint8Array(size);
+    for (i = 0; i < size; i++) b[i] = mem[APP + i] !== undefined ? mem[APP + i] : 0xFF;
+    var sp = (b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24)) >>> 0;
+    var pc = (b[4] | (b[5] << 8) | (b[6] << 16) | (b[7] << 24)) >>> 0;
+    if (sp < 0x20000001 || sp > 0x20000800 || !(pc & 1) || pc < APP || pc >= END) {
+        return {error: "The vector table at 0x08000600 doesn't look like an ALCM app built for the bootloader."};
+    }
+    return {size: size, crc: crc16(b, size), version: name, bytes: b};
+}
+
+
+FW.picked = null; FW.usePicked = false;
+function fwSrcPaint() {
+  $('fwSrcBuiltin').classList.toggle('on', !FW.usePicked);
+  $('fwSrcPick').classList.toggle('on', FW.usePicked);
+  $('fwSrcPick').textContent = FW.picked ? 'PICKED .HEX' : 'PICK .HEX FILE...';
+  $('fwSrcChange').style.display = FW.picked ? 'inline-block' : 'none';
+  $('fwSrcText').textContent = FW.usePicked && FW.picked ? 'File: ' + FW.picked.version + ' (' + FW.picked.size + ' bytes). Must be built for the bootloader: ALCM_VP_BL_full.hex works (only its app part is sent).'
+    : 'Built into this package: ALCM VP build (simulated, 14592 bytes).';
+}
+$('fwSrcBuiltin').onclick = () => { if (!FW.active) { FW.usePicked = false; fwSrcPaint(); } };
+$('fwSrcPick').onclick = () => { if (FW.active) return; if (FW.picked && !FW.usePicked) { FW.usePicked = true; fwSrcPaint(); } else $('fwFile').click(); };
+$('fwSrcChange').onclick = () => { if (!FW.active) $('fwFile').click(); };
+$('fwFile').onchange = () => {
+  const f = $('fwFile').files[0]; if (!f) return;
+  f.text().then(t => {
+    const r = parseHex(t, f.name);
+    if (r.error) { fwPaint(r.error); $('fwMsg').style.color = '#FFB300'; return; }
+    FW.picked = r; FW.usePicked = true; FW.p = 0; $('fwMsg').style.color = '';
+    fwPaint('Picked ' + f.name + ' (' + r.size + " bytes). It's checked like the built-in one; flashing still needs the bootloader.");
+    fwSrcPaint();
+  });
+  $('fwFile').value = '';
+};
 const fwAck = on => { $('fwAck').style.display = $('fwAckBack').style.display = on ? 'block' : 'none'; if (on) { $('fwAckBox').checked = false; $('fwAckYes').style.opacity = 0.4; $('fwAckYes').classList.remove('on'); } };
 $('fwAckBox').onchange = () => { const c = $('fwAckBox').checked; $('fwAckYes').style.opacity = c ? 1 : 0.4; $('fwAckYes').classList.toggle('on', c); };
 $('fwAckNo').onclick = $('fwAckBack').onclick = () => fwAck(false);

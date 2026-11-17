@@ -615,3 +615,16 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   the VESC's % when the byte is 0xFF or the VP block stops coming. Replaces
   the LUT patch tool for the bootloader build (no flashing to change the
   curve). Cells: VESC motor config (battery cells in series).
+
+### Half-height LED panels, FLASH LCM from a .hex file (v1.2.3-rf61)
+- LEDS tiles unchanged; each now opens a half-height panel from the bottom
+  with a BACK button (tapping above it closes it too).
+- LCM FIRMWARE: "Firmware to flash" = BUILT-IN or PICK .HEX FILE. The app
+  parses the Intel .hex itself (line checksums), keeps only the app area
+  (0x08000600-0x08003F7F; a full BL image's bootloader part is ignored),
+  refuses anything on the battery LUT page or without a valid ALCM vector
+  table there (a plain non-bootloader .hex), pads to 128-byte pages and
+  computes the CRC like the package build. CI (lcm.yml) runs the app's own
+  parser on the freshly built ALCM_VP_BL_full.hex and checks it gives the
+  same update image (tools/hexparse/test.js). The FLASH LCM warning names
+  the firmware about to be sent.
