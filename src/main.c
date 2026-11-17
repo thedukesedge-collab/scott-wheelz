@@ -1254,8 +1254,8 @@ static int horn_eeprom_addr(int i) {
 static uint32_t horn_pack0(float beep, float buzz, bool melody, bool custom, float boot_v) {
     uint32_t bv = (uint32_t) (fminf(boot_v, BOOT_MELODY_MAX_V) * 10.0f + 0.5f) & 0x1F;
     return (HORN_EEPROM_MAGIC << 24) | (bv << 18) | ((melody ? 1u : 0u) << 16) |
-        ((custom ? 2u : 0u) << 16) |
-        ((uint32_t) (beep * 10.0f + 0.5f) << 8) | (uint32_t) (buzz * 10.0f + 0.5f);
+        ((custom ? 2u : 0u) << 16) | ((uint32_t) (beep * 10.0f + 0.5f) << 8) |
+        (uint32_t) (buzz * 10.0f + 0.5f);
 }
 
 static void horn_settings_load(Data *d) {
@@ -2701,8 +2701,8 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
                 d->boot_melody = buffer[8] & 1;
                 d->boot_melody_custom = (buffer[8] >> 1) & 1;
             }
-            d->boot_melody_volume = len == 10 && buffer[9] > 0 ? buffer[9] * 0.1f
-                                                                : hf->horn_beep_strength;
+            d->boot_melody_volume =
+                len == 10 && buffer[9] > 0 ? buffer[9] * 0.1f : hf->horn_beep_strength;
             d->boot_melody_volume = fminf(d->boot_melody_volume, BOOT_MELODY_MAX_V);
             d->horn_last_w0 = horn_pack0(
                 hf->horn_beep_strength,
