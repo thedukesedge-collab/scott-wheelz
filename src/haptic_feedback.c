@@ -49,7 +49,7 @@
 // - the horn works out of the box: if the rider's haptic strengths are lower
 //   (Refloat's default Vibrate Strength is 0), these minimums are used for the
 //   horn only. Other haptic alerts keep using the configured values.
-#define HORN_MIN_BEEP_STRENGTH 5.0f
+#define HORN_MIN_BEEP_STRENGTH 2.5f
 #define HORN_MIN_VIBRATE_STRENGTH 8.0f
 #define HORN_DEFAULT_BEEP_FREQUENCY 495
 #define HORN_DEFAULT_VIBRATE_FREQUENCY 70
@@ -75,7 +75,7 @@ void haptic_feedback_init(HapticFeedback *hf) {
 }
 
 void haptic_feedback_play_melody(HapticFeedback *hf, const Time *time, float volume) {
-    hf->melody_volume = clampf(volume, 1.0f, 10.0f);
+    hf->melody_volume = clampf(volume, 0.5f, 6.0f);
     hf->melody_start = time->now;
     hf->melody_active = true;
 }
@@ -87,7 +87,7 @@ void haptic_feedback_horn_settings(
     float buzz_strength,
     uint16_t buzz_frequency
 ) {
-    hf->horn_beep_strength = clampf(beep_strength, 1.0f, 10.0f);
+    hf->horn_beep_strength = clampf(beep_strength, 0.5f, 6.0f);
     hf->horn_beep_frequency = (uint16_t) clampf(beep_frequency, 300, 1000);
     hf->horn_buzz_strength = clampf(buzz_strength, 0.0f, 15.0f);
     hf->horn_buzz_frequency = (uint16_t) clampf(buzz_frequency, 30, 150);

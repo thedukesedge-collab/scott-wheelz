@@ -228,7 +228,7 @@ Item {
 
         // simple levels -> real values
         function simpleBuzz(level) { return level * 1.5; }
-        function simpleBeep(level) { return level; }
+        function simpleBeep(level) { return level * 0.5; }
         function simplePitch(level) { return Math.round((300 + (level - 1) * 700 / 9) / 25) * 25; }
 
         // the values actually sent: [beep V, beep Hz, buzz A, buzz Hz]
@@ -251,7 +251,7 @@ Item {
                 swSettings.hornBuzzStrength = Math.round(v[2]);
                 swSettings.hornBuzzFreq = v[3];
             } else {
-                swSettings.hornSimpleVolume = Math.max(1, Math.min(10, Math.round(v[0])));
+                swSettings.hornSimpleVolume = Math.max(1, Math.min(10, Math.round(v[0] / 0.5)));
                 swSettings.hornSimplePitch = Math.max(1, Math.min(10, Math.round((v[1] - 300) * 9 / 700) + 1));
                 swSettings.hornSimpleStrength = Math.max(0, Math.min(10, Math.round(v[2] / 1.5)));
             }
@@ -1124,7 +1124,7 @@ Item {
         property bool freespinOn: false
         property bool tempF: false  // show temperatures in °F (tap the engine icon)
         // horn-only sound settings (sent to the board, which doesn't save them)
-        property real hornBeepStrength: 5.0   // V
+        property real hornBeepStrength: 2.5   // V
         property int hornBeepFreq: 495        // Hz
         property real hornBuzzStrength: 8     // A
         property int hornBuzzFreq: 70         // Hz
@@ -1132,7 +1132,7 @@ Item {
         property bool hornAdvanced: false
         property bool hornBootMelody: true    // 3 rising notes at power-up
         property int hornSimpleStrength: 5    // 0-10 -> buzz 0-15 A
-        property int hornSimpleVolume: 5      // 1-10 -> beep 1-10 V
+        property int hornSimpleVolume: 5      // 1-10 -> beep 0.5-5 V
         property int hornSimplePitch: 3       // 1-10 -> beep 300-1000 Hz
         property real freespinLimitKmh: 72.4  // 45 mph
         property bool speedo40Migrated: false  // one-time bump of a saved 30 mph dial to 40
@@ -9160,7 +9160,7 @@ Item {
                             visible: swSettings.hornAdvanced
                             label: "BEEP STRENGTH"
                             value: swSettings.hornBeepStrength
-                            from: 1; to: 10; step: 0.5; decimals: 1; suffix: " V"
+                            from: 0.5; to: 6; step: 0.5; decimals: 1; suffix: " V"
                             onMoved: { swSettings.hornBeepStrength = newValue; hornSettingsSender.send(); }
                         }
 
@@ -9267,7 +9267,7 @@ Item {
                                 id: resetHornMouse
                                 anchors.fill: parent
                                 onClicked: {
-                                    swSettings.hornBeepStrength = 5.0;
+                                    swSettings.hornBeepStrength = 2.5;
                                     swSettings.hornBeepFreq = 495;
                                     swSettings.hornBuzzStrength = 8;
                                     swSettings.hornBuzzFreq = 70;

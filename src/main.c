@@ -1162,6 +1162,8 @@ static void write_cfg_to_eeprom(Data *d) {
     }
 }
 
+static void horn_settings_save_if_due(Data *d);
+
 static void aux_thd(void *arg) {
     Data *d = (Data *) arg;
 
@@ -1236,7 +1238,7 @@ static uint32_t horn_pack0(float beep, float buzz, bool melody) {
 
 static void horn_settings_load(Data *d) {
     d->boot_melody = true;
-    d->boot_melody_volume = 5.0f;
+    d->boot_melody_volume = 2.5f;
     eeprom_var v0, v1;
     if (!VESC_IF->read_eeprom_var(&v0, HORN_EEPROM_ADDR) ||
         !VESC_IF->read_eeprom_var(&v1, HORN_EEPROM_ADDR + 1) ||

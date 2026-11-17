@@ -270,7 +270,7 @@ const NEON = ['#39ff7a', '#b14cff', '#00f0ff', '#ff2bd6', '#ff8a1f', '#f5ff3b', 
 const fx1 = v => (isFinite(v) ? (Math.round(v * 10) / 10).toFixed(1) : '-.-');
 
 // ---------- persisted prefs (this browser only) ----------
-const defaults = { hMelody: true, hAdv: false, hsStr: 5, hsVol: 5, hsPitch: 3, hBeep: 5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, tempF: false, fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
+const defaults = { hMelody: true, hAdv: false, hsStr: 5, hsVol: 5, hsPitch: 3, hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, tempF: false, fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
 let P = Object.assign({}, defaults);
 try { Object.assign(P, JSON.parse(localStorage.getItem('rrfSim') || '{}')); } catch (e) {}
 const save = () => { try { localStorage.setItem('rrfSim', JSON.stringify(P)); } catch (e) {} };
@@ -559,7 +559,7 @@ $('motorStat').onclick = () => { P.tempF = !P.tempF; save(); toast(P.tempF ? 'Te
 
 // ---------- horn settings (horn only) ----------
 const HORN_ADV = [
-  ['hBeep', 'BEEP STRENGTH', 1, 10, 0.5, 1, ' V'], ['hBeepHz', 'BEEP PITCH', 300, 1000, 25, 0, ' Hz'],
+  ['hBeep', 'BEEP STRENGTH', 0.5, 6, 0.5, 1, ' V'], ['hBeepHz', 'BEEP PITCH', 300, 1000, 25, 0, ' Hz'],
   ['hBuzz', 'BUZZ STRENGTH', 0, 15, 1, 0, ' A'], ['hBuzzHz', 'BUZZ FREQUENCY', 30, 150, 5, 0, ' Hz'],
 ];
 const HORN_SIMPLE = [
@@ -569,8 +569,8 @@ const HORN_SIMPLE = [
 const simplePitchHz = l => Math.round((300 + (l - 1) * 700 / 9) / 25) * 25;
 function setHornAdvanced(on) {
   if (on === !!P.hAdv) return;
-  if (on) { P.hBeep = P.hsVol; P.hBeepHz = simplePitchHz(P.hsPitch); P.hBuzz = Math.round(P.hsStr * 1.5); P.hBuzzHz = 70; }
-  else { P.hsVol = clamp(Math.round(P.hBeep), 1, 10); P.hsPitch = clamp(Math.round((P.hBeepHz - 300) * 9 / 700) + 1, 1, 10); P.hsStr = clamp(Math.round(P.hBuzz / 1.5), 0, 10); }
+  if (on) { P.hBeep = P.hsVol * 0.5; P.hBeepHz = simplePitchHz(P.hsPitch); P.hBuzz = Math.round(P.hsStr * 1.5); P.hBuzzHz = 70; }
+  else { P.hsVol = clamp(Math.round(P.hBeep / 0.5), 1, 10); P.hsPitch = clamp(Math.round((P.hBeepHz - 300) * 9 / 700) + 1, 1, 10); P.hsStr = clamp(Math.round(P.hBuzz / 1.5), 0, 10); }
   P.hAdv = on; save(); renderHorn();
 }
 $('hornMode').querySelectorAll('div').forEach(d => d.onclick = () => setHornAdvanced(d.dataset.v === '1'));
@@ -596,13 +596,13 @@ function renderHorn() {
   });
 }
 // boot melody: pitch levels 1, 2, 3 (300, 375, 450 Hz), 0.5 s each, at the horn volume
-function hornVolume() { return P.hAdv ? P.hBeep : P.hsVol; }
+function hornVolume() { return P.hAdv ? P.hBeep : P.hsVol * 0.5; }  // volts
 function playMelody() {
   try {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     const ac = playMelody.ac || (playMelody.ac = new AC());
     if (ac.state === 'suspended') ac.resume();
-    const t0 = ac.currentTime + 0.05, gainV = 0.03 + 0.05 * hornVolume();
+    const t0 = ac.currentTime + 0.05, gainV = 0.02 + 0.06 * hornVolume();
     [300, 375, 450].forEach((f, i) => {
       const o = ac.createOscillator(), g = ac.createGain();
       o.type = 'square'; o.frequency.value = f;
@@ -615,7 +615,7 @@ function playMelody() {
 function renderMelody() { $('melOn').textContent = P.hMelody ? 'ON' : 'OFF'; $('melOn').classList.toggle('on', !!P.hMelody); }
 $('melOn').onclick = () => { P.hMelody = !P.hMelody; save(); renderMelody(); };
 $('melTest').onclick = () => { if (S.mode !== 'ready') { toast('Melody test works when the board is idle (READY)'); return; } playMelody(); toast('Playing boot melody'); };
-$('hornReset').onclick = () => { Object.assign(P, { hBeep: 5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, hsStr: 5, hsVol: 5, hsPitch: 3 }); save(); renderHorn(); toast('Horn settings reset'); };
+$('hornReset').onclick = () => { Object.assign(P, { hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, hsStr: 5, hsVol: 5, hsPitch: 3 }); save(); renderHorn(); toast('Horn settings reset'); };
 
 // ---------- flywheel ----------
 $('flyBtn').onclick = () => {
