@@ -9,7 +9,9 @@ The .pack is looked for next to this program first, then in the folder of
 the chosen .hex. Easiest: keep this file in the folder with flash.bat.
 """
 import os
+import re
 import sys
+import traceback
 import json
 import queue
 import shutil
@@ -18,7 +20,16 @@ import subprocess
 import tkinter as tk
 from tkinter import filedialog, messagebox, scrolledtext
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
+# Built as LCM_Flasher.exe (PyInstaller): pyocd and the chip pack are inside
+# the exe and pyocd runs in this process; no Python install needed.
+FROZEN = getattr(sys, "frozen", False)
+if FROZEN:
+    APP_DIR = os.path.dirname(os.path.abspath(sys.executable))
+    BUNDLE_DIR = getattr(sys, "_MEIPASS", APP_DIR)
+else:
+    APP_DIR = os.path.dirname(os.path.abspath(__file__))
+    BUNDLE_DIR = APP_DIR
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
 TARGET = "hk32f030mf4p6"
 SETTINGS = os.path.join(APP_DIR, "lcm_flasher_settings.json")
 NO_WINDOW = 0x08000000 if os.name == "nt" else 0  # hide console popups
@@ -26,6 +37,8 @@ NO_WINDOW = 0x08000000 if os.name == "nt" else 0  # hide console popups
 
 def find_pyocd():
     """Return the command prefix used to run pyocd."""
+    if FROZEN:
+        return ["pyocd"]  # placeholder: runs in-process, see App.run
     exe = shutil.which("pyocd")
     if exe:
         return [exe]
@@ -39,6 +52,50 @@ def find_pyocd():
     if os.path.exists(scripts):
         return [scripts]
     return [py, "-m", "pyocd"]
+
+
+class QueueWriter(object):
+    """stdout/stderr replacement that sends text to the log window."""
+
+    def __init__(self):
+        self.q = None
+        self.file = None
+
+    def write(self, text):
+        text = ANSI.sub("", text)
+        if self.file is not None:
+            self.file.write(text)
+        elif self.q is not None and text:
+            self.q.put(("log", text))
+
+    def flush(self):
+        if self.file is not None:
+            self.file.flush()
+
+    def isatty(self):
+        return False
+
+
+OUT = QueueWriter()
+if FROZEN or sys.stdout is None:
+    sys.stdout = sys.stderr = OUT
+
+
+def run_pyocd_here(args, cwd):
+    """Run pyocd inside this process; returns its exit code."""
+    old = os.getcwd()
+    try:
+        os.chdir(cwd)
+        from pyocd.__main__ import PyOCDTool
+        rc = PyOCDTool().run(args)
+    except SystemExit as e:
+        rc = e.code if isinstance(e.code, int) else 1
+    except Exception:
+        OUT.write(traceback.format_exc())
+        rc = 1
+    finally:
+        os.chdir(old)
+    return rc or 0
 
 
 def find_pack(folders):
@@ -76,6 +133,7 @@ class App:
         self.busy = False
         self.work_dir = APP_DIR
         self.q = queue.Queue()
+        OUT.q = self.q
 
         root.title("LCM Flasher")
         root.geometry("640x430")
@@ -139,7 +197,7 @@ class App:
 
     def check_setup(self):
         self.write("Program folder: " + APP_DIR + "\n")
-        if find_pack([APP_DIR])[1] is None:
+        if find_pack([BUNDLE_DIR, APP_DIR])[1] is None:
             self.write("No HK32 .pack next to this program. It will also look "
                        "in the folder of the .hex you choose.\n")
 
@@ -171,6 +229,8 @@ class App:
     def run(self, args):
         """Run a command, stream its output to the log, return exit code."""
         self.q.put(("log", "> " + " ".join(args) + "\n"))
+        if FROZEN:
+            return run_pyocd_here(args[1:], self.work_dir)
         try:
             proc = subprocess.Popen(args, cwd=self.work_dir,
                                     stdout=subprocess.PIPE,
@@ -187,7 +247,7 @@ class App:
 
     def flash_worker(self):
         pyocd = find_pyocd()
-        folder, pack = find_pack([APP_DIR, os.path.dirname(self.hex_path)])
+        folder, pack = find_pack([BUNDLE_DIR, APP_DIR, os.path.dirname(self.hex_path)])
         if pack is None:
             self.q.put(("log", "Can't find the HKMicroChip .pack file. Put "
                         "LCM_Flasher.pyw in the folder with the .pack "
@@ -230,7 +290,20 @@ class App:
         self.root.after(100, self.poll)
 
 
+def selftest(out_path):
+    """CI check for the exe: is the chip target known with the built-in pack?"""
+    with open(out_path, "w") as f:
+        OUT.file = f
+        folder, pack = find_pack([BUNDLE_DIR, APP_DIR])
+        print("pack: %s" % pack)
+        rc = run_pyocd_here(["list", "--targets", "--pack", pack], folder or APP_DIR)
+        print("exit: %s" % rc)
+    return rc
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 2 and sys.argv[1] == "--selftest":
+        sys.exit(selftest(sys.argv[2]))
     root = tk.Tk()
     App(root)
     root.mainloop()

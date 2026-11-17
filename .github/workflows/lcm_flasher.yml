@@ -1,0 +1,57 @@
+# Builds LCM_Flasher.exe: the "choose a .hex, flash the LCM" tool as one
+# Windows program with Python, pyocd 0.34 and the HK32 chip pack inside, so
+# users need nothing installed except the ST-Link USB driver. Published to
+# the "lcm-flasher" release.
+name: LCM flasher (Windows exe)
+
+on:
+  push:
+    branches: [main, 'lcm-*']
+    paths: ['lcm/flasher/**', '.github/workflows/lcm_flasher.yml']
+  workflow_dispatch:
+
+jobs:
+  exe:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install pyocd + PyInstaller
+        run: python -m pip install "pyocd~=0.34.0" pyinstaller
+
+      - name: Build LCM_Flasher.exe
+        run: >
+          pyinstaller --noconfirm --onefile --windowed --name LCM_Flasher
+          --collect-all pyocd --collect-all cmsis_pack_manager
+          --collect-all libusb_package --collect-all pylink
+          --add-data "lcm/alcm/tools/battery_lut_patch/HKMicroChip.HK32F030xMxx_DFP.1.0.17.pack;."
+          lcm/flasher/LCM_Flasher.pyw
+
+      - name: Self-test (chip target known from the built-in pack)
+        shell: bash
+        run: |
+          ./dist/LCM_Flasher.exe --selftest selftest.txt || true
+          cat selftest.txt
+          grep -qi "hk32f030mf4p6" selftest.txt
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LCM_Flasher
+          path: dist/LCM_Flasher.exe
+
+      - name: Publish to the lcm-flasher release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view lcm-flasher >/dev/null 2>&1 || gh release create lcm-flasher --prerelease \
+            --title "LCM Flasher (Windows)" --notes "LCM flasher" --target "$GITHUB_SHA"
+          gh release edit lcm-flasher --notes "LCM_Flasher.exe, built from ${GITHUB_SHA::7} (${GITHUB_REF_NAME}). One program, no Python needed: Choose File... a .hex, FLASH LCM. Flashes the LCM (HK32F030MF4P6) through an ST-Link with pyocd 0.34 and the HK32 chip pack built in. Only requirement: the ST-Link USB driver (STSW-LINK009 from st.com), with the ST-Link showing in Device Manager. Windows may warn about an unknown publisher: More info > Run anyway."
+          gh release upload lcm-flasher dist/LCM_Flasher.exe --clobber
