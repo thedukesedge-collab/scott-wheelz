@@ -441,3 +441,9 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - Board: melody = up to 64 notes/rests, 5 s total (stored in EEPROM words
   88-119; rf45 and older saves are moved over automatically). Rests are not
   limited to 2 s. The sound budget from rf45 still applies.
+
+### Original boot melody restored (v1.2.3-rf47)
+- The DEFAULT boot melody is back to the original rf40 sound: 300, 375 and
+  450 Hz, half a second each, as one smooth rising tone (no gaps). It no
+  longer follows the MIXER note tiles, which had made it E4 F4 G4 in rf46.
+  Custom melodies keep the real notes and the short gaps between notes.

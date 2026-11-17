@@ -54,7 +54,11 @@
 #define HORN_DEFAULT_BEEP_FREQUENCY 495
 #define HORN_DEFAULT_VIBRATE_FREQUENCY 70
 // - default boot melody: horn pitch levels 1, 2, 3, half a second each
-static const uint8_t default_melody[] = {1, 25, 2, 25, 3, 25};
+// default boot melody: the original rf40 tones (horn pitch 1, 2, 3 = 300, 375,
+// 450 Hz), half a second each; kept as fixed Hz so the MIXER note tiles don't
+// change it
+static const uint16_t default_melody_hz[] = {300, 375, 450};
+#define DEFAULT_MELODY_NOTE 0.5f
 
 void haptic_feedback_init(HapticFeedback *hf) {
     hf->type_playing = HAPTIC_FEEDBACK_NONE;
@@ -94,13 +98,16 @@ uint16_t melody_level_hz(uint8_t level) {
 void haptic_feedback_play_melody(
     HapticFeedback *hf, const Time *time, float volume, const uint8_t *notes, uint8_t count
 ) {
-    if (count == 0) {
-        notes = default_melody;
-        count = sizeof(default_melody) / 2;
-    }
     hf->melody_active = false;
     float total = 0.0f;
     uint8_t n = 0;
+    hf->melody_gaps = count > 0;
+    if (count == 0) {
+        for (; n < sizeof(default_melody_hz) / sizeof(default_melody_hz[0]); ++n) {
+            hf->melody_freq[n] = default_melody_hz[n];
+            hf->melody_len[n] = DEFAULT_MELODY_NOTE;
+        }
+    }
     for (uint8_t i = 0; i < count && n < MELODY_MAX_NOTES; ++i) {
         uint8_t level = notes[2 * i];
         float len = notes[2 * i + 1] * MELODY_UNIT;
@@ -359,7 +366,7 @@ void haptic_feedback_update(
         } else {
             uint16_t hz = hf->melody_freq[step];
             // short gap at the end of each note so repeated pitches are heard
-            bool gap = age > hf->melody_len[step] - 0.03f;
+            bool gap = hf->melody_gaps && age > hf->melody_len[step] - 0.03f;
             if (hz == 0 || gap) {
                 foc_play_tone(0, 1, 0.0f);
             } else {

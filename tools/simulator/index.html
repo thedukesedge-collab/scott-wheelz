@@ -237,7 +237,7 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf46 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf47 · sim</span></div>
     </div>
   </div>
 
@@ -621,7 +621,8 @@ setInterval(() => {
   } else if (toneRest && toneBudget >= 3) toneRest = false;
 }, 100);
 function playMelody(notes) {
-  notes = notes || [[1, 500], [2, 500], [3, 500]];
+  // default boot melody: the original 300 / 375 / 450 Hz, half a second each, no gaps
+  const dflt = !notes; notes = notes || [[300, 500], [375, 500], [450, 500]];
   if (toneRest) { toast('Board resting its motor for a moment'); return; }
   playMelody.oscs = [];
   try {
@@ -634,9 +635,9 @@ function playMelody(notes) {
       const len = ms / 1000;
       if (lvl > 0) {
         const o = ac.createOscillator(), g = ac.createGain();
-        o.type = 'square'; o.frequency.value = noteHz(lvl);
+        o.type = 'square'; o.frequency.value = dflt ? lvl : noteHz(lvl);
         g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gainV, t + 0.01);
-        g.gain.setValueAtTime(gainV, t + len - 0.04); g.gain.linearRampToValueAtTime(0, t + len - 0.03);
+        if (!dflt) { g.gain.setValueAtTime(gainV, t + len - 0.04); g.gain.linearRampToValueAtTime(0, t + len - 0.03); }
         o.connect(g).connect(ac.destination); o.start(t); o.stop(t + len); playMelody.oscs.push(o);
       }
       t += len;

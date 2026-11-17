@@ -94,6 +94,7 @@ typedef struct {
     uint16_t melody_freq[MELODY_MAX_NOTES];  // Hz, 0 = rest
     float melody_len[MELODY_MAX_NOTES];  // s
     volatile uint8_t melody_count;
+    bool melody_gaps;  // short gap between notes (custom melodies, not the default)
     volatile uint16_t live_hz;
     volatile time_t live_timer;
     volatile time_t live_start;
