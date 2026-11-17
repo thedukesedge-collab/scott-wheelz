@@ -62,7 +62,7 @@
   #handle .grip { position: absolute; left: 50%; top: 50%; border-radius: 4px; background: var(--purple); transform: translate(-50%,-50%); }
   #handle.drag .grip { background: var(--green); }
   #tabs { display: flex; flex: none; background: #0b0718; border-top: 1px solid rgba(177,76,255,.6); border-bottom: 1px solid rgba(177,76,255,.6); }
-  .tab { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; color: var(--lav); font-family: Orbitron, monospace; text-shadow: 0 0 1px #4a1784; cursor: pointer; white-space: nowrap; overflow: hidden; }
+  .tab { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; color: var(--lav); font-family: Orbitron, monospace; text-shadow: 0 0 1px #4a1784; cursor: pointer; white-space: normal; text-align: center; line-height: 1; overflow: hidden; }
   .tab:not(:last-child)::after { content: ""; position: absolute; right: 0; top: 25%; height: 50%; width: 1px; background: rgba(177,76,255,.5); }
   .tab.on { color: var(--green); background: #0e2a1a; text-shadow: 0 0 1px #0f5a2c; }
   .tab.on::before { content: ""; position: absolute; bottom: 0; left: 10%; width: 80%; height: 3px; border-radius: 2px; background: var(--green); box-shadow: 0 0 6px var(--green); }
@@ -325,7 +325,7 @@ function layout() {
   css($('handle'), { height: px(handleH) });
   css($('handle').firstChild, { width: px(1.4 * u), height: px(0.12 * u) });
   css($('tabs'), { height: px(tabsH) });
-  document.querySelectorAll('.tab').forEach(t => { let f = 0.27 * u; t.style.fontSize = px(f); while (t.scrollWidth > t.clientWidth && f > 0.16 * u) { f -= 0.5; t.style.fontSize = px(f); } });
+  document.querySelectorAll('.tab').forEach(t => { let f = 0.27 * u; t.style.fontSize = px(f); while ((t.scrollWidth > t.clientWidth || t.scrollHeight > t.clientHeight) && f > 0.16 * u) { f -= 0.5; t.style.fontSize = px(f); } });
   css($('ver'), { height: px(verH + 0.08 * u), fontSize: px(0.24 * u), lineHeight: px(verH + 0.08 * u), letterSpacing: '.03em' });
 
   const hudH = rootH - sheetMin - 0.1 * u;

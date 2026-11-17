@@ -8729,7 +8729,11 @@ Item {
                         color: swTab.checked ? swTheme.neonGreen : "#c98bff"
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
-                        fontSizeMode: Text.HorizontalFit
+                        // long labels (BOARD STYLE) wrap to two lines before shrinking
+                        fontSizeMode: Text.Fit
+                        wrapMode: Text.WordWrap
+                        maximumLineCount: 2
+                        lineHeight: 0.9
                         minimumPixelSize: 0.16 * unit
                         elide: Text.ElideRight
                     }
