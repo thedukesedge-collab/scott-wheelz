@@ -36,8 +36,8 @@ jobs:
         if: always() && steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: rinkfloat-vescpkg
-          path: rinkfloat.vescpkg
+          name: refloatrm-vescpkg
+          path: refloatrm.vescpkg
 
       # Re-RinkFloat: publish each main-branch build as a direct download
       # (Releases > "Latest build"), so phones get the .vescpkg itself
@@ -48,8 +48,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest-build --yes --cleanup-tag || true
-          gh release create latest-build rinkfloat.vescpkg \
+          gh release create latest-build refloatrm.vescpkg \
             --prerelease \
             --title "Latest build" \
-            --notes "Re-Float Rink-Mixed built from commit ${GITHUB_SHA::7}. Tap rinkfloat.vescpkg below to download." \
+            --notes "Re-Float Rink-Mixed built from commit ${GITHUB_SHA::7}. Tap refloatrm.vescpkg below to download." \
             --target "$GITHUB_SHA"

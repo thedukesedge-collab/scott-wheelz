@@ -765,3 +765,30 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   RIDING LIGHTS / RUNNING LIGHTS (IDLE), 0 = OFF.
 - SNOOZE BREATHING on/off: VP flag 0x20 (the SLCM already supported it, the
   package now passes and stores it).
+
+### refloatrm, lighter package, older SLCMs back, quick light switches, neon dialogs (v1.2.3-rf70)
+- The package file is now **refloatrm.vescpkg** (release asset too).
+- The SLCM firmware image is no longer embedded (it made the package heavy
+  and slow to install / load). The package carries only the SLCM version
+  it goes with (for CHECK LCM); to flash, the rider picks
+  ALCM_VP_BL_full.hex from the lcm-latest release. The app reads the SLCM
+  version out of the picked .hex ("VPBL-r<N>-<hash>"). `make LCM_FW=1`
+  still embeds the image.
+- Fix (regression from rf67): an LCM that polls without naming itself
+  (SLCM / ALCM VP builds from before r15) gets the VP block again, so its
+  LED settings work again. Only an LCM that names itself as something else
+  gets the plain stock reply. CHECK LCM shows such an LCM as "older SLCM"
+  and offers TRY UPDATE (safe: a build without the bootloader ignores the
+  update flag and the package gives up after 15 s); the package accepts
+  START for an unnamed LCM.
+- LEDS > Lights: HEAD/TAIL, STATUS and ALL LIGHTS quick switches (any
+  controller; riding and idle). They override the other light settings
+  (brightness etc. are kept). ALL switches both (and Refloat's lights).
+  A small glowing neon-orange note next to the board name on the dashboard
+  says which lights are off.
+- Neon dialogs: every dialog (BaseDialog) has the dark neon panel, purple
+  frame and a neon green title. Board name (pencil): neon input, counter,
+  CANCEL / SAVE pills. Settings (gear): SETUP / PREFERENCES pills, sections
+  as framed cards (Package, Handtest, Backup / Restore with one row per
+  backup; Dashboard, Tunes, Data & App), neon buttons, CLOSE pill.
+- lcm.yml: apt install retried with a timeout (a stuck mirror hung runs).

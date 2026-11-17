@@ -21,12 +21,14 @@ int main(void){
     uint8_t in[11] = {0x27, 80, 30, 90, 4, 6, 9, 11, 0, 0x01, 0x2C};
     assert(lcm_vp_set(&lcm, in, 11) == true);
     assert(lcm_vp_set(&lcm, in, 11) == false);  /* same again: no change */
-    /* an LCM that didn't name itself SLCM gets no VP block (stock reply) */
+    /* an LCM that names itself as something else gets no VP block (stock) */
+    uint8_t other[] = "OtherLCM 2.0"; lcm_poll_request(&lcm, other, sizeof other - 1);
     lcm_poll_response(&lcm, &st, 0, &md, 0);
     assert(sent_len == 2);
-    uint8_t other[] = "ALCM v0.1.1"; lcm_poll_request(&lcm, other, sizeof other - 1);
-    lcm_poll_response(&lcm, &st, 0, &md, 0);
-    assert(sent_len == 2);
+    /* an unnamed LCM (pre-r15 SLCM) gets the VP block */
+    LcmData un; memset(&un, 0, sizeof un); lcm_init(&un, &hw); lcm_vp_set(&un, in, 11);
+    lcm_poll_response(&un, &st, 0, &md, 0);
+    assert(sent_len == 25);
     /* SLCM names itself: VP block */
     uint8_t nm[] = "VPBL-r15-79f773f"; lcm_poll_request(&lcm, nm, sizeof nm - 1);
     assert(strcmp(lcm.name, "VPBL-r15-79f773f") == 0);

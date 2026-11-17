@@ -30,7 +30,7 @@ jobs:
         run: |
           sha=$(git rev-parse HEAD)
           ver=$(cat version)
-          cp rinkfloat.vescpkg rinkfloat-$ver.vescpkg
+          cp refloatrm.vescpkg refloatrm-$ver.vescpkg
           gh release delete "${{ inputs.name }}" --yes --cleanup-tag || true
-          gh release create "${{ inputs.name }}" rinkfloat-$ver.vescpkg --prerelease \
+          gh release create "${{ inputs.name }}" refloatrm-$ver.vescpkg --prerelease \
             --title "Re-RinkFloat $ver (${sha::7})" --notes "Build of ${sha::7}." --target "$sha"

@@ -370,6 +370,33 @@ Item {
             vescCommands.sendCustomAppData(data.buffer);
         }
 
+        // ---- quick light switches (LEDS > Lights; any controller): they
+        // override the other light settings (brightness etc. are kept) and work
+        // riding and idle. Refloat's own LEDs follow via its lights control,
+        // an SLCM via the VP flags.
+        readonly property bool quickAvailable: lights.enabled || slcmDetect.present || swSettings.ledConfigured
+        readonly property bool allOn: swSettings.ledHeadlights && swSettings.ledStatusBar && (!lights.enabled || lights.on)
+        readonly property string overrideText: !quickAvailable ? ""
+            : (!swSettings.ledHeadlights && !swSettings.ledStatusBar) || (lights.enabled && !lights.on) ? "ALL LIGHTS OFF"
+            : !swSettings.ledHeadlights ? "HEAD/TAIL LIGHTS OFF"
+            : !swSettings.ledStatusBar ? "STATUS LIGHTS OFF" : ""
+        function setHead(on) {
+            swSettings.ledHeadlights = on;
+            changed();
+            if (lights.enabled) commands.sendLightsControl(on ? true : undefined, on);
+        }
+        function setStatus(on) {
+            swSettings.ledStatusBar = on;
+            changed();
+            if (on && lights.enabled && !lights.on) commands.sendLightsControl(true);
+        }
+        function setAll(on) {
+            swSettings.ledHeadlights = on;
+            swSettings.ledStatusBar = on;
+            changed();
+            if (lights.enabled) commands.sendLightsControl(on, on);
+        }
+
         function changed() {
             swSettings.ledConfigured = true;
             send();
@@ -482,16 +509,16 @@ Item {
     // LCM keeps Refloat's own LED controls.
     QtObject {
         id: slcmDetect
-        readonly property bool present: lcmFw.lcmName.indexOf("VP-") === 0 || lcmFw.lcmName.indexOf("VPBL-") === 0
+        readonly property bool present: lcmFw.lcmName.indexOf("VP-") === 0 || lcmFw.lcmName.indexOf("VPBL-") === 0 || lcmFw.legacy
         readonly property bool known: lcmFw.nameKnown
-        readonly property string version: lcmFw.verText(lcmFw.lcmVer)
+        readonly property string version: lcmFw.legacy ? "older build (before r15)" : lcmFw.verText(lcmFw.lcmVer)
         property bool tabOpen: false
         property Timer pollTimer: Timer {
             interval: 3000
             repeat: true
             triggeredOnStart: true
             running: slcmDetect.tabOpen && !lcmFw.active && lcmFw.checkState !== 1
-            onTriggered: vescCommands.sendCustomAppData(commands.createData(2, commands.c_LCM_DEVICE_INFO).buffer)
+            onTriggered: lcmFw.probe()  // name + STATUS (is an LCM polling at all)
         }
     }
 
@@ -504,7 +531,10 @@ Item {
         property var picked: null
         property bool usePicked: false
         // what FLASH LCM sends
-        readonly property var image: usePicked && picked ? picked : builtin
+        // rf70+: the package normally carries only the SLCM version ({version}),
+        // not the image (it made the package heavy): the rider picks the .hex
+        readonly property bool builtinImage: !!builtin && !!builtin.b64
+        readonly property var image: picked && (usePicked || !builtinImage) ? picked : (builtinImage ? builtin : null)
         property var builtinBytes: null
         property var bytes: null
 
@@ -514,7 +544,7 @@ Item {
         property int want: 0
         property bool active: false  // an update this app started is in progress
         property real progress: 0
-        property string message: builtin ? "" : "This build has no LCM firmware image: pick a .hex file."
+        property string message: ""
         property int noReply: 0
 
         // --- what's fitted (fail-safe): the LCM names itself in its polls
@@ -529,7 +559,12 @@ Item {
         property bool blActive: false  // STATUS flag: a bootloader is asking
         property bool lcmPolling: false  // STATUS flag: some LCM polls the package (rf68+)
         readonly property bool hasBootloader: lcmName.indexOf("VPBL-") === 0
-        readonly property bool capable: hasBootloader || blActive
+        // an LCM that polls but doesn't name itself: SLCM / ALCM VP from before
+        // r15 (or stock ALCM). It may have the bootloader (rf58-rf62 BL builds)
+        // - a TRY UPDATE is safe: without one the LCM ignores the update flag
+        // and the package gives up after 15 s.
+        readonly property bool legacy: lcmName === "" && lcmPolling && !blActive
+        readonly property bool capable: hasBootloader || blActive || legacy
         property int checkState: 0  // 0 not checked, 1 checking, 2 passed, 3 failed
         property bool gotStatus: false
         property bool unlocked: false  // check passed + CONTINUE
@@ -599,14 +634,16 @@ Item {
             : fit === "other" ? "Your LCM runs a different SLCM build (" + verText(lcmVer) + ") than the one made for this package (" + verText(pkgVer) + "), for example a custom build. Flashing this package's build is recommended for the best fit."
             : ""
         readonly property string continueLabel: fitted === "recovery" ? "CONTINUE TO FLASH"
+            : fitted === "legacy" ? "TRY UPDATE"
             : fit === "same" ? "REFLASH ANYWAY" : fit === "older" ? "UPDATE LCM"
             : fit === "newer" ? "DOWNGRADE ANYWAY" : fit === "other" ? "FLASH PACKAGE BUILD" : "CONTINUE TO FLASH"
         readonly property string fitted: blActive && !hasBootloader ? "recovery"
-            : (hasBootloader ? "vpbl" : (lcmName.indexOf("VP-") === 0 ? "vp" : (lcmName !== "" ? "other" : "none")))
+            : (hasBootloader ? "vpbl" : (lcmName.indexOf("VP-") === 0 ? "vp" : (lcmName !== "" ? "other" : (legacy ? "legacy" : "none"))))
         readonly property string fittedText: checkState === 0 ? "Press CHECK LCM to see whether this light module can be updated from the app."
             : checkState === 1 ? "Checking the light module..."
             : !nameKnown && !gotStatus ? "The board didn't answer. Check the connection and that the board is powered on, then press CHECK LCM again."
             : fitted === "recovery" ? "LCM bootloader is waiting for firmware (an earlier update didn't finish). Flash it now to recover the light module."
+            : fitted === "legacy" ? "Older SLCM / ALCM VP light module (before r15: it doesn't report its version). Your LED settings work. TRY UPDATE works if it was installed with the bootloader."
             : fitted === "vpbl" ? "SLCM with bootloader \u00B7 " + verText(lcmVer)
                 + (fitTitle ? " \u00B7 " + fitTitle.toLowerCase() : "")
                 + (pkgVer && !upToDate ? " (this package: " + verText(pkgVer) + ")" : "")
@@ -725,7 +762,16 @@ Item {
             if (sp < 0x20000001 || sp > 0x20000800 || !(pc & 1) || pc < APP || pc >= END) {
                 return {error: "The vector table at 0x08000600 doesn't look like an ALCM app built for the bootloader."};
             }
-            return {size: size, crc: crc16(b, size), version: name, bytes: b};
+            // the SLCM names itself in its poll packet: "VPBL-r<N>-<hash>"
+            var slcm = "";
+            for (i = 0; i + 6 < size && !slcm; i++) {
+                if (b[i] === 86 && b[i + 1] === 80 && b[i + 2] === 66 && b[i + 3] === 76 && b[i + 4] === 45) {
+                    var j = i + 5, v = "";
+                    while (j < size && j < i + 25 && b[j] >= 45 && b[j] <= 122) v += String.fromCharCode(b[j++]);
+                    slcm = v;
+                }
+            }
+            return {size: size, crc: crc16(b, size), version: slcm ? "SLCM " + slcm : name, file: name, slcm: slcm, bytes: b};
         }
 
         function loadHexText(text, name) {
@@ -737,7 +783,7 @@ Item {
             picked = r;
             usePicked = true;
             progress = 0;
-            message = "Picked " + name + " (" + r.size + " bytes). It's checked like the built-in one; flashing still needs the bootloader.";
+            message = "Picked " + name + (r.slcm ? " (SLCM " + r.slcm + ")" : "") + ": checked and ready.";
             return true;
         }
 
@@ -3444,6 +3490,66 @@ Item {
         }
     }
 
+    // Re-Float Rink-Mixed: neon outline button for dialogs (settings window)
+    component NeonButton : Rectangle {
+        id: nbtn
+        property string text
+        property bool lit: false
+        signal clicked()
+        implicitWidth: Math.max(2.6 * unit, nbtnText.implicitWidth + 0.8 * unit)
+        implicitHeight: 0.8 * unit
+        radius: height / 2
+        opacity: enabled ? 1 : 0.4
+        color: nbtnArea.pressed ? swTheme.neonGreen : (lit ? "#123a20" : "transparent")
+        border.color: swTheme.neonGreen
+        border.width: 2
+        Text {
+            id: nbtnText
+            anchors.centerIn: parent
+            text: nbtn.text.toUpperCase()
+            color: nbtnArea.pressed ? swTheme.background : swTheme.neonGreen
+            font.family: "Exan"
+            font.pixelSize: 0.24 * unit
+            font.letterSpacing: 0.02 * unit
+        }
+        MouseArea {
+            id: nbtnArea
+            anchors.fill: parent
+            onClicked: nbtn.clicked()
+        }
+    }
+
+    // Re-Float Rink-Mixed: a framed group in the settings window
+    component SettingsCard : Rectangle {
+        id: scard
+        property string title
+        default property alias content: scardCol.data
+        Layout.fillWidth: true
+        Layout.leftMargin: 0.1 * unit
+        Layout.rightMargin: 0.1 * unit
+        implicitHeight: scardCol.implicitHeight + 0.5 * unit
+        radius: 0.22 * unit
+        color: "#100a24"
+        border.color: "#3a2266"
+        border.width: 2
+        ColumnLayout {
+            id: scardCol
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 0.25 * unit
+            spacing: 0.15 * unit
+            Text {
+                Layout.fillWidth: true
+                text: scard.title
+                color: swTheme.neonPurple
+                font.family: "Exan"
+                font.pixelSize: 0.28 * unit
+                font.letterSpacing: 0.04 * unit
+            }
+        }
+    }
+
     // Re-RinkFloat: section heading (neon green, digital font)
     component LedHeading : SwLText {
         anchors.horizontalCenter: parent ? parent.horizontalCenter : undefined
@@ -4332,6 +4438,7 @@ Item {
 
 
     component BaseDialog : Dialog {
+        id: baseDialog
         x: 10
         y: (parent.height / 2 - implicitHeight / 2) / (placeAtTop ? 2 : 1)
         implicitWidth: parent.width - 20
@@ -4341,7 +4448,44 @@ Item {
         // keyboard doesn't just exactly cover the buttons
         property bool placeAtTop: false
 
-        Material.background: Utility.getAppHexColor("normalBackground")
+        // Re-Float Rink-Mixed: every dialog in the Neon Future look - dark
+        // panel, purple neon frame, title in the digital font, green accents
+        Material.theme: Material.Dark
+        Material.accent: swTheme.neonGreen
+        Material.foreground: "#ead6ff"
+        Material.background: "#0b0718"
+
+        background: Rectangle {
+            color: "#0b0718"
+            radius: 0.25 * unit
+            border.color: swTheme.neonPurple
+            border.width: 2
+        }
+
+        header: Item {
+            visible: baseDialog.title !== ""
+            implicitHeight: baseDialog.title !== "" ? dialogTitle.implicitHeight + 0.5 * unit : 0
+            Text {
+                id: dialogTitle
+                anchors.centerIn: parent
+                width: parent.width - 0.6 * unit
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                text: baseDialog.title.toUpperCase()
+                color: swTheme.neonGreen
+                font.family: "Exan"
+                font.pixelSize: 0.36 * unit
+                font.letterSpacing: 0.03 * unit
+            }
+            Rectangle {
+                anchors.bottom: parent.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: parent.width - 0.6 * unit
+                height: 2
+                color: swTheme.neonPurple
+                opacity: 0.6
+            }
+        }
 
         modal: true
         focus: true
@@ -6196,7 +6340,17 @@ Item {
         implicitHeight: fullHeight
 
         title: "Settings"
-        standardButtons: Dialog.Close
+        standardButtons: Dialog.NoButton
+
+        footer: Item {
+            implicitHeight: 1.2 * unit
+            SwPill {
+                anchors.centerIn: parent
+                minWidth: 3.0 * unit
+                label: "CLOSE"
+                onClicked: settingsDialog.close()
+            }
+        }
 
         function show(tab) {
             settingsTabBar.currentIndex = tab || 0;
@@ -6280,7 +6434,9 @@ Item {
             Layout.fillWidth: true
             Layout.topMargin: 10
             horizontalAlignment: TextInput.AlignHCenter
-            font.pointSize: 16
+            color: swTheme.neonGreen
+            font.family: "Exan"
+            font.pixelSize: 0.32 * unit
         }
 
         component SubHeading : LText {
@@ -6295,7 +6451,8 @@ Item {
             Layout.leftMargin: 20
             Layout.rightMargin: 20
             Layout.topMargin: -7
-            font.pointSize: 11
+            color: "#9d8ac0"
+            font.pixelSize: 0.2 * unit
             horizontalAlignment: TextInput.AlignHCenter
             wrapMode: Text.WordWrap
         }
@@ -6304,32 +6461,31 @@ Item {
             Layout.fillWidth: true
             horizontalAlignment: TextInput.AlignHCenter
             wrapMode: Text.WordWrap
+            color: "#cbb8ec"
+            font.pixelSize: 0.22 * unit
         }
 
         ColumnLayout {
             width: settingsDialog.availableWidth
             height: parent.height
+            spacing: 0.15 * unit
 
-            TabBar {
+            // Re-Float Rink-Mixed: neon tab pills instead of the stock TabBar
+            Row {
                 id: settingsTabBar
-                Layout.fillWidth: true
-                clip: true
+                Layout.alignment: Qt.AlignHCenter
+                spacing: 0.2 * unit
+                property int currentIndex: 0
+                onCurrentIndexChanged: settingsStackLayout.currentIndex = currentIndex
 
                 Repeater {
-                    model: ["Setup", "Preferences"]
-
-                    TabButton {
-                        text: modelData
+                    model: ["SETUP", "PREFERENCES"]
+                    SwPill {
+                        minWidth: 3.0 * unit
+                        label: modelData
+                        lit: settingsTabBar.currentIndex === index
+                        onClicked: settingsTabBar.currentIndex = index
                     }
-                }
-
-                background: Rectangle {
-                    opacity: 1
-                    color: Utility.getAppHexColor("lightBackground");
-                }
-
-                onCurrentIndexChanged: {
-                    settingsStackLayout.currentIndex = currentIndex;
                 }
             }
 
@@ -6346,201 +6502,127 @@ Item {
                     clip: true
 
                     ColumnLayout {
-                        anchors.fill: parent
+                        width: parent.width
+                        spacing: 0.25 * unit
 
-                        Heading {
-                            text: "Disable Package"
-                        }
+                        SettingsCard {
+                            title: "PACKAGE"
 
-                        SetupDescription {
-                            text: "Before running the motor wizard, you need to disable the package to prevent the two fighting over the motor. After configuring your motor, you can re-enable the package."
-                        }
-
-                        Button {
-                            Layout.alignment: Qt.AlignHCenter
-
-                            text: state.pkgState === state.s_Disabled ? "Enable {{PACKAGE_NAME}}" : "Disable {{PACKAGE_NAME}}"
-
-                            onClicked: {
-                                packageConfig.setDisabled(state.pkgState !== state.s_Disabled);
+                            SetupDescription {
+                                text: "Before running the motor wizard, disable the package so the two don't fight over the motor. Re-enable it after configuring your motor."
                             }
-                        }
 
-                        Heading {
-                            text: "Handtest"
-                        }
-
-                        SetupDescription {
-                            text: "After finishing setup, you can turn on the Handtest mode and engage your board by hand to verify that it balances in the correct direction. Motor currents will be limited to a safe level."
-                        }
-
-                        Button {
-                            Layout.alignment: Qt.AlignHCenter
-
-                            // Only allow if no other mode is active
-                            enabled: [state.m_Normal, state.m_Handtest].includes(state.pkgMode)
-                            text: state.pkgMode === state.m_Handtest ? "Turn Handtest Off" : "Turn Handtest On"
-
-                            onClicked: {
-                                commands.sendHandtest(state.pkgMode === state.m_Normal);
-                            }
-                        }
-
-                        SetupDescription {
-                            visible: state.pkgMode === state.m_Handtest
-                            text: "If your board balances in reverse (shoots off), your Imu Rotation Yaw is off by 180°. If it moves erratically, your Imu Rotation Yaw is likely off by 90°.\nNote: When Handtest is on, any configuration writing is disabled."
-                        }
-
-                        Heading {
-                            text: "Backup / Restore"
-                        }
-
-                        SetupDescription {
-                            text: "Backups are stored in VESC Tool's internal storage."
-                        }
-
-                        SubHeading {
-                            text: "Automatic Board Backup"
-                        }
-
-                        SetupDescription {
-                            id: setupAutoBackupDate
-                            font.pointSize: 10
-                            horizontalAlignment: TextInput.AlignHCenter
-                            property var backup: null
-                            visible: !!backup
-                            text: backup ? Qt.formatDateTime(backup.date) : ""
-
-                            Connections {
-                                target: tuneManager
-
-                                function onAutoBackupFinished(backup) {
-                                    setupAutoBackupDate.backup = backup;
-                                }
-                            }
-                        }
-
-                        Button {
-                            Layout.alignment: Qt.AlignHCenter
-
-                            text: "View"
-
-                            onClicked: {
-                                tuneManager.autoRestore();
-                            }
-                        }
-
-                        SubHeading {
-                            text: "Board Backup"
-                        }
-
-                        SetupDescription {
-                            id: setupIdBackupDate
-                            font.pointSize: 10
-                            horizontalAlignment: TextInput.AlignHCenter
-                            property var backup: null
-                            visible: !!backup
-                            text: backup ? Qt.formatDateTime(backup.date) : ""
-
-                            Connections {
-                                target: tuneManager
-
-                                function onIdBackupFinished(backup) {
-                                    setupIdBackupDate.backup = backup;
-                                }
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignHCenter
-
-                            Button {
+                            NeonButton {
                                 Layout.alignment: Qt.AlignHCenter
+                                lit: state.pkgState === state.s_Disabled
+                                text: state.pkgState === state.s_Disabled ? "Enable package" : "Disable package"
+                                onClicked: packageConfig.setDisabled(state.pkgState !== state.s_Disabled)
+                            }
+                        }
 
-                                text: "Backup"
+                        SettingsCard {
+                            title: "HANDTEST"
 
-                                onClicked: {
-                                    tuneManager.idBackup();
-                                }
+                            SetupDescription {
+                                text: "After setup, turn on Handtest and engage the board by hand to check it balances the right way. Motor currents are limited to a safe level."
                             }
 
-                            Button {
+                            NeonButton {
                                 Layout.alignment: Qt.AlignHCenter
+                                // Only allow if no other mode is active
+                                enabled: [state.m_Normal, state.m_Handtest].includes(state.pkgMode)
+                                lit: state.pkgMode === state.m_Handtest
+                                text: state.pkgMode === state.m_Handtest ? "Handtest off" : "Handtest on"
+                                onClicked: commands.sendHandtest(state.pkgMode === state.m_Normal)
+                            }
 
-                                text: "View"
-
-                                onClicked: {
-                                    tuneManager.idRestore();
-                                }
+                            SetupDescription {
+                                visible: state.pkgMode === state.m_Handtest
+                                color: "#FFB300"
+                                text: "Balances in reverse (shoots off)? Your Imu Rotation Yaw is off by 180\u00B0. Erratic? Likely off by 90\u00B0.\nWhile Handtest is on, writing the configuration is disabled."
                             }
                         }
 
-                        SubHeading {
-                            text: "Shared Backup"
-                        }
+                        SettingsCard {
+                            title: "BACKUP / RESTORE"
 
-                        SetupDescription {
-                            font.pointSize: 10
-                            horizontalAlignment: TextInput.AlignHCenter
-                            visible: !!tuneManager.fullBackup
-                            text: tuneManager.fullBackup ? Qt.formatDateTime(tuneManager.fullBackup.date) : ""
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignHCenter
-
-                            Button {
-                                Layout.alignment: Qt.AlignHCenter
-
-                                text: "Backup"
-
-                                onClicked: {
-                                    tuneManager.globalBackup();
-                                }
+                            SetupDescription {
+                                text: "Backups are stored in VESC Tool's internal storage."
                             }
 
-                            Button {
-                                Layout.alignment: Qt.AlignHCenter
-
-                                text: "View"
-
-                                onClicked: {
-                                    tuneManager.globalRestore();
+                            // one row per backup: name + date on the left, buttons on the right
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 0.15 * unit
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 0
+                                    LText { text: "Automatic"; font.pixelSize: 0.26 * unit; color: "#ead6ff" }
+                                    NText {
+                                        id: setupAutoBackupDate
+                                        property var backup: null
+                                        font.pixelSize: 0.2 * unit
+                                        color: "#9d8ac0"
+                                        text: backup ? Qt.formatDateTime(backup.date) : "none yet"
+                                        Connections {
+                                            target: tuneManager
+                                            function onAutoBackupFinished(backup) {
+                                                setupAutoBackupDate.backup = backup;
+                                            }
+                                        }
+                                    }
                                 }
+                                NeonButton { text: "View"; implicitWidth: 1.8 * unit; onClicked: tuneManager.autoRestore() }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: "#3a2266" }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 0.15 * unit
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 0
+                                    LText { text: "This board"; font.pixelSize: 0.26 * unit; color: "#ead6ff" }
+                                    NText {
+                                        id: setupIdBackupDate
+                                        property var backup: null
+                                        font.pixelSize: 0.2 * unit
+                                        color: "#9d8ac0"
+                                        text: backup ? Qt.formatDateTime(backup.date) : "none yet"
+                                        Connections {
+                                            target: tuneManager
+                                            function onIdBackupFinished(backup) {
+                                                setupIdBackupDate.backup = backup;
+                                            }
+                                        }
+                                    }
+                                }
+                                NeonButton { text: "Backup"; implicitWidth: 1.8 * unit; onClicked: tuneManager.idBackup() }
+                                NeonButton { text: "View"; implicitWidth: 1.8 * unit; onClicked: tuneManager.idRestore() }
+                            }
+
+                            Rectangle { Layout.fillWidth: true; height: 1; color: "#3a2266" }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 0.15 * unit
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 0
+                                    LText { text: "Shared"; font.pixelSize: 0.26 * unit; color: "#ead6ff" }
+                                    NText {
+                                        font.pixelSize: 0.2 * unit
+                                        color: "#9d8ac0"
+                                        text: tuneManager.fullBackup ? Qt.formatDateTime(tuneManager.fullBackup.date) : "none yet"
+                                    }
+                                }
+                                NeonButton { text: "Backup"; implicitWidth: 1.8 * unit; onClicked: tuneManager.globalBackup() }
+                                NeonButton { text: "View"; implicitWidth: 1.8 * unit; onClicked: tuneManager.globalRestore() }
                             }
                         }
 
-                        // Doesn't work on Android :(
-                        //LText {
-                        //    text: "JSON file:"
-                        //}
-
-                        //RowLayout {
-                        //    Layout.fillWidth: true
-                        //    Layout.alignment: Qt.AlignHCenter
-
-                        //    Button {
-                        //        Layout.alignment: Qt.AlignHCenter
-
-                        //        text: "Backup to file"
-
-                        //        onClicked: {
-                        //            jsonSaveDialog.show(tuneManager.createBackup());
-                        //        }
-                        //    }
-
-                        //    Button {
-                        //        Layout.alignment: Qt.AlignHCenter
-
-                        //        text: "Load from file"
-
-                        //        onClicked: {
-                        //            jsonLoadDialog.show();
-                        //        }
-                        //    }
-                        //}
+                        Item { Layout.fillWidth: true; height: 0.2 * unit }
                     }
                 }
 
@@ -6551,113 +6633,128 @@ Item {
                     clip: true
 
                     ColumnLayout {
-                        anchors.fill: parent
+                        width: parent.width
+                        spacing: 0.25 * unit
 
-                        IntTextField {
-                            label: "Speed dial max"
-                            valueUnit: vescConfig.speedUnit
-                            sourceValue: preferences.speedDialMax
-                            minValue: 10
-                            maxValue: 200
-                            onValueChanged: {
-                                preferences.speedDialMax = value
+                        SettingsCard {
+                            title: "DASHBOARD"
+
+                            IntTextField {
+                                label: "Speed dial max"
+                                valueUnit: vescConfig.speedUnit
+                                sourceValue: preferences.speedDialMax
+                                minValue: 10
+                                maxValue: 200
+                                onValueChanged: {
+                                    preferences.speedDialMax = value
+                                }
+                            }
+
+                            RightSwitch {
+                                id: prefShowBattVoltage
+                                checked: true
+                                label: "Show battery voltage"
+                            }
+
+                            RightSwitch {
+                                id: prefShowBattVoltagePerCell
+                                label: "Battery voltage per cell"
+                            }
+
+                            RightSwitch {
+                                id: prefBattCurrentLog
+                                checked: true
+                                label: "Log scale for the battery current bar"
+                            }
+
+                            IntTextField {
+                                label: "Temperature warning offset"
+                                valueUnit: "\u00B0C"
+                                sourceValue: preferences.tempWarningOffset
+                                onValueChanged: {
+                                    preferences.tempWarningOffset = value
+                                }
+                            }
+
+                            OptionDescription {
+                                Layout.topMargin: 0
+                                text: "Motor / controller temperatures turn red above TEMP - OFFSET (TEMP = your Motor / MOSFET Temp Cutoff Start). The package beeps at TEMP - 3\u00B0C and pushback starts at TEMP - 2\u00B0C."
                             }
                         }
 
-                        RightSwitch {
-                            id: prefShowBattVoltage
-                            checked: true
-                            label: "Show battery voltage"
-                        }
+                        SettingsCard {
+                            title: "TUNES"
 
-                        RightSwitch {
-                            id: prefShowBattVoltagePerCell
-                            label: "Show battery voltage per cell"
-                        }
-
-                        RightSwitch {
-                            id: prefBattCurrentLog
-                            checked: true
-                            label: "Use logarithmic scale for battery current bar"
-                        }
-
-                        IntTextField {
-                            label: "Temperature warning offset"
-                            valueUnit: "°C"
-                            sourceValue: preferences.tempWarningOffset
-                            onValueChanged: {
-                                preferences.tempWarningOffset = value
-                            }
-                        }
-
-                        OptionDescription {
-                            text: "Motor/Controller temperatures will be highlighted red if above TEMP - OFFSET, where TEMP is your Motor/MOSFET Temp Cutoff Start in Motor config. The package beeps when temperatures cross the TEMP - 3°C threshold and pushback triggers at TEMP - 2°C."
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Layout.rightMargin: 20
-
-                            LText {
-                                text: "Number of tune slots"
-                            }
-
-                            Slider {
-                                id: prefTuneSlotCount
+                            RowLayout {
                                 Layout.fillWidth: true
 
-                                from: 2
-                                to: tuneManager.maxTunes
-                                value: 4
-                                stepSize: 1
+                                LText {
+                                    text: "Tune slots"
+                                }
+
+                                Slider {
+                                    id: prefTuneSlotCount
+                                    Layout.fillWidth: true
+
+                                    from: 2
+                                    to: tuneManager.maxTunes
+                                    value: 4
+                                    stepSize: 1
+                                }
+
+                                Text {
+                                    text: prefTuneSlotCount.value
+                                    color: swTheme.neonGreen
+                                    font.family: "Exan"
+                                    font.pixelSize: 0.32 * unit
+                                }
                             }
 
-                            LText {
-                                text: prefTuneSlotCount.value
-                                font.pointSize: 16
+                            RightSwitch {
+                                id: prefShowTuneDiffCount
+                                checked: false
+                                label: "Show changed options count"
                             }
                         }
 
-                        RightSwitch {
-                            id: prefShowTuneDiffCount
-                            checked: false
-                            label: "Show changed options count on tunes"
-                        }
+                        SettingsCard {
+                            title: "DATA & APP"
 
-                        IntTextField {
-                            label: "Realtime plot maximum window"
-                            valueUnit: "minutes"
-                            sourceValue: preferences.plotMaxWindowMinutes
-                            minValue: 1
-                            maxValue: 1000
-                            onValueChanged: {
-                                preferences.plotMaxWindowMinutes = value
+                            IntTextField {
+                                label: "Realtime plot window"
+                                valueUnit: "min"
+                                sourceValue: preferences.plotMaxWindowMinutes
+                                minValue: 1
+                                maxValue: 1000
+                                onValueChanged: {
+                                    preferences.plotMaxWindowMinutes = value
+                                }
+                            }
+
+                            RightSwitch {
+                                id: prefShowWelcomeDialog
+                                checked: true
+                                label: "Show Welcome dialog"
+                            }
+
+                            RightSwitch {
+                                id: prefCheckForNewVersions
+                                checked: true
+                                label: "Check for new package versions"
+                            }
+
+                            NeonButton {
+                                Layout.alignment: Qt.AlignHCenter
+                                text: "Show tips & tricks"
+                                onClicked: {
+                                    uiHints.reset();
+                                    uiHintsRect.fill(true);
+                                    settingsDialog.close();
+                                }
                             }
                         }
 
-                        RightSwitch {
-                            id: prefShowWelcomeDialog
-                            checked: true
-                            label: "Show Welcome dialog"
-                        }
-
-                        RightSwitch {
-                            id: prefCheckForNewVersions
-                            checked: true
-                            label: "Check for new package versions"
-                        }
-
-                        Button {
-                            Layout.alignment: Qt.AlignHCenter
-
-                            text: "Show Tips && Tricks"
-
-                            onClicked: {
-                                uiHints.reset();
-                                uiHintsRect.fill(true);
-                                settingsDialog.close();
-                            }
-                        }
+                        Item { Layout.fillWidth: true; height: 0.2 * unit }
                     }
                 }
             }
@@ -6723,20 +6820,79 @@ Item {
     BaseDialog {
         id: editBoardNameDialog
 
-        title: "Set Board Name"
-        standardButtons: Dialog.Save | Dialog.Cancel
+        title: "Board Name"
+        placeAtTop: true  // keep it above the phone keyboard
 
         onAccepted: {
             board.setName(boardNameInput.text);
             boardNameText.load();
         }
+        onOpened: { boardNameInput.text = boardNameText.name; boardNameInput.forceActiveFocus(); }
 
-        TextField {
-            id: boardNameInput
+        Column {
             width: editBoardNameDialog.availableWidth
+            spacing: 0.3 * unit
 
-            maximumLength: 30
-            text: boardNameText.name
+            // neon input field: green digital text in a purple frame
+            Rectangle {
+                width: parent.width
+                height: 1.1 * unit
+                radius: 0.2 * unit
+                color: "#100a24"
+                border.color: boardNameInput.activeFocus ? swTheme.neonGreen : swTheme.neonPurple
+                border.width: 2
+
+                TextInput {
+                    id: boardNameInput
+                    anchors.fill: parent
+                    anchors.leftMargin: 0.3 * unit
+                    anchors.rightMargin: 0.3 * unit
+                    verticalAlignment: TextInput.AlignVCenter
+                    maximumLength: 30
+                    clip: true
+                    color: swTheme.neonGreen
+                    selectionColor: swTheme.neonPurple
+                    font.family: "Exan"
+                    font.pixelSize: 0.4 * unit
+                    text: boardNameText.name
+                    onAccepted: editBoardNameDialog.accept()
+                }
+
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 0.3 * unit
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: boardNameInput.text === ""
+                    text: "NAME YOUR BOARD"
+                    color: "#4a3a70"
+                    font.family: "Exan"
+                    font.pixelSize: 0.36 * unit
+                }
+            }
+
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: boardNameInput.text.length + " / 30 \u00B7 shown at the top of the dashboard"
+                color: "#9d8ac0"
+                font.pixelSize: 0.2 * unit
+            }
+
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 0.3 * unit
+                SwPill {
+                    minWidth: 2.4 * unit
+                    label: "CANCEL"
+                    onClicked: editBoardNameDialog.reject()
+                }
+                SwPill {
+                    minWidth: 2.4 * unit
+                    label: "SAVE"
+                    lit: true
+                    onClicked: editBoardNameDialog.accept()
+                }
+            }
         }
     }
 
@@ -6827,7 +6983,7 @@ Item {
                             minWidth: 3.4 * unit
                             label: swSettings.ledHeadlights ? "HEADLIGHTS ON" : "HEADLIGHTS OFF"
                             lit: swSettings.ledHeadlights
-                            onClicked: { swSettings.ledHeadlights = !swSettings.ledHeadlights; ledSender.changed(); }
+                            onClicked: ledSender.setHead(!swSettings.ledHeadlights)
                         }
 
                         SwStepper {
@@ -6873,7 +7029,7 @@ Item {
                             minWidth: 3.4 * unit
                             label: swSettings.ledStatusBar ? "STATUS BAR ON" : "STATUS BAR OFF"
                             lit: swSettings.ledStatusBar
-                            onClicked: { swSettings.ledStatusBar = !swSettings.ledStatusBar; ledSender.changed(); }
+                            onClicked: ledSender.setStatus(!swSettings.ledStatusBar)
                         }
 
                         SwStepper {
@@ -7168,6 +7324,7 @@ Item {
                             width: parent.width
                             spacing: 0.12 * unit
                             SwPill {
+                                visible: lcmFw.builtinImage
                                 minWidth: 2.4 * unit
                                 label: "BUILT-IN"
                                 lit: !lcmFw.usePicked
@@ -7177,11 +7334,11 @@ Item {
                             SwPill {
                                 minWidth: 2.4 * unit
                                 label: lcmFw.picked ? "PICKED .HEX" : "PICK .HEX FILE..."
-                                lit: lcmFw.usePicked
+                                lit: lcmFw.usePicked || !lcmFw.builtinImage
                                 enabledLook: !lcmFw.active
                                 onClicked: {
                                     if (lcmFw.active) return;
-                                    if (lcmFw.picked && !lcmFw.usePicked) lcmFw.usePicked = true;
+                                    if (lcmFw.picked && !lcmFw.usePicked && lcmFw.builtinImage) lcmFw.usePicked = true;
                                     else hexLoadDialog.show();
                                 }
                             }
@@ -7199,11 +7356,14 @@ Item {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: lcmFw.usePicked && lcmFw.picked
-                                ? "File: " + lcmFw.picked.version + " (" + lcmFw.picked.size + " bytes). Must be built for the bootloader: ALCM_VP_BL_full.hex works (only its app part is sent)."
-                                : (lcmFw.builtin
+                            text: lcmFw.image === lcmFw.picked && lcmFw.picked
+                                ? "File: " + lcmFw.picked.file + " \u00B7 " + (lcmFw.picked.slcm ? "SLCM " + lcmFw.verText(lcmFw.parseVer(lcmFw.picked.slcm)) : "version unknown")
+                                    + " (" + lcmFw.picked.size + " bytes)."
+                                    + (lcmFw.pkgVer && lcmFw.picked.slcm && lcmFw.parseVer(lcmFw.picked.slcm).hash !== lcmFw.pkgVer.hash ? " Note: this package goes with SLCM " + lcmFw.verText(lcmFw.pkgVer) + "." : "")
+                                : (lcmFw.builtinImage
                                     ? "Built into this package: SLCM build " + lcmFw.builtin.version + " (" + lcmFw.builtin.size + " bytes)."
-                                    : "This build of the package has no LCM firmware image: pick a .hex file.")
+                                    : "Download ALCM_VP_BL_full.hex from the lcm-latest release (github.com/thedukesedge-collab/scott-wheelz/releases/tag/lcm-latest), then PICK .HEX FILE."
+                                        + (lcmFw.pkgVer ? " This package goes with SLCM " + lcmFw.verText(lcmFw.pkgVer) + "." : ""))
                         }
 
                         Rectangle {
@@ -7633,7 +7793,7 @@ Item {
 
             // firmware version verdict (passed checks)
             Rectangle {
-                visible: lcmCheckPopup.passed && lcmFw.fitTitle !== "" && lcmFw.fitted !== "recovery"
+                visible: lcmCheckPopup.passed && lcmFw.fitTitle !== "" && lcmFw.fitted !== "recovery" && lcmFw.fitted !== "legacy"
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: fitTitleText.implicitWidth + 0.5 * unit
                 height: 0.6 * unit
@@ -7659,6 +7819,10 @@ Item {
                 text: lcmCheckPopup.passed
                     ? (lcmFw.fitted === "recovery"
                         ? "The LCM bootloader is waiting for firmware (an earlier update didn't finish). Continue to flash it and recover the light module."
+                        : lcmFw.fitted === "legacy"
+                        ? "Your light module is talking to the package (your LED settings work), but it's an older SLCM / ALCM VP build from before r15 that doesn't report its version, so the package can't tell whether it has the bootloader.\n\n"
+                            + "TRY UPDATE is safe: if it was installed with the bootloader (ALCM_VP_BL_full.hex, rf58 or later) it updates; if not, nothing happens and after 15 s the app says so - then flash ALCM_VP_BL_full.hex once with an ST-Link."
+                            + (lcmFw.pkgVer ? "\n\nThis package goes with SLCM " + lcmFw.verText(lcmFw.pkgVer) + "." : "")
                         : "Found SLCM light module firmware with the bootloader, so the package can update it over Bluetooth.\n\n"
                             + lcmFw.fitText)
                     : "This is most likely because your board is running a version of LCM firmware that doesn't contain a bootloader for flashing over BLE.\n\n"
@@ -9266,6 +9430,24 @@ Item {
                     }
 
                     Component.onCompleted: load();
+                }
+
+                // Re-Float Rink-Mixed: which lights the quick switches turned off
+                // (neon orange, small, next to the name - doesn't move anything)
+                Text {
+                    Layout.alignment: Qt.AlignVCenter
+                    Layout.maximumWidth: 3.2 * unit
+                    visible: ledSender.overrideText !== ""
+                    horizontalAlignment: Text.AlignRight
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 2
+                    text: ledSender.overrideText.replace(" LIGHTS ", "\nLIGHTS ")
+                    color: "#ff8a1f"
+                    font.family: "Exan"
+                    font.pixelSize: 0.19 * unit
+                    font.letterSpacing: 0.02 * unit
+                    layer.enabled: true
+                    layer.effect: Glow { radius: 6; samples: 13; color: "#ff8a1f"; spread: 0.15 }
                 }
 
                 NeonToolButton {
@@ -12525,29 +12707,50 @@ Item {
                             }
                         }
 
-                        // Refloat's own light controls: every controller (as in stock Refloat)
-                        LedHeading { visible: lights.enabled; text: "Lights" }
+                        // quick switches, every controller: they override the other
+                        // light settings (riding and idle) until switched back on
+                        LedHeading { visible: ledSender.quickAvailable; text: "Lights" }
 
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            visible: lights.enabled
+                            visible: ledSender.quickAvailable
                             spacing: 0.2 * unit
 
                             SwPill {
-                                minWidth: 2.8 * unit
+                                minWidth: 3.6 * unit
                                 implicitHeight: 0.75 * unit
-                                label: lights.on ? "LIGHTS ON" : "LIGHTS OFF"
-                                lit: lights.on
-                                onClicked: commands.sendLightsControl(!lights.on)
+                                label: swSettings.ledHeadlights ? "HEAD/TAIL ON" : "HEAD/TAIL OFF"
+                                lit: swSettings.ledHeadlights
+                                onClicked: ledSender.setHead(!swSettings.ledHeadlights)
                             }
 
                             SwPill {
-                                minWidth: 3.4 * unit
+                                minWidth: 3.6 * unit
                                 implicitHeight: 0.75 * unit
-                                label: lights.headlightsOn ? "HEADLIGHTS ON" : "HEADLIGHTS OFF"
-                                lit: lights.headlightsOn
-                                onClicked: commands.sendLightsControl(undefined, !lights.headlightsOn)
+                                label: swSettings.ledStatusBar ? "STATUS ON" : "STATUS OFF"
+                                lit: swSettings.ledStatusBar
+                                onClicked: ledSender.setStatus(!swSettings.ledStatusBar)
                             }
+                        }
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            visible: ledSender.quickAvailable
+                            minWidth: 7.4 * unit
+                            implicitHeight: 0.75 * unit
+                            label: ledSender.allOn ? "ALL LIGHTS ON" : "ALL LIGHTS OFF"
+                            lit: ledSender.allOn
+                            onClicked: ledSender.setAll(!ledSender.allOn)
+                        }
+
+                        SwLText {
+                            visible: ledSender.overrideText !== ""
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            color: "#ff8a1f"
+                            text: ledSender.overrideText + ": overrides the other light settings (riding and idle) until switched back on."
                         }
 
                         SwLText {

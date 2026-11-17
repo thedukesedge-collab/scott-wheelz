@@ -143,11 +143,24 @@
   .modalBack { position: absolute; inset: 0; background: rgba(0,0,0,.6); z-index: 20; display: none; align-items: center; justify-content: center; }
   .modalBack.on { display: flex; }
   .modal { width: 86%; background: #0b0718; border: 2px solid var(--purple); border-radius: 10px; padding: 14px; box-shadow: 0 0 20px rgba(177,76,255,.4); }
-  .modal h3 { margin: 0 0 10px; color: #d6ffe4; font-family: Orbitron, monospace; font-size: 15px; }
-  .modal input[type=text], .modal input[type=number] { width: 100%; background: #140a26; border: 1px solid var(--purple); color: #d6ffe4; padding: 8px; border-radius: 6px; font-size: 16px; }
-  .modal .btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-  .modal button { background: transparent; border: 2px solid var(--purple); color: var(--lav); border-radius: 6px; padding: 7px 12px; font-family: Orbitron, monospace; font-size: 11px; }
-  .modal button.pri { border-color: var(--green); color: var(--green); }
+  .modal h3 { margin: 0 0 10px; padding-bottom: 8px; border-bottom: 2px solid rgba(177,76,255,.6); color: var(--green); text-align: center; font-family: Orbitron, monospace; font-size: 16px; letter-spacing: .05em; text-shadow: 0 0 8px rgba(57,255,122,.5); }
+  .modal input[type=text], .modal input[type=number] { width: 100%; box-sizing: border-box; background: #100a24; border: 2px solid var(--purple); color: var(--green); padding: 10px; border-radius: 10px; font-size: 18px; font-family: Orbitron, monospace; outline: none; }
+  .modal input:focus { border-color: var(--green); }
+  .modal .btns { display: flex; justify-content: center; gap: 12px; margin-top: 14px; }
+  .modal button { background: transparent; border: 2px solid var(--purple); color: var(--purple); border-radius: 999px; padding: 8px 20px; font-family: Orbitron, monospace; font-size: 11px; letter-spacing: .04em; }
+  .modal button.pri { border-color: var(--green); background: var(--green); color: var(--bg); }
+  .modal .hint { text-align: center; font-size: 10px; color: #9d8ac0; margin-top: 6px; }
+  .modal .tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
+  .modal .card { border: 2px solid #3a2266; background: #100a24; border-radius: 12px; padding: 10px; margin-bottom: 10px; }
+  .modal .card b { display: block; color: var(--purple); font-family: Orbitron, monospace; font-size: 12px; letter-spacing: .05em; margin-bottom: 6px; }
+  .modal .card p { margin: 0 0 8px; font-size: 11px; color: #cbb8ec; text-align: center; }
+  .modal .row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid #3a2266; }
+  .modal .row:first-of-type { border-top: 0; }
+  .modal .row .l { flex: 1; font-size: 12px; color: #ead6ff; } .modal .row .l small { display: block; color: #9d8ac0; font-size: 10px; }
+  .modal .nb { border: 2px solid var(--green); color: var(--green); border-radius: 999px; padding: 6px 12px; font-family: Orbitron, monospace; font-size: 10px; cursor: pointer; }
+  .modal .sw { width: 38px; height: 20px; border-radius: 10px; background: #3a2266; position: relative; cursor: pointer; } .modal .sw.on { background: var(--green); }
+  .modal .sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #ead6ff; transition: left .15s; } .modal .sw.on::after { left: 20px; }
+  #lightsOverride { color: #ff8a1f; font-family: Orbitron, monospace; font-size: 8px; line-height: 1.25; text-align: right; text-shadow: 0 0 6px #ff8a1f; max-width: 90px; margin-right: 4px; }
   .swatches { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
   .sw { width: 30px; height: 30px; border-radius: 50%; border: 2px solid; background: #0b0718; display: flex; align-items: center; justify-content: center; cursor: pointer; }
   .sw i { width: 13px; height: 13px; border-radius: 50%; display: block; opacity: .6; }
@@ -178,6 +191,7 @@
     <div id="batt"><div id="battFill"></div><div id="battV"></div><div id="battPct" class="nf"></div></div>
     <div id="nameRow">
       <div id="boardName"></div>
+      <div id="lightsOverride"></div>
       <div class="neonBtn" id="btnEdit"><svg viewBox="0 0 50 50"><path d="M 10.59 24 L 17.63 32.42 L 6 35 L 10.59 24 M 10.59 24 L 34.39 4 L 41.49 12.42 L 17.69 32.42 M 4 42 L 46 42" fill="none" stroke="#39ff7a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
       <div class="neonBtn" id="btnSettings"><svg viewBox="0 0 50 50"><path d="M 14.25 37.81 L 10.59 39.42 A 3 3 0 0 1 6.98 38.47 A 22.5 22.5 0 0 1 4.32 33.87 A 3 3 0 0 1 5.30 30.27 L 8.53 27.9 A 3.6 3.6 0 0 0 8.53 22.1 L 5.30 19.73 A 3 3 0 0 1 4.32 16.13 A 22.5 22.5 0 0 1 6.98 11.53 A 3 3 0 0 1 10.59 10.58 L 14.25 12.19 A 3.6 3.6 0 0 0 19.28 9.29 L 19.79 5.31 A 3 3 0 0 1 22.35 2.66 A 22.5 22.5 0 0 1 27.65 2.66 A 3 3 0 0 1 30.28 5.31 L 30.72 9.29 A 3.6 3.6 0 0 0 35.75 12.19 L 39.41 10.58 A 3 3 0 0 1 43.02 11.53 A 22.5 22.5 0 0 1 45.67 16.13 A 3 3 0 0 1 44.7 19.73 L 41.47 22.1 A 3.6 3.6 0 0 0 41.47 27.9 L 44.7 30.27 A 3 3 0 0 1 45.68 33.87 A 22.5 22.5 0 0 1 43.02 38.47 A 3 3 0 0 1 39.41 39.42 L 35.75 37.81 A 3.6 3.6 0 0 0 30.72 40.71 L 30.28 44.69 A 3 3 0 0 1 27.65 47.34 A 22.5 22.5 0 0 1 22.35 47.34 A 3 3 0 0 1 19.72 44.69 L 19.28 40.71 A 3.6 3.6 0 0 0 14.25 37.81" fill="none" stroke="#39ff7a" stroke-width="3" stroke-linejoin="round"/><circle cx="25" cy="25" r="6.5" fill="none" stroke="#39ff7a" stroke-width="3"/></svg></div>
     </div>
@@ -271,7 +285,9 @@
           <p class="ledHint" style="text-align:center;opacity:.7;margin:2px 0">Simulator only - pretend the board is:</p>
           <div class="pills" id="simSetup"><div class="pill" data-k="slcm">XRV + SLCM</div><div class="pill" data-k="refloat">THOR (REFLOAT LEDS)</div><div class="pill" data-k="none">NO LEDS SET UP</div></div>
           <div id="lightsBox"><div class="secTitle" style="text-align:center;margin-top:6px">Lights</div>
-          <div class="pills"><div class="pill" id="lightsPill">LIGHTS OFF</div><div class="pill" id="headPill2">HEADLIGHTS OFF</div></div></div>
+          <div class="pills"><div class="pill" id="headPill2">HEAD/TAIL OFF</div><div class="pill" id="statusPill2">STATUS OFF</div></div>
+          <div class="pills"><div class="pill" id="lightsPill" style="min-width:250px;text-align:center">ALL LIGHTS OFF</div></div>
+          <p class="ledHint" id="overrideNote" style="text-align:center;color:#ff8a1f"></p></div>
           <p id="ledNote" style="font-size:11px;color:var(--text);text-align:center;margin:4px 6px"></p>
           <div class="ledTiles">
             <div class="ledTile" data-w="head"><span class="g">&#9673;</span><b>HEADLIGHTS</b><small id="ltHead"></small><i>&#8250;</i></div>
@@ -286,7 +302,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf69 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf70 · sim</span></div>
     </div>
   </div>
 
@@ -328,10 +344,10 @@
         <div id="fwCheckBtn" class="bigBeep" style="border-color:#FFB300;color:#FFB300">&#10004;&nbsp; CHECK LCM</div>
         <p class="ledHint" id="fwCheckHint" style="text-align:center">Board powered on and connected. The check asks the package which light module firmware is fitted; FLASH LCM only appears when it has the bootloader.</p>
         <p class="ledHint" style="text-align:center;opacity:.7">Simulator only - pretend the LCM is:</p>
-        <div class="pills" id="fwSimLcm"><div class="pill" data-k="vpbl">VP+BL CURRENT</div><div class="pill" data-k="vpbl_old">VP+BL OLDER</div><div class="pill" data-k="vpbl_new">VP+BL NEWER</div><div class="pill" data-k="vp">VP, NO BL</div><div class="pill" data-k="other">STOCK</div><div class="pill" data-k="noname">OLD VP/ALCM</div><div class="pill" data-k="recovery">RECOVERY</div></div>
+        <div class="pills" id="fwSimLcm"><div class="pill" data-k="vpbl">VP+BL CURRENT</div><div class="pill" data-k="vpbl_old">VP+BL OLDER</div><div class="pill" data-k="vpbl_new">VP+BL NEWER</div><div class="pill" data-k="vp">VP, NO BL</div><div class="pill" data-k="other">STOCK</div><div class="pill" data-k="noname">OLDER SLCM</div><div class="pill" data-k="recovery">RECOVERY</div></div>
         <div id="fwCan">
         <div class="secTitle">Firmware to flash</div>
-        <div class="pills"><div class="pill on" id="fwSrcBuiltin">BUILT-IN</div><div class="pill" id="fwSrcPick">PICK .HEX FILE...</div><div class="pill" id="fwSrcChange" style="display:none">CHANGE...</div></div>
+        <div class="pills"><div class="pill on" id="fwSrcBuiltin" style="display:none">BUILT-IN</div><div class="pill" id="fwSrcPick">PICK .HEX FILE...</div><div class="pill" id="fwSrcChange" style="display:none">CHANGE...</div></div>
         <input type="file" id="fwFile" accept=".hex" style="display:none">
         <p class="ledHint" id="fwSrcText">Built into this package: SLCM build (simulated, 14592 bytes).</p>
         <div id="fwBtn" class="bigBeep">&#8635;&nbsp; FLASH LCM</div>
@@ -604,12 +620,29 @@ function modal(html, onOk) {
   return close;
 }
 $('btnEdit').onclick = () => {
-  modal('<h3>BOARD NAME</h3><input type="text" id="mName" maxlength="20"><div class="btns"><button data-close>Cancel</button><button class="pri" data-ok>Save</button></div>', () => { P.name = $('mName').value.trim() || 'Growler'; save(); });
+  modal('<h3>BOARD NAME</h3><input type="text" id="mName" maxlength="30" placeholder="NAME YOUR BOARD"><div class="hint" id="mNameN"></div><div class="btns"><button data-close>CANCEL</button><button class="pri" data-ok>SAVE</button></div>', () => { P.name = $('mName').value.trim() || 'Growler'; save(); });
   $('mName').value = P.name;
+  const n = () => $('mNameN').textContent = $('mName').value.length + ' / 30 · shown at the top of the dashboard'; n(); $('mName').oninput = n;
 };
 $('btnSettings').onclick = () => {
-  modal('<h3>SETTINGS</h3><div style="font-size:13px;margin-bottom:4px">Speed dial max (mph)</div><input type="number" id="mDial" min="10" max="200"><div class="btns"><button data-close>Cancel</button><button class="pri" data-ok>Save</button></div>', () => { P.dialMax = clamp(+$('mDial').value || 40, 10, 200); save(); });
+  const sw = (id, on, l) => '<div class="row"><div class="l">' + l + '</div><div class="sw' + (on ? ' on' : '') + '" data-sw="' + id + '"></div></div>';
+  modal('<h3>SETTINGS</h3><div class="tabs"><div class="pill on" data-tab="0">SETUP</div><div class="pill" data-tab="1">PREFERENCES</div></div>'
+    + '<div data-pg="0" style="max-height:52vh;overflow:auto">'
+    + '<div class="card"><b>PACKAGE</b><p>Before running the motor wizard, disable the package so the two don\'t fight over the motor. Re-enable it after configuring your motor.</p><div style="text-align:center"><span class="nb" data-t="Package disabled (simulated)">DISABLE PACKAGE</span></div></div>'
+    + '<div class="card"><b>HANDTEST</b><p>After setup, turn on Handtest and engage the board by hand to check it balances the right way. Motor currents are limited to a safe level.</p><div style="text-align:center"><span class="nb" data-t="Handtest on (simulated)">HANDTEST ON</span></div></div>'
+    + '<div class="card"><b>BACKUP / RESTORE</b><p>Backups are stored in VESC Tool\'s internal storage.</p>'
+    + '<div class="row"><div class="l">Automatic<small>none yet</small></div><span class="nb" data-t="View (simulated)">VIEW</span></div>'
+    + '<div class="row"><div class="l">This board<small>none yet</small></div><span class="nb" data-t="Backed up (simulated)">BACKUP</span><span class="nb" data-t="View (simulated)">VIEW</span></div>'
+    + '<div class="row"><div class="l">Shared<small>none yet</small></div><span class="nb" data-t="Backed up (simulated)">BACKUP</span><span class="nb" data-t="View (simulated)">VIEW</span></div></div></div>'
+    + '<div data-pg="1" style="display:none;max-height:52vh;overflow:auto">'
+    + '<div class="card"><b>DASHBOARD</b><div class="row"><div class="l">Speed dial max (' + 'mph)</div><input type="number" id="mDial" min="10" max="200" style="width:80px"></div>' + sw('a', true, 'Show battery voltage') + sw('b', false, 'Battery voltage per cell') + sw('c', true, 'Log scale for the battery current bar') + '</div>'
+    + '<div class="card"><b>TUNES</b>' + sw('d', false, 'Show changed options count') + '</div>'
+    + '<div class="card"><b>DATA &amp; APP</b>' + sw('e', true, 'Show Welcome dialog') + sw('f', true, 'Check for new package versions') + '</div></div>'
+    + '<div class="btns"><button class="pri" data-ok>CLOSE</button></div>', () => { P.dialMax = clamp(+$('mDial').value || 40, 10, 200); save(); });
   $('mDial').value = P.dialMax;
+  document.querySelectorAll('#modalBox [data-tab]').forEach(t => t.onclick = () => { document.querySelectorAll('#modalBox [data-tab]').forEach(x => x.classList.toggle('on', x === t)); document.querySelectorAll('#modalBox [data-pg]').forEach(g => g.style.display = g.dataset.pg === t.dataset.tab ? '' : 'none'); });
+  document.querySelectorAll('#modalBox [data-sw]').forEach(x => x.onclick = () => x.classList.toggle('on'));
+  document.querySelectorAll('#modalBox [data-t]').forEach(x => x.onclick = () => toast(x.dataset.t));
 };
 
 // ---------- peaks ----------
@@ -1011,7 +1044,11 @@ function renderLedsSoft() {
     : "<b>NO SLCM DETECTED</b><br>LIGHTS / HEADLIGHTS and the headlight and status bar brightness use Refloat's own LED controls and work on any controller (Thor, Floatwheel, ...). Tiles marked SLCM need a light module running the SLCM firmware.";
   $('lightsBox').style.display = lightsOk ? '' : 'none';
   const pl = (id, on, txt) => { $(id).textContent = txt + (on ? ' ON' : ' OFF'); $(id).classList.toggle('on', on); };
-  pl('lightsPill', !!P.lightsOn, 'LIGHTS'); pl('headPill2', !!P.ledHead, 'HEADLIGHTS');
+  const allOn = P.ledHead && P.ledBar && P.lightsOn !== false;
+  pl('headPill2', !!P.ledHead, 'HEAD/TAIL'); pl('statusPill2', !!P.ledBar, 'STATUS'); pl('lightsPill', allOn, 'ALL LIGHTS');
+  const ov = (!P.ledHead && !P.ledBar) || P.lightsOn === false ? 'ALL LIGHTS OFF' : !P.ledHead ? 'HEAD/TAIL LIGHTS OFF' : !P.ledBar ? 'STATUS LIGHTS OFF' : '';
+  $('overrideNote').textContent = ov ? ov + ': overrides the other light settings (riding and idle) until switched back on.' : '';
+  $('lightsOverride').innerHTML = ov.replace(' LIGHTS ', '<br>LIGHTS ');
   $('slcmFooter').style.color = slcm ? 'var(--green)' : '#FFB300';
   $('slcmFooter').innerHTML = slcm ? '&#10004; SLCM ' + FW_BUILD + ' detected' : "&#9888; Needs the SLCM light module firmware (brightness also sets Refloat's own LEDs)";
   $('ledNote').textContent = !lightsOk ? "Refloat's LEDs aren't set up on this board, so there are no LIGHTS / HEADLIGHTS buttons. Set them up in VESC Tool \u25B8 Refloat Cfg \u25B8 Hardware (LED Mode, type, pin)."
@@ -1138,13 +1175,13 @@ const FW_FIT = {
 };
 // fail-safe: the LCM names itself ("VPBL-<hash>" = with the bootloader);
 // FLASH LCM only exists for those, or while a bootloader is asking (recovery)
-const fwCapable = () => !!FW_FIT[FW.kind] || FW.kind === 'recovery';
+const fwCapable = () => !!FW_FIT[FW.kind] || FW.kind === 'recovery' || FW.kind === 'noname';
 const fwCan = () => FW.active || (FW.unlocked && fwCapable());
 function fwFitPaint() {
   const k = FW.kind, f = FW_FIT[k], t = f ? 'SLCM with bootloader · ' + f[4] + ' · ' + f[3] : {
     recovery: "LCM bootloader is waiting for firmware (an earlier update didn't finish). Flash it now to recover the light module.",
     vp: "SLCM " + FW_BUILD + " WITHOUT the bootloader. It can't be flashed from the app: install ALCM_VP_BL_full.hex once with an ST-Link, after that updates work from here.",
-    noname: "A light module is talking to the package but doesn't name itself: not SLCM r15 or newer. Flash ALCM_VP_BL_full.hex once with an ST-Link.",
+    noname: "Older SLCM / ALCM VP light module (before r15: it doesn't report its version). Your LED settings work. TRY UPDATE works if it was installed with the bootloader.",
     other: "No SLCM light module answered (stock or other LCM firmware, or none). Flashing from the app needs SLCM with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
   }[k];
   const chk = FW.active ? 2 : FW.check;
@@ -1170,7 +1207,8 @@ $('fwCheckBtn').onclick = () => {
     $('fwChkTitle').style.color = ok ? 'var(--green)' : '#FFB300';
     $('fwChkTitle').innerHTML = ok ? '&#10004; LCM CHECK PASSED' : '&#9888; LCM CHECK FAILED';
     $('fwChkText').textContent = ok
-      ? (FW.kind === 'recovery' ? "The LCM bootloader is waiting for firmware (an earlier update didn't finish). Continue to flash it and recover the light module."
+      ? (FW.kind === 'noname' ? "Your light module is talking to the package (your LED settings work), but it's an older SLCM / ALCM VP build from before r15 that doesn't report its version, so the package can't tell whether it has the bootloader.\n\nTRY UPDATE is safe: if it was installed with the bootloader (ALCM_VP_BL_full.hex, rf58 or later) it updates; if not, nothing happens and after 15 s the app says so - then flash ALCM_VP_BL_full.hex once with an ST-Link.\n\nThis package goes with SLCM " + FW_BUILD + "."
+        : FW.kind === 'recovery' ? "The LCM bootloader is waiting for firmware (an earlier update didn't finish). Continue to flash it and recover the light module."
         : 'Found SLCM light module firmware with the bootloader, so the package can update it over Bluetooth.\n\n' + FW_FIT[FW.kind][1])
       : "This is most likely because your board is running a version of LCM firmware that doesn't contain a bootloader for flashing over BLE.\n\nTo resolve this, first flash the LCM with an ST-Link using the correct firmware: ALCM_VP_BL_full.hex (lcm-latest release). After that, CHECK LCM passes and future updates work from the app.\n\nWhat the package saw: "
         + (FW.kind === 'noname' ? "a light module is talking to the package but doesn't name itself, so it isn't running SLCM r15 or newer (older SLCM / ALCM VP builds from before rf63, original ALCM, or other LCM firmware)." : FW.kind === 'vp' ? 'SLCM ' + FW_BUILD + ' without the bootloader.' : "no light module is talking to the package. Stock Floatwheel LCM firmware never does (it only reads the VESC's basic data); or the LCM isn't connected.")
@@ -1178,7 +1216,7 @@ $('fwCheckBtn').onclick = () => {
     const f = FW_FIT[FW.kind];
     $('fwChkFit').style.display = f ? '' : 'none';
     if (f) { $('fwChkFit').textContent = f[0]; const c = FW.kind === 'vpbl' ? 'var(--green)' : '#FFB300'; $('fwChkFit').style.color = $('fwChkFit').style.borderColor = c; }
-    $('fwChkYes').textContent = f ? f[2] : 'CONTINUE TO FLASH'; $('fwChkYes').classList.toggle('on', FW.kind !== 'vpbl_new');
+    $('fwChkYes').textContent = f ? f[2] : FW.kind === 'noname' ? 'TRY UPDATE' : 'CONTINUE TO FLASH'; $('fwChkYes').classList.toggle('on', FW.kind !== 'vpbl_new');
     $('fwChkNo').textContent = ok ? 'CANCEL' : 'OK'; $('fwChkYes').style.display = ok ? '' : 'none';
     fwChk(true);
   }, 1800);
@@ -1209,7 +1247,7 @@ function fwPaint(msg) {
   fwFitPaint();
   $('fwBar').style.display = FW.active || FW.p > 0 ? 'block' : 'none';
   $('fwFill').style.width = (FW.p * 100) + '%';
-  $('fwBtn').style.opacity = FW.active ? 0.4 : 1;
+  $('fwBtn').style.opacity = FW.active || !FW.picked ? 0.4 : 1;
   $('fwBtn').innerHTML = FW.active ? 'FLASHING...' : '&#8635;&nbsp; FLASH LCM';
   $('fwCancel').style.display = FW.active ? 'inline-block' : 'none';
   if (msg !== undefined) $('fwMsg').textContent = msg;
@@ -1277,18 +1315,21 @@ function parseHex(text, name) {
     if (sp < 0x20000001 || sp > 0x20000800 || !(pc & 1) || pc < APP || pc >= END) {
         return {error: "The vector table at 0x08000600 doesn't look like an ALCM app built for the bootloader."};
     }
-    return {size: size, crc: crc16(b, size), version: name, bytes: b};
+    var slcm = '';
+    for (i = 0; i + 6 < size && !slcm; i++) if (b[i] === 86 && b[i + 1] === 80 && b[i + 2] === 66 && b[i + 3] === 76 && b[i + 4] === 45) { var j = i + 5, v = ''; while (j < size && j < i + 25 && b[j] >= 45 && b[j] <= 122) v += String.fromCharCode(b[j++]); slcm = v; }
+    return {size: size, crc: crc16(b, size), version: slcm ? 'SLCM ' + slcm : name, file: name, slcm: slcm, bytes: b};
 }
 
 
-FW.picked = null; FW.usePicked = false;
+FW.picked = null; FW.usePicked = true;
 function fwSrcPaint() {
   $('fwSrcBuiltin').classList.toggle('on', !FW.usePicked);
   $('fwSrcPick').classList.toggle('on', FW.usePicked);
   $('fwSrcPick').textContent = FW.picked ? 'PICKED .HEX' : 'PICK .HEX FILE...';
   $('fwSrcChange').style.display = FW.picked ? 'inline-block' : 'none';
-  $('fwSrcText').textContent = FW.usePicked && FW.picked ? 'File: ' + FW.picked.version + ' (' + FW.picked.size + ' bytes). Must be built for the bootloader: ALCM_VP_BL_full.hex works (only its app part is sent).'
-    : 'Built into this package: SLCM build (simulated, 14592 bytes).';
+  $('fwSrcPick').classList.add('on');
+  $('fwSrcText').textContent = FW.picked ? 'File: ' + FW.picked.file + ' · ' + (FW.picked.slcm ? 'SLCM ' + FW.picked.slcm : 'version unknown') + ' (' + FW.picked.size + ' bytes).'
+    : 'Download ALCM_VP_BL_full.hex from the lcm-latest release, then PICK .HEX FILE. This package goes with SLCM ' + FW_BUILD + '.';
 }
 $('fwSrcBuiltin').onclick = () => { if (!FW.active) { FW.usePicked = false; fwSrcPaint(); } };
 $('fwSrcPick').onclick = () => { if (FW.active) return; if (FW.picked && !FW.usePicked) { FW.usePicked = true; fwSrcPaint(); } else $('fwFile').click(); };
@@ -1309,7 +1350,7 @@ $('fwAckBox').onchange = () => { const c = $('fwAckBox').checked; $('fwAckYes').
 $('fwAckNo').onclick = () => fwAck(false);
 $('fwAckBack').onclick = () => { fwAck(false); fwChk(false); };
 $('fwAckYes').onclick = () => { if (!$('fwAckBox').checked) return; fwAck(false); fwStart(); };
-$('fwBtn').onclick = () => { if (!FW.active && fwCan()) fwAck(true); };
+$('fwBtn').onclick = () => { if (FW.active || !fwCan()) return; if (!FW.picked) { toast('Pick ALCM_VP_BL_full.hex first (lcm-latest release)'); return; } fwAck(true); };
 function fwStart() {
   if (FW.active || !fwCan()) return;
   if (running()) { fwPaint("The board is running. Stop riding and try again."); return; }
@@ -1325,8 +1366,9 @@ function fwStart() {
 }
 $('fwCancel').onclick = () => { clearInterval(FW.t); FW.active = false; fwPaint('Cancelled. If the LCM had already started, power the board off and on, then press FLASH LCM again.'); };
 document.querySelectorAll('#simSetup .pill').forEach(x => x.onclick = () => { P.simSetup = x.dataset.k; save(); renderLedsSoft(); });
-$('lightsPill').onclick = () => { P.lightsOn = !P.lightsOn; save(); renderLedsSoft(); };
-$('headPill2').onclick = () => { P.ledHead = !P.ledHead; save(); renderLedsSoft(); };
+$('lightsPill').onclick = () => { const on = !(P.ledHead && P.ledBar && P.lightsOn !== false); P.ledHead = P.ledBar = on; P.lightsOn = on; P.ledCfg = true; save(); renderLedsSoft(); };
+$('headPill2').onclick = () => { P.ledHead = !P.ledHead; if (P.ledHead) P.lightsOn = true; P.ledCfg = true; save(); renderLedsSoft(); };
+$('statusPill2').onclick = () => { P.ledBar = !P.ledBar; if (P.ledBar) P.lightsOn = true; P.ledCfg = true; save(); renderLedsSoft(); };
 $('ledHeadPill').onclick = ledToggle('ledHead');
 $('ledBreathPill').onclick = () => { P.ledBreath = P.ledBreath === false; P.ledCfg = true; save(); renderLedsSoft(); }; $('ledBarPill').onclick = ledToggle('ledBar'); $('ledBeepPill').onclick = ledToggle('ledBeep');
 

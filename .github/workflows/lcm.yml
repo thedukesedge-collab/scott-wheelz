@@ -20,7 +20,14 @@ jobs:
           fetch-depth: 0  # LCM firmware revision = commits that changed lcm/alcm
 
       - name: Install ARM GCC
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq gcc-arm-none-eabi libnewlib-arm-none-eabi
+        timeout-minutes: 12
+        # apt mirrors sometimes hang: give each try 4 minutes, 3 tries
+        run: |
+          for i in 1 2 3; do
+            timeout 240 sh -c 'sudo apt-get update -qq && sudo apt-get install -y -qq gcc-arm-none-eabi libnewlib-arm-none-eabi' && break
+            echo "apt try $i failed"
+          done
+          arm-none-eabi-gcc --version | head -1
 
       - name: Build (VP and stock)
         working-directory: lcm/alcm/gcc

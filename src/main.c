@@ -2767,7 +2767,10 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
             &d->lcm_fw,
             &d->state,
             &d->time,
-            strncmp(d->lcm.name, "VPBL", 4) == 0,
+            // VPBL, or an LCM that doesn't name itself (pre-r15 builds, some
+            // with the bootloader): a TRY is safe, without a bootloader the
+            // update flag is ignored and START times out
+            strncmp(d->lcm.name, "VPBL", 4) == 0 || d->lcm.name[0] == '\0',
             &buffer[2],
             len - 2
         );

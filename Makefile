@@ -4,15 +4,17 @@ VESC_TOOL ?= vesc_tool
 MINIFY_QML ?= 1
 # use `make OLDVT=1` to build with old vesc_tool which doesn't support pkgdesc.qml
 OLDVT ?= 0
-# use `make LCM_FW=0` to build without the LCM firmware update image (needs
-# arm-none-eabi-gcc with newlib-nano and python3 otherwise)
-LCM_FW ?= 1
+# use `make LCM_FW=1` to embed the SLCM firmware update image (needs
+# arm-none-eabi-gcc with newlib-nano). Off by default since rf70: it made the
+# package heavy; the package only carries the SLCM version (for CHECK LCM)
+# and the rider picks ALCM_VP_BL_full.hex (lcm-latest release) to flash.
+LCM_FW ?= 0
 
-all: rinkfloat.vescpkg
+all: refloatrm.vescpkg
 
-rinkfloat.vescpkg: src lisp/package.lisp package_README-gen.md ui.qml
+refloatrm.vescpkg: src lisp/package.lisp package_README-gen.md ui.qml
 ifeq ($(OLDVT), 1)
-	"$(VESC_TOOL)" --buildPkg "rinkfloat.vescpkg:lisp/package.lisp:ui.qml:0:package_README-gen.md:Re-Float Rink-Mixed"
+	"$(VESC_TOOL)" --buildPkg "refloatrm.vescpkg:lisp/package.lisp:ui.qml:0:package_README-gen.md:Re-Float Rink-Mixed"
 else
 	"$(VESC_TOOL)" --buildPkgFromDesc pkgdesc.qml
 endif
@@ -52,13 +54,13 @@ else
 endif
 
 ui.qml: ui.qml.in package_name version $(LCM_FW_DEP)
-	python3 lcm/tools/embed_lcm_fw.py $< $(LCM_FW_DEP) | \
+	python3 lcm/tools/embed_lcm_fw.py $< "$(LCM_FW_DEP)" `sh lcm/tools/lcm_version.sh` | \
 	sed "s/{{PACKAGE_NAME}}/${PACKAGE_NAME}/g" | \
 	sed "s/{{VERSION}}/${VERSION}/g" | \
 	${MINIFY_CMD} > $@
 
 clean:
-	rm -f rinkfloat.vescpkg package_README-gen.md ui.qml
+	rm -f refloatrm.vescpkg package_README-gen.md ui.qml
 	rm -rf lcm/bootloader/build lcm/alcm/gcc/build
 	$(MAKE) -C src clean
 

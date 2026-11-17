@@ -70,8 +70,14 @@ void lcm_configure(LcmData *lcm, const Leds *leds) {
 }
 
 bool lcm_is_slcm(const LcmData *lcm) {
-    return lcm->vp.valid && lcm->name[0] == 'V' && lcm->name[1] == 'P' &&
-        (lcm->name[2] == '-' || lcm->name[2] == 'B');
+    // rf70: also an LCM that doesn't name itself - SLCM / ALCM VP builds from
+    // before r15 (rf67-rf69 cut them off, and their LED settings with them).
+    // Stock ALCM ignores the extra bytes, as before rf67. Only an LCM that
+    // names itself as something else gets the plain stock reply.
+    return lcm->vp.valid &&
+        (lcm->name[0] == '\0' ||
+         (lcm->name[0] == 'V' && lcm->name[1] == 'P' && (lcm->name[2] == '-' || lcm->name[2] == 'B')
+         ));
 }
 
 void lcm_poll_request(LcmData *lcm, uint8_t *buffer, size_t len) {
