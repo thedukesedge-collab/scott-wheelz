@@ -525,3 +525,9 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   clicks / config mode / footpad adjustments are gone. GCC build + ALCM's
   unit tests (stock and VP) in CI; ALCM_VP.hex on the lcm-latest release.
   See lcm/README.md.
+
+### LEDS tab compatibility notice (v1.2.3-rf56)
+- The top of the LEDS tab now shows an amber "UPDATED LCM FIRMWARE REQUIRED"
+  notice: the settings only work on ADV100 controllers (XRV, GTV, PintV) with
+  the light module flashed to the ALCM VP firmware, and do nothing elsewhere.
+- Same notice in the simulator and in the package README.

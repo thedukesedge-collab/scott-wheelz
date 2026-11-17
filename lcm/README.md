@@ -1,5 +1,7 @@
 # LCM firmware (ALCM, VP light control)
 
+> **Compatibility:** for ADV100 controllers (Floatwheel XRV, GTV, PintV) and their light modules only. The package's LEDS tab does nothing unless the LCM runs this ALCM VP firmware.
+
 `alcm/` is [ALCM](https://github.com/MrTheConductor/alcm) v0.1.1 by
 Mitchell White (GPL-3.0), the light control module firmware for the
 HK32F030M-based LCM, with Re-Float Rink-Mixed changes (`VP_LIGHT_CONTROL`):
