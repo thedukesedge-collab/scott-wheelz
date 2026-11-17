@@ -540,3 +540,20 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   on when the VESC answers). Mid-ride it is still a warning fault but clears
   itself on the next answer. Other internal faults are unchanged.
 - Test: tests/board_mode_vp_main.c (BoardModeTestVP). Size 16,068 / 16,320 B.
+
+### LEDS windows, idle/riding headlights, test beep, Refloat sync (v1.2.3-rf57)
+- LEDS tab: four tiles (Headlights, Status bar, Animations, Sound); each opens
+  a full-screen window. Same in the simulator.
+- Headlights now have RIDING and IDLE brightness. The package sends the level
+  for the current state (byte 12) like the status bar, plus the idle level
+  (byte 13). COMMAND_LCM_VP_SETTINGS (126) is 12 bytes (11 still accepted,
+  idle = riding); EEPROM word 83 = magic 0x49 + idle % (missing = riding).
+- Test beep: COMMAND_LCM_TEST_BEEP (127, no data) toggles VP flag bit 3; the
+  ALCM VP build plays one 160 ms beep per toggle (needs the beeper on).
+- Two-way sync with Refloat's LED config: headlights on <-> leds.headlights_on,
+  riding % <-> leds.headlights.brightness, idle % <-> leds.front.brightness,
+  status idle % <-> leds.status_idle.brightness, status riding % <->
+  leds.status.brightness_headlights_on/_off. Written 1.5 s after the last
+  change; read back whenever the config loads or is written in Refloat Cfg.
+- leds.* are no longer part of tunes (not saved, not matched for ACTIVE, not
+  applied from older tunes that contain them). Full backups still include them.

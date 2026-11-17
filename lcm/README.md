@@ -18,16 +18,22 @@ HK32F030M-based LCM, with Re-Float Rink-Mixed changes (`VP_LIGHT_CONTROL`):
 Without a VP package that sends light settings, ALCM keeps its saved
 settings and behaves like stock v0.1.1 apart from the button changes.
 
+A VESC that stops answering (package install/update, VESC reboot) no longer
+puts the module into a latched, beeping fault unless you are riding; a
+mid-ride comm fault clears itself when the VESC answers again.
+
 ## Protocol
 
 VP appends a block to refloat's `COMMAND_LCM_POLL` reply (bytes 0-14 are
-unchanged; 12 = headlight %, 14 = status bar % as before):
+unchanged; 12 = headlight %, 14 = status bar % as before - VP sends the
+riding or idle level for each depending on whether the board is engaged,
+and 13 = the idle headlight %):
 
 | Byte | Meaning |
 | --- | --- |
 | 15 | magic `0x56` ('V') |
 | 16 | version `1` |
-| 17 | flags: bit0 headlights on, bit1 status bar on, bit2 beeper on |
+| 17 | flags: bit0 headlights on, bit1 status bar on, bit2 beeper on, bit3 toggles once per test-beep request (one 160 ms beep) |
 | 18 | idle animation |
 | 19 | riding animation |
 | 20 | dozing (snooze) animation |

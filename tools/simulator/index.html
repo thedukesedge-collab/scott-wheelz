@@ -78,6 +78,22 @@
   .secTitle:not(.neonL) { color: var(--green); font-family: Orbitron, monospace; font-size: 15px; letter-spacing: .04em; text-shadow: 0 0 6px rgba(57,255,122,.45); }
   .pills { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
   .pill { border: 2px solid var(--purple); color: var(--purple); border-radius: 999px; padding: 6px 14px; font-family: Orbitron, monospace; font-size: 11px; cursor: pointer; }
+  .ledTiles { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 10px 6px 0; }
+  .ledTile { position: relative; height: 92px; border: 2px solid var(--purple); border-radius: 12px; background: #0b0718; cursor: pointer; padding: 8px 10px; box-sizing: border-box; }
+  .ledTile.lit { border-color: var(--green); }
+  .ledTile:active { background: #1b2a1f; }
+  .ledTile .g { position: absolute; left: 9px; top: 6px; font-size: 20px; color: var(--purple); }
+  .ledTile.lit .g { color: var(--green); }
+  .ledTile .sw { position: absolute; right: 10px; top: 10px; width: 14px; height: 14px; border-radius: 50%; }
+  .ledTile b { position: absolute; left: 10px; bottom: 26px; font-family: Orbitron, monospace; font-size: 13px; color: var(--green); }
+  .ledTile small { position: absolute; left: 10px; right: 18px; bottom: 7px; font-size: 9px; color: #ead6ff; line-height: 1.2; }
+  .ledTile i { position: absolute; right: 8px; bottom: 4px; font-style: normal; font-size: 20px; color: var(--purple); }
+  .ledSec { display: none; }
+  .ledSec.on { display: block; }
+  .ledHint { font-size: 11px; color: var(--text); margin: 8px 4px; }
+  #ledBeepHint { text-align: center; }
+  .bigBeep { margin: 18px auto 4px; width: 230px; height: 64px; line-height: 64px; text-align: center; border: 3px solid var(--green); border-radius: 999px; color: var(--green); font-family: Orbitron, monospace; font-size: 17px; cursor: pointer; }
+  .bigBeep:active { background: var(--green); color: var(--bg); }
   .pill.on { background: var(--green); border-color: var(--green); color: var(--bg); }
   .fly { margin: 8px auto; width: 70%; border: 3px solid var(--purple); border-radius: 12px; background: #140a26; color: var(--purple); text-align: center; padding: 12px 4px; font-family: Orbitron, monospace; letter-spacing: .08em; cursor: pointer; box-shadow: 0 0 10px rgba(177,76,255,.3); }
   .fly.spin { border-color: var(--green); color: var(--green); background: #0e2a1a; box-shadow: 0 0 18px rgba(57,255,122,.8); }
@@ -240,23 +256,46 @@
         <div class="page" id="pgLeds">
           <div style="border:2px solid #FFB300;background:#2A1F00;color:#FFB300;border-radius:8px;padding:7px 8px;margin:4px 6px;font-size:11px;text-align:center"><b>&#9888; UPDATED LCM FIRMWARE REQUIRED</b><br>These settings only work on ADV100 controllers (XRV, GTV, PintV) with the light module flashed to the ALCM VP firmware. On any other controller or LCM firmware they do nothing.</div>
           <p id="ledNote" style="font-size:11px;color:var(--text);text-align:center;margin:4px 6px"></p>
-          <div class="secTitle">Headlights</div>
-          <div class="pills"><div class="pill" id="ledHeadPill"></div></div>
-          <div id="ledHeadSteps"></div>
-          <div class="secTitle">Status bar</div>
-          <div class="pills"><div class="pill" id="ledBarPill"></div></div>
-          <div id="ledBarSteps"></div>
-          <div class="secTitle">Animations</div>
-          <div id="ledAnimSteps"></div>
-          <div id="ledColorSteps"></div>
-          <div id="ledSwatch" style="height:8px;border-radius:4px;width:70%;margin:4px auto 0"></div>
-          <div class="secTitle">Sound</div>
-          <div class="pills"><div class="pill" id="ledBeepPill"></div></div>
+          <div class="ledTiles">
+            <div class="ledTile" data-w="head"><span class="g">&#9673;</span><b>HEADLIGHTS</b><small id="ltHead"></small><i>&#8250;</i></div>
+            <div class="ledTile" data-w="bar"><span class="g">&#9609;</span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
+            <div class="ledTile" data-w="anim"><span class="g">&#10022;</span><span class="sw" id="ltSw"></span><b>ANIMATIONS</b><small id="ltAnim"></small><i>&#8250;</i></div>
+            <div class="ledTile" data-w="sound"><span class="g">&#9834;</span><b>SOUND</b><small id="ltSound"></small><i>&#8250;</i></div>
+          </div>
+          <p style="font-size:11px;color:var(--text);text-align:center;margin:8px 6px">Headlight and status bar levels are kept in step with Refloat's LED settings (VESC Tool &#8250; Refloat Cfg &#8250; LEDs), both ways.</p>
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf56 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf57 · sim</span></div>
     </div>
+  </div>
+
+  <div id="ledWin" style="position:absolute;inset:0;z-index:46;display:none;flex-direction:column;gap:8px;background:#0b0718;border:2px solid var(--purple);padding:12px">
+    <div style="display:flex;align-items:center;gap:6px"><div class="pill" id="ledWinBack">&#8249;</div><span class="neonL" id="ledWinTitle" style="flex:1;text-align:center;font-size:17px"></span><div class="pill" id="ledWinClose">&#10005;</div></div>
+    <div style="height:2px;background:var(--purple);opacity:.6"></div>
+    <div style="flex:1;overflow-y:auto">
+      <div class="ledSec" data-s="head">
+        <div class="pills"><div class="pill" id="ledHeadPill"></div></div>
+        <div id="ledHeadSteps"></div>
+        <p class="ledHint">RIDING applies while the board is engaged, IDLE the rest of the time. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle).</p>
+      </div>
+      <div class="ledSec" data-s="bar">
+        <div class="pills"><div class="pill" id="ledBarPill"></div></div>
+        <div id="ledBarSteps"></div>
+        <p class="ledHint">Same as Refloat's Status Idle Brightness (idle) and Status Brightness (riding).</p>
+      </div>
+      <div class="ledSec" data-s="anim">
+        <div id="ledAnimSteps"></div>
+        <div id="ledColorSteps"></div>
+        <div id="ledSwatch" style="height:8px;border-radius:4px;width:70%;margin:4px auto 0"></div>
+      </div>
+      <div class="ledSec" data-s="sound">
+        <div class="pills"><div class="pill" id="ledBeepPill"></div></div>
+        <div id="ledTestBeep" class="bigBeep">&#9834;&nbsp; TEST BEEP</div>
+        <p class="ledHint" id="ledBeepHint"></p>
+      </div>
+    </div>
+    <p style="font-size:10px;color:#FFB300;text-align:center;margin:0">&#9888; ADV100 (XRV / GTV / PintV) + ALCM VP light module firmware only</p>
   </div>
 
   <div id="myMelBack" style="position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:44;display:none"></div>
@@ -812,7 +851,7 @@ $('hornReset').onclick = () => { Object.assign(P, { hBeep: 2.5, hBeepHz: 495, hB
 // ---------- LEDS tab (light module, ALCM VP firmware; simulated) ----------
 const LED_ANIMS = ['STANDARD', 'RAINBOW SCAN', 'RAINBOW MIRROR', 'KNIGHT RIDER', 'RAINBOW BAR', 'THE FUZZ', 'FIRE',
   'PULSE OUT', 'PULSE IN', '120 SCROLL', 'COMP. WAVE', 'CLASSIC', 'COLOR SCAN'];
-const LED_DEF = { ledCfg: false, ledHead: true, ledBar: true, ledBeep: true, ledHeadPct: 80, ledIdlePct: 80, ledRidePct: 80,
+const LED_DEF = { ledCfg: false, ledHead: true, ledBar: true, ledBeep: true, ledHeadPct: 80, ledHeadIdlePct: 50, ledIdlePct: 80, ledRidePct: 80,
   ledAnimIdle: 0, ledAnimRide: 0, ledAnimDoze: 0, ledAnimBoot: 11, ledAnimShut: 0, ledColor: 200 };
 for (const k in LED_DEF) if (P[k] === undefined) P[k] = LED_DEF[k];
 function ledStep(box, k, label, mn, mx, stp, fmt, wide) {
@@ -835,10 +874,18 @@ function renderLedsSoft() {
   const pill = (id, on, txt) => { $(id).textContent = txt + (on ? ' ON' : ' OFF'); $(id).classList.toggle('on', on); };
   pill('ledHeadPill', P.ledHead, 'HEADLIGHTS'); pill('ledBarPill', P.ledBar, 'STATUS BAR'); pill('ledBeepPill', P.ledBeep, 'LCM BEEPER');
   $('ledSwatch').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
+  $('ltSw').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
+  $('ltHead').textContent = P.ledHead ? 'ON · RIDE ' + P.ledHeadPct + '% · IDLE ' + P.ledHeadIdlePct + '%' : 'OFF';
+  $('ltBar').textContent = P.ledBar ? 'ON · RIDE ' + P.ledRidePct + '% · IDLE ' + P.ledIdlePct + '%' : 'OFF';
+  $('ltAnim').textContent = 'IDLE ' + LED_ANIMS[P.ledAnimIdle] + ' · RIDE ' + LED_ANIMS[P.ledAnimRide];
+  $('ltSound').textContent = (P.ledBeep ? 'BEEPER ON' : 'BEEPER OFF') + ' · TEST BEEP';
+  document.querySelectorAll('.ledTile').forEach(t => t.classList.toggle('lit', t.dataset.w === 'head' ? P.ledHead : t.dataset.w === 'bar' ? P.ledBar : t.dataset.w === 'sound' ? P.ledBeep : true));
+  $('ledBeepHint').textContent = P.ledBeep ? "The light module plays one short beep. No beep = the module isn't running the ALCM VP firmware or isn't connected."
+    : 'The LCM beeper is off, so the test beep is silent. Turn it on above first.';
 }
 function renderLeds() {
   const pct = v => v + '%';
-  $('ledHeadSteps').innerHTML = ''; ledStep($('ledHeadSteps'), 'ledHeadPct', 'BRIGHTNESS', 0, 100, 5, pct);
+  $('ledHeadSteps').innerHTML = ''; ledStep($('ledHeadSteps'), 'ledHeadPct', 'RIDING BRIGHTNESS', 0, 100, 5, pct); ledStep($('ledHeadSteps'), 'ledHeadIdlePct', 'IDLE BRIGHTNESS', 0, 100, 5, pct);
   $('ledBarSteps').innerHTML = ''; ledStep($('ledBarSteps'), 'ledIdlePct', 'IDLE BRIGHTNESS', 0, 100, 5, pct); ledStep($('ledBarSteps'), 'ledRidePct', 'RIDING BRIGHTNESS', 0, 100, 5, pct);
   $('ledAnimSteps').innerHTML = '';
   [['ledAnimIdle', 'IDLE'], ['ledAnimRide', 'RIDING'], ['ledAnimDoze', 'SNOOZE'], ['ledAnimBoot', 'BOOT'], ['ledAnimShut', 'SHUTDOWN']]
@@ -847,6 +894,27 @@ function renderLeds() {
   renderLedsSoft();
 }
 const ledToggle = k => () => { P[k] = !P[k]; P.ledCfg = true; save(); renderLedsSoft(); };
+const LED_TITLES = { head: 'HEADLIGHTS', bar: 'STATUS BAR', anim: 'ANIMATIONS', sound: 'SOUND' };
+const ledWin = w => {
+  $('ledWin').style.display = w ? 'flex' : 'none';
+  if (!w) return;
+  $('ledWinTitle').textContent = LED_TITLES[w];
+  document.querySelectorAll('.ledSec').forEach(x => x.classList.toggle('on', x.dataset.s === w));
+};
+document.querySelectorAll('.ledTile').forEach(t => t.onclick = () => ledWin(t.dataset.w));
+$('ledWinBack').onclick = $('ledWinClose').onclick = () => ledWin(null);
+$('ledTestBeep').onclick = () => {
+  P.ledCfg = true; save(); renderLedsSoft();
+  if (!P.ledBeep) { toast('Test beep sent - turn the LCM beeper on to hear it'); return; }
+  toast('Test beep sent to the light module');
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    const ac = playMelody.ac || (playMelody.ac = new AC()); if (ac.state === 'suspended') ac.resume();
+    const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + 0.02;
+    o.type = 'square'; o.frequency.value = 2700; g.gain.setValueAtTime(0.03, t); g.gain.setValueAtTime(0, t + 0.16);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.18);
+  } catch (e) {}
+};
 $('ledHeadPill').onclick = ledToggle('ledHead'); $('ledBarPill').onclick = ledToggle('ledBar'); $('ledBeepPill').onclick = ledToggle('ledBeep');
 
 // ---------- flywheel ----------

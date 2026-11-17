@@ -1,39 +1,3 @@
-static void lcm_vp_load(Data *d) {
-    uint32_t w[LCM_VP_EEPROM_WORDS];
-    for (int i = 0; i < LCM_VP_EEPROM_WORDS; ++i) {
-        eeprom_var v;
-        if (!VESC_IF->read_eeprom_var(&v, LCM_VP_EEPROM_ADDR + i)) {
-            if (i < 3) {
-                return;
-            }
-            v.as_u32 = 0;  // idle headlight word not written yet: idle = riding
-        }
-        w[i] = v.as_u32;
-        d->lcm_vp_saved[i] = w[i];
-    }
-    lcm_vp_unpack(&d->lcm, w);
-}
-
-static void lcm_vp_save_if_due(Data *d) {
-    if (!d->lcm_vp_save_pending || d->state.state == STATE_RUNNING ||
-        !timer_older(&d->time, d->lcm_vp_change_time, 2.0f)) {
-        return;
-    }
-    d->lcm_vp_save_pending = false;
-    uint32_t w[LCM_VP_EEPROM_WORDS];
-    lcm_vp_pack(&d->lcm, w);
-    for (int i = 0; i < LCM_VP_EEPROM_WORDS; ++i) {
-        if (w[i] != d->lcm_vp_saved[i]) {
-            eeprom_var v = {.as_u32 = w[i]};
-            if (!VESC_IF->store_eeprom_var(&v, LCM_VP_EEPROM_ADDR + i)) {
-                log_error("Failed to save light module settings.");
-                return;
-            }
-            d->lcm_vp_saved[i] = w[i];
-        }
-    }
-}
-
 // Copyright 2019 - 2022 Mitch Lustig
 // Copyright 2022 Benjamin Vedder <benjamin@vedder.se>
 // Copyright 2024 Lukas Hrazky
@@ -1371,17 +1335,20 @@ static void horn_settings_queue_save(Data *d, uint32_t w0, uint32_t w1) {
     }
 }
 
-// Re-Float Rink-Mixed: light module (ALCM VP) settings in 3 custom EEPROM
-// words (80-82, right after the 80-word config). Saved like the horn
+// Re-Float Rink-Mixed: light module (ALCM VP) settings in 4 custom EEPROM
+// words (80-83, right after the 80-word config). Saved like the horn
 // settings: 2 s after the last change, never while riding.
 #define LCM_VP_EEPROM_ADDR 80  // 4 words: 80-83
 
 static void lcm_vp_load(Data *d) {
-    uint32_t w[3];
-    for (int i = 0; i < 3; ++i) {
+    uint32_t w[LCM_VP_EEPROM_WORDS];
+    for (int i = 0; i < LCM_VP_EEPROM_WORDS; ++i) {
         eeprom_var v;
         if (!VESC_IF->read_eeprom_var(&v, LCM_VP_EEPROM_ADDR + i)) {
-            return;
+            if (i < 3) {
+                return;
+            }
+            v.as_u32 = 0;  // idle headlight word not written yet: idle = riding
         }
         w[i] = v.as_u32;
         d->lcm_vp_saved[i] = w[i];
@@ -1395,9 +1362,9 @@ static void lcm_vp_save_if_due(Data *d) {
         return;
     }
     d->lcm_vp_save_pending = false;
-    uint32_t w[3];
+    uint32_t w[LCM_VP_EEPROM_WORDS];
     lcm_vp_pack(&d->lcm, w);
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < LCM_VP_EEPROM_WORDS; ++i) {
         if (w[i] != d->lcm_vp_saved[i]) {
             eeprom_var v = {.as_u32 = w[i]};
             if (!VESC_IF->store_eeprom_var(&v, LCM_VP_EEPROM_ADDR + i)) {
