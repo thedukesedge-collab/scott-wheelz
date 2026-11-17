@@ -19,6 +19,7 @@
 
 #include "alert_tracker.h"
 #include "atr.h"
+#include "battery_curve.h"
 #include "bms.h"
 #include "booster.h"
 #include "brake_tilt.h"
@@ -78,6 +79,10 @@ typedef struct {
     Leds leds;
     LcmData lcm;
     LcmFw lcm_fw;  // LCM firmware update relay
+    BatteryCurve battery_curve;  // battery % for the LCM status bar
+    volatile bool battery_save_pending;
+    volatile time_t battery_change_time;
+    uint32_t battery_saved[4];
     Charging charging;
     BMS bms;
 

@@ -2,6 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include "lcm.h"
+#include "battery_curve.h"
 #include "vesc_c_if.h"
 static uint8_t sent[128]; static unsigned sent_len;
 static int f(void){return 0;} static float c(void){return 1.5f;} static float v(void){return 84.2f;}
@@ -23,14 +24,17 @@ int main(void){
     lcm_poll_response(&lcm, &st, 0, &md, 0);
     /* package buffer = ALCM payload minus the leading COMM_CUSTOM_APP_DATA (36)
        byte, so ALCM offset N is package index N-1; ALCM sees 25 bytes */
-    assert(sent_len == 24);
+    assert(sent_len == 25);
     assert(sent[11]==80 && sent[12]==80 && sent[13]==30);  /* idle: status idle % */
     assert(sent[14]==0x56 && sent[15]==1 && sent[16]==0x06);
     assert(sent[17]==4 && sent[18]==6 && sent[19]==9 && sent[20]==11 && sent[21]==0);
     assert(sent[22]==0x01 && sent[23]==0x2C);
+    assert(sent[24]==0xFF);  /* no battery curve: the LCM uses the VESC's % */
+    lcm.vp_battery = 57; lcm_poll_response(&lcm, &st, 0, &md, 0);
+    assert(sent[24]==57); lcm.vp_battery = 0xFF;
     /* riding: status riding % */
     st.state = STATE_RUNNING; lcm_poll_response(&lcm, &st, 0, &md, 0);
-    assert(sent[13]==90 && sent_len==24);
+    assert(sent[13]==90 && sent_len==25);
     assert(sent[11]==80 && sent[12]==80);  /* 11-byte form: idle headlight = riding */
     /* 12-byte form: headlight idle 25 % - riding 80 %, idle 25 % */
     uint8_t in12[12] = {0x06, 80, 30, 90, 4, 6, 9, 11, 0, 0x01, 0x2C, 25};
@@ -62,6 +66,40 @@ int main(void){
     assert(l4.vp.valid && l4.vp.headlight_idle_brightness==80);
     /* bad magic: not loaded */
     w[0] &= 0x00FFFFFF; LcmData l3; memset(&l3,0,sizeof l3); lcm_vp_unpack(&l3, w); assert(!l3.vp.valid);
+    /* battery curve: p42a points (cell mV at 100..0 %) */
+    {
+        BatteryCurve bc; battery_curve_init(&bc);
+        uint8_t set[13] = {1, 0, 170, 156, 144, 135, 127, 119, 111, 104, 96, 84, 50};
+        assert(battery_curve_set(&bc, set, 13));
+        assert(!battery_curve_set(&bc, set, 13));       /* unchanged */
+        assert(battery_curve_update(&bc, 0, 0, 18) == 0xFF);   /* no voltage */
+        BatteryCurve b2; battery_curve_init(&b2); battery_curve_set(&b2, set, 13);
+        assert(battery_curve_update(&b2, 4.2f * 18, 0, 18) == 100);
+        BatteryCurve b3; battery_curve_init(&b3); battery_curve_set(&b3, set, 13);
+        assert(battery_curve_update(&b3, 3.690f * 18, 0, 18) == 50);  /* exactly the 50 % point */
+        BatteryCurve b4; battery_curve_init(&b4); battery_curve_set(&b4, set, 13);
+        uint8_t q = battery_curve_update(&b4, 3.730f * 18, 0, 18);   /* halfway 50..60 % (3.69..3.77 V) */
+        assert(q == 55);
+        BatteryCurve b5; battery_curve_init(&b5); battery_curve_set(&b5, set, 13);
+        assert(battery_curve_update(&b5, 2.9f * 18, 0, 18) == 0);
+        /* sag compensation: 3.60 V/cell at 20 A with 126 mOhm (63 x 2) -> +2.52 V */
+        uint8_t sag[13]; memcpy(sag, set, 13); sag[1] = 63;
+        BatteryCurve b6; battery_curve_init(&b6); battery_curve_set(&b6, sag, 13);
+        uint8_t r6 = battery_curve_update(&b6, 3.60f * 18 - 2.52f, 20.0f, 18);
+        BatteryCurve b7; battery_curve_init(&b7); battery_curve_set(&b7, set, 13);
+        assert(r6 == battery_curve_update(&b7, 3.60f * 18, 0, 18));
+        /* rising curve rejected */
+        uint8_t bad[13]; memcpy(bad, set, 13); bad[6] = bad[5];
+        BatteryCurve b8; battery_curve_init(&b8);
+        assert(!battery_curve_set(&b8, bad, 13) && !b8.enabled);
+        /* off -> 0xFF; EEPROM round trip */
+        uint32_t w[4]; battery_curve_pack(&bc, w);
+        BatteryCurve b9; battery_curve_init(&b9); battery_curve_unpack(&b9, w);
+        assert(b9.enabled && memcmp(b9.points, bc.points, 11) == 0);
+        set[0] = 0; battery_curve_set(&bc, set, 13);
+        assert(battery_curve_update(&bc, 70, 0, 18) == 0xFF);
+        printf("battery curve tests passed\n");
+    }
     printf("lcm VP tests passed (reply %u bytes + command byte = %u at ALCM, max 32)\n", sent_len, sent_len + 1);
     return 0;
 }

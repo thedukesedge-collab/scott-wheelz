@@ -1170,6 +1170,7 @@ static void write_cfg_to_eeprom(Data *d) {
 
 static void horn_settings_save_if_due(Data *d);
 static void lcm_vp_save_if_due(Data *d);
+static void battery_curve_save_if_due(Data *d);
 
 static void aux_thd(void *arg) {
     Data *d = (Data *) arg;
@@ -1191,6 +1192,7 @@ static void aux_thd(void *arg) {
 
         horn_settings_save_if_due(d);
         lcm_vp_save_if_due(d);
+        battery_curve_save_if_due(d);
 
         if (timer_older(&d->time, motor_config_refresh_timer, 0.5)) {
             motor_data_refresh_motor_config(
@@ -1376,6 +1378,71 @@ static void lcm_vp_save_if_due(Data *d) {
     }
 }
 
+// Re-Float Rink-Mixed: battery curve in 4 custom EEPROM words (84-87),
+// saved like the light settings: 2 s after the last change, never while riding
+#define BATTERY_EEPROM_ADDR 84
+#define CMD_LCM_BATTERY 129  // = COMMAND_LCM_BATTERY below
+
+static void battery_curve_load(Data *d) {
+    uint32_t w[4];
+    for (int i = 0; i < 4; ++i) {
+        eeprom_var v;
+        if (!VESC_IF->read_eeprom_var(&v, BATTERY_EEPROM_ADDR + i)) {
+            return;
+        }
+        w[i] = v.as_u32;
+        d->battery_saved[i] = w[i];
+    }
+    battery_curve_unpack(&d->battery_curve, w);
+}
+
+static void battery_curve_save_if_due(Data *d) {
+    if (!d->battery_save_pending || d->state.state == STATE_RUNNING ||
+        !timer_older(&d->time, d->battery_change_time, 2.0f)) {
+        return;
+    }
+    d->battery_save_pending = false;
+    uint32_t w[4];
+    battery_curve_pack(&d->battery_curve, w);
+    // magic word last, so an interrupted save is never half-valid
+    for (int k = 0; k < 4; ++k) {
+        int i = (k + 1) % 4;
+        if (w[i] != d->battery_saved[i]) {
+            eeprom_var v = {.as_u32 = w[i]};
+            if (!VESC_IF->store_eeprom_var(&v, BATTERY_EEPROM_ADDR + i)) {
+                log_error("Failed to save the battery curve.");
+                return;
+            }
+            d->battery_saved[i] = w[i];
+        }
+    }
+}
+
+static int battery_cells(void) {
+    return VESC_IF->get_cfg_int(CFG_PARAM_si_battery_cells);
+}
+
+// reply: 101, 129, 0, enabled, resistance, 11 points, cells, pack voltage
+// (u16, 0.1 V), battery % (0xFF = off)
+static void battery_curve_reply(Data *d) {
+    uint8_t b[3 + BATTERY_CURVE_SET_LENGTH + 4];
+    int ind = 0;
+    BatteryCurve *bc = &d->battery_curve;
+    b[ind++] = 101;
+    b[ind++] = CMD_LCM_BATTERY;
+    b[ind++] = 0;
+    b[ind++] = bc->enabled;
+    b[ind++] = bc->resistance;
+    memcpy(&b[ind], bc->points, BATTERY_CURVE_POINTS);
+    ind += BATTERY_CURVE_POINTS;
+    b[ind++] = battery_cells();
+    uint16_t dv = (uint16_t) (VESC_IF->mc_get_input_voltage_filtered() * 10.0f);
+    b[ind++] = dv >> 8;
+    b[ind++] = dv & 0xFF;
+    b[ind++] = bc->percent;
+    VESC_IF->send_app_data(b, ind);
+}
+
 static void horn_settings_save_if_due(Data *d) {
     if (!d->horn_save_pending || d->state.state == STATE_RUNNING ||
         !timer_older(&d->time, d->horn_change_time, 2.0f)) {
@@ -1446,6 +1513,8 @@ static void data_init(Data *d) {
     lcm_init(&d->lcm, &d->float_conf.hardware.leds);
     lcm_fw_init(&d->lcm_fw);
     lcm_vp_load(d);
+    battery_curve_init(&d->battery_curve);
+    battery_curve_load(d);
     charging_init(&d->charging);
     bms_init(&d->bms);
 
@@ -1513,6 +1582,7 @@ enum {
     COMMAND_LCM_VP_SETTINGS = 126,  // light module (ALCM VP) settings, 12 bytes, see lcm.h
     COMMAND_LCM_TEST_BEEP = 127,  // light module (ALCM VP) test beep, no data
     COMMAND_LCM_FW = 128,  // LCM firmware update relay, see lcm_fw.h
+    COMMAND_LCM_BATTERY = 129,  // battery curve: 0 = get, 1 = set (13 bytes), see battery_curve.h
     COMMAND_LIVE_TONE = 125,  // melody tiles: u8 pitch level (0 = stop), resent every 100 ms
 
     // commands above 200 are unstable and can change protocol at any time
@@ -2545,6 +2615,12 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
     case COMMAND_LCM_POLL: {
         lcm_poll_request(&d->lcm, &buffer[2], len - 2);
         d->lcm.vp_update = lcm_fw_update_flag(&d->lcm_fw, &d->state, &d->time);
+        d->lcm.vp_battery = battery_curve_update(
+            &d->battery_curve,
+            VESC_IF->mc_get_input_voltage_filtered(),
+            VESC_IF->mc_get_tot_current_in_filtered(),
+            battery_cells()
+        );
         lcm_poll_response(&d->lcm, &d->state, d->footpad.state, &d->motor, d->imu.pitch);
         return;
     }
@@ -2677,6 +2753,15 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
     }
     case COMMAND_LCM_FW: {
         lcm_fw_command(&d->lcm_fw, &d->state, &d->time, &buffer[2], len - 2);
+        return;
+    }
+    case COMMAND_LCM_BATTERY: {
+        if (len >= 3 && buffer[2] == 1 &&
+            battery_curve_set(&d->battery_curve, &buffer[3], len - 3)) {
+            d->battery_change_time = d->time.now;
+            d->battery_save_pending = true;
+        }
+        battery_curve_reply(d);
         return;
     }
     case COMMAND_LIVE_TONE: {

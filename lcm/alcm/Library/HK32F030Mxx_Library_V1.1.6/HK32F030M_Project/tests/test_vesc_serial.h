@@ -1037,6 +1037,47 @@ void test_vesc_serial_vp_block(void **state)
         event_queue_call_mocked_callback(EVENT_SERIAL_DATA_RX, &rx_event_data);
     }
 
+    // Packet 3c: battery % 57 from the package's curve (26-byte reply,
+    // nothing else changes); the next VESC values reply (battery 99.9 %)
+    // publishes 57.0 % instead
+    {
+        uint8_t payload[] = {0x24, 0x65, 0x18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 0, 30,
+                             0x56, 1, 0x0B, (uint8_t)ANIMATION_OPTION_RAINBOW_BAR,
+                             (uint8_t)ANIMATION_OPTION_FIRE,
+                             (uint8_t)ANIMATION_OPTION_120_SCROLL,
+                             (uint8_t)ANIMATION_OPTION_FLOATWHEEL_CLASSIC,
+                             (uint8_t)ANIMATION_OPTION_NONE, 0x01, 0x2C, 57};
+
+        vp_push_packet(rx_buffer, payload, (uint8_t)sizeof(payload));
+        event_queue_call_mocked_callback(EVENT_SERIAL_DATA_RX, &rx_event_data);
+    }
+    {
+        uint8_t values[] = {0x33, 0x00, 0x01, 0x01, 0xb8,
+                            0x00, 0x00, 0x01, 0xf4,
+                            0x00, 0xfa,
+                            0x00, 0x00, 0x03, 0xe8,
+                            0x01, 0x86,
+                            0x03, 0xe7,
+                            0x00};
+        int16_t expected_battery_level = 570;
+
+        expect_value(event_queue_push, event, EVENT_DUTY_CYCLE_CHANGED);
+        expect_any(event_queue_push, data);
+        expect_value(event_queue_push, event, EVENT_RPM_CHANGED);
+        expect_any(event_queue_push, data);
+#if defined(ENABLE_VOLTAGE_MONITORING)
+        expect_value(event_queue_push, event, EVENT_VOLTAGE_CHANGED);
+        expect_any(event_queue_push, data);
+#endif
+        expect_value(event_queue_push, event, EVENT_BATTERY_LEVEL_CHANGED);
+        expect_check(event_queue_push, data, validate_battery_level_event_data,
+                     (uintmax_t)&expected_battery_level);
+
+        vp_push_packet(rx_buffer, values, (uint8_t)sizeof(values));
+        event_queue_call_mocked_callback(EVENT_SERIAL_DATA_RX, &rx_event_data);
+        assert_int_equal(570, vesc_serial_get_battery_level());
+    }
+
     // Packet 4: wrong magic - stock behavior: this first non-VP reply only
     // records the brightness baseline, nothing applied
     {

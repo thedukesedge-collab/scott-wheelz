@@ -264,13 +264,14 @@
             <div class="ledTile" data-w="bar"><span class="g">&#9609;</span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
             <div class="ledTile" data-w="anim"><span class="g">&#10022;</span><span class="sw" id="ltSw"></span><b>ANIMATIONS</b><small id="ltAnim"></small><i>&#8250;</i></div>
             <div class="ledTile" data-w="sound"><span class="g">&#9834;</span><b>SOUND</b><small id="ltSound"></small><i>&#8250;</i></div>
-            <div class="ledTile wide" data-w="fw"><span class="g">&#8635;</span><b>LCM FIRMWARE</b><small id="ltFw"></small><i>&#8250;</i></div>
+            <div class="ledTile" data-w="battery"><span class="g">&#9646;</span><b>BATTERY GAUGE</b><small id="ltBat"></small><i>&#8250;</i></div>
+            <div class="ledTile" data-w="fw"><span class="g">&#8635;</span><b>LCM FIRMWARE</b><small id="ltFw"></small><i>&#8250;</i></div>
           </div>
           <p style="font-size:11px;color:var(--text);text-align:center;margin:8px 6px">Headlight and status bar levels are kept in step with Refloat's LED settings (VESC Tool &#8250; Refloat Cfg &#8250; LEDs), both ways.</p>
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf59 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf60 · sim</span></div>
     </div>
   </div>
 
@@ -292,6 +293,15 @@
         <div id="ledAnimSteps"></div>
         <div id="ledColorSteps"></div>
         <div id="ledSwatch" style="height:8px;border-radius:4px;width:70%;margin:4px auto 0"></div>
+      </div>
+      <div class="ledSec" data-s="battery">
+        <div class="pills"><div class="pill" id="batPill"></div></div>
+        <p class="ledHint" id="batLive" style="text-align:center;color:var(--green)"></p>
+        <div class="pills" id="batPresets"></div>
+        <div class="secTitle">Volts per cell</div>
+        <div id="batSteps"></div>
+        <div id="batResStep"></div>
+        <p class="ledHint">The package turns the battery voltage into a % with this curve and sends it to the LCM status bar (ALCM VP firmware), instead of the VESC's own %. Cell count comes from the VESC motor config (Additional Info &#8250; battery cells in series). Presets are Floatwheel's own tables. P28A isn't one of them: start from VTC6 (also an 18650 high-drain cell) and adjust the points. SAG COMP. is the pack's resistance: it adds back the voltage drop while riding, so the gauge doesn't dip under load (for 18s2p P28A roughly 100-150 m&#937;; 0 = off).</p>
       </div>
       <div class="ledSec" data-s="fw">
         <p class="ledHint">Firmware in this package: ALCM VP build (simulated, 14592 bytes).</p>
@@ -899,6 +909,14 @@ function renderLedsSoft() {
   $('ltBar').textContent = P.ledBar ? 'ON · RIDE ' + P.ledRidePct + '% · IDLE ' + P.ledIdlePct + '%' : 'OFF';
   $('ltAnim').textContent = 'IDLE ' + LED_ANIMS[P.ledAnimIdle] + ' · RIDE ' + LED_ANIMS[P.ledAnimRide];
   $('ltSound').textContent = (P.ledBeep ? 'BEEPER ON' : 'BEEPER OFF') + ' · TEST BEEP';
+  for (let i = 0; i < 11; i++) { const v = P['batPt' + i]; if (v !== undefined && v !== P.batPts[i]) { P.batPts[i] = v; P.batPreset = 'CUSTOM'; save(); } }
+  $('ltBat').textContent = P.batOn ? P.batPreset + ' CURVE' : 'VESC BATTERY %';
+  $('batPill').textContent = 'BATTERY CURVE ' + (P.batOn ? 'ON' : 'OFF'); $('batPill').classList.toggle('on', P.batOn);
+  document.querySelectorAll('#batPresets .pill').forEach(x => x.classList.toggle('on', x.textContent === P.batPreset));
+  { const cells = 18, v = S.volts * 18 / 20, mv = v * 1000 / cells, p = P.batPts.map(x => 2500 + 10 * x);
+    let pct = mv >= p[0] ? 100 : mv <= p[10] ? 0 : 0;
+    for (let i = 0; i < 10; i++) if (mv < p[i] && mv >= p[i + 1]) pct = 100 - 10 * i - 10 * (p[i] - mv) / (p[i] - p[i + 1]);
+    $('batLive').textContent = 'Now: ' + v.toFixed(1) + ' V · ' + cells + ' cells · ' + (v / cells).toFixed(2) + ' V/cell → ' + (P.batOn ? Math.round(pct) + ' %' : "VESC's own %"); }
   $('ltFw').textContent = FW.active ? 'FLASHING · ' + Math.round(FW.p * 100) + '%' : 'FLASH LCM FROM THE APP · BOOTLOADER LCMs ONLY';
   document.querySelectorAll('.ledTile').forEach(t => t.classList.toggle('lit', t.dataset.w === 'head' ? P.ledHead : t.dataset.w === 'bar' ? P.ledBar : t.dataset.w === 'sound' ? P.ledBeep : true));
   $('ledBeepHint').textContent = P.ledBeep ? "The light module plays one short beep. No beep = the module isn't running the ALCM VP firmware or isn't connected."
@@ -911,11 +929,27 @@ function renderLeds() {
   $('ledAnimSteps').innerHTML = '';
   [['ledAnimIdle', 'IDLE'], ['ledAnimRide', 'RIDING'], ['ledAnimDoze', 'SNOOZE'], ['ledAnimBoot', 'BOOT'], ['ledAnimShut', 'SHUTDOWN']]
     .forEach(([k, l]) => ledStep($('ledAnimSteps'), k, l, 0, LED_ANIMS.length - 1, 1, v => LED_ANIMS[v], true));
+  renderBattery();
   $('ledColorSteps').innerHTML = ''; ledStep($('ledColorSteps'), 'ledColor', 'COLOR', 0, 350, 10, v => v + '°');
   renderLedsSoft();
 }
 const ledToggle = k => () => { P[k] = !P[k]; P.ledCfg = true; save(); renderLedsSoft(); };
-const LED_TITLES = { head: 'HEADLIGHTS', bar: 'STATUS BAR', anim: 'ANIMATIONS', sound: 'SOUND', fw: 'LCM FIRMWARE' };
+const BAT_PRESETS = { P42A: [170, 156, 144, 135, 128, 120, 112, 104, 96, 84, 50], '50S': [170, 158, 154, 140, 132, 124, 114, 102, 88, 66, 50],
+  DG40: [170, 155, 144, 137, 130, 122, 110, 100, 88, 74, 50], VTC6: [170, 156, 152, 140, 132, 124, 116, 106, 96, 79, 50], RS50: [170, 156, 150, 139, 129, 117, 103, 89, 70, 49, 20] };
+if (P.batOn === undefined) { P.batOn = false; P.batPreset = 'VTC6'; P.batPts = BAT_PRESETS.VTC6.slice(); P.batRes = 0; }
+function renderBattery() {
+  $('batSteps').innerHTML = '';
+  for (let i = 0; i < 11; i++) {
+    const key = 'batPt' + i; P[key] = P.batPts[i];
+    const lo = i < 10 ? P.batPts[i + 1] + 1 : 0, hi = i > 0 ? P.batPts[i - 1] - 1 : 255;
+    ledStep($('batSteps'), key, (100 - 10 * i) + ' %', lo, hi, 1, v => ((2500 + 10 * v) / 1000).toFixed(2) + ' V');
+  }
+  $('batResStep').innerHTML = ''; ledStep($('batResStep'), 'batRes', 'SAG COMP.', 0, 250, 5, v => (2 * v) + ' mΩ');
+}
+$('batPresets').innerHTML = ['P42A', '50S', 'DG40', 'VTC6', 'RS50', 'CUSTOM'].map(n => '<div class="pill">' + n + '</div>').join('');
+document.querySelectorAll('#batPresets .pill').forEach(x => x.onclick = () => { P.batPreset = x.textContent; if (BAT_PRESETS[P.batPreset]) P.batPts = BAT_PRESETS[P.batPreset].slice(); save(); renderBattery(); renderLedsSoft(); });
+$('batPill').onclick = () => { P.batOn = !P.batOn; save(); renderLedsSoft(); };
+const LED_TITLES = { head: 'HEADLIGHTS', bar: 'STATUS BAR', anim: 'ANIMATIONS', sound: 'SOUND', battery: 'BATTERY GAUGE', fw: 'LCM FIRMWARE' };
 const ledWin = w => {
   $('ledWin').style.display = w ? 'flex' : 'none';
   if (!w) return;

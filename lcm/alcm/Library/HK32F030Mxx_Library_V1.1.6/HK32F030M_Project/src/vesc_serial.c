@@ -92,12 +92,15 @@
  *   22  shutdown animation
  *   23  personal color, degrees, high byte
  *   24  personal color, low byte (0-359)
+ *   25  battery % from the package's battery curve (0-100), 0xFF = none:
+ *       use the VESC's (optional, newer packages)
  *
- * The whole reply is 25 bytes, inside MAX_PACKET_LENGTH (32). */
+ * The whole reply is 25 (26) bytes, inside MAX_PACKET_LENGTH (32). */
 #define VP_BLOCK_OFFSET 15U
 #define VP_BLOCK_MAGIC 0x56U
 #define VP_BLOCK_VERSION 1U
 #define VP_REPLY_MIN_LENGTH 25U
+#define VP_BATTERY_OFFSET 25U
 #define VP_FLAG_HEADLIGHTS 0x01U
 #define VP_FLAG_STATUS_LEDS 0x02U
 #define VP_FLAG_BEEP 0x04U
@@ -166,6 +169,7 @@ static uint8_t headlight_remote_baseline = LCM_BASELINE_UNSET;
 static uint8_t status_remote_baseline = LCM_BASELINE_UNSET;
 #ifdef VP_LIGHT_CONTROL
 static uint8_t vp_test_beep_last = 0xFFU; // 0xFF: no VP block seen yet
+static int16_t vp_battery_level = -1;      // tenths of a %, -1: the VESC's
 #endif
 static bool_t vesc_locked = false;
 #endif
@@ -205,6 +209,7 @@ lcm_status_t vesc_serial_init(void)
     status_remote_baseline = LCM_BASELINE_UNSET;
 #ifdef VP_LIGHT_CONTROL
     vp_test_beep_last = 0xFFU;
+    vp_battery_level = -1;
 #endif
     vesc_locked = false;
 #endif
@@ -591,6 +596,14 @@ void process_comm_get_values_setup_selective(const uint8_t *payload, uint8_t pac
     }
 #endif
 
+#ifdef VP_LIGHT_CONTROL
+    // the package's battery curve, when it sends one, wins
+    if (vp_battery_level >= 0)
+    {
+        values.battery_level = vp_battery_level;
+    }
+#endif
+
     if (values.battery_level != comm_get_values_setup_selective.battery_level)
     {
         event_data_t data = {0};
@@ -866,8 +879,16 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
                             &settings->status_brightness,
                             COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS);
         vp_apply_block(&payload[VP_BLOCK_OFFSET], settings);
+
+        // battery % from the package's curve (takes effect with the next
+        // values reply, at most 250 ms later)
+        vp_battery_level = ((packet_length > VP_BATTERY_OFFSET) &&
+                            (payload[VP_BATTERY_OFFSET] <= 100U))
+                               ? (int16_t)(payload[VP_BATTERY_OFFSET] * 10U)
+                               : -1;
         return;
     }
+    vp_battery_level = -1; // no VP block (any more): the VESC's battery %
 #endif
 
     apply_lcm_brightness(&headlight_remote_baseline, payload[LCM_POLL_HEADLIGHT_BRIGHTNESS_OFFSET],

@@ -579,6 +579,110 @@ Item {
         }
     }
 
+    // Re-RinkFloat: battery curve for the LCM status bar. The package turns
+    // the pack voltage into a % with this per-cell curve and sends it to the
+    // LCM in the VP block (src/battery_curve.c). Presets are floatwheel's own
+    // tables (as in lcm/alcm/tools/battery_lut_patch/examples).
+    QtObject {
+        id: batteryCurve
+
+        readonly property var presets: ({
+            "P42A": [170, 156, 144, 135, 128, 120, 112, 104, 96, 84, 50],
+            "50S": [170, 158, 154, 140, 132, 124, 114, 102, 88, 66, 50],
+            "DG40": [170, 155, 144, 137, 130, 122, 110, 100, 88, 74, 50],
+            "VTC6": [170, 156, 152, 140, 132, 124, 116, 106, 96, 79, 50],
+            "RS50": [170, 156, 150, 139, 129, 117, 103, 89, 70, 49, 20]
+        })
+        readonly property var presetNames: ["P42A", "50S", "DG40", "VTC6", "RS50", "CUSTOM"]
+        readonly property var points: {
+            try {
+                var a = JSON.parse(swSettings.batPoints);
+                if (Array.isArray(a) && a.length === 11) return a;
+            } catch (e) {}
+            return presets["VTC6"];
+        }
+
+        // live, from the package
+        property int cells: 0
+        property real volts: 0
+        property int percent: 255
+        property bool synced: false
+
+        function mv(p) { return 2500 + 10 * p; }
+
+        function setPoint(i, p) {
+            var a = points.slice();
+            a[i] = p;
+            swSettings.batPoints = JSON.stringify(a);
+            swSettings.batPreset = "CUSTOM";
+            changed();
+        }
+
+        function choose(name) {
+            swSettings.batPreset = name;
+            if (presets[name]) swSettings.batPoints = JSON.stringify(presets[name]);
+            changed();
+        }
+
+        function send(set) {
+            var data = commands.createData(set ? 16 : 3, commands.c_LCM_BATTERY);
+            data.setUint8(2, set ? 1 : 0);
+            if (set) {
+                data.setUint8(3, swSettings.batCurveOn ? 1 : 0);
+                data.setUint8(4, swSettings.batRes);
+                for (var i = 0; i < 11; i++) data.setUint8(5 + i, points[i]);
+            }
+            vescCommands.sendCustomAppData(data.buffer);
+        }
+
+        function changed() {
+            synced = true;  // our settings win from now on
+            send(true);
+            batteryRetry.restart();
+        }
+
+        // reply: 0, enabled, resistance, 11 points, cells, voltage (u16 0.1 V), %
+        function onReply(dv, ind) {
+            if (dv.byteLength < ind + 18 || dv.getUint8(ind++) !== 0) return;
+            var on = dv.getUint8(ind++) !== 0;
+            var res = dv.getUint8(ind++);
+            var pts = [];
+            for (var i = 0; i < 11; i++) pts.push(dv.getUint8(ind++));
+            cells = dv.getUint8(ind++);
+            volts = dv.getUint16(ind) / 10; ind += 2;
+            percent = dv.getUint8(ind++);
+            if (!synced) {
+                // first reply after connecting: show what the board has
+                synced = true;
+                if (pts[0] > pts[10]) {
+                    swSettings.batCurveOn = on;
+                    swSettings.batRes = res;
+                    var name = "CUSTOM";
+                    for (var k in presets) {
+                        if (JSON.stringify(presets[k]) === JSON.stringify(pts)) name = k;
+                    }
+                    swSettings.batPreset = name;
+                    swSettings.batPoints = JSON.stringify(pts);
+                }
+            }
+        }
+
+        property Timer retry: Timer {
+            id: batteryRetry
+            interval: 400
+            onTriggered: batteryCurve.send(true)
+        }
+
+        // live readout while the window is open
+        property Timer poll: Timer {
+            interval: 1000
+            repeat: true
+            running: ledWindow.visible && ledWindow.section === "battery"
+            triggeredOnStart: true
+            onTriggered: batteryCurve.send(false)
+        }
+    }
+
     // Re-RinkFloat: saved melodies, kept in the app (swSettings.savedMelodies,
     // JSON [{name, notes: [[level, ms], ...]}]). The board only holds the one
     // custom melody in use (swSettings.melodyRec); choosing a saved melody
@@ -1146,6 +1250,7 @@ Item {
         readonly property int c_LCM_VP_SETTINGS: 126  // Re-RinkFloat: light module (ALCM VP)
         readonly property int c_LCM_TEST_BEEP: 127  // Re-RinkFloat: light module test beep
         readonly property int c_LCM_FW: 128  // Re-RinkFloat: LCM firmware update relay
+        readonly property int c_LCM_BATTERY: 129  // Re-RinkFloat: battery curve for the LCM status bar
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
         // Dynamic range: +-131008.0
@@ -1367,6 +1472,8 @@ Item {
                 state.commsState = state.comms_RTDataIDs;
             } else if (msgtype === c_LCM_FW) {
                 lcmFw.onReply(dv, ind);
+            } else if (msgtype === c_LCM_BATTERY) {
+                batteryCurve.onReply(dv, ind);
             } else if (msgtype == c_LIGHTS_CONTROL) {
                 var values = dv.getUint8(ind++);
                 lights.on = values & 0b01;
@@ -1537,6 +1644,11 @@ Item {
         property bool ledBeep: true
         property int ledHeadlightPct: 80
         property int ledHeadlightIdlePct: 50
+        // battery curve for the LCM status bar (computed in the package)
+        property bool batCurveOn: false
+        property string batPreset: "VTC6"
+        property string batPoints: "[170,156,152,140,132,124,116,106,96,79,50]"  // cell mV = 2500 + 10 * p, 100..0 %
+        property int batRes: 0  // pack resistance, 2 mOhm steps
         property int ledStatusIdlePct: 80
         property int ledStatusRidePct: 80
         property int ledAnimIdle: 0
@@ -6182,7 +6294,7 @@ Item {
         closePolicy: Popup.CloseOnEscape
 
         property string section: "head"
-        readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "ANIMATIONS", "sound": "SOUND", "fw": "LCM FIRMWARE"})
+        readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "ANIMATIONS", "sound": "SOUND", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE"})
 
         function show(which) {
             section = which;
@@ -6393,6 +6505,81 @@ Item {
                             text: swSettings.ledBeep
                             ? "The light module plays one short beep. No beep = the module isn't running the ALCM VP firmware or isn't connected."
                             : "The LCM beeper is off, so the test beep is silent. Turn it on above first."
+                        }
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: 0.14 * unit
+                        visible: ledWindow.section === "battery"
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 3.4 * unit
+                            label: swSettings.batCurveOn ? "BATTERY CURVE ON" : "BATTERY CURVE OFF"
+                            lit: swSettings.batCurveOn
+                            onClicked: { swSettings.batCurveOn = !swSettings.batCurveOn; batteryCurve.changed(); }
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            color: swTheme.neonGreen
+                            text: batteryCurve.cells > 0
+                                ? "Now: " + batteryCurve.volts.toFixed(1) + " V \u00B7 " + batteryCurve.cells + " cells \u00B7 "
+                                    + (batteryCurve.volts / batteryCurve.cells).toFixed(2) + " V/cell \u2192 "
+                                    + (batteryCurve.percent <= 100 ? batteryCurve.percent + " %" : "VESC's own %")
+                                : "Waiting for the board..."
+                        }
+
+                        Flow {
+                            width: parent.width
+                            spacing: 0.12 * unit
+                            Repeater {
+                                model: batteryCurve.presetNames
+                                SwPill {
+                                    minWidth: 1.5 * unit
+                                    label: modelData
+                                    lit: swSettings.batPreset === modelData
+                                    onClicked: if (modelData !== "CUSTOM") batteryCurve.choose(modelData); else { swSettings.batPreset = "CUSTOM"; batteryCurve.changed(); }
+                                }
+                            }
+                        }
+
+                        LedHeading { text: "Volts per cell" }
+
+                        Repeater {
+                            model: 11
+                            SwStepper {
+                                label: (100 - 10 * index) + " %"
+                                value: batteryCurve.points[index]
+                                // keep the curve falling: stay between the neighbours
+                                from: index < 10 ? batteryCurve.points[index + 1] + 1 : 0
+                                to: index > 0 ? batteryCurve.points[index - 1] - 1 : 255
+                                step: 1
+                                valueText: (batteryCurve.mv(value) / 1000).toFixed(2) + " V"
+                                onMoved: batteryCurve.setPoint(index, newValue)
+                            }
+                        }
+
+                        SwStepper {
+                            label: "SAG COMP."
+                            value: swSettings.batRes
+                            from: 0; to: 250; step: 5
+                            valueText: (2 * value) + " m\u03A9"
+                            onMoved: { swSettings.batRes = newValue; batteryCurve.changed(); }
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "The package turns the battery voltage into a % with this curve and sends it to the LCM status bar (ALCM VP firmware), instead of the VESC's own %. "
+                                + "Cell count comes from the VESC motor config (Additional Info \u203A battery cells in series). "
+                                + "Presets are Floatwheel's own tables. P28A isn't one of them: start from VTC6 (also an 18650 high-drain cell) and adjust the points. "
+                                + "SAG COMP. is the pack's resistance: it adds back the voltage drop while riding, so the gauge doesn't dip under load (for 18s2p P28A roughly 100-150 m\u03A9; 0 = off)."
                         }
                     }
 
@@ -11428,8 +11615,13 @@ Item {
                                 onClicked: ledWindow.show("sound")
                             }
                             LedTile {
-                                Layout.columnSpan: 2
-                                Layout.preferredHeight: 1.5 * unit
+                                title: "BATTERY GAUGE"
+                                glyph: "\u25AE"
+                                lit: swSettings.batCurveOn
+                                summary: swSettings.batCurveOn ? swSettings.batPreset + " CURVE" : "VESC BATTERY %"
+                                onClicked: ledWindow.show("battery")
+                            }
+                            LedTile {
                                 title: "LCM FIRMWARE"
                                 glyph: "\u21BB"
                                 lit: lcmFw.active

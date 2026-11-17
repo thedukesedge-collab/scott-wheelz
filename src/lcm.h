@@ -75,6 +75,7 @@ typedef struct {
     LcmVpSettings vp;
     bool vp_test_beep;  // toggled by COMMAND_LCM_TEST_BEEP, sent as LCM_VP_FLAG_TEST_BEEP
     bool vp_update;  // set from lcm_fw_update_flag() before each poll reply
+    uint8_t vp_battery;  // battery % from the curve (battery_curve.h), 0xFF = VESC's own
 } LcmData;
 
 void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg);

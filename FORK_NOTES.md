@@ -601,3 +601,17 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   overflow to exploit. The HK32F030M's own boot modes need hardware pins,
   not reachable over the VESC link. So the ALCM VP bootloader still needs one
   ST-Link flash per board.
+
+### Battery curve for the LCM status bar (v1.2.3-rf60)
+- LEDS tab > BATTERY GAUGE: battery curve on/off (off = the VESC's own %),
+  presets from floatwheel's own tables (P42A, 50S, DG40, VTC6, RS50) or a
+  custom curve (11 points, cell volts at 100..0 %, 10 mV steps), sag
+  compensation (pack resistance), live readout (V, cells, V/cell, %).
+- The package computes the % (src/battery_curve.c: per-cell voltage from
+  the VESC's filtered input voltage + I x R, smoothed, interpolated) and
+  sends it as byte 25 of the VP block (0xFF = none). COMMAND_LCM_BATTERY
+  (129): 0 = get, 1 = set; stored in EEPROM words 84-87 (magic 0x42).
+- ALCM VP (both builds): uses that % instead of the VESC's; falls back to
+  the VESC's % when the byte is 0xFF or the VP block stops coming. Replaces
+  the LUT patch tool for the bootloader build (no flashing to change the
+  curve). Cells: VESC motor config (battery cells in series).

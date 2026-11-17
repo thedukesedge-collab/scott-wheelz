@@ -36,6 +36,7 @@ void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg) {
     lcm->vp.valid = false;
     lcm->vp_test_beep = false;
     lcm->vp_update = false;
+    lcm->vp_battery = 0xFF;
 }
 
 void lcm_configure(LcmData *lcm, const Leds *leds) {
@@ -141,6 +142,7 @@ void lcm_poll_response(
             }
             buffer[ind++] = vp->color >> 8;
             buffer[ind++] = vp->color & 0xFF;
+            buffer[ind++] = lcm->vp_battery;  // 0xFF = use the VESC's battery %
             lcm->payload_size = 0;
         } else {
             // LCM control info
