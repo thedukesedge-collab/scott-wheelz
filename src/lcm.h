@@ -43,14 +43,17 @@ typedef enum {
 #define LCM_VP_FLAG_HEADLIGHTS 0x01
 #define LCM_VP_FLAG_STATUS_BAR 0x02
 #define LCM_VP_FLAG_BEEP 0x04
+#define LCM_VP_FLAG_TEST_BEEP 0x08  // toggled on each test-beep request (not stored)
 #define LCM_VP_ANIMATIONS 5  // idle, riding, dozing (snooze), boot, shutdown
 #define LCM_VP_ANIMATION_COUNT 13
-#define LCM_VP_SETTINGS_LENGTH 11  // bytes in COMMAND_LCM_VP_SETTINGS
+#define LCM_VP_SETTINGS_LENGTH 12  // bytes in COMMAND_LCM_VP_SETTINGS (11 accepted)
+#define LCM_VP_EEPROM_WORDS 4
 
 typedef struct {
     bool valid;  // set from the app at least once (otherwise nothing is sent)
     uint8_t flags;
-    uint8_t headlight_brightness;  // %
+    uint8_t headlight_brightness;  // % while riding
+    uint8_t headlight_idle_brightness;  // % when not riding
     uint8_t status_idle_brightness;  // %
     uint8_t status_riding_brightness;  // %
     uint8_t animations[LCM_VP_ANIMATIONS];
@@ -69,6 +72,7 @@ typedef struct {
     uint8_t payload_size;
 
     LcmVpSettings vp;
+    bool vp_test_beep;  // toggled by COMMAND_LCM_TEST_BEEP, sent as LCM_VP_FLAG_TEST_BEEP
 } LcmData;
 
 void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg);
@@ -112,14 +116,22 @@ void lcm_get_battery_response(const LcmData *lcm);
 void lcm_light_ctrl_request(LcmData *lcm, unsigned char *cfg, int len);
 
 /**
- * Re-Float Rink-Mixed: sets the VP light settings from the app (11 bytes:
- * flags, headlight %, status idle %, status riding %, 5 animations, color
- * hi, color lo). Values are clamped. Returns true if anything changed.
+ * Re-Float Rink-Mixed: sets the VP light settings from the app (12 bytes:
+ * flags, headlight riding %, status idle %, status riding %, 5 animations,
+ * color hi, color lo, headlight idle %; the 11-byte form without the last
+ * byte uses the riding % for idle too). Values are clamped. Returns true if
+ * anything changed.
  */
 bool lcm_vp_set(LcmData *lcm, const uint8_t *buffer, int len);
 
 /**
- * Packs / unpacks the VP light settings to / from 3 EEPROM words.
+ * Packs / unpacks the VP light settings to / from LCM_VP_EEPROM_WORDS EEPROM
+ * words (word 3 = headlight idle %; 0 / missing = same as riding).
  */
-void lcm_vp_pack(const LcmData *lcm, uint32_t words[3]);
-void lcm_vp_unpack(LcmData *lcm, const uint32_t words[3]);
+void lcm_vp_pack(const LcmData *lcm, uint32_t words[LCM_VP_EEPROM_WORDS]);
+void lcm_vp_unpack(LcmData *lcm, const uint32_t words[LCM_VP_EEPROM_WORDS]);
+
+/**
+ * Asks the light module for a test beep (VP firmware; needs VP settings).
+ */
+void lcm_vp_test_beep(LcmData *lcm);

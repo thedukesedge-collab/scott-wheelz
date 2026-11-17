@@ -1017,6 +1017,26 @@ void test_vesc_serial_vp_block(void **state)
     assert_int_equal(ANIMATION_OPTION_RAINBOW_BAR, settings->idle_animation);
     assert_int_equal(300U, settings->personal_color);
 
+    // Packet 3b: only the test-beep bit toggles -> one ACK (test beep)
+    {
+        uint8_t payload[] = {0x24, 0x65, 0x18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 0, 30,
+                             0x56, 1, 0x0B, (uint8_t)ANIMATION_OPTION_RAINBOW_BAR,
+                             (uint8_t)ANIMATION_OPTION_FIRE,
+                             (uint8_t)ANIMATION_OPTION_120_SCROLL,
+                             (uint8_t)ANIMATION_OPTION_FLOATWHEEL_CLASSIC,
+                             (uint8_t)ANIMATION_OPTION_NONE, 0x01, 0x2C};
+
+        expect_value(event_queue_push, event, EVENT_COMMAND_ACK);
+        expect_any(event_queue_push, data);
+
+        vp_push_packet(rx_buffer, payload, (uint8_t)sizeof(payload));
+        event_queue_call_mocked_callback(EVENT_SERIAL_DATA_RX, &rx_event_data);
+
+        // same again: no second beep
+        vp_push_packet(rx_buffer, payload, (uint8_t)sizeof(payload));
+        event_queue_call_mocked_callback(EVENT_SERIAL_DATA_RX, &rx_event_data);
+    }
+
     // Packet 4: wrong magic - stock behavior: this first non-VP reply only
     // records the brightness baseline, nothing applied
     {

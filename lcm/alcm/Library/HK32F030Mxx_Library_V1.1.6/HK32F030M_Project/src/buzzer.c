@@ -32,7 +32,11 @@
 #define SEQUENCE_PERIOD_MS 320
 
 // Buzzer sequences
+#ifdef VP_LIGHT_CONTROL
+#define ACK_SEQUENCE 0xFF00 // only used for the app's test beep: one 160 ms beep
+#else
 #define ACK_SEQUENCE 0xC000
+#endif
 #define NACK_SEQUENCE 0xCC00
 #define SHUTDOWN_SEQUENCE 0xC000
 #define DANGER_SEQUENCE 0xF0F0

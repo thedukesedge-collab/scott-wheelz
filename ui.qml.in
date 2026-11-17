@@ -343,7 +343,7 @@ Item {
 
         function send() {
             if (!swSettings.ledConfigured) return;
-            var data = commands.createData(13, commands.c_LCM_VP_SETTINGS);
+            var data = commands.createData(14, commands.c_LCM_VP_SETTINGS);
             data.setUint8(2, (swSettings.ledHeadlights ? 1 : 0) | (swSettings.ledStatusBar ? 2 : 0) | (swSettings.ledBeep ? 4 : 0));
             data.setUint8(3, swSettings.ledHeadlightPct);
             data.setUint8(4, swSettings.ledStatusIdlePct);
@@ -354,6 +354,7 @@ Item {
             data.setUint8(9, swSettings.ledAnimBoot);
             data.setUint8(10, swSettings.ledAnimShutdown);
             data.setUint16(11, swSettings.ledColor);
+            data.setUint8(13, swSettings.ledHeadlightIdlePct);
             vescCommands.sendCustomAppData(data.buffer);
         }
 
@@ -361,6 +362,84 @@ Item {
             swSettings.ledConfigured = true;
             send();
             ledRetryTimer.restart();
+            ledCfgWriteTimer.restart();  // mirror into the Refloat LED config
+        }
+
+        // LCM test beep: settings first (the beep request rides in the VP block)
+        function testBeep() {
+            if (!swSettings.ledConfigured) {
+                swSettings.ledConfigured = true;
+                ledCfgWriteTimer.restart();
+            }
+            send();
+            vescCommands.sendCustomAppData(commands.createData(2, commands.c_LCM_TEST_BEEP).buffer);
+        }
+
+        // ---- two-way sync with the Refloat LED config (VESC Tool > Refloat Cfg > LEDs)
+        // headlights on        <-> leds.headlights_on
+        // headlights riding %  <-> leds.headlights.brightness
+        // headlights idle %    <-> leds.front.brightness (Refloat's idle level for light modules)
+        // status bar idle %    <-> leds.status_idle.brightness
+        // status bar riding %  <-> leds.status.brightness_headlights_on (and _off)
+        // Animations, color and the beeper have no Refloat setting.
+        readonly property var cfgMap: [
+            ["ledHeadlightPct", "leds.headlights.brightness"],
+            ["ledHeadlightIdlePct", "leds.front.brightness"],
+            ["ledStatusIdlePct", "leds.status_idle.brightness"],
+            ["ledStatusRidePct", "leds.status.brightness_headlights_on"],
+            ["ledStatusRidePct", "leds.status.brightness_headlights_off"]
+        ]
+
+        function cfgReady() {
+            return !!packageConfig.pkgConfig && VescIf.customConfigsLoaded();
+        }
+
+        function toConfig() {
+            if (!cfgReady()) return;
+            var c = packageConfig.pkgConfig;
+            var dirty = false;
+            if (c.getParamBool("leds.headlights_on") !== swSettings.ledHeadlights) {
+                c.updateParamBool("leds.headlights_on", swSettings.ledHeadlights);
+                dirty = true;
+            }
+            for (var i = 0; i < cfgMap.length; i++) {
+                var v = swSettings[cfgMap[i][0]] / 100;
+                if (Math.round(c.getParamDouble(cfgMap[i][1]) * 100) !== swSettings[cfgMap[i][0]]) {
+                    c.updateParamDouble(cfgMap[i][1], v);
+                    dirty = true;
+                }
+            }
+            if (dirty) packageConfig.writeConfig();
+        }
+
+        function fromConfig() {
+            if (!cfgReady() || ledCfgWriteTimer.running) return;  // our own change is newer
+            var c = packageConfig.pkgConfig;
+            var changedAny = false;
+            var on = c.getParamBool("leds.headlights_on");
+            if (on !== swSettings.ledHeadlights) {
+                swSettings.ledHeadlights = on;
+                changedAny = true;
+            }
+            for (var i = 0; i < cfgMap.length - 1; i++) {  // _off follows _on
+                var pct = Math.max(0, Math.min(100, Math.round(c.getParamDouble(cfgMap[i][1]) * 100)));
+                if (pct !== swSettings[cfgMap[i][0]]) {
+                    swSettings[cfgMap[i][0]] = pct;
+                    changedAny = true;
+                }
+            }
+            if (changedAny) send();  // only goes out once the LEDS tab has been used
+        }
+
+        property Timer cfgWriteTimer: Timer {
+            id: ledCfgWriteTimer
+            interval: 1500
+            onTriggered: ledSender.toConfig()
+        }
+
+        property Connections cfgConns: Connections {
+            target: packageConfig
+            function onUpdate() { ledSender.fromConfig(); }
         }
 
         // called every second (with the free-spin limiter)
@@ -800,7 +879,8 @@ Item {
                 "tiltback_speed",
             ];
 
-            return !name.startsWith("haptic.") && !name.startsWith("hardware.") && !tuneBlacklist.includes(name);
+            // Re-RinkFloat: LED settings belong to the LEDS tab, not to tunes
+            return !name.startsWith("haptic.") && !name.startsWith("hardware.") && !name.startsWith("leds.") && !tuneBlacklist.includes(name);
         }
 
         function fetchConfig(tuneOnly) {
@@ -833,7 +913,9 @@ Item {
             return true;
         }
 
-        function applyConfig(config) {
+        // tuneOnly: skip the LED settings (tunes saved before they were
+        // excluded still contain them)
+        function applyConfig(config, tuneOnly) {
             if (!checkConfig()) return;
 
             if (!versionCompatible(config)) {
@@ -841,6 +923,9 @@ Item {
             }
 
             for (let [key, value] of Object.entries(config.settings)) {
+                if (tuneOnly && key.startsWith("leds.")) {
+                    continue;
+                }
                 if (pkgConfig.isParamDouble(key)) {
                     pkgConfig.updateParamDouble(key, value);
                 } else if (pkgConfig.isParamInt(key)) {
@@ -859,7 +944,7 @@ Item {
             writeConfig();
         }
 
-        function diffConfig(other) {
+        function diffConfig(other, tuneOnly) {
             var differs = [];
             var otherMissing = [];
             var otherSettings = {};
@@ -869,6 +954,10 @@ Item {
                 if (VescIf.customConfigsLoaded()) {
                     for (let subGroup of pkgConfig.getParamSubgroups("General")) {
                         for (let paramName of pkgConfig.getParamsFromSubgroup("General", subGroup)) {
+                            if (tuneOnly && paramName.startsWith("leds.")) {
+                                delete otherSettings[paramName];
+                                continue;
+                            }
                             var value = getParamValue(paramName);
                             if (value === null) {
                                 continue;
@@ -933,6 +1022,7 @@ Item {
         readonly property int c_MELODY_SET: 124  // Re-RinkFloat
         readonly property int c_LIVE_TONE: 125  // Re-RinkFloat
         readonly property int c_LCM_VP_SETTINGS: 126  // Re-RinkFloat: light module (ALCM VP)
+        readonly property int c_LCM_TEST_BEEP: 127  // Re-RinkFloat: light module test beep
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
         // Dynamic range: +-131008.0
@@ -1321,6 +1411,7 @@ Item {
         property bool ledStatusBar: true
         property bool ledBeep: true
         property int ledHeadlightPct: 80
+        property int ledHeadlightIdlePct: 50
         property int ledStatusIdlePct: 80
         property int ledStatusRidePct: 80
         property int ledAnimIdle: 0
@@ -2820,6 +2911,79 @@ Item {
         font.family: "Exan"
         font.letterSpacing: 0.03 * unit
         color: swTheme.neonGreen
+    }
+
+    // Re-RinkFloat: LEDS tab tile - opens a full-screen settings window
+    component LedTile : Rectangle {
+        id: tile
+        property string title
+        property string summary
+        property string glyph
+        property bool lit: false
+        property color swatch: "transparent"
+        signal clicked()
+        Layout.fillWidth: true
+        Layout.preferredHeight: 1.9 * unit
+        radius: 0.22 * unit
+        color: tileArea.pressed ? "#1b2a1f" : "#0b0718"
+        border.color: lit ? swTheme.neonGreen : swTheme.neonPurple
+        border.width: 2
+
+        Text {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.margins: 0.18 * unit
+            text: tile.glyph
+            color: tile.lit ? swTheme.neonGreen : swTheme.neonPurple
+            font.pixelSize: 0.42 * unit
+        }
+        Rectangle {
+            visible: tile.swatch.a > 0
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 0.22 * unit
+            width: 0.3 * unit; height: width; radius: width / 2
+            color: tile.swatch
+        }
+        Text {
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.margins: 0.14 * unit
+            text: "\u203A"
+            color: swTheme.neonPurple
+            font.pixelSize: 0.4 * unit
+        }
+        Column {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.leftMargin: 0.18 * unit
+            anchors.rightMargin: 0.4 * unit
+            anchors.bottomMargin: 0.16 * unit
+            spacing: 0.04 * unit
+            Text {
+                width: parent.width
+                text: tile.title
+                color: swTheme.neonGreen
+                font.family: "Exan"
+                font.pixelSize: 0.27 * unit
+                elide: Text.ElideRight
+            }
+            Text {
+                width: parent.width
+                text: tile.summary
+                color: "#ead6ff"
+                font.pixelSize: 0.17 * unit
+                wrapMode: Text.WordWrap
+                maximumLineCount: 2
+                elide: Text.ElideRight
+            }
+        }
+        MouseArea {
+            id: tileArea
+            anchors.fill: parent
+            onClicked: tile.clicked()
+        }
     }
 
     // Re-RinkFloat: label + [down] value [up] stepper with hold-to-repeat
@@ -5879,6 +6043,247 @@ Item {
     // Re-RinkFloat: MY MELODIES window (CONTROL > BOOT MELODY): the saved
     // melodies, kept out of the CONTROL tab so it stays short. Tap a name to
     // make it the boot melody, pencil to re-record it, x twice to delete.
+    // Re-RinkFloat: full-screen window for one LEDS tab section
+    Popup {
+        id: ledWindow
+        parent: mainItem
+        x: 0
+        y: 0
+        width: mainItem.width
+        height: mainItem.height
+        modal: true
+        dim: true
+        padding: 0.3 * unit
+        closePolicy: Popup.CloseOnEscape
+
+        property string section: "head"
+        readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "ANIMATIONS", "sound": "SOUND"})
+
+        function show(which) {
+            section = which;
+            ledWindowFlick.contentY = 0;
+            open();
+        }
+
+        background: Rectangle {
+            color: "#0b0718"
+            border.color: swTheme.neonPurple
+            border.width: 2
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 0.2 * unit
+
+            RowLayout {
+                Layout.fillWidth: true
+
+                SwPill {
+                    minWidth: 1.0 * unit
+                    label: "\u2039"
+                    onClicked: ledWindow.close()
+                }
+
+                SwNeonLabel {
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
+                    font.pixelSize: 0.4 * unit
+                    text: ledWindow.titles[ledWindow.section] || ""
+                }
+
+                SwPill {
+                    minWidth: 1.0 * unit
+                    label: "\u2715"
+                    onClicked: ledWindow.close()
+                }
+            }
+
+            Rectangle { Layout.fillWidth: true; height: 2; color: swTheme.neonPurple; opacity: 0.6 }
+
+            Flickable {
+                id: ledWindowFlick
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                contentHeight: ledWindowCol.height + 0.4 * unit
+                boundsBehavior: Flickable.StopAtBounds
+
+                Column {
+                    id: ledWindowCol
+                    width: parent.width
+                    spacing: 0.14 * unit
+                    topPadding: 0.1 * unit
+
+                    Column {
+                        width: parent.width
+                        spacing: 0.14 * unit
+                        visible: ledWindow.section === "head"
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 3.4 * unit
+                            label: swSettings.ledHeadlights ? "HEADLIGHTS ON" : "HEADLIGHTS OFF"
+                            lit: swSettings.ledHeadlights
+                            onClicked: { swSettings.ledHeadlights = !swSettings.ledHeadlights; ledSender.changed(); }
+                        }
+
+                        SwStepper {
+                            label: "RIDING BRIGHTNESS"
+                            value: swSettings.ledHeadlightPct
+                            from: 0; to: 100; step: 5; suffix: "%"
+                            onMoved: { swSettings.ledHeadlightPct = newValue; ledSender.changed(); }
+                        }
+
+                        SwStepper {
+                            label: "IDLE BRIGHTNESS"
+                            value: swSettings.ledHeadlightIdlePct
+                            from: 0; to: 100; step: 5; suffix: "%"
+                            onMoved: { swSettings.ledHeadlightIdlePct = newValue; ledSender.changed(); }
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "RIDING applies while the board is engaged, IDLE the rest of the time. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle)."
+                        }
+                    }
+                    Column {
+                        width: parent.width
+                        spacing: 0.14 * unit
+                        visible: ledWindow.section === "bar"
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 3.4 * unit
+                            label: swSettings.ledStatusBar ? "STATUS BAR ON" : "STATUS BAR OFF"
+                            lit: swSettings.ledStatusBar
+                            onClicked: { swSettings.ledStatusBar = !swSettings.ledStatusBar; ledSender.changed(); }
+                        }
+
+                        SwStepper {
+                            label: "IDLE BRIGHTNESS"
+                            value: swSettings.ledStatusIdlePct
+                            from: 0; to: 100; step: 5; suffix: "%"
+                            onMoved: { swSettings.ledStatusIdlePct = newValue; ledSender.changed(); }
+                        }
+
+                        SwStepper {
+                            label: "RIDING BRIGHTNESS"
+                            value: swSettings.ledStatusRidePct
+                            from: 0; to: 100; step: 5; suffix: "%"
+                            onMoved: { swSettings.ledStatusRidePct = newValue; ledSender.changed(); }
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "Same as Refloat's Status Idle Brightness (idle) and Status Brightness (riding)."
+                        }
+                    }
+                    Column {
+                        width: parent.width
+                        spacing: 0.14 * unit
+                        visible: ledWindow.section === "anim"
+
+                        Repeater {
+                            model: [["IDLE", "ledAnimIdle"], ["RIDING", "ledAnimRide"], ["SNOOZE", "ledAnimDoze"],
+                            ["BOOT", "ledAnimBoot"], ["SHUTDOWN", "ledAnimShutdown"]]
+
+                            SwStepper {
+                                width: ledWindowCol.width
+                                label: modelData[0]
+                                valueWidth: 3.6 * unit
+                                value: swSettings[modelData[1]]
+                                from: 0; to: ledSender.animNames.length - 1; step: 1
+                                valueText: ledSender.animNames[value] || ""
+                                onMoved: { swSettings[modelData[1]] = newValue; ledSender.changed(); }
+                            }
+                        }
+
+                        SwStepper {
+                            label: "COLOR"
+                            value: swSettings.ledColor
+                            from: 0; to: 350; step: 10; suffix: "\u00B0"
+                            onMoved: { swSettings.ledColor = newValue; ledSender.changed(); }
+                        }
+
+                        // personal color (used by the CLASSIC / COLOR SCAN / PULSE / WAVE animations)
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: parent.width * 0.7
+                            height: 0.18 * unit
+                            radius: height / 2
+                            color: Qt.hsla(swSettings.ledColor / 360, 1.0, 0.5, 1.0)
+                        }
+                    }
+                    Column {
+                        width: parent.width
+                        spacing: 0.14 * unit
+                        visible: ledWindow.section === "sound"
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 3.4 * unit
+                            label: swSettings.ledBeep ? "LCM BEEPER ON" : "LCM BEEPER OFF"
+                            lit: swSettings.ledBeep
+                            onClicked: { swSettings.ledBeep = !swSettings.ledBeep; ledSender.changed(); }
+                        }
+
+                        Item { width: parent.width; height: 0.2 * unit }
+
+                        Rectangle {
+                            id: testBeepBtn
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: Math.min(parent.width, 4.6 * unit)
+                            height: 1.4 * unit
+                            radius: height / 2
+                            color: testBeepArea.pressed ? swTheme.neonGreen : "transparent"
+                            border.color: swTheme.neonGreen
+                            border.width: 3
+                            Text {
+                                anchors.centerIn: parent
+                                text: "\u266A  TEST BEEP"
+                                color: testBeepArea.pressed ? swTheme.background : swTheme.neonGreen
+                                font.family: "Exan"
+                                font.pixelSize: 0.36 * unit
+                            }
+                            MouseArea {
+                                id: testBeepArea
+                                anchors.fill: parent
+                                onClicked: {
+                                    ledSender.testBeep();
+                                    VescIf.emitStatusMessage(swSettings.ledBeep ? "Test beep sent to the light module"
+                                    : "Test beep sent - turn the LCM beeper on to hear it", true);
+                                }
+                            }
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: swSettings.ledBeep
+                            ? "The light module plays one short beep. No beep = the module isn't running the ALCM VP firmware or isn't connected."
+                            : "The LCM beeper is off, so the test beep is silent. Turn it on above first."
+                        }
+                    }
+                }
+            }
+
+            SwLText {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                font.pixelSize: 0.17 * unit
+                color: "#FFB300"
+                text: "\u26A0 ADV100 (XRV / GTV / PintV) + ALCM VP light module firmware only"
+            }
+        }
+    }
+
     Popup {
         id: myMelodiesPopup
         parent: mainItem
@@ -6075,7 +6480,7 @@ Item {
         function show(slot) {
             tuneSlot = slot;
             tune = tuneManager.loadTune(slot);
-            editTuneDiff.setModel(packageConfig.diffConfig(tune).differs);
+            editTuneDiff.setModel(packageConfig.diffConfig(tune, true).differs);
             editTuneDiff.reset();
 
             standardButton(Dialog.Save).enabled = !!tune;
@@ -6804,7 +7209,7 @@ Item {
         property var date: config && config.date ? Qt.formatDateTime(new Date(config.date)) : ""
         property var pkg: config && config.package ? "%1 %2".arg(config.package.name).arg(config.package.version) : ""
         property var description: config && config.description ? config.description : ""
-        property var diff: config ? packageConfig.diffConfig(config).differs : []
+        property var diff: config ? packageConfig.diffConfig(config, isTune).differs : []
 
         onDiffChanged: {
             applyConfigDiff.setModel(diff);
@@ -6832,7 +7237,7 @@ Item {
         }
 
         onApplied: {
-            packageConfig.applyConfig(config);
+            packageConfig.applyConfig(config, isTune);
             close();
             tuneArchiveDialog.close();
         }
@@ -9188,7 +9593,7 @@ Item {
                     property var tuneDiffs: {
                         var d = [];
                         for (var i = 1; i <= preferences.tuneSlotCount; i++) {
-                            d.push(tuneManager.tunes[i] ? packageConfig.diffConfig(tuneManager.tunes[i]).differs.length : -1);
+                            d.push(tuneManager.tunes[i] ? packageConfig.diffConfig(tuneManager.tunes[i], true).differs.length : -1);
                         }
                         return d;
                     }
@@ -9244,7 +9649,7 @@ Item {
                                 onClicked: {
                                     if (tuneName) {
                                         var tune = tuneManager.loadTune(slot);
-                                        packageConfig.applyConfig(tune);
+                                        packageConfig.applyConfig(tune, true);
                                         swSettings.activeTuneSlot = slot;
                                     }
                                 }
@@ -10682,88 +11087,55 @@ Item {
                                 : "For a light module running the ALCM VP firmware. Nothing is sent until you change a setting here; until then the module keeps its own settings."
                         }
 
-                        LedHeading { text: "Headlights" }
+                        // Each tile opens its settings in a full-screen window
+                        GridLayout {
+                            width: parent.width
+                            columns: 2
+                            rowSpacing: 0.18 * unit
+                            columnSpacing: 0.18 * unit
 
-                        SwPill {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            minWidth: 3.4 * unit
-                            label: swSettings.ledHeadlights ? "HEADLIGHTS ON" : "HEADLIGHTS OFF"
-                            lit: swSettings.ledHeadlights
-                            onClicked: { swSettings.ledHeadlights = !swSettings.ledHeadlights; ledSender.changed(); }
-                        }
-
-                        SwStepper {
-                            label: "BRIGHTNESS"
-                            value: swSettings.ledHeadlightPct
-                            from: 0; to: 100; step: 5; suffix: "%"
-                            onMoved: { swSettings.ledHeadlightPct = newValue; ledSender.changed(); }
-                        }
-
-                        LedHeading { text: "Status bar" }
-
-                        SwPill {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            minWidth: 3.4 * unit
-                            label: swSettings.ledStatusBar ? "STATUS BAR ON" : "STATUS BAR OFF"
-                            lit: swSettings.ledStatusBar
-                            onClicked: { swSettings.ledStatusBar = !swSettings.ledStatusBar; ledSender.changed(); }
-                        }
-
-                        SwStepper {
-                            label: "IDLE BRIGHTNESS"
-                            value: swSettings.ledStatusIdlePct
-                            from: 0; to: 100; step: 5; suffix: "%"
-                            onMoved: { swSettings.ledStatusIdlePct = newValue; ledSender.changed(); }
-                        }
-
-                        SwStepper {
-                            label: "RIDING BRIGHTNESS"
-                            value: swSettings.ledStatusRidePct
-                            from: 0; to: 100; step: 5; suffix: "%"
-                            onMoved: { swSettings.ledStatusRidePct = newValue; ledSender.changed(); }
-                        }
-
-                        LedHeading { text: "Animations" }
-
-                        Repeater {
-                            model: [["IDLE", "ledAnimIdle"], ["RIDING", "ledAnimRide"], ["SNOOZE", "ledAnimDoze"],
-                                    ["BOOT", "ledAnimBoot"], ["SHUTDOWN", "ledAnimShutdown"]]
-
-                            SwStepper {
-                                width: ledsPage.width
-                                label: modelData[0]
-                                valueWidth: 3.6 * unit
-                                value: swSettings[modelData[1]]
-                                from: 0; to: ledSender.animNames.length - 1; step: 1
-                                valueText: ledSender.animNames[value] || ""
-                                onMoved: { swSettings[modelData[1]] = newValue; ledSender.changed(); }
+                            LedTile {
+                                title: "HEADLIGHTS"
+                                glyph: "\u25C9"
+                                lit: swSettings.ledHeadlights
+                                summary: swSettings.ledHeadlights
+                                    ? "ON \u00B7 RIDE " + swSettings.ledHeadlightPct + "% \u00B7 IDLE " + swSettings.ledHeadlightIdlePct + "%"
+                                    : "OFF"
+                                onClicked: ledWindow.show("head")
+                            }
+                            LedTile {
+                                title: "STATUS BAR"
+                                glyph: "\u2589"
+                                lit: swSettings.ledStatusBar
+                                summary: swSettings.ledStatusBar
+                                    ? "ON \u00B7 RIDE " + swSettings.ledStatusRidePct + "% \u00B7 IDLE " + swSettings.ledStatusIdlePct + "%"
+                                    : "OFF"
+                                onClicked: ledWindow.show("bar")
+                            }
+                            LedTile {
+                                title: "ANIMATIONS"
+                                glyph: "\u2726"
+                                lit: true
+                                swatch: Qt.hsla(swSettings.ledColor / 360, 1.0, 0.5, 1.0)
+                                summary: "IDLE " + (ledSender.animNames[swSettings.ledAnimIdle] || "") + " \u00B7 RIDE "
+                                    + (ledSender.animNames[swSettings.ledAnimRide] || "")
+                                onClicked: ledWindow.show("anim")
+                            }
+                            LedTile {
+                                title: "SOUND"
+                                glyph: "\u266A"
+                                lit: swSettings.ledBeep
+                                summary: (swSettings.ledBeep ? "BEEPER ON" : "BEEPER OFF") + " \u00B7 TEST BEEP"
+                                onClicked: ledWindow.show("sound")
                             }
                         }
 
-                        SwStepper {
-                            label: "COLOR"
-                            value: swSettings.ledColor
-                            from: 0; to: 350; step: 10; suffix: "\u00B0"
-                            onMoved: { swSettings.ledColor = newValue; ledSender.changed(); }
-                        }
-
-                        // personal color (used by the CLASSIC / COLOR SCAN / PULSE / WAVE animations)
-                        Rectangle {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            width: parent.width * 0.7
-                            height: 0.18 * unit
-                            radius: height / 2
-                            color: Qt.hsla(swSettings.ledColor / 360, 1.0, 0.5, 1.0)
-                        }
-
-                        LedHeading { text: "Sound" }
-
-                        SwPill {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            minWidth: 3.4 * unit
-                            label: swSettings.ledBeep ? "LCM BEEPER ON" : "LCM BEEPER OFF"
-                            lit: swSettings.ledBeep
-                            onClicked: { swSettings.ledBeep = !swSettings.ledBeep; ledSender.changed(); }
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "Headlight and status bar levels are kept in step with Refloat's LED settings (VESC Tool \u203A Refloat Cfg \u203A LEDs), both ways."
                         }
 
                         Item { width: parent.width; height: 0.3 * unit }

@@ -34,6 +34,7 @@ void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg) {
     lcm->payload_size = 0;
     lcm->lights_off_when_lifted = true;
     lcm->vp.valid = false;
+    lcm->vp_test_beep = false;
 }
 
 void lcm_configure(LcmData *lcm, const Leds *leds) {
@@ -123,14 +124,16 @@ void lcm_poll_response(
             // Re-Float Rink-Mixed: brightness from the app (status bar level
             // depends on riding / not riding), then the VP block (ALCM VP
             // build); 25 bytes in total, ALCM accepts up to 32
+            // Headlights and status bar both switch between their riding
+            // and idle levels here, so the LCM just follows the first one.
             const LcmVpSettings *vp = &lcm->vp;
-            buffer[ind++] = vp->headlight_brightness;
-            buffer[ind++] = vp->headlight_brightness;
-            buffer[ind++] = state->state == STATE_RUNNING ? vp->status_riding_brightness
-                                                          : vp->status_idle_brightness;
+            const bool riding = state->state == STATE_RUNNING;
+            buffer[ind++] = riding ? vp->headlight_brightness : vp->headlight_idle_brightness;
+            buffer[ind++] = vp->headlight_idle_brightness;
+            buffer[ind++] = riding ? vp->status_riding_brightness : vp->status_idle_brightness;
             buffer[ind++] = 0x56;  // 'V'
             buffer[ind++] = 1;  // version
-            buffer[ind++] = vp->flags;
+            buffer[ind++] = vp->flags | (lcm->vp_test_beep ? LCM_VP_FLAG_TEST_BEEP : 0);
             for (int i = 0; i < LCM_VP_ANIMATIONS; ++i) {
                 buffer[ind++] = vp->animations[i];
             }
@@ -252,7 +255,7 @@ static uint8_t clamp_u8(uint8_t value, uint8_t max) {
 }
 
 bool lcm_vp_set(LcmData *lcm, const uint8_t *buffer, int len) {
-    if (len < LCM_VP_SETTINGS_LENGTH) {
+    if (len < LCM_VP_SETTINGS_LENGTH - 1) {
         return false;
     }
 
@@ -270,15 +273,17 @@ bool lcm_vp_set(LcmData *lcm, const uint8_t *buffer, int len) {
     if (vp.color > 359) {
         vp.color = 359;
     }
+    vp.headlight_idle_brightness =
+        len >= LCM_VP_SETTINGS_LENGTH ? clamp_u8(buffer[11], 100) : vp.headlight_brightness;
 
     bool changed = memcmp(&vp, &lcm->vp, sizeof(vp)) != 0;
     lcm->vp = vp;
     return changed;
 }
 
-void lcm_vp_pack(const LcmData *lcm, uint32_t words[3]) {
+void lcm_vp_pack(const LcmData *lcm, uint32_t words[LCM_VP_EEPROM_WORDS]) {
     const LcmVpSettings *vp = &lcm->vp;
-    // word 0: magic 0x4C ('L'), flags, headlight %, status idle %
+    // word 0: magic 0x4C ('L'), flags, headlight riding %, status idle %
     words[0] = (0x4Cu << 24) | ((uint32_t) vp->flags << 16) |
         ((uint32_t) vp->headlight_brightness << 8) | vp->status_idle_brightness;
     // word 1: status riding %, idle, riding, dozing animations
@@ -288,9 +293,11 @@ void lcm_vp_pack(const LcmData *lcm, uint32_t words[3]) {
     // word 2: boot, shutdown animations, color
     words[2] =
         ((uint32_t) vp->animations[3] << 24) | ((uint32_t) vp->animations[4] << 16) | vp->color;
+    // word 3: magic 0x49 ('I'), headlight idle %
+    words[3] = (0x49u << 24) | vp->headlight_idle_brightness;
 }
 
-void lcm_vp_unpack(LcmData *lcm, const uint32_t words[3]) {
+void lcm_vp_unpack(LcmData *lcm, const uint32_t words[LCM_VP_EEPROM_WORDS]) {
     if ((words[0] >> 24) != 0x4C) {
         return;
     }
@@ -306,6 +313,13 @@ void lcm_vp_unpack(LcmData *lcm, const uint32_t words[3]) {
         (words[2] >> 16) & 0xFF,
         (words[2] >> 8) & 0xFF,
         words[2] & 0xFF,
+        words[3] & 0xFF,
     };
-    lcm_vp_set(lcm, buffer, LCM_VP_SETTINGS_LENGTH);
+    // saved before the idle headlight level existed: idle = riding
+    int len = (words[3] >> 24) == 0x49 ? LCM_VP_SETTINGS_LENGTH : LCM_VP_SETTINGS_LENGTH - 1;
+    lcm_vp_set(lcm, buffer, len);
+}
+
+void lcm_vp_test_beep(LcmData *lcm) {
+    lcm->vp_test_beep = !lcm->vp_test_beep;
 }
