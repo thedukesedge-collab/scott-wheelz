@@ -8843,6 +8843,10 @@ Item {
                     font.pixelSize: 0.27 * unit
                     font.letterSpacing: 0.03 * unit
 
+                    // tabs share the bar's width equally; a fixed implicit width keeps
+                    // the wrapping label from feeding back into the TabBar's size
+                    implicitWidth: 2 * unit
+
                     contentItem: Text {
                         text: swTab.text
                         font: swTab.font
