@@ -495,3 +495,17 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 ### Neon green headings (v1.2.3-rf53)
 - The white section headings (Move, Tilt, Rails, Tire, View, Lights) are
   now neon green in the digital font, like the rest of the UI.
+
+### Lights reach the light module (ALCM / LCM) (v1.2.3-rf54)
+- HEADLIGHTS OFF now sends headlight brightness 0 to an external light
+  module. Before, it sent the "front strip" brightness, whose default
+  (50%) equals the headlight default, so ALCM saw no change. LIGHTS OFF
+  still sends 0 for headlight and status bar.
+- Changing Refloat Cfg > Hardware > LED Mode to/from External takes effect
+  when the config is written (was: only after a power cycle).
+- BOARD STYLE > Lights shows a hint when LED Mode isn't External, since a
+  light module only follows the buttons in that mode.
+- Checked against ALCM v0.1.1 (from its .hex): it reads headlight
+  brightness (poll byte 12) and status-bar brightness (byte 14), 0-100%,
+  applying changes after the first value it sees; it ignores the idle
+  brightness and any extra payload bytes, and drops packets > 32 bytes.

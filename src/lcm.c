@@ -51,7 +51,11 @@ void lcm_configure(LcmData *lcm, const Leds *leds) {
             lcm->brightness = cfg->headlights.brightness * 100;
             lcm->status_brightness = cfg->status.brightness_headlights_on * 100;
         } else {
-            lcm->brightness = cfg->front.brightness * 100;
+            // Re-RinkFloat: headlights off really means off on a light module
+            // (ALCM etc. have one headlight brightness; the stock "front strip
+            // brightness" default equals the headlight default, so toggling
+            // changed nothing)
+            lcm->brightness = 0;
             lcm->status_brightness = cfg->status.brightness_headlights_off * 100;
         }
         lcm->brightness_idle = cfg->front.brightness * 100;

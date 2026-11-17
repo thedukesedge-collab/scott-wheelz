@@ -215,6 +215,8 @@ static void configure(Data *d) {
 
     reconfigure(d);
 
+    // Re-RinkFloat: follow LED Mode changes without a power cycle
+    d->lcm.enabled = d->float_conf.hardware.leds.mode & LED_MODE_EXTERNAL;
     lcm_configure(&d->lcm, &d->leds);
 
     if (d->state.state == STATE_DISABLED) {

@@ -10579,6 +10579,17 @@ Item {
                             }
                         }
 
+                        // light modules (ALCM, LCM) only follow these with LED Mode External
+                        SwLText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: parent.width - 0.4 * unit
+                            visible: lights.enabled && !lights.lcm
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "Using a light module (ALCM / LCM)? Set Refloat Cfg \u25B8 Hardware \u25B8 LED Mode to External (or Internal and External) and write the config, so it follows these buttons."
+                        }
+
                         Item {
                             width: parent.width
                             height: 0.2 * unit
