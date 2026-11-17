@@ -15,6 +15,13 @@ all: build/lcm_bootloader.hex
 
 build/lcm_bootloader.elf: $(SRC) bl_hw.h bootloader.ld
 	@mkdir -p build
+	sed 's/LENGTH = 0x400/LENGTH = 0x1000/' bootloader.ld > build/measure.ld
+	$(CC) $(CFLAGS) $(SRC) $(subst bootloader.ld,build/measure.ld,$(LDFLAGS)) -o build/measure.elf
+	arm-none-eabi-size -A build/measure.elf
+	arm-none-eabi-nm --size-sort -S build/measure.elf
+	$(CC) $(subst -flto,-fno-lto,$(CFLAGS)) -fno-inline-functions -c bootloader.c -o build/nolto.o
+	arm-none-eabi-nm --size-sort -S build/nolto.o
+	arm-none-eabi-objdump -d build/measure.elf > build/measure.lst
 	$(CC) $(CFLAGS) $(SRC) $(LDFLAGS) -o $@
 	arm-none-eabi-size $@
 	arm-none-eabi-nm --size-sort -S $@
