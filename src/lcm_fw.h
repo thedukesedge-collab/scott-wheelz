@@ -57,11 +57,14 @@ typedef struct {
     time_t staged_time;
     bool bl_seen;  // a bootloader asked for a page...
     time_t bl_seen_time;  // ...last at this time
+    bool poll_seen;  // an LCM polled (COMMAND_LCM_POLL)...
+    time_t poll_time;  // ...last at this time (any LCM firmware that polls)
 } LcmFw;
 
 // STATUS flags
 #define LCM_FW_FLAG_BL_ACTIVE 0x01  // a bootloader asked for a page in the last few seconds
 #define LCM_FW_FLAG_CAPABLE 0x02  // the LCM named itself "VPBL-..." (has the bootloader)
+#define LCM_FW_FLAG_POLLING 0x04  // an LCM polled the package in the last 2 s (named or not)
 #define LCM_FW_BL_RECENT_S 5.0f
 
 void lcm_fw_init(LcmFw *fw);
@@ -87,3 +90,7 @@ void lcm_fw_command(
 // True while the VP block should carry the update flag (staged, board not
 // running). Also times out a staged update the LCM never picks up.
 bool lcm_fw_update_flag(LcmFw *fw, const State *state, const Time *time);
+
+// An LCM poll arrived (for the STATUS "polling" flag: tells "no LCM talking"
+// apart from "an LCM without a name").
+void lcm_fw_poll_seen(LcmFw *fw, const Time *time);

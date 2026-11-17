@@ -518,6 +518,7 @@ Item {
         property string lcmName: ""
         property bool nameKnown: false  // the package answered at least once
         property bool blActive: false  // STATUS flag: a bootloader is asking
+        property bool lcmPolling: false  // STATUS flag: some LCM polls the package (rf68+)
         readonly property bool hasBootloader: lcmName.indexOf("VPBL-") === 0
         readonly property bool capable: hasBootloader || blActive
         property int checkState: 0  // 0 not checked, 1 checking, 2 passed, 3 failed
@@ -768,6 +769,7 @@ Item {
             ind += 4;  // size
             // flags (older packages: none) - bit0 a bootloader is asking
             blActive = dv.byteLength > ind ? (dv.getUint8(ind) & 1) !== 0 : false;
+            lcmPolling = dv.byteLength > ind ? (dv.getUint8(ind) & 4) !== 0 : false;
             gotStatus = true;
             noReply = 0;
             if (!active) return;
@@ -7632,8 +7634,10 @@ Item {
                         + "To resolve this, first flash the LCM with an ST-Link using the correct firmware: ALCM_VP_BL_full.hex (lcm-latest release). After that, CHECK LCM passes and future updates work from the app.\n\n"
                         + "What the package saw: " + (!lcmFw.nameKnown && !lcmFw.gotStatus ? "no answer from the board (check the connection)."
                             : lcmFw.fitted === "vp" ? "SLCM " + lcmFw.verText(lcmFw.lcmVer) + " without the bootloader."
-                            : lcmFw.fitted === "other" ? "LCM firmware \u201C" + lcmFw.lcmName + "\u201D."
-                            : "no SLCM light module (stock or other LCM firmware, or none connected).")
+                            : lcmFw.fitted === "other" ? "LCM firmware \u201C" + lcmFw.lcmName + "\u201D (not SLCM)."
+                            : lcmFw.lcmPolling ? "a light module is talking to the package but doesn't name itself, so it isn't running SLCM r15 or newer (older SLCM / ALCM VP builds from before rf63, original ALCM, or other LCM firmware)."
+                            : "no light module is talking to the package. Stock Floatwheel LCM firmware never does (it only reads the VESC's basic data); or the LCM isn't connected.")
+                        + (lcmFw.builtin ? "\n\nThis package carries SLCM " + lcmFw.verText(lcmFw.pkgVer) + ": the ALCM_VP_BL_full.hex for the ST-Link must be that build or newer." : "")
             }
 
             Row {
@@ -7807,7 +7811,7 @@ Item {
                 spacing: 0.2 * unit
 
                 SwPill {
-                    label: "DEFAULT 1-2-3"
+                    label: "DEFAULT MELODY"
                     lit: swSettings.hornBootMelody && !swSettings.hornBootCustom
                     onClicked: { swSettings.hornBootMelody = true; swSettings.hornBootCustom = false; hornSettingsSender.send(); }
                 }

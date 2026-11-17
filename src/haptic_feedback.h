@@ -137,8 +137,8 @@ void haptic_feedback_horn(HapticFeedback *hf, const Time *time, uint8_t req, uin
 bool haptic_feedback_horn_playing(const HapticFeedback *hf);
 
 // Re-RinkFloat: plays a melody of `count` notes (2 bytes each, see above) at
-// the given beep volume; count 0 plays the default boot melody (levels 1, 2,
-// 3; 0.5 s each). Only sounds while the board is READY; stops if it engages.
+// the given beep volume; count 0 plays the default boot melody (the rider's
+// "Melody 2", see haptic_feedback.c). Only sounds while the board is READY; stops if it engages.
 void haptic_feedback_play_melody(
     HapticFeedback *hf, const Time *time, float volume, const uint8_t *notes, uint8_t count
 );

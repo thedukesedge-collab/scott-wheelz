@@ -53,12 +53,13 @@
 #define HORN_MIN_VIBRATE_STRENGTH 8.0f
 #define HORN_DEFAULT_BEEP_FREQUENCY 495
 #define HORN_DEFAULT_VIBRATE_FREQUENCY 70
-// - default boot melody: horn pitch levels 1, 2, 3, half a second each
-// default boot melody: the original rf40 tones (horn pitch 1, 2, 3 = 300, 375,
-// 450 Hz), half a second each; kept as fixed Hz so the MIXER note tiles don't
-// change it
-static const uint16_t default_melody_hz[] = {300, 375, 450};
-#define DEFAULT_MELODY_NOTE 0.5f
+// Re-Float Rink-Mixed (rf68): the default boot melody is the rider's own
+// ("Melody 2"), in the custom melody format: (pitch level 1-10 = E4..G5, 0 =
+// rest; length in 20 ms units). 3.46 s.
+static const uint8_t default_melody[] = {
+    1, 17, 0, 5, 4, 6,  0, 5, 4, 4, 0, 9, 4, 14, 0,  11,
+    4, 16, 0, 6, 6, 20, 0, 3, 9, 7, 0, 3, 7, 11, 10, 36,
+};
 
 void haptic_feedback_init(HapticFeedback *hf) {
     hf->type_playing = HAPTIC_FEEDBACK_NONE;
@@ -101,12 +102,10 @@ void haptic_feedback_play_melody(
     hf->melody_active = false;
     float total = 0.0f;
     uint8_t n = 0;
-    hf->melody_gaps = count > 0;
+    hf->melody_gaps = true;
     if (count == 0) {
-        for (; n < sizeof(default_melody_hz) / sizeof(default_melody_hz[0]); ++n) {
-            hf->melody_freq[n] = default_melody_hz[n];
-            hf->melody_len[n] = DEFAULT_MELODY_NOTE;
-        }
+        notes = default_melody;
+        count = sizeof(default_melody) / 2;
     }
     for (uint8_t i = 0; i < count && n < MELODY_MAX_NOTES; ++i) {
         uint8_t level = notes[2 * i];
@@ -130,7 +129,8 @@ void haptic_feedback_play_melody(
         return;
     }
     hf->melody_count = n;
-    hf->melody_volume = clampf(volume, 0.5f, 6.0f);
+    // boot melody volume goes down to 0.25 V (app level 1)
+    hf->melody_volume = clampf(volume, 0.2f, 6.0f);
     hf->melody_start = time->now;
     hf->melody_active = true;
 }
@@ -141,7 +141,7 @@ void haptic_feedback_live_tone(HapticFeedback *hf, const Time *time, uint8_t lev
     if (hz != hf->live_hz || timer_older(time, hf->live_timer, 0.3f)) {
         hf->live_start = time->now;
     }
-    hf->live_volume = clampf(volume, 0.5f, 6.0f);
+    hf->live_volume = clampf(volume, 0.2f, 6.0f);
     hf->live_hz = hz;
     hf->live_timer = time->now;
 }

@@ -2620,6 +2620,7 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
     }
     case COMMAND_LCM_POLL: {
         lcm_poll_request(&d->lcm, &buffer[2], len - 2);
+        lcm_fw_poll_seen(&d->lcm_fw, &d->time);
         d->lcm.vp_update = lcm_fw_update_flag(&d->lcm_fw, &d->state, &d->time);
         d->lcm.vp_battery = battery_curve_update(
             &d->battery_curve,

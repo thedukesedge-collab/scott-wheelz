@@ -738,3 +738,16 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   SLCM DETECTED (explains what works anyway). ANIMATIONS, SOUND and BATTERY
   GAUGE tiles carry an SLCM badge and are dimmed without one. No controller
   picker: what matters is whether an SLCM answers, not the controller.
+
+### Rider's melody as the default, better LCM check diagnosis (v1.2.3-rf68)
+- The default boot melody is now the rider's "Melody 2" (16 notes/rests,
+  3.46 s; table in haptic_feedback.c), played like a custom melody (short
+  gaps). "DEFAULT 1-2-3" is now "DEFAULT MELODY".
+- Boot melody / note tiles: the 0.5 V floor is now 0.2 V, so volume levels
+  1 and 2 (0.25 / 0.5 V) really differ.
+- Package: STATUS flags bit2 = an LCM polled in the last 2 s (any firmware,
+  named or not), so a failed CHECK LCM can say which case it is: no LCM
+  talking (stock Floatwheel LCM firmware never polls, or not connected) vs
+  an LCM polling without a name (pre-rf63 SLCM/ALCM VP, original ALCM,
+  other firmware). The failure also names the SLCM build the package
+  carries.

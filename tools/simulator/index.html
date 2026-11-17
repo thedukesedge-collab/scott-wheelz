@@ -286,7 +286,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf67 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf68 · sim</span></div>
     </div>
   </div>
 
@@ -326,7 +326,7 @@
         <div id="fwCheckBtn" class="bigBeep" style="border-color:#FFB300;color:#FFB300">&#10004;&nbsp; CHECK LCM</div>
         <p class="ledHint" id="fwCheckHint" style="text-align:center">Board powered on and connected. The check asks the package which light module firmware is fitted; FLASH LCM only appears when it has the bootloader.</p>
         <p class="ledHint" style="text-align:center;opacity:.7">Simulator only - pretend the LCM is:</p>
-        <div class="pills" id="fwSimLcm"><div class="pill" data-k="vpbl">VP+BL CURRENT</div><div class="pill" data-k="vpbl_old">VP+BL OLDER</div><div class="pill" data-k="vpbl_new">VP+BL NEWER</div><div class="pill" data-k="vp">VP, NO BL</div><div class="pill" data-k="other">STOCK</div><div class="pill" data-k="recovery">RECOVERY</div></div>
+        <div class="pills" id="fwSimLcm"><div class="pill" data-k="vpbl">VP+BL CURRENT</div><div class="pill" data-k="vpbl_old">VP+BL OLDER</div><div class="pill" data-k="vpbl_new">VP+BL NEWER</div><div class="pill" data-k="vp">VP, NO BL</div><div class="pill" data-k="other">STOCK</div><div class="pill" data-k="noname">OLD VP/ALCM</div><div class="pill" data-k="recovery">RECOVERY</div></div>
         <div id="fwCan">
         <div class="secTitle">Firmware to flash</div>
         <div class="pills"><div class="pill on" id="fwSrcBuiltin">BUILT-IN</div><div class="pill" id="fwSrcPick">PICK .HEX FILE...</div><div class="pill" id="fwSrcChange" style="display:none">CHANGE...</div></div>
@@ -387,7 +387,7 @@
     <div style="display:flex;align-items:center"><span class="neonL" style="flex:1;font-size:16px">MY MELODIES</span><div class="pill" id="myMelClose">&#10005;</div></div>
     <div style="font-size:11px;color:var(--text)">Tap a melody to play it at bootup. &#9998; re-records it, &#10005; (tap twice) deletes it.</div>
     <div id="melSaved" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:6px"></div>
-    <div class="pills"><div class="pill" id="myMelDefault">DEFAULT 1-2-3</div><div class="pill on" id="myMelNew">+ RECORD NEW</div></div>
+    <div class="pills"><div class="pill" id="myMelDefault">DEFAULT MELODY</div><div class="pill on" id="myMelNew">+ RECORD NEW</div></div>
   </div>
   <div class="modalBack" id="modal"><div class="modal" id="modalBox"></div></div>
   <div id="toast"></div>
@@ -770,9 +770,10 @@ setInterval(() => {
     if (!toneRest) { toneRest = true; liveStop(); (playMelody.oscs || []).forEach(o => { try { o.stop(); } catch (e) {} }); playMelody.until = 0; toast('Board resting its motor for a moment'); }
   } else if (toneRest && toneBudget >= 3) toneRest = false;
 }, 100);
+const DEFAULT_MELODY = [[1,340],[0,100],[4,120],[0,100],[4,80],[0,180],[4,280],[0,220],[4,320],[0,120],[6,400],[0,60],[9,140],[0,60],[7,220],[10,720]];
 function playMelody(notes) {
-  // default boot melody: the original 300 / 375 / 450 Hz, half a second each, no gaps
-  const dflt = !notes; notes = notes || [[300, 500], [375, 500], [450, 500]];
+  // default boot melody (rf68): the rider's "Melody 2" (same table as haptic_feedback.c)
+  const dflt = false; notes = notes || DEFAULT_MELODY;
   if (toneRest) { toast('Board resting its motor for a moment'); return; }
   playMelody.oscs = [];
   try {
@@ -1122,7 +1123,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r14 (5b2e9c1)', FW_OLD = 'r12 (0c01814)', FW_NEW = 'r16 (a7d40e3)', PKG_VER = '1.2.3-rf65';
+const FW_BUILD = 'r15 (79f773f)', FW_OLD = 'r13 (0c01814)', FW_NEW = 'r17 (a7d40e3)', PKG_VER = '1.2.3-rf68';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1137,6 +1138,7 @@ function fwFitPaint() {
   const k = FW.kind, f = FW_FIT[k], t = f ? 'SLCM with bootloader · ' + f[4] + ' · ' + f[3] : {
     recovery: "LCM bootloader is waiting for firmware (an earlier update didn't finish). Flash it now to recover the light module.",
     vp: "SLCM " + FW_BUILD + " WITHOUT the bootloader. It can't be flashed from the app: install ALCM_VP_BL_full.hex once with an ST-Link, after that updates work from here.",
+    noname: "A light module is talking to the package but doesn't name itself: not SLCM r15 or newer. Flash ALCM_VP_BL_full.hex once with an ST-Link.",
     other: "No SLCM light module answered (stock or other LCM firmware, or none). Flashing from the app needs SLCM with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
   }[k];
   const chk = FW.active ? 2 : FW.check;
@@ -1165,7 +1167,8 @@ $('fwCheckBtn').onclick = () => {
       ? (FW.kind === 'recovery' ? "The LCM bootloader is waiting for firmware (an earlier update didn't finish). Continue to flash it and recover the light module."
         : 'Found SLCM light module firmware with the bootloader, so the package can update it over Bluetooth.\n\n' + FW_FIT[FW.kind][1])
       : "This is most likely because your board is running a version of LCM firmware that doesn't contain a bootloader for flashing over BLE.\n\nTo resolve this, first flash the LCM with an ST-Link using the correct firmware: ALCM_VP_BL_full.hex (lcm-latest release). After that, CHECK LCM passes and future updates work from the app.\n\nWhat the package saw: "
-        + (FW.kind === 'vp' ? 'SLCM ' + FW_BUILD + ' without the bootloader.' : 'no SLCM light module (stock or other LCM firmware, or none connected).');
+        + (FW.kind === 'noname' ? "a light module is talking to the package but doesn't name itself, so it isn't running SLCM r15 or newer (older SLCM / ALCM VP builds from before rf63, original ALCM, or other LCM firmware)." : FW.kind === 'vp' ? 'SLCM ' + FW_BUILD + ' without the bootloader.' : "no light module is talking to the package. Stock Floatwheel LCM firmware never does (it only reads the VESC's basic data); or the LCM isn't connected.")
+        + '\n\nThis package carries SLCM ' + FW_BUILD + ': the ALCM_VP_BL_full.hex for the ST-Link must be that build or newer.';
     const f = FW_FIT[FW.kind];
     $('fwChkFit').style.display = f ? '' : 'none';
     if (f) { $('fwChkFit').textContent = f[0]; const c = FW.kind === 'vpbl' ? 'var(--green)' : '#FFB300'; $('fwChkFit').style.color = $('fwChkFit').style.borderColor = c; }

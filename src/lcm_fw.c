@@ -41,7 +41,8 @@ static void send_status(const LcmFw *fw, const Time *time, bool has_bootloader) 
     put_u32(&b[5], fw->want);
     put_u32(&b[9], fw->size);
     b[13] = (bl_active(fw, time) ? LCM_FW_FLAG_BL_ACTIVE : 0) |
-        (has_bootloader ? LCM_FW_FLAG_CAPABLE : 0);
+        (has_bootloader ? LCM_FW_FLAG_CAPABLE : 0) |
+        (fw->poll_seen && !timer_older(time, fw->poll_time, 2.0f) ? LCM_FW_FLAG_POLLING : 0);
     VESC_IF->send_app_data(b, sizeof(b));
 }
 
@@ -84,11 +85,13 @@ void lcm_fw_command(
         if (len < 7) {
             return;
         }
-        bool seen = fw->bl_seen;
-        time_t seen_time = fw->bl_seen_time;
+        bool seen = fw->bl_seen, polled = fw->poll_seen;
+        time_t seen_time = fw->bl_seen_time, poll_time = fw->poll_time;
         lcm_fw_init(fw);
         fw->bl_seen = seen;
         fw->bl_seen_time = seen_time;
+        fw->poll_seen = polled;
+        fw->poll_time = poll_time;
         fw->size = get_u32(&buf[1]);
         fw->crc = ((uint16_t) buf[5] << 8) | buf[6];
         fw->want = LCM_FW_PAGE;
@@ -136,11 +139,13 @@ void lcm_fw_command(
         // An LCM already in its bootloader keeps waiting (power held) or
         // goes back to its old app after 20 s if it hadn't erased anything.
         {
-            bool seen = fw->bl_seen;
-            time_t seen_time = fw->bl_seen_time;
+            bool seen = fw->bl_seen, polled = fw->poll_seen;
+            time_t seen_time = fw->bl_seen_time, poll_time = fw->poll_time;
             lcm_fw_init(fw);
             fw->bl_seen = seen;
             fw->bl_seen_time = seen_time;
+            fw->poll_seen = polled;
+            fw->poll_time = poll_time;
         }
         send_status(fw, time, has_bootloader);
         return;
@@ -176,6 +181,11 @@ void lcm_fw_command(
         }
         return;
     }
+}
+
+void lcm_fw_poll_seen(LcmFw *fw, const Time *time) {
+    fw->poll_seen = true;
+    fw->poll_time = time->now;
 }
 
 bool lcm_fw_update_flag(LcmFw *fw, const State *state, const Time *time) {
