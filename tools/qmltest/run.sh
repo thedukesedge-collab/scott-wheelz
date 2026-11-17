@@ -149,9 +149,10 @@ cd "$here/../.."
 mkdir -p /tmp/shots
 for c in "$@"; do
   # frame 0: collapsed, 1: open on TUNES, 2: open on MIXER (REC mode)
-  for shot in 0 1 2; do
+  # 3: open on LEDS
+  for shot in 0 1 2 3; do
     frac=$([ $shot = 0 ] && echo 0 || echo 1)
-    tab=$([ $shot = 2 ] && echo 2 || echo 0)
+    tab=$([ $shot = 2 ] && echo 2 || ([ $shot = 3 ] && echo 5 || echo 0))
     rec=$([ $shot = 2 ] && echo true || echo false)
     echo "=================== $c (shot $shot, sheetFraction=$frac)"
     mkdir -p ~/.config/QtProject

@@ -216,6 +216,7 @@ Item {
             if (++count >= 10) {
                 count = 0;
                 send();
+                ledSender.tick();
                 // horn settings every second; the melody only when it changed, or every 10 s
                 hornSettingsSender.send(++hornSettingsSender.melodyTick % 10 === 0);
             }
@@ -325,6 +326,55 @@ Item {
             var data = commands.createData(3, commands.c_PLAY_MELODY);
             data.setUint8(2, custom ? 1 : 0);
             vescCommands.sendCustomAppData(data.buffer);
+        }
+    }
+
+    // Re-RinkFloat: light module settings (ALCM VP build, see lcm/README.md).
+    // Sent on every change (plus one retry) and every 5 s once the LEDS tab
+    // has been used; the board stores them and passes them to the light
+    // module in every poll reply, so they also apply without the phone.
+    QtObject {
+        id: ledSender
+
+        readonly property var animNames: ["STANDARD", "RAINBOW SCAN", "RAINBOW MIRROR", "KNIGHT RIDER",
+            "RAINBOW BAR", "THE FUZZ", "FIRE", "PULSE OUT", "PULSE IN", "120 SCROLL", "COMP. WAVE",
+            "CLASSIC", "COLOR SCAN"]
+        property int count: 0
+
+        function send() {
+            if (!swSettings.ledConfigured) return;
+            var data = commands.createData(13, commands.c_LCM_VP_SETTINGS);
+            data.setUint8(2, (swSettings.ledHeadlights ? 1 : 0) | (swSettings.ledStatusBar ? 2 : 0) | (swSettings.ledBeep ? 4 : 0));
+            data.setUint8(3, swSettings.ledHeadlightPct);
+            data.setUint8(4, swSettings.ledStatusIdlePct);
+            data.setUint8(5, swSettings.ledStatusRidePct);
+            data.setUint8(6, swSettings.ledAnimIdle);
+            data.setUint8(7, swSettings.ledAnimRide);
+            data.setUint8(8, swSettings.ledAnimDoze);
+            data.setUint8(9, swSettings.ledAnimBoot);
+            data.setUint8(10, swSettings.ledAnimShutdown);
+            data.setUint16(11, swSettings.ledColor);
+            vescCommands.sendCustomAppData(data.buffer);
+        }
+
+        function changed() {
+            swSettings.ledConfigured = true;
+            send();
+            ledRetryTimer.restart();
+        }
+
+        // called every second (with the free-spin limiter)
+        function tick() {
+            if (++count >= 5) {
+                count = 0;
+                send();
+            }
+        }
+
+        property Timer retryTimer: Timer {
+            id: ledRetryTimer
+            interval: 300
+            onTriggered: ledSender.send()
         }
     }
 
@@ -882,6 +932,7 @@ Item {
         readonly property int c_PLAY_MELODY: 123  // Re-RinkFloat
         readonly property int c_MELODY_SET: 124  // Re-RinkFloat
         readonly property int c_LIVE_TONE: 125  // Re-RinkFloat
+        readonly property int c_LCM_VP_SETTINGS: 126  // Re-RinkFloat: light module (ALCM VP)
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
         // Dynamic range: +-131008.0
@@ -1264,6 +1315,20 @@ Item {
         property bool hornBootCustom: false   // play the custom melody at boot instead
         property string melodyRec: "[[1,500],[2,500],[3,500]]"  // custom melody: [pitch 1-10, ms]
         property string savedMelodies: "[]"  // saved melodies: [{name, notes}]
+        // light module (ALCM VP build) - defaults match ALCM's own
+        property bool ledConfigured: false  // set once the LEDS tab is used
+        property bool ledHeadlights: true
+        property bool ledStatusBar: true
+        property bool ledBeep: true
+        property int ledHeadlightPct: 80
+        property int ledStatusIdlePct: 80
+        property int ledStatusRidePct: 80
+        property int ledAnimIdle: 0
+        property int ledAnimRide: 0
+        property int ledAnimDoze: 0
+        property int ledAnimBoot: 11
+        property int ledAnimShutdown: 0
+        property int ledColor: 200
         property int hornSimpleStrength: 5    // 0-10 -> buzz 0-15 A
         property int hornSimpleVolume: 5      // 1-10 -> beep 0.5-5 V
         property int hornSimplePitch: 3       // 1-10 -> beep 300-1000 Hz
@@ -2748,6 +2813,15 @@ Item {
         }
     }
 
+    // Re-RinkFloat: section heading (neon green, digital font)
+    component LedHeading : SwLText {
+        anchors.horizontalCenter: parent ? parent.horizontalCenter : undefined
+        font.pixelSize: 0.38 * unit
+        font.family: "Exan"
+        font.letterSpacing: 0.03 * unit
+        color: swTheme.neonGreen
+    }
+
     // Re-RinkFloat: label + [down] value [up] stepper with hold-to-repeat
     component SwStepper : Item {
         id: stepper
@@ -2762,6 +2836,7 @@ Item {
         property int decimals: 0
         property string suffix: ""
         property string valueText: ""  // overrides the number if set
+        property real valueWidth: 2.1 * unit  // wider for names (animations)
         signal moved(real newValue)
 
         function nudge(dir) {
@@ -2773,7 +2848,7 @@ Item {
         SwNeonLabel {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            width: parent.width - 4.6 * unit
+            width: parent.width - stepper.valueWidth - 2.5 * unit
             font.pixelSize: 0.28 * unit
             text: stepper.label
         }
@@ -2787,12 +2862,16 @@ Item {
                 model: [-1, 0, 1]
 
                 Item {
-                    width: modelData === 0 ? 2.1 * unit : 1.1 * unit
+                    width: modelData === 0 ? stepper.valueWidth : 1.1 * unit
                     height: 0.8 * unit
 
                     Text {
                         visible: modelData === 0
                         anchors.centerIn: parent
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        fontSizeMode: Text.HorizontalFit
+                        minimumPixelSize: 0.16 * unit
                         color: swTheme.neonGreen
                         font.family: "Exan"
                         font.pixelSize: 0.32 * unit
@@ -9065,6 +9144,7 @@ Item {
                 SwTabButton {text: "MIXER"}
                 SwTabButton {text: "DATA"}
                 SwTabButton {text: "BOARD STYLE"}
+                SwTabButton {text: "LEDS"}
 
                 background: Rectangle {
                     color: "#0b0718"
@@ -10544,56 +10624,124 @@ Item {
                             }
                         }
 
-                        // Re-RinkFloat: light controls, moved here from CONTROL (only
-                        // shown when the board reports lights). Lit = on; tap to toggle.
-                        SwLText {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            visible: lights.enabled
-                            // Re-RinkFloat: section headings in neon green digital font
-                            font.pixelSize: 0.38 * unit
-                            font.family: "Exan"
-                            font.letterSpacing: 0.03 * unit
-                            color: swTheme.neonGreen
-                            text: "Lights"
-                        }
-
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            visible: lights.enabled
-                            spacing: 0.2 * unit
-
-                            SwPill {
-                                minWidth: 2.8 * unit
-                                implicitHeight: 0.75 * unit
-                                label: lights.on ? "LIGHTS ON" : "LIGHTS OFF"
-                                lit: lights.on
-                                onClicked: commands.sendLightsControl(!lights.on)
-                            }
-
-                            SwPill {
-                                minWidth: 3.4 * unit
-                                implicitHeight: 0.75 * unit
-                                label: lights.headlightsOn ? "HEADLIGHTS ON" : "HEADLIGHTS OFF"
-                                lit: lights.headlightsOn
-                                onClicked: commands.sendLightsControl(undefined, !lights.headlightsOn)
-                            }
-                        }
-
-                        // light modules (ALCM, LCM) only follow these with LED Mode External
-                        SwLText {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            width: parent.width - 0.4 * unit
-                            visible: lights.enabled && !lights.lcm
-                            horizontalAlignment: Text.AlignHCenter
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: fontSizeSmall
-                            text: "Using a light module (ALCM / LCM)? Set Refloat Cfg \u25B8 Hardware \u25B8 LED Mode to External (or Internal and External) and write the config, so it follows these buttons."
-                        }
-
                         Item {
                             width: parent.width
                             height: 0.2 * unit
                         }
+                    }
+                }
+
+                // Re-RinkFloat: LEDS - light module (ALCM VP build) settings
+                ScrollView {
+                    Layout.fillHeight: true
+                    Layout.fillWidth: true
+                    contentWidth: availableWidth
+                    clip: true
+
+                    Column {
+                        id: ledsPage
+                        anchors.fill: parent
+                        anchors.leftMargin: 0.15 * unit
+                        anchors.rightMargin: 0.15 * unit
+                        spacing: 0.12 * unit
+
+                        Item { width: parent.width; height: 0.05 * unit }
+
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: swSettings.ledConfigured
+                                ? "Sent to the light module (ALCM VP firmware) and stored on the board, so it applies even without the phone."
+                                : "For a light module running the ALCM VP firmware. Nothing is sent until you change a setting here; until then the module keeps its own settings."
+                        }
+
+                        LedHeading { text: "Headlights" }
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 3.4 * unit
+                            label: swSettings.ledHeadlights ? "HEADLIGHTS ON" : "HEADLIGHTS OFF"
+                            lit: swSettings.ledHeadlights
+                            onClicked: { swSettings.ledHeadlights = !swSettings.ledHeadlights; ledSender.changed(); }
+                        }
+
+                        SwStepper {
+                            label: "BRIGHTNESS"
+                            value: swSettings.ledHeadlightPct
+                            from: 0; to: 100; step: 5; suffix: "%"
+                            onMoved: { swSettings.ledHeadlightPct = newValue; ledSender.changed(); }
+                        }
+
+                        LedHeading { text: "Status bar" }
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 3.4 * unit
+                            label: swSettings.ledStatusBar ? "STATUS BAR ON" : "STATUS BAR OFF"
+                            lit: swSettings.ledStatusBar
+                            onClicked: { swSettings.ledStatusBar = !swSettings.ledStatusBar; ledSender.changed(); }
+                        }
+
+                        SwStepper {
+                            label: "IDLE BRIGHTNESS"
+                            value: swSettings.ledStatusIdlePct
+                            from: 0; to: 100; step: 5; suffix: "%"
+                            onMoved: { swSettings.ledStatusIdlePct = newValue; ledSender.changed(); }
+                        }
+
+                        SwStepper {
+                            label: "RIDING BRIGHTNESS"
+                            value: swSettings.ledStatusRidePct
+                            from: 0; to: 100; step: 5; suffix: "%"
+                            onMoved: { swSettings.ledStatusRidePct = newValue; ledSender.changed(); }
+                        }
+
+                        LedHeading { text: "Animations" }
+
+                        Repeater {
+                            model: [["IDLE", "ledAnimIdle"], ["RIDING", "ledAnimRide"], ["SNOOZE", "ledAnimDoze"],
+                                    ["BOOT", "ledAnimBoot"], ["SHUTDOWN", "ledAnimShutdown"]]
+
+                            SwStepper {
+                                width: ledsPage.width
+                                label: modelData[0]
+                                valueWidth: 3.6 * unit
+                                value: swSettings[modelData[1]]
+                                from: 0; to: ledSender.animNames.length - 1; step: 1
+                                valueText: ledSender.animNames[value] || ""
+                                onMoved: { swSettings[modelData[1]] = newValue; ledSender.changed(); }
+                            }
+                        }
+
+                        SwStepper {
+                            label: "COLOR"
+                            value: swSettings.ledColor
+                            from: 0; to: 350; step: 10; suffix: "\u00B0"
+                            onMoved: { swSettings.ledColor = newValue; ledSender.changed(); }
+                        }
+
+                        // personal color (used by the CLASSIC / COLOR SCAN / PULSE / WAVE animations)
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: parent.width * 0.7
+                            height: 0.18 * unit
+                            radius: height / 2
+                            color: Qt.hsla(swSettings.ledColor / 360, 1.0, 0.5, 1.0)
+                        }
+
+                        LedHeading { text: "Sound" }
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 3.4 * unit
+                            label: swSettings.ledBeep ? "LCM BEEPER ON" : "LCM BEEPER OFF"
+                            lit: swSettings.ledBeep
+                            onClicked: { swSettings.ledBeep = !swSettings.ledBeep; ledSender.changed(); }
+                        }
+
+                        Item { width: parent.width; height: 0.3 * unit }
                     }
                 }
             }

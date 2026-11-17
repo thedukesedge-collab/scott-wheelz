@@ -100,7 +100,11 @@ typedef struct {
     volatile uint32_t horn_pending[HORN_EEPROM_WORDS];
     volatile bool horn_save_pending;
     volatile time_t horn_change_time;
-    uint8_t horn_save_retries;  // failed saves retried at most 3 times
+    uint8_t horn_save_retries;
+    // light module (ALCM VP) settings save state (see lcm_vp_save_if_due)
+    volatile bool lcm_vp_save_pending;
+    volatile time_t lcm_vp_change_time;
+    uint32_t lcm_vp_saved[3];  // failed saves retried at most 3 times
     bool boot_melody;
     bool boot_melody_custom;  // play the custom melody at boot
     float boot_melody_volume;

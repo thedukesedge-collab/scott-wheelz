@@ -23,6 +23,7 @@
 #include "utils.h"
 
 #include <math.h>
+#include <string.h>
 
 void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg) {
     lcm->enabled = hw_cfg->mode & LED_MODE_EXTERNAL;
@@ -32,6 +33,7 @@ void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg) {
     lcm->name[0] = '\0';
     lcm->payload_size = 0;
     lcm->lights_off_when_lifted = true;
+    lcm->vp.valid = false;
 }
 
 void lcm_configure(LcmData *lcm, const Leds *leds) {
@@ -94,7 +96,9 @@ void lcm_poll_response(
     buffer[ind++] = 101;  // Package ID
     buffer[ind++] = COMMAND_LCM_POLL;
 
-    if (lcm->enabled) {
+    // Re-Float Rink-Mixed: the VP light settings are sent whenever they've been
+    // set from the app, whatever the LED Mode
+    if (lcm->enabled || lcm->vp.valid) {
         uint8_t send_state = state_compat(state) & 0xF;
         send_state += fs_state << 4;
         if (state->mode == MODE_HANDTEST) {
@@ -115,16 +119,36 @@ void lcm_poll_response(
         buffer_append_float16(buffer, VESC_IF->mc_get_tot_current_in(), 1e0, &ind);
         buffer_append_float16(buffer, VESC_IF->mc_get_input_voltage_filtered(), 1e1, &ind);
 
-        // LCM control info
-        buffer[ind++] = lcm->brightness;
-        buffer[ind++] = lcm->brightness_idle;
-        buffer[ind++] = lcm->status_brightness;
+        if (lcm->vp.valid) {
+            // Re-Float Rink-Mixed: brightness from the app (status bar level
+            // depends on riding / not riding), then the VP block (ALCM VP
+            // build); 25 bytes in total, ALCM accepts up to 32
+            const LcmVpSettings *vp = &lcm->vp;
+            buffer[ind++] = vp->headlight_brightness;
+            buffer[ind++] = vp->headlight_brightness;
+            buffer[ind++] = state->state == STATE_RUNNING ? vp->status_riding_brightness
+                                                          : vp->status_idle_brightness;
+            buffer[ind++] = 0x56;  // 'V'
+            buffer[ind++] = 1;  // version
+            buffer[ind++] = vp->flags;
+            for (int i = 0; i < LCM_VP_ANIMATIONS; ++i) {
+                buffer[ind++] = vp->animations[i];
+            }
+            buffer[ind++] = vp->color >> 8;
+            buffer[ind++] = vp->color & 0xFF;
+            lcm->payload_size = 0;
+        } else {
+            // LCM control info
+            buffer[ind++] = lcm->brightness;
+            buffer[ind++] = lcm->brightness_idle;
+            buffer[ind++] = lcm->status_brightness;
 
-        // Relay any generic byte pairs set by cmd_light_ctrl
-        for (uint8_t i = 0; i < lcm->payload_size; ++i) {
-            buffer[ind++] = lcm->payload[i];
+            // Relay any generic byte pairs set by cmd_light_ctrl
+            for (uint8_t i = 0; i < lcm->payload_size; ++i) {
+                buffer[ind++] = lcm->payload[i];
+            }
+            lcm->payload_size = 0;  // Message has been processed, clear it
         }
-        lcm->payload_size = 0;  // Message has been processed, clear it
     }
 
     SEND_APP_DATA(buffer, bufsize, ind);
@@ -221,4 +245,67 @@ void lcm_light_ctrl_request(LcmData *lcm, unsigned char *cfg, int len) {
             }
         }
     }
+}
+
+static uint8_t clamp_u8(uint8_t value, uint8_t max) {
+    return value > max ? max : value;
+}
+
+bool lcm_vp_set(LcmData *lcm, const uint8_t *buffer, int len) {
+    if (len < LCM_VP_SETTINGS_LENGTH) {
+        return false;
+    }
+
+    LcmVpSettings vp;
+    memset(&vp, 0, sizeof(vp));  // padding too, for the memcmp below
+    vp.valid = true;
+    vp.flags = buffer[0] & (LCM_VP_FLAG_HEADLIGHTS | LCM_VP_FLAG_STATUS_BAR | LCM_VP_FLAG_BEEP);
+    vp.headlight_brightness = clamp_u8(buffer[1], 100);
+    vp.status_idle_brightness = clamp_u8(buffer[2], 100);
+    vp.status_riding_brightness = clamp_u8(buffer[3], 100);
+    for (int i = 0; i < LCM_VP_ANIMATIONS; ++i) {
+        vp.animations[i] = clamp_u8(buffer[4 + i], LCM_VP_ANIMATION_COUNT - 1);
+    }
+    vp.color = ((uint16_t) buffer[9] << 8) | buffer[10];
+    if (vp.color > 359) {
+        vp.color = 359;
+    }
+
+    bool changed = memcmp(&vp, &lcm->vp, sizeof(vp)) != 0;
+    lcm->vp = vp;
+    return changed;
+}
+
+void lcm_vp_pack(const LcmData *lcm, uint32_t words[3]) {
+    const LcmVpSettings *vp = &lcm->vp;
+    // word 0: magic 0x4C ('L'), flags, headlight %, status idle %
+    words[0] = (0x4Cu << 24) | ((uint32_t) vp->flags << 16) |
+        ((uint32_t) vp->headlight_brightness << 8) | vp->status_idle_brightness;
+    // word 1: status riding %, idle, riding, dozing animations
+    words[1] = ((uint32_t) vp->status_riding_brightness << 24) |
+        ((uint32_t) vp->animations[0] << 16) | ((uint32_t) vp->animations[1] << 8) |
+        vp->animations[2];
+    // word 2: boot, shutdown animations, color
+    words[2] =
+        ((uint32_t) vp->animations[3] << 24) | ((uint32_t) vp->animations[4] << 16) | vp->color;
+}
+
+void lcm_vp_unpack(LcmData *lcm, const uint32_t words[3]) {
+    if ((words[0] >> 24) != 0x4C) {
+        return;
+    }
+    uint8_t buffer[LCM_VP_SETTINGS_LENGTH] = {
+        (words[0] >> 16) & 0xFF,
+        (words[0] >> 8) & 0xFF,
+        words[0] & 0xFF,
+        words[1] >> 24,
+        (words[1] >> 16) & 0xFF,
+        (words[1] >> 8) & 0xFF,
+        words[1] & 0xFF,
+        words[2] >> 24,
+        (words[2] >> 16) & 0xFF,
+        (words[2] >> 8) & 0xFF,
+        words[2] & 0xFF,
+    };
+    lcm_vp_set(lcm, buffer, LCM_VP_SETTINGS_LENGTH);
 }

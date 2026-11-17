@@ -1169,6 +1169,7 @@ static void write_cfg_to_eeprom(Data *d) {
 }
 
 static void horn_settings_save_if_due(Data *d);
+static void lcm_vp_save_if_due(Data *d);
 
 static void aux_thd(void *arg) {
     Data *d = (Data *) arg;
@@ -1189,6 +1190,7 @@ static void aux_thd(void *arg) {
         }
 
         horn_settings_save_if_due(d);
+        lcm_vp_save_if_due(d);
 
         if (timer_older(&d->time, motor_config_refresh_timer, 0.5)) {
             motor_data_refresh_motor_config(
@@ -1333,6 +1335,44 @@ static void horn_settings_queue_save(Data *d, uint32_t w0, uint32_t w1) {
     }
 }
 
+// Re-Float Rink-Mixed: light module (ALCM VP) settings in 3 custom EEPROM
+// words (80-82, right after the 80-word config). Saved like the horn
+// settings: 2 s after the last change, never while riding.
+#define LCM_VP_EEPROM_ADDR 80
+
+static void lcm_vp_load(Data *d) {
+    uint32_t w[3];
+    for (int i = 0; i < 3; ++i) {
+        eeprom_var v;
+        if (!VESC_IF->read_eeprom_var(&v, LCM_VP_EEPROM_ADDR + i)) {
+            return;
+        }
+        w[i] = v.as_u32;
+        d->lcm_vp_saved[i] = w[i];
+    }
+    lcm_vp_unpack(&d->lcm, w);
+}
+
+static void lcm_vp_save_if_due(Data *d) {
+    if (!d->lcm_vp_save_pending || d->state.state == STATE_RUNNING ||
+        !timer_older(&d->time, d->lcm_vp_change_time, 2.0f)) {
+        return;
+    }
+    d->lcm_vp_save_pending = false;
+    uint32_t w[3];
+    lcm_vp_pack(&d->lcm, w);
+    for (int i = 0; i < 3; ++i) {
+        if (w[i] != d->lcm_vp_saved[i]) {
+            eeprom_var v = {.as_u32 = w[i]};
+            if (!VESC_IF->store_eeprom_var(&v, LCM_VP_EEPROM_ADDR + i)) {
+                log_error("Failed to save light module settings.");
+                return;
+            }
+            d->lcm_vp_saved[i] = w[i];
+        }
+    }
+}
+
 static void horn_settings_save_if_due(Data *d) {
     if (!d->horn_save_pending || d->state.state == STATE_RUNNING ||
         !timer_older(&d->time, d->horn_change_time, 2.0f)) {
@@ -1401,6 +1441,7 @@ static void data_init(Data *d) {
     leds_init(&d->leds);
     leds_setup(&d->leds, &d->float_conf.hardware.leds, &d->float_conf.leds);
     lcm_init(&d->lcm, &d->float_conf.hardware.leds);
+    lcm_vp_load(d);
     charging_init(&d->charging);
     bms_init(&d->bms);
 
@@ -1465,6 +1506,7 @@ enum {
     COMMAND_HORN_SETTINGS = 122,
     COMMAND_PLAY_MELODY = 123,  // play a melody now (READY only): u8 0 = default, 1 = custom
     COMMAND_MELODY_SET = 124,  // custom melody: up to 6 x (pitch level, length in 20 ms)
+    COMMAND_LCM_VP_SETTINGS = 126,  // light module (ALCM VP) settings, 11 bytes, see lcm.h
     COMMAND_LIVE_TONE = 125,  // melody tiles: u8 pitch level (0 = stop), resent every 100 ms
 
     // commands above 200 are unstable and can change protocol at any time
@@ -2609,6 +2651,15 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
                 horn_settings_queue_save(d, d->horn_last_w0, d->horn_last_w1);
             }
         } else {
+            log_error("Command data length incorrect: %u", len);
+        }
+        return;
+    }
+    case COMMAND_LCM_VP_SETTINGS: {
+        if (lcm_vp_set(&d->lcm, &buffer[2], len - 2)) {
+            d->lcm_vp_change_time = d->time.now;
+            d->lcm_vp_save_pending = true;
+        } else if (len - 2 < LCM_VP_SETTINGS_LENGTH) {
             log_error("Command data length incorrect: %u", len);
         }
         return;

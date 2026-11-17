@@ -16,6 +16,7 @@
 - **Horn settings** (Control tab, horn only): SIMPLE (strength / volume / pitch) or ADVANCED, with safe limits.
 - **MIXER tab**: 10 real-note tiles (E4 to G5). LIVE: tap to play notes on the board (when idle). REC: your first tap starts a 5 s recording with a moving playhead, gaps are kept as rests (2 s max per note); SAVE your melodies.
 - **Boot melody**: plays when the board is ready. Default 1-2-3, or pick one of your saved melodies in the MY MELODIES window. A sound budget keeps the motor from playing tones for long stretches.
+- **LEDS tab** (with the ALCM VP light module firmware): headlights, status bar (idle / riding brightness), idle / riding / snooze / boot / shutdown animations, color and beeper, all set from the app.
 - **Free-spin limiter** (optional, min 40 mph): gently caps tire speed only while it's spinning free; braking always works.
 - **DATA tab**: live graph or plain text.
 

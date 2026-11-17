@@ -509,3 +509,19 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   brightness (poll byte 12) and status-bar brightness (byte 14), 0-100%,
   applying changes after the first value it sees; it ignores the idle
   brightness and any extra payload bytes, and drops packets > 32 bytes.
+
+### LEDS tab + ALCM VP light module firmware (v1.2.3-rf55)
+- New LEDS tab in the panel (after BOARD STYLE): headlights on/off and
+  brightness, status bar on/off with separate idle and riding brightness,
+  the idle / riding / snooze / boot / shutdown animations, the personal
+  color, and the light module's beeper. The Lights buttons on BOARD STYLE
+  are gone (the LEDS tab replaces them).
+- The package stores these in EEPROM words 80-82 (COMMAND_LCM_VP_SETTINGS =
+  126) and appends them to every LCM poll reply as a "VP block", whatever
+  the LED Mode, so they apply even without the phone. Nothing is sent until
+  the LEDS tab is used once.
+- lcm/alcm: ALCM v0.1.1 (MrTheConductor/alcm, GPL-3.0) with VP light control:
+  reads the VP block, the button keeps only power off (hold) + factory reset,
+  clicks / config mode / footpad adjustments are gone. GCC build + ALCM's
+  unit tests (stock and VP) in CI; ALCM_VP.hex on the lcm-latest release.
+  See lcm/README.md.

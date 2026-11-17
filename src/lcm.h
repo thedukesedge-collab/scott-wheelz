@@ -37,6 +37,26 @@ typedef enum {
 #define MAX_LCM_NAME_LENGTH 20
 #define MAX_LCM_PAYLOAD_LENGTH 64
 
+// Re-Float Rink-Mixed: light settings for the VP build of ALCM, set from the
+// app (COMMAND_LCM_VP_SETTINGS) and appended to every LCM poll reply. See
+// lcm/README.md for the wire format.
+#define LCM_VP_FLAG_HEADLIGHTS 0x01
+#define LCM_VP_FLAG_STATUS_BAR 0x02
+#define LCM_VP_FLAG_BEEP 0x04
+#define LCM_VP_ANIMATIONS 5  // idle, riding, dozing (snooze), boot, shutdown
+#define LCM_VP_ANIMATION_COUNT 13
+#define LCM_VP_SETTINGS_LENGTH 11  // bytes in COMMAND_LCM_VP_SETTINGS
+
+typedef struct {
+    bool valid;  // set from the app at least once (otherwise nothing is sent)
+    uint8_t flags;
+    uint8_t headlight_brightness;  // %
+    uint8_t status_idle_brightness;  // %
+    uint8_t status_riding_brightness;  // %
+    uint8_t animations[LCM_VP_ANIMATIONS];
+    uint16_t color;  // degrees 0-359
+} LcmVpSettings;
+
 typedef struct {
     bool enabled;
     uint8_t brightness;
@@ -47,6 +67,8 @@ typedef struct {
     char name[MAX_LCM_NAME_LENGTH];
     uint8_t payload[MAX_LCM_PAYLOAD_LENGTH];
     uint8_t payload_size;
+
+    LcmVpSettings vp;
 } LcmData;
 
 void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg);
@@ -88,3 +110,16 @@ void lcm_get_battery_response(const LcmData *lcm);
  * Command for apps to call to control LCM details (lights, behavior, etc).
  */
 void lcm_light_ctrl_request(LcmData *lcm, unsigned char *cfg, int len);
+
+/**
+ * Re-Float Rink-Mixed: sets the VP light settings from the app (11 bytes:
+ * flags, headlight %, status idle %, status riding %, 5 animations, color
+ * hi, color lo). Values are clamped. Returns true if anything changed.
+ */
+bool lcm_vp_set(LcmData *lcm, const uint8_t *buffer, int len);
+
+/**
+ * Packs / unpacks the VP light settings to / from 3 EEPROM words.
+ */
+void lcm_vp_pack(const LcmData *lcm, uint32_t words[3]);
+void lcm_vp_unpack(LcmData *lcm, const uint32_t words[3]);
