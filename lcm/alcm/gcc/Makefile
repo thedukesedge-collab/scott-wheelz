@@ -52,7 +52,19 @@ build/$(NAME).elf: $(SRC) $(ASM) hk32f030m.ld
 build/$(NAME).hex: build/$(NAME).elf
 	$(OBJCOPY) -O ihex $< $@
 
+# per-function / per-file sizes without LTO (LTO merges everything into
+# Reset_Handler), to see where the bytes go
+analyze: $(SRC) $(ASM)
+	@mkdir -p build/obj
+	for f in $(SRC); do $(CC) $(subst -flto,,$(CFLAGS)) -c $$f -o build/obj/$$(basename $$f .c).o; done
+	$(CC) $(subst -flto,,$(CFLAGS)) -c $(ASM) -o build/obj/ws2812.o
+	$(CC) $(subst -flto,,$(LDFLAGS:hk32f030m.ld=build/measure.ld)) build/obj/*.o -o build/analyze.elf
+	( echo "== per file (text data bss)"; arm-none-eabi-size build/obj/*.o | sort -k1 -n -r; \
+	  echo "== total (no LTO)"; arm-none-eabi-size build/analyze.elf; \
+	  echo "== biggest functions/objects"; arm-none-eabi-nm --size-sort -S -r build/analyze.elf | head -120 ) > build/analyze.txt
+	cat build/analyze.txt
+
 clean:
 	rm -rf build
 
-.PHONY: all clean
+.PHONY: all clean analyze
