@@ -502,7 +502,7 @@ Item {
             : fitted === "vpbl" ? "ALCM VP with bootloader · build " + lcmName.substr(5)
                 + (builtin ? (upToDate ? " · up to date with this package" : " · this package carries build " + builtin.version) : "")
             : fitted === "vp" ? "ALCM VP build " + lcmName.substr(3) + " WITHOUT the bootloader. It can't be flashed from the app: install ALCM_VP_BL_full.hex once with an ST-Link, after that updates work from here."
-            : fitted === "other" ? "Light module firmware "" + lcmName + "" can't be flashed from the app. It needs ALCM VP with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
+            : fitted === "other" ? "Light module firmware \u201C" + lcmName + "\u201D can't be flashed from the app. It needs ALCM VP with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
             : "No ALCM VP light module answered (stock or other LCM firmware, or none). Flashing from the app needs ALCM VP with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
 
         function probe() {
