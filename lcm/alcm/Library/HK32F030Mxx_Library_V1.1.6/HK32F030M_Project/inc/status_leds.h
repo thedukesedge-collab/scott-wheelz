@@ -52,6 +52,11 @@ typedef enum
     ANIMATION_OPTION_COMPLEMENTARY_WAVE,
     ANIMATION_OPTION_FLOATWHEEL_CLASSIC,
     ANIMATION_OPTION_PERSONAL_SCAN,
+#ifdef VP_LIGHT_CONTROL
+    // Re-Float Rink-Mixed (SLCM r16+): the battery gauge as an animation
+    // choice, for any context (riding, snooze, boot, ...)
+    ANIMATION_OPTION_BATTERY,
+#endif
     ANIMATION_OPTION_COUNT
 } animation_option_t;
 

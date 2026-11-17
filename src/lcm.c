@@ -63,7 +63,8 @@ void lcm_configure(LcmData *lcm, const Leds *leds) {
             lcm->brightness = 0;
             lcm->status_brightness = cfg->status.brightness_headlights_off * 100;
         }
-        lcm->brightness_idle = cfg->front.brightness * 100;
+        // Re-Float Rink-Mixed: and no idle (running) light either
+        lcm->brightness_idle = status->headlights_enabled ? cfg->front.brightness * 100 : 0;
     }
     lcm->lights_off_when_lifted = cfg->lights_off_when_lifted;
 }
@@ -137,8 +138,13 @@ void lcm_poll_response(
             // and idle levels here, so the LCM just follows the first one.
             const LcmVpSettings *vp = &lcm->vp;
             const bool riding = state->state == STATE_RUNNING;
-            buffer[ind++] = riding ? vp->headlight_brightness : vp->headlight_idle_brightness;
-            buffer[ind++] = vp->headlight_idle_brightness;
+            // headlights off: 0 too, so "off" is off even on an LCM that only
+            // follows the brightness (the SLCM also switches off on the flag)
+            const bool head_on = vp->flags & LCM_VP_FLAG_HEADLIGHTS;
+            buffer[ind++] = !head_on ? 0
+                : riding             ? vp->headlight_brightness
+                                     : vp->headlight_idle_brightness;
+            buffer[ind++] = head_on ? vp->headlight_idle_brightness : 0;
             buffer[ind++] = riding ? vp->status_riding_brightness : vp->status_idle_brightness;
             buffer[ind++] = 0x56;  // 'V'
             buffer[ind++] = 1;  // version
@@ -274,7 +280,7 @@ bool lcm_vp_set(LcmData *lcm, const uint8_t *buffer, int len) {
     LcmVpSettings vp;
     memset(&vp, 0, sizeof(vp));  // padding too, for the memcmp below
     vp.valid = true;
-    vp.flags = buffer[0] & (LCM_VP_FLAG_HEADLIGHTS | LCM_VP_FLAG_STATUS_BAR | LCM_VP_FLAG_BEEP);
+    vp.flags = buffer[0] & LCM_VP_STORED_FLAGS;
     vp.headlight_brightness = clamp_u8(buffer[1], 100);
     vp.status_idle_brightness = clamp_u8(buffer[2], 100);
     vp.status_riding_brightness = clamp_u8(buffer[3], 100);

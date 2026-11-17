@@ -18,7 +18,7 @@ int main(void){
     lcm_poll_response(&lcm, &st, 0, &md, 0);
     assert(sent_len == 2 && sent[0]==101 && sent[1]==24);
     /* 2: VP settings: headlights off, bar on, beep on; 80/30/90 %; anims; color 300 */
-    uint8_t in[11] = {0x06, 80, 30, 90, 4, 6, 9, 11, 0, 0x01, 0x2C};
+    uint8_t in[11] = {0x27, 80, 30, 90, 4, 6, 9, 11, 0, 0x01, 0x2C};
     assert(lcm_vp_set(&lcm, in, 11) == true);
     assert(lcm_vp_set(&lcm, in, 11) == false);  /* same again: no change */
     /* an LCM that didn't name itself SLCM gets no VP block (stock reply) */
@@ -35,7 +35,7 @@ int main(void){
        byte, so ALCM offset N is package index N-1; ALCM sees 25 bytes */
     assert(sent_len == 25);
     assert(sent[11]==80 && sent[12]==80 && sent[13]==30);  /* idle: status idle % */
-    assert(sent[14]==0x56 && sent[15]==1 && sent[16]==0x06);
+    assert(sent[14]==0x56 && sent[15]==1 && sent[16]==0x27);  /* doze-dark (0x20) kept */
     assert(sent[17]==4 && sent[18]==6 && sent[19]==9 && sent[20]==11 && sent[21]==0);
     assert(sent[22]==0x01 && sent[23]==0x2C);
     assert(sent[24]==0xFF);  /* no battery curve: the LCM uses the VESC's % */
@@ -46,7 +46,7 @@ int main(void){
     assert(sent[13]==90 && sent_len==25);
     assert(sent[11]==80 && sent[12]==80);  /* 11-byte form: idle headlight = riding */
     /* 12-byte form: headlight idle 25 % - riding 80 %, idle 25 % */
-    uint8_t in12[12] = {0x06, 80, 30, 90, 4, 6, 9, 11, 0, 0x01, 0x2C, 25};
+    uint8_t in12[12] = {0x27, 80, 30, 90, 4, 6, 9, 11, 0, 0x01, 0x2C, 25};
     assert(lcm_vp_set(&lcm, in12, 12) == true);
     lcm_poll_response(&lcm, &st, 0, &md, 0);
     assert(sent[11]==80 && sent[12]==25 && sent[13]==90);
@@ -54,13 +54,26 @@ int main(void){
     assert(sent[11]==25 && sent[12]==25 && sent[13]==30);
     /* test beep toggles flag bit 3, not stored */
     lcm_vp_test_beep(&lcm); lcm_poll_response(&lcm, &st, 0, &md, 0);
-    assert(sent[16]==(0x06|0x08));
+    assert(sent[16]==(0x27|0x08));
     lcm_vp_test_beep(&lcm); lcm_poll_response(&lcm, &st, 0, &md, 0);
-    assert(sent[16]==0x06);
+    assert(sent[16]==0x27);
+    /* headlights off: brightness 0 riding and idle (off really is off) */
+    uint8_t off12[12] = {0x06, 80, 30, 90, 4, 6, 9, 11, 0, 0x01, 0x2C, 25};
+    assert(lcm_vp_set(&lcm, off12, 12) == true);
+    lcm_poll_response(&lcm, &st, 0, &md, 0);
+    assert(sent[11]==0 && sent[12]==0 && sent[13]==30);
+    st.state = STATE_RUNNING; lcm_poll_response(&lcm, &st, 0, &md, 0);
+    assert(sent[11]==0 && sent[12]==0 && sent[13]==90);
+    st.state = STATE_READY;
+    /* battery gauge animation (13) accepted, 14 clamped */
+    uint8_t bat12[12] = {0x07, 80, 30, 90, 13, 13, 13, 14, 0, 0x01, 0x2C, 25};
+    assert(lcm_vp_set(&lcm, bat12, 12) == true);
+    lcm_poll_response(&lcm, &st, 0, &md, 0);
+    assert(sent[17]==13 && sent[18]==13 && sent[19]==13 && sent[20]==13);
     /* clamping: 150 %, anim 99, color 999, unknown flag bits */
     uint8_t bad[11] = {0xFF, 150, 150, 150, 99, 99, 99, 99, 99, 0x03, 0xE7};
     lcm_vp_set(&lcm, bad, 11);
-    assert(lcm.vp.flags==0x07 && lcm.vp.headlight_brightness==100 && lcm.vp.animations[0]==12 && lcm.vp.color==359);
+    assert(lcm.vp.flags==0x27 && lcm.vp.headlight_brightness==100 && lcm.vp.animations[0]==13 && lcm.vp.color==359);
     /* short command ignored */
     assert(lcm_vp_set(&lcm, in, 10) == false && lcm.vp.color==359);
     /* pack/unpack round trip */

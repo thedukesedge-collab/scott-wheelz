@@ -751,3 +751,17 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   an LCM polling without a name (pre-rf63 SLCM/ALCM VP, original ALCM,
   other firmware). The failure also names the SLCM build the package
   carries.
+
+### Lights: off really off, running / riding lights, snooze breathing, battery gauge animation (v1.2.3-rf69)
+- Status bar animations: what "0" does now has a name per context: IDLE /
+  BOOT / SHUTDOWN = STANDARD (battery + footpads), RIDING / SNOOZE = OFF
+  (riding still warns on a low battery).
+- New animation BATTERY LEVEL (13) for any context (SLCM firmware change:
+  ANIMATION_OPTION_BATTERY; riding shows it live). Package accepts 0-13.
+- Headlights: HEADLIGHTS OFF is now fully off. The package sends 0
+  brightness (riding and idle) when off - for the SLCM and, in the stock
+  path, for any LCM (Refloat used to keep sending the "front" / idle level,
+  which is why "off" only dimmed at idle). Riding / idle brightness are now
+  RIDING LIGHTS / RUNNING LIGHTS (IDLE), 0 = OFF.
+- SNOOZE BREATHING on/off: VP flag 0x20 (the SLCM already supported it, the
+  package now passes and stores it).

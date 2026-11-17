@@ -106,6 +106,7 @@
 #define VP_FLAG_BEEP 0x04U
 #define VP_FLAG_TEST_BEEP 0x08U // toggled by the app for a test beep
 #define VP_FLAG_UPDATE 0x10U    // firmware update staged: hand over to the bootloader
+#define VP_FLAG_DOZE_DARK 0x20U // headlights off in snooze (no breathing)
 #endif
 #endif
 
@@ -169,6 +170,7 @@ static uint8_t headlight_remote_baseline = LCM_BASELINE_UNSET;
 static uint8_t status_remote_baseline = LCM_BASELINE_UNSET;
 #ifdef VP_LIGHT_CONTROL
 static uint8_t vp_test_beep_last = 0xFFU; // 0xFF: no VP block seen yet
+uint8_t vp_doze_dark = 0U;                 // VP_FLAG_DOZE_DARK, read by headlights.c
 static int16_t vp_battery_level = -1;      // tenths of a %, -1: the VESC's
 #endif
 static bool_t vesc_locked = false;
@@ -757,6 +759,8 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
     bool_t status_leds = ((flags & VP_FLAG_STATUS_LEDS) != 0U) ? true : false;
     bool_t beep = ((flags & VP_FLAG_BEEP) != 0U) ? true : false;
     uint16_t color = (uint16_t)(((uint16_t)block[8] << 8) | block[9]);
+
+    vp_doze_dark = flags & VP_FLAG_DOZE_DARK; // applies from the next snooze
 
     if ((headlights != settings->enable_headlights) ||
         (status_leds != settings->enable_status_leds))

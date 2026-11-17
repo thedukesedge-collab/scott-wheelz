@@ -45,8 +45,11 @@ typedef enum {
 #define LCM_VP_FLAG_BEEP 0x04
 #define LCM_VP_FLAG_TEST_BEEP 0x08  // toggled on each test-beep request (not stored)
 #define LCM_VP_FLAG_UPDATE 0x10  // firmware update staged: start the LCM bootloader (not stored)
+#define LCM_VP_FLAG_DOZE_DARK 0x20  // headlights off in snooze (no breathing)
+#define LCM_VP_STORED_FLAGS                                                                        \
+    (LCM_VP_FLAG_HEADLIGHTS | LCM_VP_FLAG_STATUS_BAR | LCM_VP_FLAG_BEEP | LCM_VP_FLAG_DOZE_DARK)
 #define LCM_VP_ANIMATIONS 5  // idle, riding, dozing (snooze), boot, shutdown
-#define LCM_VP_ANIMATION_COUNT 13
+#define LCM_VP_ANIMATION_COUNT 14  // 0 = standard/off .. 12, 13 = battery gauge (SLCM r16+)
 #define LCM_VP_SETTINGS_LENGTH 12  // bytes in COMMAND_LCM_VP_SETTINGS (11 accepted)
 #define LCM_VP_EEPROM_WORDS 4
 

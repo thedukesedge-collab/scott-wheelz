@@ -18,6 +18,9 @@
  */
 #include <stddef.h>
 #include "headlights.h"
+#ifdef VP_LIGHT_CONTROL
+extern uint8_t vp_doze_dark; // vesc_serial.c: VP flag, headlights off in snooze
+#endif
 #include "board_mode.h"
 #include "event_queue.h"
 #include "headlights_hw.h"
@@ -431,6 +434,16 @@ EVENT_HANDLER(headlights, state_change)
                 break;
 #ifdef HEADLIGHTS_ENABLE_DOZING
             case BOARD_SUBMODE_IDLE_DOZING:
+#ifdef VP_LIGHT_CONTROL
+                // Re-Float Rink-Mixed: snooze breathing can be switched off
+                // from the app (lights simply off in snooze)
+                if (vp_doze_dark != 0U)
+                {
+                    mode_control = 0U;
+                    headlights_set_mode_animation(HEADLIGHTS_MODE_ANIMATION_NONE);
+                    break;
+                }
+#endif
                 headlights_set_mode_animation(HEADLIGHTS_MODE_ANIMATION_IDLE_DOZING);
                 break;
 #endif

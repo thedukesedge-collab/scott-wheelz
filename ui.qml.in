@@ -341,13 +341,22 @@ Item {
 
         readonly property var animNames: ["STANDARD", "RAINBOW SCAN", "RAINBOW MIRROR", "KNIGHT RIDER",
             "RAINBOW BAR", "THE FUZZ", "FIRE", "PULSE OUT", "PULSE IN", "120 SCROLL", "COMP. WAVE",
-            "CLASSIC", "COLOR SCAN"]
+            "CLASSIC", "COLOR SCAN", "BATTERY LEVEL"]
+        // what 0 does depends on where it's used: idle / boot / shutdown show the
+        // standard battery + footpad display, riding and snooze show nothing
+        // (riding still shows a low battery)
+        readonly property var animContexts: [["IDLE", "ledAnimIdle", "STANDARD"], ["RIDING", "ledAnimRide", "OFF"],
+            ["SNOOZE", "ledAnimDoze", "OFF"], ["BOOT", "ledAnimBoot", "STANDARD"], ["SHUTDOWN", "ledAnimShutdown", "STANDARD"]]
+        function animLabel(ctx, v) {
+            return v === 0 ? animContexts[ctx][2] : (animNames[v] || "");
+        }
         property int count: 0
 
         function send() {
             if (!swSettings.ledConfigured) return;
             var data = commands.createData(14, commands.c_LCM_VP_SETTINGS);
-            data.setUint8(2, (swSettings.ledHeadlights ? 1 : 0) | (swSettings.ledStatusBar ? 2 : 0) | (swSettings.ledBeep ? 4 : 0));
+            data.setUint8(2, (swSettings.ledHeadlights ? 1 : 0) | (swSettings.ledStatusBar ? 2 : 0) | (swSettings.ledBeep ? 4 : 0)
+                | (swSettings.ledDozeBreath ? 0 : 0x20));
             data.setUint8(3, swSettings.ledHeadlightPct);
             data.setUint8(4, swSettings.ledStatusIdlePct);
             data.setUint8(5, swSettings.ledStatusRidePct);
@@ -1946,6 +1955,7 @@ Item {
         property int ledAnimIdle: 0
         property int ledAnimRide: 0
         property int ledAnimDoze: 0
+        property bool ledDozeBreath: true  // headlights breathe in snooze (SLCM; off = dark)
         property int ledAnimBoot: 11
         property int ledAnimShutdown: 0
         property int ledColor: 200
@@ -3602,8 +3612,10 @@ Item {
                 h = hu; a = x <= Math.min(1, frac(t / 6.5) * 6.5 / 5.5) ? 1 : 0.15; break;
             case 12:  // COLOR SCAN: personal color scanner
                 h = hu; a = spot(x, sweep(t, 2)); break;
-            default:  // STANDARD
-                return "#ead6ff";
+            case 13:  // BATTERY LEVEL: a gauge, white, filled to ~80 %
+                return x <= 0.8 ? "#f4f0ff" : Qt.rgba(1, 1, 1, 0.22);
+            default:  // STANDARD (white) / OFF (dark)
+                return an.text === "OFF" ? "#5c5470" : "#ead6ff";
             }
             return Qt.hsla(frac(h), sat, l, a);
         }
@@ -6819,24 +6831,36 @@ Item {
                         }
 
                         SwStepper {
-                            label: "RIDING BRIGHTNESS"
+                            label: "RIDING LIGHTS"
                             value: swSettings.ledHeadlightPct
-                            from: 0; to: 100; step: 5; suffix: "%"
+                            from: 0; to: 100; step: 5
+                            valueText: value === 0 ? "OFF" : value + "%"
                             onMoved: { swSettings.ledHeadlightPct = newValue; ledSender.changed(); }
                         }
 
                         SwStepper {
-                            label: "IDLE BRIGHTNESS"
+                            label: "RUNNING LIGHTS (IDLE)"
                             value: swSettings.ledHeadlightIdlePct
-                            from: 0; to: 100; step: 5; suffix: "%"
+                            from: 0; to: 100; step: 5
+                            valueText: value === 0 ? "OFF" : value + "%"
                             onMoved: { swSettings.ledHeadlightIdlePct = newValue; ledSender.changed(); }
+                        }
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 3.4 * unit
+                            label: swSettings.ledDozeBreath ? "SNOOZE BREATHING ON" : "SNOOZE BREATHING OFF"
+                            lit: swSettings.ledDozeBreath
+                            onClicked: { swSettings.ledDozeBreath = !swSettings.ledDozeBreath; ledSender.changed(); }
                         }
 
                         SwLText {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: "RIDING applies while the board is engaged, IDLE the rest of the time. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle)."
+                            text: "HEADLIGHTS OFF is fully off (riding and idle). RIDING LIGHTS apply while the board is engaged, RUNNING LIGHTS the rest of the time; 0% = off. "
+                                + "Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). "
+                                + "SNOOZE BREATHING: the head and tail lights slowly breathe while the board snoozes (SLCM); off = dark in snooze."
                         }
                     }
                     Column {
@@ -6879,8 +6903,7 @@ Item {
                         visible: ledWindow.section === "anim"
 
                         Repeater {
-                            model: [["IDLE", "ledAnimIdle"], ["RIDING", "ledAnimRide"], ["SNOOZE", "ledAnimDoze"],
-                            ["BOOT", "ledAnimBoot"], ["SHUTDOWN", "ledAnimShutdown"]]
+                            model: ledSender.animContexts
 
                             SwStepper {
                                 width: ledWindowCol.width
@@ -6889,7 +6912,7 @@ Item {
                                 animName: true
                                 value: swSettings[modelData[1]]
                                 from: 0; to: ledSender.animNames.length - 1; step: 1
-                                valueText: ledSender.animNames[value] || ""
+                                valueText: ledSender.animLabel(index, value)
                                 onMoved: { swSettings[modelData[1]] = newValue; ledSender.changed(); }
                             }
                         }
@@ -6908,6 +6931,14 @@ Item {
                             height: 0.18 * unit
                             radius: height / 2
                             color: Qt.hsla(swSettings.ledColor / 360, 1.0, 0.5, 1.0)
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "OFF = nothing shown (riding still warns when the battery is low). STANDARD = battery level, footpad sensors when stepped on. "
+                                + "BATTERY LEVEL shows the battery gauge anywhere (riding: live); it needs the SLCM build that comes with this package (CHECK LCM: up to date)."
                         }
                     }
                     Column {
@@ -12564,8 +12595,8 @@ Item {
                                 glyph: "\u2726"
                                 lit: true
                                 swatch: Qt.hsla(swSettings.ledColor / 360, 1.0, 0.5, 1.0)
-                                summary: "IDLE " + (ledSender.animNames[swSettings.ledAnimIdle] || "") + " \u00B7 RIDE "
-                                    + (ledSender.animNames[swSettings.ledAnimRide] || "")
+                                summary: "IDLE " + ledSender.animLabel(0, swSettings.ledAnimIdle) + " \u00B7 RIDE "
+                                    + ledSender.animLabel(1, swSettings.ledAnimRide)
                                 onClicked: ledWindow.show("anim")
                             }
                             LedTile {

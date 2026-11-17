@@ -129,6 +129,8 @@ lcm_status_t status_leds_init(void)
     return status;
 }
 
+void display_battery(int16_t battery_level);
+
 uint16_t status_leds_start_animation_option(animation_option_t option)
 {
     uint16_t animation_id = 0U;
@@ -290,6 +292,11 @@ uint16_t status_leds_start_animation_option(animation_option_t option)
                                             &custom_color // RGB color
         );
         break;
+#ifdef VP_LIGHT_CONTROL
+    case ANIMATION_OPTION_BATTERY:
+        display_battery(vesc_serial_get_battery_level());
+        break;
+#endif
     case ANIMATION_OPTION_NONE:
         // Fade out the lights and then disable
         animation_id =
@@ -749,7 +756,11 @@ void status_leds_handle_riding_normal(event_type_t event)
 {
     int16_t battery_level = vesc_serial_get_battery_level();
 
-    if (battery_level <= LOW_BATTERY_THRESHOLD)
+    if ((battery_level <= LOW_BATTERY_THRESHOLD)
+#ifdef VP_LIGHT_CONTROL
+        || (status_leds_settings->ride_animation == ANIMATION_OPTION_BATTERY) // live gauge
+#endif
+    )
     {
         display_battery(battery_level);
     }
