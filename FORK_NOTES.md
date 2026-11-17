@@ -531,3 +531,12 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   notice: the settings only work on ADV100 controllers (XRV, GTV, PintV) with
   the light module flashed to the ALCM VP firmware, and do nothing elsewhere.
 - Same notice in the simulator and in the package README.
+
+### ALCM VP: no beeping fault on package install (lcm-latest, 2026-11-17)
+- Installing/updating the package (or a VESC reboot) stops the VESC answering
+  the LCM for a few seconds. Stock ALCM latches an internal fault (continuous
+  beep + fault animation) that only a button press (power off) clears.
+- VP build: a comm timeout is ignored unless riding (board stays on, carries
+  on when the VESC answers). Mid-ride it is still a warning fault but clears
+  itself on the next answer. Other internal faults are unchanged.
+- Test: tests/board_mode_vp_main.c (BoardModeTestVP). Size 16,068 / 16,320 B.
