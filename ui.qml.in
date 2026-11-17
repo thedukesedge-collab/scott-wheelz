@@ -261,11 +261,18 @@ Item {
 
         function send() {
             var v = values();
-            var data = commands.createData(8, commands.c_HORN_SETTINGS);
+            var data = commands.createData(9, commands.c_HORN_SETTINGS);
             data.setUint8(2, Math.round(v[0] * 10));
             data.setUint16(3, v[1]);
             data.setUint8(5, Math.round(v[2] * 10));
             data.setUint16(6, v[3]);
+            data.setUint8(8, swSettings.hornBootMelody ? 1 : 0);
+            vescCommands.sendCustomAppData(data.buffer);
+        }
+
+        function playMelody() {
+            send();  // so it plays at the current volume
+            var data = commands.createData(2, commands.c_PLAY_MELODY);
             vescCommands.sendCustomAppData(data.buffer);
         }
     }
@@ -745,6 +752,7 @@ Item {
         readonly property int c_SW_HORN: 120  // Re-RinkFloat
         readonly property int c_FREESPIN_LIMIT: 121  // Re-RinkFloat
         readonly property int c_HORN_SETTINGS: 122  // Re-RinkFloat
+        readonly property int c_PLAY_MELODY: 123  // Re-RinkFloat
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
         // Dynamic range: +-131008.0
@@ -1122,6 +1130,7 @@ Item {
         property int hornBuzzFreq: 70         // Hz
         // simple mode (default): plain 0-10 levels mapped onto the values above
         property bool hornAdvanced: false
+        property bool hornBootMelody: true    // 3 rising notes at power-up
         property int hornSimpleStrength: 5    // 0-10 -> buzz 0-15 A
         property int hornSimpleVolume: 5      // 1-10 -> beep 1-10 V
         property int hornSimplePitch: 3       // 1-10 -> beep 300-1000 Hz
@@ -9177,6 +9186,64 @@ Item {
                             value: swSettings.hornBuzzFreq
                             from: 30; to: 150; step: 5; suffix: " Hz"
                             onMoved: { swSettings.hornBuzzFreq = newValue; hornSettingsSender.send(); }
+                        }
+
+                        // boot melody: ON/OFF + TEST
+                        Item {
+                            width: parent.width
+                            height: 0.95 * unit
+
+                            SwNeonLabel {
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width - 5.0 * unit
+                                font.pixelSize: 0.28 * unit
+                                text: "BOOT MELODY (3 rising notes at power-up)"
+                            }
+
+                            Row {
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 0.15 * unit
+
+                                Repeater {
+                                    model: ["TEST", swSettings.hornBootMelody ? "ON" : "OFF"]
+
+                                    Rectangle {
+                                        width: 2.1 * unit
+                                        height: 0.75 * unit
+                                        radius: height / 2
+                                        property bool lit: index === 1 ? swSettings.hornBootMelody : melodyMouse.pressed
+                                        color: lit ? swTheme.neonGreen : "transparent"
+                                        border.color: lit ? swTheme.neonGreen : swTheme.neonPurple
+                                        border.width: 2
+                                        opacity: index === 0 && state.pkgState !== state.s_Ready ? 0.4 : 1
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: modelData
+                                            color: parent.lit ? swTheme.background : swTheme.neonPurple
+                                            font.family: "Exan"
+                                            font.pixelSize: 0.26 * unit
+                                        }
+
+                                        MouseArea {
+                                            id: melodyMouse
+                                            anchors.fill: parent
+                                            onClicked: {
+                                                if (index === 1) {
+                                                    swSettings.hornBootMelody = !swSettings.hornBootMelody;
+                                                    hornSettingsSender.send();
+                                                } else if (state.pkgState === state.s_Ready) {
+                                                    hornSettingsSender.playMelody();
+                                                } else {
+                                                    VescIf.emitStatusMessage("Melody test works when the board is idle (READY)", false);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         Rectangle {

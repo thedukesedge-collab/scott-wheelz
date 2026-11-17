@@ -856,6 +856,13 @@ static void refloat_thd(void *arg) {
                     // Let the rider know that the board is ready (one long beep)
                     beep_alert(d, 1, true);
                 }
+
+                // Re-RinkFloat: boot melody at the saved horn volume
+                if (d->boot_melody) {
+                    haptic_feedback_play_melody(
+                        &d->haptic_feedback, &d->time, d->boot_melody_volume
+                    );
+                }
             }
             break;
 
@@ -1173,6 +1180,8 @@ static void aux_thd(void *arg) {
             d->odometer = VESC_IF->mc_get_odometer();
         }
 
+        horn_settings_save_if_due(d);
+
         if (timer_older(&d->time, motor_config_refresh_timer, 0.5)) {
             motor_data_refresh_motor_config(
                 &d->motor, d->float_conf.tiltback_lv, d->float_conf.tiltback_hv
@@ -1213,6 +1222,53 @@ static void read_cfg_from_eeprom(Data *d) {
     }
 
     VESC_IF->free(buffer);
+}
+
+// Re-RinkFloat: horn settings in two custom EEPROM words, past the config
+// (which uses the first SERIALIZED_CONFIG_LENGTH / 4 words).
+#define HORN_EEPROM_ADDR 120
+#define HORN_EEPROM_MAGIC 0xB0u
+
+static uint32_t horn_pack0(float beep, float buzz, bool melody) {
+    return (HORN_EEPROM_MAGIC << 24) | ((melody ? 1u : 0u) << 16) |
+        ((uint32_t) (beep * 10.0f + 0.5f) << 8) | (uint32_t) (buzz * 10.0f + 0.5f);
+}
+
+static void horn_settings_load(Data *d) {
+    d->boot_melody = true;
+    d->boot_melody_volume = 5.0f;
+    eeprom_var v0, v1;
+    if (!VESC_IF->read_eeprom_var(&v0, HORN_EEPROM_ADDR) ||
+        !VESC_IF->read_eeprom_var(&v1, HORN_EEPROM_ADDR + 1) ||
+        (v0.as_u32 >> 24) != HORN_EEPROM_MAGIC) {
+        return;
+    }
+    d->horn_saved[0] = v0.as_u32;
+    d->horn_saved[1] = v1.as_u32;
+    float beep = ((v0.as_u32 >> 8) & 0xFF) * 0.1f;
+    float buzz = (v0.as_u32 & 0xFF) * 0.1f;
+    d->boot_melody = (v0.as_u32 >> 16) & 1;
+    d->boot_melody_volume = beep;
+    haptic_feedback_horn_settings(
+        &d->haptic_feedback, beep, v1.as_u32 >> 16, buzz, v1.as_u32 & 0xFFFF
+    );
+}
+
+static void horn_settings_save_if_due(Data *d) {
+    if (!d->horn_save_pending || d->state.state == STATE_RUNNING ||
+        !timer_older(&d->time, d->horn_change_time, 2.0f)) {
+        return;
+    }
+    uint32_t w0 = d->horn_pending[0], w1 = d->horn_pending[1];
+    d->horn_save_pending = false;
+    eeprom_var v0 = {.as_u32 = w0}, v1 = {.as_u32 = w1};
+    if (VESC_IF->store_eeprom_var(&v0, HORN_EEPROM_ADDR) &&
+        VESC_IF->store_eeprom_var(&v1, HORN_EEPROM_ADDR + 1)) {
+        d->horn_saved[0] = w0;
+        d->horn_saved[1] = w1;
+    } else {
+        log_error("Failed to save horn settings.");
+    }
 }
 
 static void data_init(Data *d) {
@@ -1268,6 +1324,8 @@ static void data_init(Data *d) {
     d->freespin_limiting = false;
     d->beep_duration = 0.0f;
     d->beeper_timer = 0;
+
+    horn_settings_load(d);
 }
 
 // See also:
@@ -1301,7 +1359,9 @@ enum {
     COMMAND_SW_HORN = 120,  // haptic horn: 1 byte, 1 = on/keepalive, 0 = off
     COMMAND_FREESPIN_LIMIT = 121,  // free-spin limiter: uint16 limit in 0.1 km/h, 0 = off
     // horn-only sound: u8 beep V x10, u16 beep Hz, u8 buzz A x10, u16 buzz Hz
+    // optional 9th byte: flags, bit 0 = boot melody on
     COMMAND_HORN_SETTINGS = 122,
+    COMMAND_PLAY_MELODY = 123,  // play the boot melody now (READY only)
 
     // commands above 200 are unstable and can change protocol at any time
 } Commands;
@@ -2392,16 +2452,39 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
         return;
     }
     case COMMAND_HORN_SETTINGS: {
-        if (len == 8) {
+        if (len == 8 || len == 9) {
+            HapticFeedback *hf = &d->haptic_feedback;
             haptic_feedback_horn_settings(
-                &d->haptic_feedback,
+                hf,
                 buffer[2] * 0.1f,
                 (buffer[3] << 8) | buffer[4],
                 buffer[5] * 0.1f,
                 (buffer[6] << 8) | buffer[7]
             );
+            bool melody = len == 9 ? (buffer[8] & 1) : d->boot_melody;
+            d->boot_melody = melody;
+            d->boot_melody_volume = hf->horn_beep_strength;
+            // remember on the board (written later, only if it changed)
+            uint32_t w0 = horn_pack0(hf->horn_beep_strength, hf->horn_buzz_strength, melody);
+            uint32_t w1 = ((uint32_t) hf->horn_beep_frequency << 16) | hf->horn_buzz_frequency;
+            if (w0 != d->horn_saved[0] || w1 != d->horn_saved[1]) {
+                if (!d->horn_save_pending || w0 != d->horn_pending[0] || w1 != d->horn_pending[1]) {
+                    d->horn_pending[0] = w0;
+                    d->horn_pending[1] = w1;
+                    d->horn_change_time = d->time.now;
+                    d->horn_save_pending = true;
+                }
+            } else {
+                d->horn_save_pending = false;
+            }
         } else {
             log_error("Command data length incorrect: %u", len);
+        }
+        return;
+    }
+    case COMMAND_PLAY_MELODY: {
+        if (d->state.state == STATE_READY) {
+            haptic_feedback_play_melody(&d->haptic_feedback, &d->time, d->boot_melody_volume);
         }
         return;
     }

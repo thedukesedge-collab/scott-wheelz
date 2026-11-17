@@ -90,6 +90,16 @@ typedef struct {
     bool beeper_enabled;
     bool sw_horn_beeping;  // Re-RinkFloat: external beeper is on because of the horn
 
+    // Re-RinkFloat: horn settings + boot melody switch, remembered on the board
+    // (2 custom EEPROM words after the config). Written from the aux thread,
+    // only when changed and never while riding.
+    volatile uint32_t horn_saved[2];
+    volatile uint32_t horn_pending[2];
+    volatile bool horn_save_pending;
+    volatile time_t horn_change_time;
+    bool boot_melody;
+    float boot_melody_volume;
+
     // Config values
     uint32_t loop_time_us;
     float startup_pitch_trickmargin, startup_pitch_tolerance;

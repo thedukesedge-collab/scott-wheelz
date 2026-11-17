@@ -53,6 +53,10 @@
 #define HORN_MIN_VIBRATE_STRENGTH 8.0f
 #define HORN_DEFAULT_BEEP_FREQUENCY 495
 #define HORN_DEFAULT_VIBRATE_FREQUENCY 70
+// - boot melody: horn pitch levels 1, 2, 3, half a second each
+#define MELODY_STEP 0.5f
+static const uint16_t melody_notes[] = {300, 375, 450};
+#define MELODY_NOTES (sizeof(melody_notes) / sizeof(melody_notes[0]))
 
 void haptic_feedback_init(HapticFeedback *hf) {
     hf->type_playing = HAPTIC_FEEDBACK_NONE;
@@ -67,6 +71,13 @@ void haptic_feedback_init(HapticFeedback *hf) {
     hf->horn_used = false;
     hf->horn_mode = HORN_MODE_BOTH;
     hf->horn_custom = false;
+    hf->melody_active = false;
+}
+
+void haptic_feedback_play_melody(HapticFeedback *hf, const Time *time, float volume) {
+    hf->melody_volume = clampf(volume, 1.0f, 10.0f);
+    hf->melody_start = time->now;
+    hf->melody_active = true;
 }
 
 void haptic_feedback_horn_settings(
@@ -257,6 +268,21 @@ void haptic_feedback_update(
     const AlertTracker *at,
     const Time *time
 ) {
+    // Re-RinkFloat: boot melody takes over the tone while it plays (READY only)
+    if (hf->melody_active) {
+        uint32_t step = (uint32_t) (timer_age(time, hf->melody_start) / MELODY_STEP);
+        if (state->state != STATE_READY || step >= MELODY_NOTES) {
+            hf->melody_active = false;
+            foc_play_tone(0, 1, 0.0f);
+            hf->is_playing = false;
+            hf->type_playing = HAPTIC_FEEDBACK_NONE;
+            hf->can_change_type = true;
+        } else {
+            foc_play_tone(0, melody_notes[step], hf->melody_volume);
+            return;
+        }
+    }
+
     // Re-RinkFloat: horn heat budget (main loop only)
     float dt = timer_age(time, hf->horn_budget_timer);
     hf->horn_budget_timer = time->now;

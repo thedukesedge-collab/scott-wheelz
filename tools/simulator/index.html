@@ -205,6 +205,7 @@
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Used only for the HORN button, separate from the Haptic Feedback settings. You feel the buzz only while riding; the beep plays any time.</p>
           <div style="display:flex;justify-content:center;margin:8px 0"><div id="hornMode" style="display:flex;border:2px solid var(--purple);border-radius:999px;background:#0b0718;padding:2px"><div data-v="0" style="padding:5px 14px;border-radius:999px;font-family:Orbitron,monospace;font-size:10px;cursor:pointer">SIMPLE</div><div data-v="1" style="padding:5px 14px;border-radius:999px;font-family:Orbitron,monospace;font-size:10px;cursor:pointer">ADVANCED</div></div></div>
           <div id="hornSteps"></div>
+          <div class="stepRow"><span class="lbl">BOOT MELODY (3 rising notes at power-up)</span><span class="stepCtl"><span class="pill" id="melTest">TEST</span><span class="pill" id="melOn">ON</span></span></div>
           <div style="text-align:center;margin-top:6px"><div class="pill" id="hornReset" style="display:inline-block">RESET HORN</div></div>
           <div class="secTitle neonL" style="font-size:16px;margin-top:14px">MAGIC FLYWHEEL</div>
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Before enabling flywheel mode make sure that your board is nose up and perfectly balanced. To turn it off, you must disengage the board first.</p>
@@ -224,7 +225,7 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver" class="tron"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf39 · sim</span></div>
+      <div id="ver" class="tron"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf40 · sim</span></div>
     </div>
   </div>
 
@@ -269,7 +270,7 @@ const NEON = ['#39ff7a', '#b14cff', '#00f0ff', '#ff2bd6', '#ff8a1f', '#f5ff3b', 
 const fx1 = v => (isFinite(v) ? (Math.round(v * 10) / 10).toFixed(1) : '-.-');
 
 // ---------- persisted prefs (this browser only) ----------
-const defaults = { hAdv: false, hsStr: 5, hsVol: 5, hsPitch: 3, hBeep: 5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, tempF: false, fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
+const defaults = { hMelody: true, hAdv: false, hsStr: 5, hsVol: 5, hsPitch: 3, hBeep: 5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, tempF: false, fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
 let P = Object.assign({}, defaults);
 try { Object.assign(P, JSON.parse(localStorage.getItem('rrfSim') || '{}')); } catch (e) {}
 const save = () => { try { localStorage.setItem('rrfSim', JSON.stringify(P)); } catch (e) {} };
@@ -594,6 +595,26 @@ function renderHorn() {
     paint(); box.appendChild(row);
   });
 }
+// boot melody: pitch levels 1, 2, 3 (300, 375, 450 Hz), 0.5 s each, at the horn volume
+function hornVolume() { return P.hAdv ? P.hBeep : P.hsVol; }
+function playMelody() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    const ac = playMelody.ac || (playMelody.ac = new AC());
+    if (ac.state === 'suspended') ac.resume();
+    const t0 = ac.currentTime + 0.05, gainV = 0.03 + 0.05 * hornVolume();
+    [300, 375, 450].forEach((f, i) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'square'; o.frequency.value = f;
+      g.gain.setValueAtTime(0, t0 + i * 0.5); g.gain.linearRampToValueAtTime(gainV, t0 + i * 0.5 + 0.01);
+      g.gain.setValueAtTime(gainV, t0 + i * 0.5 + 0.48); g.gain.linearRampToValueAtTime(0, t0 + i * 0.5 + 0.5);
+      o.connect(g).connect(ac.destination); o.start(t0 + i * 0.5); o.stop(t0 + i * 0.5 + 0.5);
+    });
+  } catch (e) {}
+}
+function renderMelody() { $('melOn').textContent = P.hMelody ? 'ON' : 'OFF'; $('melOn').classList.toggle('on', !!P.hMelody); }
+$('melOn').onclick = () => { P.hMelody = !P.hMelody; save(); renderMelody(); };
+$('melTest').onclick = () => { if (S.mode !== 'ready') { toast('Melody test works when the board is idle (READY)'); return; } playMelody(); toast('Playing boot melody'); };
 $('hornReset').onclick = () => { Object.assign(P, { hBeep: 5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, hsStr: 5, hsVol: 5, hsPitch: 3 }); save(); renderHorn(); toast('Horn settings reset'); };
 
 // ---------- flywheel ----------
@@ -1171,7 +1192,7 @@ function frame(now) {
 }
 
 // ---------- start ----------
-layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); renderHorn(); setTab(P.tab || 0);
+layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); renderHorn(); renderMelody(); setTab(P.tab || 0);
 window.addEventListener('resize', () => { layout(); renderTunes(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { layout(); renderTunes(); });
 requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });

@@ -71,6 +71,11 @@ typedef struct {
     volatile uint16_t horn_beep_frequency;  // Hz
     volatile float horn_buzz_strength;  // A, 0 = no buzz
     volatile uint16_t horn_buzz_frequency;  // Hz
+
+    // Re-RinkFloat: boot melody (3 rising notes while READY)
+    volatile bool melody_active;
+    volatile time_t melody_start;
+    volatile float melody_volume;  // V
 } HapticFeedback;
 
 void haptic_feedback_init(HapticFeedback *hf);
@@ -99,6 +104,10 @@ void haptic_feedback_horn(HapticFeedback *hf, const Time *time, uint8_t req, uin
 // Re-RinkFloat: true while the horn is actually sounding (drives the optional
 // external beeper on the PPM pin).
 bool haptic_feedback_horn_playing(const HapticFeedback *hf);
+
+// Re-RinkFloat: plays the boot melody (pitch levels 1, 2, 3; 0.5 s each) at the
+// given beep volume. Only sounds while the board is READY; stops if it engages.
+void haptic_feedback_play_melody(HapticFeedback *hf, const Time *time, float volume);
 
 void haptic_feedback_update(
     HapticFeedback *hf,
