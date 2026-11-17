@@ -1,5 +1,10 @@
 # LCM firmware (ALCM, VP light control)
 
+
+> **Bootloader / updates from the app:** `ALCM_VP_BL_full.hex` (bootloader +
+> light firmware) is flashed once with the ST-Link; after that the LCM is
+> updated from the phone app (LEDS › LCM FIRMWARE). See
+> [bootloader/README.md](bootloader/README.md).
 > **Compatibility:** for ADV100 controllers (Floatwheel XRV, GTV, PintV) and their light modules only. The package's LEDS tab does nothing unless the LCM runs this ALCM VP firmware.
 
 `alcm/` is [ALCM](https://github.com/MrTheConductor/alcm) v0.1.1 by

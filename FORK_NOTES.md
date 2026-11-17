@@ -567,3 +567,25 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - Test: StatusLedsTestVP. Size 16,136 / 16,320 B.
 - Updated: white above 55 %, yellow 55-41 %, orange 40-30 %, red below 30 %,
   flashing red at 5 % and below; shown while riding from 40 % down.
+
+### LCM bootloader: LCM firmware updates from the app (v1.2.3-rf58)
+- Started on the PC (branch `lcm-bootloader`), finished here. Details,
+  protocol, flash map and first-install steps: `lcm/bootloader/README.md`.
+- 1.5 KB bootloader at 0x08000000, app at 0x08000600 (14720 bytes max),
+  battery LUT page never written. No chip resets (PA2 holds the power);
+  page 0 written last and back to front; per-page read-back + image CRC;
+  max 3 bad images per power-up; button hold 2 s / 5 min idle = power off.
+  Host tests: power cut at every flash op never leaves a partial app; an
+  end-to-end phone -> package -> bootloader run.
+- Package: COMMAND_LCM_FW (128) relay in src/lcm_fw.c, VP flag 0x10 (only
+  while not running); two 128-byte pages buffered.
+- App: LEDS tab > LCM FIRMWARE tile (UPDATE LCM, progress, cancel). The
+  package build compiles the LCM firmware and embeds the update image
+  (`make LCM_FW=0` to skip).
+- ALCM (all builds, no behavior change): small division / mem* routines
+  (tiny_rt.c, host-checked against the real ones), exact 32-bit ratio in the
+  function generator, USART/EXTI/NVIC set up with direct register writes:
+  16140 -> 14960 bytes. Bootloader build only: battery LUT patch left out
+  (battery % from the VESC).
+- Releases (lcm-latest): ALCM_VP.hex (no bootloader), ALCM_VP_BL_full.hex
+  (ST-Link, once), ALCM_VP_app.bin.

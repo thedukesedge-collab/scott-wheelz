@@ -81,6 +81,9 @@
   .ledTiles { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 10px 6px 0; }
   .ledTile { position: relative; height: 92px; border: 2px solid var(--purple); border-radius: 12px; background: #0b0718; cursor: pointer; padding: 8px 10px; box-sizing: border-box; }
   .ledTile.lit { border-color: var(--green); }
+  .ledTile.wide { grid-column: 1 / span 2; height: 74px; }
+  .fwBar { height: 12px; border: 2px solid var(--purple); border-radius: 999px; margin: 10px 4px; overflow: hidden; display: none; }
+  .fwBar i { display: block; height: 100%; width: 0; background: var(--green); border-radius: 999px; }
   .ledTile:active { background: #1b2a1f; }
   .ledTile .g { position: absolute; left: 9px; top: 6px; font-size: 20px; color: var(--purple); }
   .ledTile.lit .g { color: var(--green); }
@@ -261,12 +264,13 @@
             <div class="ledTile" data-w="bar"><span class="g">&#9609;</span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
             <div class="ledTile" data-w="anim"><span class="g">&#10022;</span><span class="sw" id="ltSw"></span><b>ANIMATIONS</b><small id="ltAnim"></small><i>&#8250;</i></div>
             <div class="ledTile" data-w="sound"><span class="g">&#9834;</span><b>SOUND</b><small id="ltSound"></small><i>&#8250;</i></div>
+            <div class="ledTile wide" data-w="fw"><span class="g">&#8635;</span><b>LCM FIRMWARE</b><small id="ltFw"></small><i>&#8250;</i></div>
           </div>
           <p style="font-size:11px;color:var(--text);text-align:center;margin:8px 6px">Headlight and status bar levels are kept in step with Refloat's LED settings (VESC Tool &#8250; Refloat Cfg &#8250; LEDs), both ways.</p>
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf57 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf58 · sim</span></div>
     </div>
   </div>
 
@@ -288,6 +292,14 @@
         <div id="ledAnimSteps"></div>
         <div id="ledColorSteps"></div>
         <div id="ledSwatch" style="height:8px;border-radius:4px;width:70%;margin:4px auto 0"></div>
+      </div>
+      <div class="ledSec" data-s="fw">
+        <p class="ledHint">Firmware in this package: ALCM VP build (simulated, 14592 bytes).</p>
+        <div id="fwBtn" class="bigBeep">&#8635;&nbsp; UPDATE LCM</div>
+        <div class="fwBar" id="fwBar"><i id="fwFill"></i></div>
+        <p class="ledHint" id="fwMsg" style="text-align:center;color:var(--green)"></p>
+        <div class="pills"><div class="pill" id="fwCancel" style="display:none">CANCEL</div></div>
+        <p class="ledHint">&#8226; Only for LCMs with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex). Others ignore this.<br>&#8226; Board powered on and idle. The update is refused while riding; don't ride until it's done.<br>&#8226; Headlights and beeper go off while it updates (about a minute). Keep the app connected.<br>&#8226; If it's interrupted, the LCM keeps the power on and waits for the update. Press UPDATE again, or power the board off and on first. Hold the button 2 s to power off.</p>
       </div>
       <div class="ledSec" data-s="sound">
         <div class="pills"><div class="pill" id="ledBeepPill"></div></div>
@@ -879,6 +891,7 @@ function renderLedsSoft() {
   $('ltBar').textContent = P.ledBar ? 'ON · RIDE ' + P.ledRidePct + '% · IDLE ' + P.ledIdlePct + '%' : 'OFF';
   $('ltAnim').textContent = 'IDLE ' + LED_ANIMS[P.ledAnimIdle] + ' · RIDE ' + LED_ANIMS[P.ledAnimRide];
   $('ltSound').textContent = (P.ledBeep ? 'BEEPER ON' : 'BEEPER OFF') + ' · TEST BEEP';
+  $('ltFw').textContent = FW.active ? 'UPDATING · ' + Math.round(FW.p * 100) + '%' : 'UPDATE OVER BLUETOOTH · BOOTLOADER LCMs ONLY';
   document.querySelectorAll('.ledTile').forEach(t => t.classList.toggle('lit', t.dataset.w === 'head' ? P.ledHead : t.dataset.w === 'bar' ? P.ledBar : t.dataset.w === 'sound' ? P.ledBeep : true));
   $('ledBeepHint').textContent = P.ledBeep ? "The light module plays one short beep. No beep = the module isn't running the ALCM VP firmware or isn't connected."
     : 'The LCM beeper is off, so the test beep is silent. Turn it on above first.';
@@ -894,7 +907,7 @@ function renderLeds() {
   renderLedsSoft();
 }
 const ledToggle = k => () => { P[k] = !P[k]; P.ledCfg = true; save(); renderLedsSoft(); };
-const LED_TITLES = { head: 'HEADLIGHTS', bar: 'STATUS BAR', anim: 'ANIMATIONS', sound: 'SOUND' };
+const LED_TITLES = { head: 'HEADLIGHTS', bar: 'STATUS BAR', anim: 'ANIMATIONS', sound: 'SOUND', fw: 'LCM FIRMWARE' };
 const ledWin = w => {
   $('ledWin').style.display = w ? 'flex' : 'none';
   if (!w) return;
@@ -915,6 +928,31 @@ $('ledTestBeep').onclick = () => {
     o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.18);
   } catch (e) {}
 };
+// simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
+const FW = { active: false, p: 0, t: null };
+function fwPaint(msg) {
+  $('fwBar').style.display = FW.active || FW.p > 0 ? 'block' : 'none';
+  $('fwFill').style.width = (FW.p * 100) + '%';
+  $('fwBtn').style.opacity = FW.active ? 0.4 : 1;
+  $('fwBtn').innerHTML = FW.active ? 'UPDATING...' : '&#8635;&nbsp; UPDATE LCM';
+  $('fwCancel').style.display = FW.active ? 'inline-block' : 'none';
+  if (msg !== undefined) $('fwMsg').textContent = msg;
+  renderLedsSoft();
+}
+$('fwBtn').onclick = () => {
+  if (FW.active) return;
+  if (running()) { fwPaint("The board is running. Stop riding and try again."); return; }
+  FW.active = true; FW.p = 0; P.ledCfg = true; save();
+  fwPaint('Waiting for the LCM to start its bootloader...');
+  let k = 0;
+  FW.t = setInterval(() => {
+    if (++k < 15) return;
+    FW.p = Math.min(1, FW.p + 1 / 115);
+    if (FW.p >= 1) { clearInterval(FW.t); FW.active = false; fwPaint('Done: the LCM firmware is updated and running.'); return; }
+    fwPaint('Updating the LCM: ' + Math.round(FW.p * 100) + "%. Keep the app connected, don't ride.");
+  }, 80);
+};
+$('fwCancel').onclick = () => { clearInterval(FW.t); FW.active = false; fwPaint('Cancelled. If the LCM had already started, power the board off and on, then press UPDATE again.'); };
 $('ledHeadPill').onclick = ledToggle('ledHead'); $('ledBarPill').onclick = ledToggle('ledBar'); $('ledBeepPill').onclick = ledToggle('ledBeep');
 
 // ---------- flywheel ----------

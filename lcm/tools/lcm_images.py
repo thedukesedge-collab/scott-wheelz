@@ -105,7 +105,7 @@ def main():
               open(os.path.join(out_dir, "ALCM_VP_app.json"), "w"))
     print(f"app hex: {len(app)} bytes at {min(app):#x}-{max(app):#x}")
     print(f"bootloader {max(bl) + 1 - BL_START} bytes, app image {size} bytes "
-          f"({APP_END - APP_START - size} free), crc {crc:#06x}")
+          f"(app {end - APP_START} of {APP_END - APP_START} bytes, {APP_END - end} free), crc {crc:#06x}")
 
 
 if __name__ == "__main__":
