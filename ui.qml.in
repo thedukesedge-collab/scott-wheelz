@@ -676,20 +676,58 @@ Item {
     QtObject {
         id: batteryCurve
 
-        readonly property var presets: ({
-            "P42A": [170, 156, 144, 135, 128, 120, 112, 104, 96, 84, 50],
-            "50S": [170, 158, 154, 140, 132, 124, 114, 102, 88, 66, 50],
-            "DG40": [170, 155, 144, 137, 130, 122, 110, 100, 88, 74, 50],
-            "VTC6": [170, 156, 152, 140, 132, 124, 116, 106, 96, 79, 50],
-            "RS50": [170, 156, 150, 139, 129, 117, 103, 89, 70, 49, 20]
-        })
-        readonly property var presetNames: ["P42A", "50S", "DG40", "VTC6", "RS50", "CUSTOM"]
-        readonly property var points: {
+        // Per-cell curves: cell mV = 2500 + 10 * p at 100, 90, ... 0 %.
+        // Floatwheel's own tables (P42A, 50S, DG40, VTC6, RS50, as in
+        // lcm/alcm/tools/battery_lut_patch/examples). Molicel publishes no
+        // voltage-vs-charge tables, so P28A / P30B / P45B / P50B use the
+        // P42A table (same maker) and are marked approximate. ir = DC
+        // resistance per cell in mOhm: Molicel datasheets for P28A (20),
+        // P30B (17), P45B (15), P50B (12.8); the others are estimates.
+        readonly property var p42a: [170, 156, 144, 135, 128, 120, 112, 104, 96, 84, 50]
+        readonly property var cellList: [
+            {name: "P28A", size: "18650", points: p42a, ir: 20, approx: true, irEst: false},
+            {name: "P30B", size: "18650", points: p42a, ir: 17, approx: true, irEst: false},
+            {name: "VTC6", size: "18650", points: [170, 156, 152, 140, 132, 124, 116, 106, 96, 79, 50], ir: 20, approx: false, irEst: true},
+            {name: "P42A", size: "21700", points: p42a, ir: 19, approx: false, irEst: true},
+            {name: "P45B", size: "21700", points: p42a, ir: 15, approx: true, irEst: false},
+            {name: "P50B", size: "21700", points: p42a, ir: 13, approx: true, irEst: false},
+            {name: "50S", size: "21700", points: [170, 158, 154, 140, 132, 124, 114, 102, 88, 66, 50], ir: 15, approx: false, irEst: true},
+            {name: "RS50", size: "21700", points: [170, 156, 150, 139, 129, 117, 103, 89, 70, 49, 20], ir: 15, approx: false, irEst: true},
+            {name: "DG40", size: "21700", points: [170, 155, 144, 137, 130, 122, 110, 100, 88, 74, 50], ir: 20, approx: false, irEst: true}
+        ]
+        readonly property var styleNames: ["CONSERVATIVE", "BALANCED", "OPTIMISTIC"]
+
+        readonly property var custom: {
             try {
-                var a = JSON.parse(swSettings.batPoints);
-                if (Array.isArray(a) && a.length === 11) return a;
+                var c = JSON.parse(swSettings.batCustom);
+                if (c && Array.isArray(c.points) && c.points.length === 11) return c;
             } catch (e) {}
-            return presets["VTC6"];
+            return null;
+        }
+
+        function cellsOfSize(size) {
+            var r = [];
+            for (var i = 0; i < cellList.length; i++) if (cellList[i].size === size) r.push(cellList[i].name);
+            if (custom && custom.size === size) r.push("MY CELL");
+            return r;
+        }
+
+        function cell(name) {
+            if (name === "MY CELL") return custom;
+            for (var i = 0; i < cellList.length; i++) if (cellList[i].name === name) return cellList[i];
+            return null;
+        }
+
+        readonly property var current: cell(swSettings.batCell) || cellList[2]
+
+        // the curve that is sent: the cell's, shifted by the gauge style
+        // (conservative reads lower: every point 30 mV higher; optimistic
+        // the other way), kept falling
+        readonly property var points: {
+            var base = current.points, shift = -3 * swSettings.batStyle, p = [];
+            for (var i = 0; i < 11; i++) p.push(i === 0 ? base[0] : Math.max(0, Math.min(255, base[i] + shift)));
+            for (i = 1; i < 11; i++) p[i] = Math.max(0, Math.min(p[i], p[i - 1] - 1));
+            return p;
         }
 
         // live, from the package
@@ -698,20 +736,43 @@ Item {
         property int percent: 255
         property bool synced: false
 
+        readonly property int series: cells > 0 ? cells : 18
+        readonly property int autoRes: Math.max(0, Math.min(255, Math.round(current.ir * series / Math.max(1, swSettings.batParallel) / 2)))
+        readonly property int resistance: swSettings.batResAuto ? autoRes : swSettings.batRes
+
         function mv(p) { return 2500 + 10 * p; }
 
-        function setPoint(i, p) {
-            var a = points.slice();
-            a[i] = p;
-            swSettings.batPoints = JSON.stringify(a);
-            swSettings.batPreset = "CUSTOM";
+        function pickSize(size) {
+            swSettings.batSize = size;
+            var list = cellsOfSize(size);
+            if (list.indexOf(swSettings.batCell) < 0) swSettings.batCell = list[0];
             changed();
         }
 
-        function choose(name) {
-            swSettings.batPreset = name;
-            if (presets[name]) swSettings.batPoints = JSON.stringify(presets[name]);
+        function pickCell(name) {
+            swSettings.batCell = name;
             changed();
+        }
+
+        // my cell: created from the selected cell the first time it's edited
+        function editCustom(fn) {
+            var c = custom ? JSON.parse(JSON.stringify(custom))
+                           : {name: "MY CELL", size: swSettings.batSize, points: current.points.slice(), ir: current.ir, cap: 3000};
+            fn(c);
+            swSettings.batCustom = JSON.stringify(c);
+        }
+
+        function useCustom() {
+            if (!custom) editCustom(function (c) {});
+            swSettings.batSize = custom.size;
+            swSettings.batCell = "MY CELL";
+            swSettings.batStyle = 0;
+            changed();
+        }
+
+        function setCustomPoint(i, p) {
+            editCustom(function (c) { c.points[i] = p; });
+            if (swSettings.batCell === "MY CELL") changed();
         }
 
         function send(set) {
@@ -719,7 +780,7 @@ Item {
             data.setUint8(2, set ? 1 : 0);
             if (set) {
                 data.setUint8(3, swSettings.batCurveOn ? 1 : 0);
-                data.setUint8(4, swSettings.batRes);
+                data.setUint8(4, resistance);
                 for (var i = 0; i < 11; i++) data.setUint8(5 + i, points[i]);
             }
             vescCommands.sendCustomAppData(data.buffer);
@@ -735,25 +796,16 @@ Item {
         function onReply(dv, ind) {
             if (dv.byteLength < ind + 18 || dv.getUint8(ind++) !== 0) return;
             var on = dv.getUint8(ind++) !== 0;
-            var res = dv.getUint8(ind++);
-            var pts = [];
-            for (var i = 0; i < 11; i++) pts.push(dv.getUint8(ind++));
+            ind += 12;  // resistance, points (the app's own selection is shown)
+            var oldCells = cells;
             cells = dv.getUint8(ind++);
             volts = dv.getUint16(ind) / 10; ind += 2;
             percent = dv.getUint8(ind++);
             if (!synced) {
-                // first reply after connecting: show what the board has
                 synced = true;
-                if (pts[0] > pts[10]) {
-                    swSettings.batCurveOn = on;
-                    swSettings.batRes = res;
-                    var name = "CUSTOM";
-                    for (var k in presets) {
-                        if (JSON.stringify(presets[k]) === JSON.stringify(pts)) name = k;
-                    }
-                    swSettings.batPreset = name;
-                    swSettings.batPoints = JSON.stringify(pts);
-                }
+                swSettings.batCurveOn = on;  // show what the board has
+            } else if (cells !== oldCells && oldCells !== 0 && swSettings.batResAuto) {
+                send(true);  // series count known now: auto sag compensation changed
             }
         }
 
@@ -763,11 +815,11 @@ Item {
             onTriggered: batteryCurve.send(true)
         }
 
-        // live readout while the window is open
+        // live readout while a battery panel is open
         property Timer poll: Timer {
             interval: 1000
             repeat: true
-            running: ledWindow.visible && ledWindow.section === "battery"
+            running: (ledWindow.visible && ledWindow.section === "battery") || batteryAdvanced.visible
             triggeredOnStart: true
             onTriggered: batteryCurve.send(false)
         }
@@ -1736,9 +1788,13 @@ Item {
         property int ledHeadlightIdlePct: 50
         // battery curve for the LCM status bar (computed in the package)
         property bool batCurveOn: false
-        property string batPreset: "VTC6"
-        property string batPoints: "[170,156,152,140,132,124,116,106,96,79,50]"  // cell mV = 2500 + 10 * p, 100..0 %
-        property int batRes: 0  // pack resistance, 2 mOhm steps
+        property string batSize: "18650"  // cell size picked first
+        property string batCell: "VTC6"  // cell type, or "MY CELL"
+        property int batStyle: 0  // -1 conservative, 0 balanced, 1 optimistic
+        property int batParallel: 2  // parallel groups (for the sag compensation)
+        property bool batResAuto: true  // sag compensation from the cell's resistance
+        property int batRes: 0  // manual pack resistance, 2 mOhm steps
+        property string batCustom: ""  // my cell: {name, size, points, ir, cap}
         property int ledStatusIdlePct: 80
         property int ledStatusRidePct: 80
         property int ledAnimIdle: 0
@@ -6645,58 +6701,87 @@ Item {
                             font.pixelSize: fontSizeSmall
                             color: swTheme.neonGreen
                             text: batteryCurve.cells > 0
-                                ? "Now: " + batteryCurve.volts.toFixed(1) + " V \u00B7 " + batteryCurve.cells + " cells \u00B7 "
+                                ? "Now: " + batteryCurve.volts.toFixed(1) + " V \u00B7 " + batteryCurve.cells + "s \u00B7 "
                                     + (batteryCurve.volts / batteryCurve.cells).toFixed(2) + " V/cell \u2192 "
                                     + (batteryCurve.percent <= 100 ? batteryCurve.percent + " %" : "VESC's own %")
                                 : "Waiting for the board..."
                         }
 
-                        Flow {
-                            width: parent.width
-                            spacing: 0.12 * unit
+                        LedHeading { text: "1. Cell size" }
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.15 * unit
                             Repeater {
-                                model: batteryCurve.presetNames
+                                model: ["18650", "21700"]
                                 SwPill {
-                                    minWidth: 1.5 * unit
+                                    minWidth: 2.2 * unit
                                     label: modelData
-                                    lit: swSettings.batPreset === modelData
-                                    onClicked: if (modelData !== "CUSTOM") batteryCurve.choose(modelData); else { swSettings.batPreset = "CUSTOM"; batteryCurve.changed(); }
+                                    lit: swSettings.batSize === modelData
+                                    onClicked: batteryCurve.pickSize(modelData)
                                 }
                             }
                         }
 
-                        LedHeading { text: "Volts per cell" }
-
-                        Repeater {
-                            model: 11
-                            SwStepper {
-                                label: (100 - 10 * index) + " %"
-                                value: batteryCurve.points[index]
-                                // keep the curve falling: stay between the neighbours
-                                from: index < 10 ? batteryCurve.points[index + 1] + 1 : 0
-                                to: index > 0 ? batteryCurve.points[index - 1] - 1 : 255
-                                step: 1
-                                valueText: (batteryCurve.mv(value) / 1000).toFixed(2) + " V"
-                                onMoved: batteryCurve.setPoint(index, newValue)
+                        LedHeading { text: "2. Cell" }
+                        Flow {
+                            width: parent.width
+                            spacing: 0.12 * unit
+                            Repeater {
+                                model: batteryCurve.cellsOfSize(swSettings.batSize)
+                                SwPill {
+                                    minWidth: 1.6 * unit
+                                    label: modelData
+                                    lit: swSettings.batCell === modelData
+                                    onClicked: batteryCurve.pickCell(modelData)
+                                }
                             }
                         }
 
-                        SwStepper {
-                            label: "SAG COMP."
-                            value: swSettings.batRes
-                            from: 0; to: 250; step: 5
-                            valueText: (2 * value) + " m\u03A9"
-                            onMoved: { swSettings.batRes = newValue; batteryCurve.changed(); }
+                        LedHeading { text: "3. Pack" }
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.12 * unit
+                            Repeater {
+                                model: [1, 2, 3, 4]
+                                SwPill {
+                                    minWidth: 1.2 * unit
+                                    label: modelData + "P"
+                                    lit: swSettings.batParallel === modelData
+                                    onClicked: { swSettings.batParallel = modelData; batteryCurve.changed(); }
+                                }
+                            }
+                        }
+
+                        LedHeading { text: "4. Gauge" }
+                        Flow {
+                            width: parent.width
+                            spacing: 0.12 * unit
+                            Repeater {
+                                model: 3
+                                SwPill {
+                                    minWidth: 2.2 * unit
+                                    label: batteryCurve.styleNames[index]
+                                    lit: swSettings.batStyle === index - 1
+                                    onClicked: { swSettings.batStyle = index - 1; batteryCurve.changed(); }
+                                }
+                            }
                         }
 
                         SwLText {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: "The package turns the battery voltage into a % with this curve and sends it to the LCM status bar (ALCM VP firmware), instead of the VESC's own %. "
-                                + "Cell count comes from the VESC motor config (Additional Info \u203A battery cells in series). "
-                                + "Presets are Floatwheel's own tables. P28A isn't one of them: start from VTC6 (also an 18650 high-drain cell) and adjust the points. "
-                                + "SAG COMP. is the pack's resistance: it adds back the voltage drop while riding, so the gauge doesn't dip under load (for 18s2p P28A roughly 100-150 m\u03A9; 0 = off)."
+                            text: (swSettings.batStyle < 0 ? "Conservative: reads a bit low, so it warns you earlier. "
+                                    : swSettings.batStyle > 0 ? "Optimistic: reads a bit high, closer to the last bit of range. " : "Balanced: the cell's own curve. ")
+                                + (batteryCurve.current.approx ? batteryCurve.current.name + ": approximate curve (Molicel publishes none; based on P42A). " : "")
+                                + "Sag compensation: " + (swSettings.batResAuto ? "automatic, " + (2 * batteryCurve.resistance) + " m\u03A9 for " + batteryCurve.series + "s" + swSettings.batParallel + "p." : "manual (Advanced).")
+                        }
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 3.4 * unit
+                            label: "ADVANCED \u203A"
+                            onClicked: batteryAdvanced.open()
                         }
                     }
 
@@ -6830,6 +6915,214 @@ Item {
                 font.pixelSize: 0.17 * unit
                 color: "#FFB300"
                 text: "\u26A0 ADV200 (XRV / GTV / PintV) + ALCM VP light module firmware only"
+            }
+        }
+    }
+
+    // Re-RinkFloat: battery gauge, advanced mode (full screen): my own cell
+    // (name, size, resistance, capacity, curve), manual sag compensation
+    Popup {
+        id: batteryAdvanced
+        parent: mainItem
+        x: 0
+        y: 0
+        width: mainItem.width
+        height: mainItem.height
+        modal: true
+        dim: true
+        padding: 0.25 * unit
+        closePolicy: Popup.CloseOnEscape
+
+        readonly property var editPoints: batteryCurve.custom ? batteryCurve.custom.points : batteryCurve.current.points
+
+        background: Rectangle {
+            color: "#0b0718"
+            border.color: swTheme.neonPurple
+            border.width: 2
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 0.15 * unit
+
+            RowLayout {
+                Layout.fillWidth: true
+                SwPill {
+                    minWidth: 1.8 * unit
+                    label: "\u2039 BACK"
+                    onClicked: batteryAdvanced.close()
+                }
+                SwNeonLabel {
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
+                    font.pixelSize: 0.32 * unit
+                    text: "BATTERY \u00B7 ADVANCED"
+                }
+                Item { implicitWidth: 1.8 * unit; implicitHeight: 1 }
+            }
+
+            Rectangle { Layout.fillWidth: true; height: 2; color: swTheme.neonPurple; opacity: 0.6 }
+
+            Flickable {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                contentHeight: batAdvCol.height + 0.4 * unit
+                boundsBehavior: Flickable.StopAtBounds
+
+                Column {
+                    id: batAdvCol
+                    width: parent.width
+                    spacing: 0.14 * unit
+
+                    SwLText {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        font.pixelSize: fontSizeSmall
+                        color: swTheme.neonGreen
+                        text: batteryCurve.cells > 0
+                            ? "Now: " + batteryCurve.volts.toFixed(1) + " V \u00B7 " + batteryCurve.cells + "s \u00B7 "
+                                + (batteryCurve.volts / batteryCurve.cells).toFixed(2) + " V/cell \u2192 "
+                                + (batteryCurve.percent <= 100 ? batteryCurve.percent + " %" : "VESC's own %")
+                            : "Waiting for the board..."
+                    }
+
+                    LedHeading { text: "My cell" }
+
+                    RowLayout {
+                        width: parent.width
+                        SwLText { text: "NAME"; font.pixelSize: fontSizeSmall }
+                        TextField {
+                            Layout.fillWidth: true
+                            maximumLength: 16
+                            color: swTheme.neonGreen
+                            text: batteryCurve.custom ? batteryCurve.custom.name : "MY CELL"
+                            onEditingFinished: {
+                                var t = text.trim() || "MY CELL";
+                                batteryCurve.editCustom(function (c) { c.name = t; });
+                            }
+                        }
+                    }
+
+                    Row {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 0.15 * unit
+                        Repeater {
+                            model: ["18650", "21700"]
+                            SwPill {
+                                minWidth: 2.2 * unit
+                                label: modelData
+                                lit: (batteryCurve.custom ? batteryCurve.custom.size : swSettings.batSize) === modelData
+                                onClicked: batteryCurve.editCustom(function (c) { c.size = modelData; })
+                            }
+                        }
+                    }
+
+                    SwStepper {
+                        label: "RESISTANCE (DC)"
+                        value: batteryCurve.custom ? batteryCurve.custom.ir : batteryCurve.current.ir
+                        from: 3; to: 80; step: 1; suffix: " m\u03A9"
+                        onMoved: {
+                            batteryCurve.editCustom(function (c) { c.ir = newValue; });
+                            if (swSettings.batCell === "MY CELL") batteryCurve.changed();
+                        }
+                    }
+
+                    SwStepper {
+                        label: "CAPACITY"
+                        value: batteryCurve.custom ? batteryCurve.custom.cap : 3000
+                        from: 1000; to: 7000; step: 50; suffix: " mAh"
+                        onMoved: batteryCurve.editCustom(function (c) { c.cap = newValue; })
+                    }
+
+                    SwLText {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        font.pixelSize: fontSizeSmall
+                        text: "Start the curve from a known cell:"
+                    }
+
+                    Flow {
+                        width: parent.width
+                        spacing: 0.12 * unit
+                        Repeater {
+                            model: batteryCurve.cellList
+                            SwPill {
+                                minWidth: 1.5 * unit
+                                label: modelData.name
+                                onClicked: {
+                                    var src = modelData;
+                                    batteryCurve.editCustom(function (c) { c.points = src.points.slice(); c.ir = src.ir; c.size = src.size; });
+                                    if (swSettings.batCell === "MY CELL") batteryCurve.changed();
+                                }
+                            }
+                        }
+                    }
+
+                    LedHeading { text: "Volts per cell" }
+
+                    Repeater {
+                        model: 11
+                        SwStepper {
+                            label: (100 - 10 * index) + " %"
+                            value: batteryAdvanced.editPoints[index]
+                            // keep the curve falling: stay between the neighbours
+                            from: index < 10 ? batteryAdvanced.editPoints[index + 1] + 1 : 0
+                            to: index > 0 ? batteryAdvanced.editPoints[index - 1] - 1 : 255
+                            step: 1
+                            valueText: (batteryCurve.mv(value) / 1000).toFixed(2) + " V"
+                            onMoved: batteryCurve.setCustomPoint(index, newValue)
+                        }
+                    }
+
+                    SwPill {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        minWidth: 3.4 * unit
+                        label: swSettings.batCell === "MY CELL" ? "USING MY CELL" : "USE MY CELL"
+                        lit: swSettings.batCell === "MY CELL"
+                        onClicked: batteryCurve.useCustom()
+                    }
+
+                    LedHeading { text: "Sag compensation" }
+
+                    Row {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: 0.15 * unit
+                        SwPill {
+                            minWidth: 2.2 * unit
+                            label: "AUTO"
+                            lit: swSettings.batResAuto
+                            onClicked: { swSettings.batResAuto = true; batteryCurve.changed(); }
+                        }
+                        SwPill {
+                            minWidth: 2.2 * unit
+                            label: "MANUAL"
+                            lit: !swSettings.batResAuto
+                            onClicked: { swSettings.batResAuto = false; batteryCurve.changed(); }
+                        }
+                    }
+
+                    SwStepper {
+                        visible: !swSettings.batResAuto
+                        label: "PACK RESISTANCE"
+                        value: swSettings.batRes
+                        from: 0; to: 250; step: 5
+                        valueText: (2 * value) + " m\u03A9"
+                        onMoved: { swSettings.batRes = newValue; batteryCurve.changed(); }
+                    }
+
+                    SwLText {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        font.pixelSize: fontSizeSmall
+                        text: "AUTO = cell resistance \u00D7 series \u00F7 parallel: " + batteryCurve.current.ir + " m\u03A9 \u00D7 " + batteryCurve.series
+                            + " \u00F7 " + swSettings.batParallel + " \u2248 " + (2 * batteryCurve.autoRes) + " m\u03A9"
+                            + (batteryCurve.current.irEst ? " (cell resistance estimated)" : "") + ". "
+                            + "It adds back the voltage drop while riding so the gauge doesn't dip under load. Raise it if the gauge still drops when you accelerate, lower it if it jumps up.\n\n"
+                            + "The package turns the voltage into a % with the curve and sends it to the LCM status bar (ALCM VP firmware). Series cells come from the VESC motor config (Additional Info \u203A battery cells in series)."
+                    }
+                }
             }
         }
     }
@@ -11774,7 +12067,10 @@ Item {
                                 title: "BATTERY GAUGE"
                                 glyph: "\u25AE"
                                 lit: swSettings.batCurveOn
-                                summary: swSettings.batCurveOn ? swSettings.batPreset + " CURVE" : "VESC BATTERY %"
+                                summary: swSettings.batCurveOn
+                                    ? (swSettings.batCell === "MY CELL" && batteryCurve.custom ? batteryCurve.custom.name : swSettings.batCell)
+                                        + " \u00B7 " + swSettings.batParallel + "P \u00B7 " + batteryCurve.styleNames[swSettings.batStyle + 1]
+                                    : "VESC BATTERY %"
                                 onClicked: ledWindow.show("battery")
                             }
                             LedTile {

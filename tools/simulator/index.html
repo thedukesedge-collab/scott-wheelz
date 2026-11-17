@@ -271,7 +271,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf61 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf62 · sim</span></div>
     </div>
   </div>
 
@@ -298,11 +298,12 @@
       <div class="ledSec" data-s="battery">
         <div class="pills"><div class="pill" id="batPill"></div></div>
         <p class="ledHint" id="batLive" style="text-align:center;color:var(--green)"></p>
-        <div class="pills" id="batPresets"></div>
-        <div class="secTitle">Volts per cell</div>
-        <div id="batSteps"></div>
-        <div id="batResStep"></div>
-        <p class="ledHint">The package turns the battery voltage into a % with this curve and sends it to the LCM status bar (ALCM VP firmware), instead of the VESC's own %. Cell count comes from the VESC motor config (Additional Info &#8250; battery cells in series). Presets are Floatwheel's own tables. P28A isn't one of them: start from VTC6 (also an 18650 high-drain cell) and adjust the points. SAG COMP. is the pack's resistance: it adds back the voltage drop while riding, so the gauge doesn't dip under load (for 18s2p P28A roughly 100-150 m&#937;; 0 = off).</p>
+        <div class="secTitle">1. Cell size</div><div class="pills" id="batSizes"></div>
+        <div class="secTitle">2. Cell</div><div class="pills" id="batCells"></div>
+        <div class="secTitle">3. Pack</div><div class="pills" id="batPar"></div>
+        <div class="secTitle">4. Gauge</div><div class="pills" id="batStyles"></div>
+        <p class="ledHint" id="batNote"></p>
+        <div class="pills"><div class="pill" id="batAdvOpen">ADVANCED &#8250;</div></div>
       </div>
       <div class="ledSec" data-s="fw">
         <div class="secTitle">Firmware to flash</div>
@@ -324,6 +325,26 @@
     <p style="font-size:10px;color:#FFB300;text-align:center;margin:0">&#9888; ADV200 (XRV / GTV / PintV) + ALCM VP light module firmware only</p>
   </div>
 
+  <div id="batAdv" style="position:absolute;inset:0;z-index:47;display:none;flex-direction:column;gap:8px;background:#0b0718;border:2px solid var(--purple);padding:10px 12px">
+    <div style="display:flex;align-items:center;gap:6px"><div class="pill" id="batAdvBack" style="min-width:64px;text-align:center">&#8249; BACK</div><span class="neonL" style="flex:1;text-align:center;font-size:15px">BATTERY &#183; ADVANCED</span><div style="min-width:64px"></div></div>
+    <div style="height:2px;background:var(--purple);opacity:.6"></div>
+    <div style="flex:1;overflow-y:auto">
+      <p class="ledHint" id="batAdvLive" style="text-align:center;color:var(--green)"></p>
+      <div class="secTitle">My cell</div>
+      <div class="stepRow"><span class="lbl">NAME</span><input id="batName" maxlength="16" style="flex:1;margin-left:10px;background:#140d22;border:1px solid var(--purple);color:var(--green);border-radius:6px;padding:6px;font-family:Orbitron,monospace"></div>
+      <div class="pills" id="batAdvSizes"></div>
+      <div id="batAdvSpecs"></div>
+      <p class="ledHint">Start the curve from a known cell:</p>
+      <div class="pills" id="batAdvFrom"></div>
+      <div class="secTitle">Volts per cell</div>
+      <div id="batAdvPts"></div>
+      <div class="pills"><div class="pill" id="batUseMine"></div></div>
+      <div class="secTitle">Sag compensation</div>
+      <div class="pills"><div class="pill" id="batResAuto">AUTO</div><div class="pill" id="batResMan">MANUAL</div></div>
+      <div id="batResStep"></div>
+      <p class="ledHint" id="batAdvNote"></p>
+    </div>
+  </div>
   <div id="fwAckBack" style="position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:47;display:none"></div>
   <div id="fwAck" style="position:absolute;left:4%;right:4%;top:50%;transform:translateY(-50%);z-index:48;display:none;background:#140d02;border:3px solid #FFB300;border-radius:12px;padding:12px;color:#ffe3a3;font-size:12px">
     <div style="text-align:center;color:#FFB300;font-family:Orbitron,monospace;font-size:16px;margin-bottom:8px">&#9888; FLASH LCM FIRMWARE</div>
@@ -913,14 +934,12 @@ function renderLedsSoft() {
   $('ltBar').textContent = P.ledBar ? 'ON · RIDE ' + P.ledRidePct + '% · IDLE ' + P.ledIdlePct + '%' : 'OFF';
   $('ltAnim').textContent = 'IDLE ' + LED_ANIMS[P.ledAnimIdle] + ' · RIDE ' + LED_ANIMS[P.ledAnimRide];
   $('ltSound').textContent = (P.ledBeep ? 'BEEPER ON' : 'BEEPER OFF') + ' · TEST BEEP';
-  for (let i = 0; i < 11; i++) { const v = P['batPt' + i]; if (v !== undefined && v !== P.batPts[i]) { P.batPts[i] = v; P.batPreset = 'CUSTOM'; save(); } }
-  $('ltBat').textContent = P.batOn ? P.batPreset + ' CURVE' : 'VESC BATTERY %';
+  for (let i = 0; i < 11; i++) { const v = P['_pt' + i]; const c0 = P.batCustom || batCur(); if (v !== undefined && $('batAdv').style.display === 'flex' && v !== c0.points[i]) batEdit(x => { x.points[i] = v; }); }
+  if ($('batAdv').style.display === 'flex' && P._ir !== undefined) { const c0 = P.batCustom || batCur(); if (P._ir !== c0.ir || (P.batCustom && P._cap !== P.batCustom.cap)) batEdit(x => { x.ir = P._ir; x.cap = P._cap; }); }
+  const cc = batCur();
+  $('ltBat').textContent = P.batOn ? (P.batCell === 'MY CELL' && P.batCustom ? P.batCustom.name : P.batCell) + ' · ' + P.batPar + 'P · ' + STYLES[P.batStyle + 1] : 'VESC BATTERY %';
   $('batPill').textContent = 'BATTERY CURVE ' + (P.batOn ? 'ON' : 'OFF'); $('batPill').classList.toggle('on', P.batOn);
-  document.querySelectorAll('#batPresets .pill').forEach(x => x.classList.toggle('on', x.textContent === P.batPreset));
-  { const cells = 18, v = S.volts * 18 / 20, mv = v * 1000 / cells, p = P.batPts.map(x => 2500 + 10 * x);
-    let pct = mv >= p[0] ? 100 : mv <= p[10] ? 0 : 0;
-    for (let i = 0; i < 10; i++) if (mv < p[i] && mv >= p[i + 1]) pct = 100 - 10 * i - 10 * (p[i] - mv) / (p[i] - p[i + 1]);
-    $('batLive').textContent = 'Now: ' + v.toFixed(1) + ' V · ' + cells + ' cells · ' + (v / cells).toFixed(2) + ' V/cell → ' + (P.batOn ? Math.round(pct) + ' %' : "VESC's own %"); }
+  $('batLive').textContent = batLive(); $('batAdvLive').textContent = batLive();
   $('ltFw').textContent = FW.active ? 'FLASHING · ' + Math.round(FW.p * 100) + '%' : 'FLASH LCM FROM THE APP · BOOTLOADER LCMs ONLY';
   document.querySelectorAll('.ledTile').forEach(t => t.classList.toggle('lit', t.dataset.w === 'head' ? P.ledHead : t.dataset.w === 'bar' ? P.ledBar : t.dataset.w === 'sound' ? P.ledBeep : true));
   $('ledBeepHint').textContent = P.ledBeep ? "The light module plays one short beep. No beep = the module isn't running the ALCM VP firmware or isn't connected."
@@ -938,21 +957,62 @@ function renderLeds() {
   renderLedsSoft();
 }
 const ledToggle = k => () => { P[k] = !P[k]; P.ledCfg = true; save(); renderLedsSoft(); };
-const BAT_PRESETS = { P42A: [170, 156, 144, 135, 128, 120, 112, 104, 96, 84, 50], '50S': [170, 158, 154, 140, 132, 124, 114, 102, 88, 66, 50],
-  DG40: [170, 155, 144, 137, 130, 122, 110, 100, 88, 74, 50], VTC6: [170, 156, 152, 140, 132, 124, 116, 106, 96, 79, 50], RS50: [170, 156, 150, 139, 129, 117, 103, 89, 70, 49, 20] };
-if (P.batOn === undefined) { P.batOn = false; P.batPreset = 'VTC6'; P.batPts = BAT_PRESETS.VTC6.slice(); P.batRes = 0; }
-function renderBattery() {
-  $('batSteps').innerHTML = '';
-  for (let i = 0; i < 11; i++) {
-    const key = 'batPt' + i; P[key] = P.batPts[i];
-    const lo = i < 10 ? P.batPts[i + 1] + 1 : 0, hi = i > 0 ? P.batPts[i - 1] - 1 : 255;
-    ledStep($('batSteps'), key, (100 - 10 * i) + ' %', lo, hi, 1, v => ((2500 + 10 * v) / 1000).toFixed(2) + ' V');
-  }
-  $('batResStep').innerHTML = ''; ledStep($('batResStep'), 'batRes', 'SAG COMP.', 0, 250, 5, v => (2 * v) + ' mΩ');
+const P42A = [170, 156, 144, 135, 128, 120, 112, 104, 96, 84, 50];
+const CELLS = [
+  { name: 'P28A', size: '18650', points: P42A, ir: 20, approx: true }, { name: 'P30B', size: '18650', points: P42A, ir: 17, approx: true },
+  { name: 'VTC6', size: '18650', points: [170, 156, 152, 140, 132, 124, 116, 106, 96, 79, 50], ir: 20, irEst: true },
+  { name: 'P42A', size: '21700', points: P42A, ir: 19, irEst: true }, { name: 'P45B', size: '21700', points: P42A, ir: 15, approx: true },
+  { name: 'P50B', size: '21700', points: P42A, ir: 13, approx: true },
+  { name: '50S', size: '21700', points: [170, 158, 154, 140, 132, 124, 114, 102, 88, 66, 50], ir: 15, irEst: true },
+  { name: 'RS50', size: '21700', points: [170, 156, 150, 139, 129, 117, 103, 89, 70, 49, 20], ir: 15, irEst: true },
+  { name: 'DG40', size: '21700', points: [170, 155, 144, 137, 130, 122, 110, 100, 88, 74, 50], ir: 20, irEst: true }];
+const STYLES = ['CONSERVATIVE', 'BALANCED', 'OPTIMISTIC'];
+if (P.batSize === undefined) Object.assign(P, { batOn: false, batSize: '18650', batCell: 'VTC6', batStyle: 0, batPar: 2, batResAuto: true, batRes: 0, batCustom: null });
+const batCell = n => n === 'MY CELL' ? P.batCustom : CELLS.find(c => c.name === n);
+const batCur = () => batCell(P.batCell) || CELLS[2];
+const batOfSize = sz => CELLS.filter(c => c.size === sz).map(c => c.name).concat(P.batCustom && P.batCustom.size === sz ? ['MY CELL'] : []);
+function batPoints() { const b = batCur().points, sh = -3 * P.batStyle, p = b.map((x, i) => i ? Math.max(0, Math.min(255, x + sh)) : x); for (let i = 1; i < 11; i++) p[i] = Math.max(0, Math.min(p[i], p[i - 1] - 1)); return p; }
+const SIM_CELLS = 18;
+const batAutoRes = () => Math.round(batCur().ir * SIM_CELLS / P.batPar / 2);
+function batLive() {
+  const v = S.volts * 18 / 20, mv = v * 1000 / SIM_CELLS, p = batPoints().map(x => 2500 + 10 * x);
+  let pct = mv >= p[0] ? 100 : 0; for (let i = 0; i < 10; i++) if (mv < p[i] && mv >= p[i + 1]) pct = 100 - 10 * i - 10 * (p[i] - mv) / (p[i] - p[i + 1]);
+  return 'Now: ' + v.toFixed(1) + ' V · ' + SIM_CELLS + 's · ' + (v / SIM_CELLS).toFixed(2) + ' V/cell → ' + (P.batOn ? Math.round(pct) + ' %' : "VESC's own %");
 }
-$('batPresets').innerHTML = ['P42A', '50S', 'DG40', 'VTC6', 'RS50', 'CUSTOM'].map(n => '<div class="pill">' + n + '</div>').join('');
-document.querySelectorAll('#batPresets .pill').forEach(x => x.onclick = () => { P.batPreset = x.textContent; if (BAT_PRESETS[P.batPreset]) P.batPts = BAT_PRESETS[P.batPreset].slice(); save(); renderBattery(); renderLedsSoft(); });
+function batEdit(fn) { const c = P.batCustom ? JSON.parse(JSON.stringify(P.batCustom)) : { name: 'MY CELL', size: P.batSize, points: batCur().points.slice(), ir: batCur().ir, cap: 3000 }; fn(c); P.batCustom = c; save(); }
+const pills = (box, list, on, click) => { $(box).innerHTML = ''; list.forEach(n => { const d = document.createElement('div'); d.className = 'pill' + (on(n) ? ' on' : ''); d.textContent = n; d.onclick = () => { click(n); save(); renderBattery(); renderLedsSoft(); }; $(box).appendChild(d); }); };
+function renderBattery() {
+  pills('batSizes', ['18650', '21700'], n => P.batSize === n, n => { P.batSize = n; const l = batOfSize(n); if (!l.includes(P.batCell)) P.batCell = l[0]; });
+  pills('batCells', batOfSize(P.batSize), n => P.batCell === n, n => P.batCell = n);
+  pills('batPar', ['1P', '2P', '3P', '4P'], n => P.batPar === +n[0], n => P.batPar = +n[0]);
+  pills('batStyles', STYLES, n => STYLES.indexOf(n) - 1 === P.batStyle, n => P.batStyle = STYLES.indexOf(n) - 1);
+  const c = batCur();
+  $('batNote').textContent = (P.batStyle < 0 ? 'Conservative: reads a bit low, so it warns you earlier. ' : P.batStyle > 0 ? 'Optimistic: reads a bit high, closer to the last bit of range. ' : "Balanced: the cell's own curve. ")
+    + (c.approx ? c.name + ': approximate curve (Molicel publishes none; based on P42A). ' : '')
+    + 'Sag compensation: ' + (P.batResAuto ? 'automatic, ' + 2 * batAutoRes() + ' mΩ for ' + SIM_CELLS + 's' + P.batPar + 'p.' : 'manual (Advanced).');
+  // advanced
+  const mine = P.batCustom, ed = mine ? mine.points : c.points;
+  $('batName').value = mine ? mine.name : 'MY CELL';
+  pills('batAdvSizes', ['18650', '21700'], n => (mine ? mine.size : P.batSize) === n, n => batEdit(x => x.size = n));
+  $('batAdvSpecs').innerHTML = '';
+  P._ir = mine ? mine.ir : c.ir; P._cap = mine ? mine.cap : 3000;
+  ledStep($('batAdvSpecs'), '_ir', 'RESISTANCE (DC)', 3, 80, 1, v => v + ' mΩ');
+  ledStep($('batAdvSpecs'), '_cap', 'CAPACITY', 1000, 7000, 50, v => v + ' mAh');
+  pills('batAdvFrom', CELLS.map(x => x.name), () => false, n => { const src = batCell(n); batEdit(x => { x.points = src.points.slice(); x.ir = src.ir; x.size = src.size; }); });
+  $('batAdvPts').innerHTML = '';
+  for (let i = 0; i < 11; i++) { P['_pt' + i] = ed[i]; ledStep($('batAdvPts'), '_pt' + i, (100 - 10 * i) + ' %', i < 10 ? ed[i + 1] + 1 : 0, i > 0 ? ed[i - 1] - 1 : 255, 1, v => ((2500 + 10 * v) / 1000).toFixed(2) + ' V'); }
+  $('batUseMine').textContent = P.batCell === 'MY CELL' ? 'USING MY CELL' : 'USE MY CELL'; $('batUseMine').classList.toggle('on', P.batCell === 'MY CELL');
+  $('batResAuto').classList.toggle('on', P.batResAuto); $('batResMan').classList.toggle('on', !P.batResAuto);
+  $('batResStep').innerHTML = ''; if (!P.batResAuto) ledStep($('batResStep'), 'batRes', 'PACK RESISTANCE', 0, 250, 5, v => (2 * v) + ' mΩ');
+  $('batAdvNote').textContent = 'AUTO = cell resistance × series ÷ parallel: ' + c.ir + ' mΩ × ' + SIM_CELLS + ' ÷ ' + P.batPar + ' ≈ ' + 2 * batAutoRes() + ' mΩ' + (c.irEst ? ' (cell resistance estimated)' : '') + ". It adds back the voltage drop while riding so the gauge doesn't dip under load.";
+}
 $('batPill').onclick = () => { P.batOn = !P.batOn; save(); renderLedsSoft(); };
+$('batAdvOpen').onclick = () => { $('batAdv').style.display = 'flex'; renderBattery(); };
+$('batAdvBack').onclick = () => { $('batAdv').style.display = 'none'; renderBattery(); };
+$('batName').onchange = () => { batEdit(x => x.name = $('batName').value.trim() || 'MY CELL'); renderLedsSoft(); };
+$('batUseMine').onclick = () => { if (!P.batCustom) batEdit(() => {}); P.batSize = P.batCustom.size; P.batCell = 'MY CELL'; P.batStyle = 0; save(); renderBattery(); renderLedsSoft(); };
+$('batResAuto').onclick = () => { P.batResAuto = true; save(); renderBattery(); };
+$('batResMan').onclick = () => { P.batResAuto = false; save(); renderBattery(); };
 const LED_TITLES = { head: 'HEADLIGHTS', bar: 'STATUS BAR', anim: 'ANIMATIONS', sound: 'SOUND', battery: 'BATTERY GAUGE', fw: 'LCM FIRMWARE' };
 const ledWin = w => {
   $('ledWin').style.display = w ? 'flex' : 'none';

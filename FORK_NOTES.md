@@ -628,3 +628,19 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   parser on the freshly built ALCM_VP_BL_full.hex and checks it gives the
   same update image (tools/hexparse/test.js). The FLASH LCM warning names
   the firmware about to be sent.
+
+### Battery gauge: simple + advanced modes, more cells (v1.2.3-rf62)
+- Simple mode (half panel): curve on/off, 1. cell size (18650 / 21700),
+  2. cell (18650: P28A, P30B, VTC6; 21700: P42A, P45B, P50B, 50S, RS50,
+  DG40, plus MY CELL), 3. pack parallel groups (1-4P), 4. gauge style
+  (conservative = every point 30 mV higher so it reads lower; balanced;
+  optimistic = 30 mV lower). Sag compensation is automatic: cell DC
+  resistance x series (from the VESC) / parallel.
+- Advanced mode (full screen): my own cell (name, size, DC resistance,
+  capacity, 11-point curve, start from any known cell), USE MY CELL, sag
+  compensation AUTO / MANUAL.
+- Curves: floatwheel's tables for P42A, 50S, DG40, VTC6, RS50. Molicel
+  publishes no OCV tables, so P28A / P30B / P45B / P50B use the P42A table
+  (same maker) and are marked approximate. DC resistance from Molicel
+  datasheets: P28A 20, P30B 17, P45B 15, P50B 12.8 mOhm; others estimated.
+- Package unchanged (the app sends the resulting points + resistance).
