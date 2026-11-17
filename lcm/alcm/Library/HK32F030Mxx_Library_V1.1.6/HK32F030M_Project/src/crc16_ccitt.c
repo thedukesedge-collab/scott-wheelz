@@ -21,6 +21,7 @@
 /**
  * @brief CRC16 CCITT lookup table
  */
+#ifndef VP_LIGHT_CONTROL
 static const uint16_t crc16_tab[] = {
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7, 0x8108, 0x9129, 0xa14a, 0xb16b,
     0xc18c, 0xd1ad, 0xe1ce, 0xf1ef, 0x1231, 0x0210, 0x3273, 0x2252, 0x52b5, 0x4294, 0x72f7, 0x62d6,
@@ -45,6 +46,7 @@ static const uint16_t crc16_tab[] = {
     0xef1f, 0xff3e, 0xcf5d, 0xdf7c, 0xaf9b, 0xbfba, 0x8fd9, 0x9ff8, 0x6e17, 0x7e36, 0x4e55, 0x5e74,
     0x2e93, 0x3eb2, 0x0ed1, 0x1ef0,
 };
+#endif
 
 /**
  * @brief Computes the CCITT CRC16 checksum of a given buffer.
@@ -54,6 +56,27 @@ static const uint16_t crc16_tab[] = {
  *
  * @return The computed checksum.
  */
+#ifdef VP_LIGHT_CONTROL
+/* Re-Float Rink-Mixed: bit-by-bit version of the same CRC-16/XMODEM
+ * (poly 0x1021, init 0) - identical results, ~470 bytes less flash than the
+ * 512-byte table (the packets checked here are at most 32 bytes). */
+uint16_t crc16_ccitt(const uint8_t *data, uint16_t length)
+{
+    uint16_t cksum = 0U;
+
+    for (uint16_t i = 0; i < length; i++)
+    {
+        cksum ^= (uint16_t)((uint16_t)data[i] << 8U);
+        for (uint8_t bit = 0U; bit < 8U; bit++)
+        {
+            cksum = (cksum & 0x8000U) ? (uint16_t)((cksum << 1U) ^ 0x1021U)
+                                      : (uint16_t)(cksum << 1U);
+        }
+    }
+
+    return cksum;
+}
+#else
 uint16_t crc16_ccitt(const uint8_t *data, uint16_t length)
 {
     uint16_t cksum = 0U;
@@ -65,3 +88,4 @@ uint16_t crc16_ccitt(const uint8_t *data, uint16_t length)
 
     return cksum & 0xFFFFU;
 }
+#endif

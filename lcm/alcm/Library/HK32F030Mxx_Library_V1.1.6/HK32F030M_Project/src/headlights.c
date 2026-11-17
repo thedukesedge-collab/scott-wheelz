@@ -465,6 +465,7 @@ EVENT_HANDLER(headlights, state_change)
             headlights_set_enable_animation(HEADLIGHTS_ENABLE_ANIMATION_FADE_OUT);
         }
         break;
+#ifndef VP_LIGHT_CONTROL // no config mode in the VP build
     // Handle entering and exiting the headlights brightness settings context
     case EVENT_COMMAND_CONTEXT_CHANGED:
         if (data->context == COMMAND_PROCESSOR_CONTEXT_HEADLIGHT_BRIGHTNESS)
@@ -481,6 +482,7 @@ EVENT_HANDLER(headlights, state_change)
             headlights_set_mode_animation(HEADLIGHTS_MODE_ANIMATION_NONE);
         }
         break;
+#endif
 #ifdef ENABLE_IMU_EVENTS
     case EVENT_IMU_PITCH_CHANGED:
         // Update the pitch control factor based on the IMU pitch.

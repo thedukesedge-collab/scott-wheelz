@@ -1014,6 +1014,7 @@ EVENT_HANDLER(status_leds, command)
                                  status_leds_disable_beeper_callback);
         }
         break;
+#ifndef VP_LIGHT_CONTROL // no config mode in the VP build
     case EVENT_COMMAND_CONTEXT_CHANGED:
         // When the context changes, briefly flash a unique color on the status
         // LEDs to indicate to the user which context is active
@@ -1099,6 +1100,7 @@ EVENT_HANDLER(status_leds, command)
             break;
         }
         break;
+#endif
     case EVENT_COMMAND_SETTINGS_CHANGED:
         switch (data->context)
         {
@@ -1106,6 +1108,7 @@ EVENT_HANDLER(status_leds, command)
             status_leds_hw_set_brightness(status_leds_settings->status_brightness);
             status_leds_refresh();
             break;
+#ifndef VP_LIGHT_CONTROL // animation previews are config-mode only
         case COMMAND_PROCESSOR_CONTEXT_BOOT_ANIMATION:
             status_leds_start_animation_option(status_leds_settings->boot_animation);
             break;
@@ -1121,6 +1124,7 @@ EVENT_HANDLER(status_leds, command)
         case COMMAND_PROCESSOR_CONTEXT_RIDING_ANIMATION:
             status_leds_start_animation_option(status_leds_settings->ride_animation);
             break;
+#endif
         case COMMAND_PROCESSOR_CONTEXT_PERSONAL_COLOR:
             status_leds_color_callback();
             break;
