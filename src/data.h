@@ -104,7 +104,7 @@ typedef struct {
     // light module (ALCM VP) settings save state (see lcm_vp_save_if_due)
     volatile bool lcm_vp_save_pending;
     volatile time_t lcm_vp_change_time;
-    uint32_t lcm_vp_saved[3];  // failed saves retried at most 3 times
+    uint32_t lcm_vp_saved[LCM_VP_EEPROM_WORDS];  // failed saves retried at most 3 times
     bool boot_melody;
     bool boot_melody_custom;  // play the custom melody at boot
     float boot_melody_volume;

@@ -77,7 +77,8 @@
  *
  *   15  magic 0x56 ('V')
  *   16  version (1)
- *   17  flags: bit0 headlights on, bit1 status bar on, bit2 beeper on
+ *   17  flags: bit0 headlights on, bit1 status bar on, bit2 beeper on,
+ *       bit3 toggles once per test-beep request from the app
  *   18  idle animation      (animation_option_t)
  *   19  riding animation
  *   20  dozing ("snooze") animation
@@ -94,6 +95,7 @@
 #define VP_FLAG_HEADLIGHTS 0x01U
 #define VP_FLAG_STATUS_LEDS 0x02U
 #define VP_FLAG_BEEP 0x04U
+#define VP_FLAG_TEST_BEEP 0x08U // toggled by the app for a test beep
 #endif
 #endif
 
@@ -155,6 +157,9 @@ static bool_t vesc_serial_filtered_voltage_init = false;
 #ifdef ENABLE_APP_INTEGRATION
 static uint8_t headlight_remote_baseline = LCM_BASELINE_UNSET;
 static uint8_t status_remote_baseline = LCM_BASELINE_UNSET;
+#ifdef VP_LIGHT_CONTROL
+static uint8_t vp_test_beep_last = 0xFFU; // 0xFF: no VP block seen yet
+#endif
 static bool_t vesc_locked = false;
 #endif
 
@@ -191,6 +196,9 @@ lcm_status_t vesc_serial_init(void)
 #ifdef ENABLE_APP_INTEGRATION
     headlight_remote_baseline = LCM_BASELINE_UNSET;
     status_remote_baseline = LCM_BASELINE_UNSET;
+#ifdef VP_LIGHT_CONTROL
+    vp_test_beep_last = 0xFFU;
+#endif
     vesc_locked = false;
 #endif
 
@@ -753,6 +761,17 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
     if (refresh)
     {
         event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
+    }
+
+    // Test beep: the app toggles bit 3; the first block only records it
+    flags &= VP_FLAG_TEST_BEEP;
+    if (flags != vp_test_beep_last)
+    {
+        if (vp_test_beep_last != 0xFFU)
+        {
+            event_queue_push(EVENT_COMMAND_ACK, NULL);
+        }
+        vp_test_beep_last = flags;
     }
 }
 #endif

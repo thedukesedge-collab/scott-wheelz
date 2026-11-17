@@ -1335,17 +1335,20 @@ static void horn_settings_queue_save(Data *d, uint32_t w0, uint32_t w1) {
     }
 }
 
-// Re-Float Rink-Mixed: light module (ALCM VP) settings in 3 custom EEPROM
-// words (80-82, right after the 80-word config). Saved like the horn
+// Re-Float Rink-Mixed: light module (ALCM VP) settings in 4 custom EEPROM
+// words (80-83, right after the 80-word config). Saved like the horn
 // settings: 2 s after the last change, never while riding.
-#define LCM_VP_EEPROM_ADDR 80
+#define LCM_VP_EEPROM_ADDR 80  // 4 words: 80-83
 
 static void lcm_vp_load(Data *d) {
-    uint32_t w[3];
-    for (int i = 0; i < 3; ++i) {
+    uint32_t w[LCM_VP_EEPROM_WORDS];
+    for (int i = 0; i < LCM_VP_EEPROM_WORDS; ++i) {
         eeprom_var v;
         if (!VESC_IF->read_eeprom_var(&v, LCM_VP_EEPROM_ADDR + i)) {
-            return;
+            if (i < 3) {
+                return;
+            }
+            v.as_u32 = 0;  // idle headlight word not written yet: idle = riding
         }
         w[i] = v.as_u32;
         d->lcm_vp_saved[i] = w[i];
@@ -1359,9 +1362,9 @@ static void lcm_vp_save_if_due(Data *d) {
         return;
     }
     d->lcm_vp_save_pending = false;
-    uint32_t w[3];
+    uint32_t w[LCM_VP_EEPROM_WORDS];
     lcm_vp_pack(&d->lcm, w);
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < LCM_VP_EEPROM_WORDS; ++i) {
         if (w[i] != d->lcm_vp_saved[i]) {
             eeprom_var v = {.as_u32 = w[i]};
             if (!VESC_IF->store_eeprom_var(&v, LCM_VP_EEPROM_ADDR + i)) {
@@ -1506,7 +1509,8 @@ enum {
     COMMAND_HORN_SETTINGS = 122,
     COMMAND_PLAY_MELODY = 123,  // play a melody now (READY only): u8 0 = default, 1 = custom
     COMMAND_MELODY_SET = 124,  // custom melody: up to 6 x (pitch level, length in 20 ms)
-    COMMAND_LCM_VP_SETTINGS = 126,  // light module (ALCM VP) settings, 11 bytes, see lcm.h
+    COMMAND_LCM_VP_SETTINGS = 126,  // light module (ALCM VP) settings, 12 bytes, see lcm.h
+    COMMAND_LCM_TEST_BEEP = 127,  // light module (ALCM VP) test beep, no data
     COMMAND_LIVE_TONE = 125,  // melody tiles: u8 pitch level (0 = stop), resent every 100 ms
 
     // commands above 200 are unstable and can change protocol at any time
@@ -2659,9 +2663,13 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
         if (lcm_vp_set(&d->lcm, &buffer[2], len - 2)) {
             d->lcm_vp_change_time = d->time.now;
             d->lcm_vp_save_pending = true;
-        } else if (len - 2 < LCM_VP_SETTINGS_LENGTH) {
+        } else if (len - 2 < LCM_VP_SETTINGS_LENGTH - 1) {
             log_error("Command data length incorrect: %u", len);
         }
+        return;
+    }
+    case COMMAND_LCM_TEST_BEEP: {
+        lcm_vp_test_beep(&d->lcm);
         return;
     }
     case COMMAND_LIVE_TONE: {

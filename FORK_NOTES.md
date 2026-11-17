@@ -531,3 +531,39 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   notice: the settings only work on ADV100 controllers (XRV, GTV, PintV) with
   the light module flashed to the ALCM VP firmware, and do nothing elsewhere.
 - Same notice in the simulator and in the package README.
+
+### ALCM VP: no beeping fault on package install (lcm-latest, 2026-11-17)
+- Installing/updating the package (or a VESC reboot) stops the VESC answering
+  the LCM for a few seconds. Stock ALCM latches an internal fault (continuous
+  beep + fault animation) that only a button press (power off) clears.
+- VP build: a comm timeout is ignored unless riding (board stays on, carries
+  on when the VESC answers). Mid-ride it is still a warning fault but clears
+  itself on the next answer. Other internal faults are unchanged.
+- Test: tests/board_mode_vp_main.c (BoardModeTestVP). Size 16,068 / 16,320 B.
+
+### LEDS windows, idle/riding headlights, test beep, Refloat sync (v1.2.3-rf57)
+- LEDS tab: four tiles (Headlights, Status bar, Animations, Sound); each opens
+  a full-screen window. Same in the simulator.
+- Headlights now have RIDING and IDLE brightness. The package sends the level
+  for the current state (byte 12) like the status bar, plus the idle level
+  (byte 13). COMMAND_LCM_VP_SETTINGS (126) is 12 bytes (11 still accepted,
+  idle = riding); EEPROM word 83 = magic 0x49 + idle % (missing = riding).
+- Test beep: COMMAND_LCM_TEST_BEEP (127, no data) toggles VP flag bit 3; the
+  ALCM VP build plays one 160 ms beep per toggle (needs the beeper on).
+- Two-way sync with Refloat's LED config: headlights on <-> leds.headlights_on,
+  riding % <-> leds.headlights.brightness, idle % <-> leds.front.brightness,
+  status idle % <-> leds.status_idle.brightness, status riding % <->
+  leds.status.brightness_headlights_on/_off. Written 1.5 s after the last
+  change; read back whenever the config loads or is written in Refloat Cfg.
+- leds.* are no longer part of tunes (not saved, not matched for ACTIVE, not
+  applied from older tunes that contain them). Full backups still include them.
+
+### ALCM VP: battery gauge colors (lcm-latest, 2026-11-17)
+- Idle status bar = battery gauge, 1 LED per 10 % (unchanged). Colors now:
+  white above 35 %, yellow 35-20 %, red 20-5 %, flashing red at 5 % and
+  below (stock: orange at 15 %). While riding the gauge shows from 35 % down.
+- Accuracy depends on the VESC's battery % (Motor Cfg > Additional Info >
+  battery cells in series / type) unless a battery LUT is patched in.
+- Test: StatusLedsTestVP. Size 16,136 / 16,320 B.
+- Updated: white above 55 %, yellow 55-41 %, orange 40-30 %, red below 30 %,
+  flashing red at 5 % and below; shown while riding from 40 % down.
