@@ -81,6 +81,7 @@
   #lcmTools { position: relative; width: max-content; margin: 0 auto; padding: 6px 10px; font-size: 10px; letter-spacing: .5px; color: #5c5470; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; }
   #lcmTools i { position: absolute; left: 10px; bottom: 2px; height: 2px; width: 0; background: var(--green); }
   .fwFit { border: 2px solid #FFB300; background: #2A1F00; color: #FFB300; border-radius: 8px; padding: 7px 8px; font-size: 11px; text-align: center; margin: 4px 0 8px; }
+  .fwFit.idle { border-color: var(--purple); background: #140c26; color: #ead6ff; }
   .fwFit.ok { border-color: var(--green); background: #0d2a12; color: var(--green); }
   .ledTiles { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 10px 6px 0; }
   .ledTile { position: relative; height: 92px; border: 2px solid var(--purple); border-radius: 12px; background: #0b0718; cursor: pointer; padding: 8px 10px; box-sizing: border-box; }
@@ -233,6 +234,8 @@
           <div id="hornSteps"></div>
           <div class="secTitle neonL" style="font-size:12px;margin-top:10px">BOOT MELODY</div>
           <div class="pills" id="melBoot"></div>
+          <div id="melVolSteps"></div>
+          <div id="melVolNote" style="text-align:center;font-size:11px;color:#c98bff;margin-top:2px">10 / 10 is only half the horn's top volume, so it stays gentle on the motor</div>
           <div id="melCur" style="text-align:center;font-size:11px;color:#c98bff;margin-top:6px"></div>
           <div class="pills" style="margin-top:6px"><div class="pill" id="myMelOpen">MY MELODIES</div><div class="pill" id="padOpen">RECORD &#9834;</div><div class="pill" id="melTest">TEST</div></div>
           <div style="text-align:center;margin-top:6px"><div class="pill" id="hornReset" style="display:inline-block">RESET HORN</div></div>
@@ -276,7 +279,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf63 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf64 · sim</span></div>
     </div>
   </div>
 
@@ -313,6 +316,8 @@
       <div class="ledSec" data-s="fw">
         <div class="secTitle">Light module</div>
         <div class="fwFit" id="fwFit"></div>
+        <div id="fwCheckBtn" class="bigBeep" style="border-color:#FFB300;color:#FFB300">&#10004;&nbsp; CHECK LCM</div>
+        <p class="ledHint" id="fwCheckHint" style="text-align:center">Board powered on and connected. The check asks the package which light module firmware is fitted; FLASH LCM only appears when it has the bootloader.</p>
         <p class="ledHint" style="text-align:center;opacity:.7">Simulator only - pretend the LCM is:</p>
         <div class="pills" id="fwSimLcm"><div class="pill" data-k="vpbl">VP + BOOTLOADER</div><div class="pill" data-k="vp">VP, NO BL</div><div class="pill" data-k="other">STOCK</div><div class="pill" data-k="recovery">RECOVERY</div></div>
         <div id="fwCan">
@@ -364,6 +369,11 @@
     <label style="display:flex;gap:8px;align-items:center;margin:10px 0;cursor:pointer"><input type="checkbox" id="fwAckBox" style="width:20px;height:20px;accent-color:#FFB300">I understand and my board is idle on a stand</label>
     <div class="pills"><div class="pill" id="fwAckNo">CANCEL</div><div class="pill" id="fwAckYes" style="opacity:.4">FLASH LCM</div></div>
   </div>
+  <div id="fwChk" style="position:absolute;left:4%;right:4%;top:50%;transform:translateY(-50%);z-index:48;display:none;border:3px solid #FFB300;border-radius:12px;padding:12px;font-size:12px">
+    <div id="fwChkTitle" style="text-align:center;font-family:Orbitron,monospace;font-size:16px;margin-bottom:8px"></div>
+    <p id="fwChkText" style="margin:0 0 10px;white-space:pre-line"></p>
+    <div class="pills"><div class="pill" id="fwChkNo">OK</div><div class="pill on" id="fwChkYes">CONTINUE TO FLASH</div></div>
+  </div>
   <div id="myMelBack" style="position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:44;display:none"></div>
   <div id="myMel" style="position:absolute;left:0;right:0;bottom:0;height:60%;z-index:45;display:none;flex-direction:column;gap:8px;background:#0b0718;border:2px solid var(--purple);border-radius:14px 14px 0 0;padding:12px">
     <div style="display:flex;align-items:center"><span class="neonL" style="flex:1;font-size:16px">MY MELODIES</span><div class="pill" id="myMelClose">&#10005;</div></div>
@@ -412,7 +422,7 @@ const NEON = ['#39ff7a', '#b14cff', '#00f0ff', '#ff2bd6', '#ff8a1f', '#f5ff3b', 
 const fx1 = v => (isFinite(v) ? (Math.round(v * 10) / 10).toFixed(1) : '-.-');
 
 // ---------- persisted prefs (this browser only) ----------
-const defaults = { rec: [[1,500],[2,500],[3,500]], saved: [], hBootCustom: false, hMelody: true, hAdv: false, hsStr: 5, hsVol: 5, hsPitch: 3, hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, tempF: false, fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
+const defaults = { rec: [[1,500],[2,500],[3,500]], saved: [], hBootCustom: false, hMelody: true, hAdv: false, hsStr: 5, hsVol: 5, bootVol: 6, hsPitch: 3, hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, tempF: false, fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
 let P = Object.assign({}, defaults);
 try { Object.assign(P, JSON.parse(localStorage.getItem('rrfSim') || '{}')); } catch (e) {}
 const save = () => { try { localStorage.setItem('rrfSim', JSON.stringify(P)); } catch (e) {} };
@@ -739,6 +749,8 @@ function renderHorn() {
 }
 // boot melody: pitch levels 1, 2, 3 (300, 375, 450 Hz), 0.5 s each, at the horn volume
 function hornVolume() { return P.hAdv ? P.hBeep : P.hsVol * 0.5; }  // volts
+// boot melody: its own volume, 1-10 -> 0.25-2.5 V (capped low on purpose)
+function melodyVolume() { return clamp(P.bootVol || 6, 1, 10) * 0.25; }
 // sound budget shared by melodies and live tiles (mirrors the board):
 // 10 s of sound, refills at half speed; when empty, quiet until 3 s is back
 let toneBudget = 10, toneRest = false;
@@ -759,7 +771,7 @@ function playMelody(notes) {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     const ac = playMelody.ac || (playMelody.ac = new AC());
     if (ac.state === 'suspended') ac.resume();
-    const t0 = ac.currentTime + 0.05, gainV = 0.02 + 0.06 * hornVolume();
+    const t0 = ac.currentTime + 0.05, gainV = 0.02 + 0.06 * melodyVolume();
     let t = t0;
     notes.forEach(([lvl, ms]) => {
       const len = ms / 1000;
@@ -781,6 +793,14 @@ function renderMelody() {
     const p = document.createElement('div'); p.className = 'pill' + (on ? ' on' : ''); p.textContent = t;
     p.onclick = () => { fn(); save(); renderMelody(); }; boot.appendChild(p);
   });
+  const vb = $('melVolSteps'); vb.innerHTML = ''; vb.style.display = $('melVolNote').style.display = P.hMelody ? '' : 'none';
+  {
+    const row = document.createElement('div'); row.className = 'stepRow';
+    row.innerHTML = '<span class="lbl">MELODY VOLUME / INTENSITY</span><span class="stepCtl"><span class="stepBtn" data-d="-1">&#9660;</span><span class="stepVal"></span><span class="stepBtn" data-d="1">&#9650;</span></span>';
+    const paint = () => { row.querySelector('.stepVal').textContent = (P.bootVol || 6) + ' / 10'; row.querySelectorAll('.stepBtn').forEach(b => b.classList.toggle('lim', +b.dataset.d < 0 ? P.bootVol <= 1 : P.bootVol >= 10)); };
+    row.querySelectorAll('.stepBtn').forEach(b => b.onclick = () => { P.bootVol = clamp((P.bootVol || 6) + +b.dataset.d, 1, 10); save(); paint(); });
+    paint(); vb.appendChild(row);
+  }
   // saved melodies: tap a name to use it as the boot melody, pencil to edit, x to delete
   const list = $('melSaved'); list.innerHTML = ''; const cur = savedCurrent();
   $('myMelOpen').textContent = 'MY MELODIES' + (P.saved.length ? ' (' + P.saved.length + ')' : '');
@@ -790,7 +810,8 @@ function renderMelody() {
   P.saved.forEach(m => {
     const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:6px';
     const mk = (txt, on, w, fn) => { const p = document.createElement('div'); p.className = 'pill' + (on ? ' on' : ''); p.textContent = txt; p.style.cssText = 'min-width:' + w + 'px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'; p.onclick = fn; row.appendChild(p); };
-    mk(m.name, P.hMelody && P.hBootCustom && cur === m.name, 170, () => { melDel = ''; P.rec = m.notes.slice(); P.hMelody = true; P.hBootCustom = true; save(); renderMelody(); toast('Boot melody: ' + m.name); });
+    mk(m.name, P.hMelody && P.hBootCustom && cur === m.name, 136, () => { melDel = ''; P.rec = m.notes.slice(); P.hMelody = true; P.hBootCustom = true; save(); renderMelody(); toast('Boot melody: ' + m.name); });
+    mk('\u29C9', false, 22, () => { const t = 'RFMELODY ' + m.name + ' ' + JSON.stringify(m.notes); try { navigator.clipboard.writeText(t).then(() => toast('Melody code copied: paste it in a message'), () => prompt('Copy this melody code:', t)); } catch (e) { prompt('Copy this melody code:', t); } });
     mk('\u270E', false, 26, () => { melDel = ''; P.rec = m.notes.slice(); save(); myMel(false); $('padOpen').onclick(); });
     mk(melDel === m.name ? 'DELETE?' : '\u2715', melDel === m.name, 26, () => { if (melDel === m.name) { melDel = ''; P.saved = P.saved.filter(x => x.name !== m.name); save(); } else melDel = m.name; renderMelody(); });
     list.appendChild(row);
@@ -831,7 +852,7 @@ function liveStart(level) {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     const ac = playMelody.ac || (playMelody.ac = new AC()); if (ac.state === 'suspended') ac.resume();
     const o = ac.createOscillator(), g = ac.createGain(); o.type = 'square'; o.frequency.value = noteHz(level);
-    g.gain.value = 0.02 + 0.06 * hornVolume(); o.connect(g).connect(ac.destination); o.start(); liveOsc = o;
+    g.gain.value = 0.02 + 0.06 * melodyVolume(); o.connect(g).connect(ac.destination); o.start(); liveOsc = o;
   } catch (e) {}
 }
 function liveStop() { try { if (liveOsc) liveOsc.stop(); } catch (e) {} liveOsc = null; }
@@ -912,7 +933,7 @@ $('padPlay').onclick = () => {
 };
 $('padSave').onclick = () => { if (take || armed) return; padRelease(); saveMelodyAs(); };
 $('padDone').onclick = () => { if (take) return; if (!armed && P.rec.length) { P.hMelody = true; P.hBootCustom = true; save(); toast('Custom melody set as boot melody'); } renderMelody(); mxMode(false); };
-$('hornReset').onclick = () => { Object.assign(P, { hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, hsStr: 5, hsVol: 5, hsPitch: 3 }); save(); renderHorn(); toast('Horn settings reset'); };
+$('hornReset').onclick = () => { Object.assign(P, { hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, hsStr: 5, hsVol: 5, hsPitch: 3, bootVol: 6 }); save(); renderHorn(); renderMelody(); toast('Horn settings reset'); };
 
 // ---------- LEDS tab (light module, ALCM VP firmware; simulated) ----------
 const LED_ANIMS = ['STANDARD', 'RAINBOW SCAN', 'RAINBOW MIRROR', 'KNIGHT RIDER', 'RAINBOW BAR', 'THE FUZZ', 'FIRE',
@@ -1031,10 +1052,10 @@ const ledWin = w => {
   if (!w) return;
   $('ledWinTitle').textContent = LED_TITLES[w];
   document.querySelectorAll('.ledSec').forEach(x => x.classList.toggle('on', x.dataset.s === w));
-  if (w === 'fw') fwFitPaint();
+  if (w === 'fw') { fwForget(); fwFitPaint(); }
 };
 document.querySelectorAll('.ledTile').forEach(t => t.onclick = () => ledWin(t.dataset.w));
-$('ledWinBack').onclick = $('ledWinDim').onclick = () => ledWin(null);
+$('ledWinBack').onclick = $('ledWinDim').onclick = () => { fwForget(); ledWin(null); };
 $('ledTestBeep').onclick = () => {
   P.ledCfg = true; save(); renderLedsSoft();
   if (!P.ledBeep) { toast('Test beep sent - turn the LCM beeper on to hear it'); return; }
@@ -1048,11 +1069,12 @@ $('ledTestBeep').onclick = () => {
   } catch (e) {}
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
-const FW = { active: false, p: 0, t: null, kind: 'vpbl' };
+const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
 const FW_BUILD = '0c01814';
 // fail-safe: the LCM names itself ("VPBL-<hash>" = with the bootloader);
 // FLASH LCM only exists for those, or while a bootloader is asking (recovery)
-const fwCan = () => FW.active || FW.kind === 'vpbl' || FW.kind === 'recovery';
+const fwCapable = () => FW.kind === 'vpbl' || FW.kind === 'recovery';
+const fwCan = () => FW.active || (FW.unlocked && fwCapable());
 function fwFitPaint() {
   const k = FW.kind, t = {
     vpbl: 'ALCM VP with bootloader · build ' + FW_BUILD + ' · up to date with this package',
@@ -1060,11 +1082,39 @@ function fwFitPaint() {
     vp: "ALCM VP build " + FW_BUILD + " WITHOUT the bootloader. It can't be flashed from the app: install ALCM_VP_BL_full.hex once with an ST-Link, after that updates work from here.",
     other: "No ALCM VP light module answered (stock or other LCM firmware, or none). Flashing from the app needs ALCM VP with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
   }[k];
-  $('fwFit').textContent = t; $('fwFit').classList.toggle('ok', fwCan());
+  const chk = FW.active ? 2 : FW.check;
+  $('fwFit').textContent = chk === 0 ? 'Press CHECK LCM to see whether this light module can be updated from the app.' : chk === 1 ? 'Checking the light module...' : t;
+  $('fwFit').classList.toggle('ok', chk === 2);
+  $('fwFit').classList.toggle('idle', chk < 2);
+  $('fwCheckBtn').style.display = $('fwCheckHint').style.display = fwCan() ? 'none' : '';
+  $('fwCheckBtn').innerHTML = chk === 1 ? 'CHECKING...' : chk === 0 ? '&#10004;&nbsp; CHECK LCM' : '&#8635;&nbsp; CHECK AGAIN';
+  $('fwCheckBtn').style.opacity = chk === 1 ? 0.5 : 1;
   $('fwCan').style.display = fwCan() ? 'block' : 'none';
   document.querySelectorAll('#fwSimLcm .pill').forEach(x => x.classList.toggle('on', x.dataset.k === k));
 }
-document.querySelectorAll('#fwSimLcm .pill').forEach(x => x.onclick = () => { if (FW.active) return; FW.kind = x.dataset.k; fwFitPaint(); });
+document.querySelectorAll('#fwSimLcm .pill').forEach(x => x.onclick = () => { if (FW.active) return; FW.kind = x.dataset.k; FW.check = 0; FW.unlocked = false; fwFitPaint(); });
+const fwForget = () => { if (FW.active) return; FW.check = 0; FW.unlocked = false; };
+const fwChk = on => { $('fwChk').style.display = $('fwAckBack').style.display = on ? 'block' : 'none'; };
+$('fwCheckBtn').onclick = () => {
+  if (FW.check === 1 || FW.active) return;
+  FW.check = 1; FW.unlocked = false; fwFitPaint();
+  setTimeout(() => {
+    FW.check = fwCapable() ? 2 : 3; fwFitPaint();
+    const ok = FW.check === 2;
+    $('fwChk').style.background = ok ? '#06180b' : '#140d02'; $('fwChk').style.borderColor = ok ? 'var(--green)' : '#FFB300'; $('fwChk').style.color = ok ? '#c9ffd8' : '#ffe3a3';
+    $('fwChkTitle').style.color = ok ? 'var(--green)' : '#FFB300';
+    $('fwChkTitle').innerHTML = ok ? '&#10004; LCM CHECK PASSED' : '&#9888; LCM CHECK FAILED';
+    $('fwChkText').textContent = ok
+      ? (FW.kind === 'recovery' ? "The LCM bootloader is waiting for firmware (an earlier update didn't finish). Continue to flash it and recover the light module."
+        : 'Found ALCM VP light module firmware with the bootloader (build ' + FW_BUILD + "). It already matches this package's LCM firmware.\n\nThe package can update it over Bluetooth. Continue to choose the firmware and flash.")
+      : "This is most likely because your board is running a version of LCM firmware that doesn't contain a bootloader for flashing over BLE.\n\nTo resolve this, first flash the LCM with an ST-Link using the correct firmware: ALCM_VP_BL_full.hex (lcm-latest release). After that, CHECK LCM passes and future updates work from the app.\n\nWhat the package saw: "
+        + (FW.kind === 'vp' ? 'ALCM VP build ' + FW_BUILD + ' without the bootloader.' : 'no ALCM VP light module (stock or other LCM firmware, or none connected).');
+    $('fwChkNo').textContent = ok ? 'CANCEL' : 'OK'; $('fwChkYes').style.display = ok ? '' : 'none';
+    fwChk(true);
+  }, 1800);
+};
+$('fwChkNo').onclick = () => fwChk(false);
+$('fwChkYes').onclick = () => { fwChk(false); if (fwCapable()) FW.unlocked = true; fwFitPaint(); };
 // tucked away: a 2 s press and hold opens the LCM firmware tools
 const lcmHold = { t: null, t0: 0, hint: false, ht: null };
 function lcmHoldEnd() {
@@ -1186,7 +1236,8 @@ $('fwFile').onchange = () => {
 };
 const fwAck = on => { $('fwAck').style.display = $('fwAckBack').style.display = on ? 'block' : 'none'; if (on) { $('fwAckBox').checked = false; $('fwAckYes').style.opacity = 0.4; $('fwAckYes').classList.remove('on'); } };
 $('fwAckBox').onchange = () => { const c = $('fwAckBox').checked; $('fwAckYes').style.opacity = c ? 1 : 0.4; $('fwAckYes').classList.toggle('on', c); };
-$('fwAckNo').onclick = $('fwAckBack').onclick = () => fwAck(false);
+$('fwAckNo').onclick = () => fwAck(false);
+$('fwAckBack').onclick = () => { fwAck(false); fwChk(false); };
 $('fwAckYes').onclick = () => { if (!$('fwAckBox').checked) return; fwAck(false); fwStart(); };
 $('fwBtn').onclick = () => { if (!FW.active && fwCan()) fwAck(true); };
 function fwStart() {

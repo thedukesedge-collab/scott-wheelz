@@ -675,3 +675,21 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - Every package build embeds the bootloader-build LCM image built from the
   same commit (`make`, `LCM_FW ?= 1`), so app, package and LCM stay
   matched.
+
+### Boot melody volume, CHECK LCM before flashing (v1.2.3-rf64)
+- Boot melody has its own MELODY VOLUME / INTENSITY (CONTROL > BOOT
+  MELODY), 1-10 = 0.25-2.5 V beep, default 6 (1.5 V). 10 is half the
+  horn's 5 V maximum on purpose; the package caps it at 2.5 V
+  (BOOT_MELODY_MAX_V) whatever it's sent. Also used for TEST and the MIXER
+  note tiles. COMMAND_HORN_SETTINGS byte 9 (0.1 V); stored in horn EEPROM
+  word 0 bits 18-22 (0 = older save: horn volume, capped).
+- MY MELODIES: a copy button copies a melody as text
+  (`RFMELODY <name> [[level, ms], ...]`) to share it.
+- LCM firmware tools: no automatic detection. CHECK LCM must be pressed;
+  it asks the package a few times (~2 s). Passed (VPBL, or a bootloader
+  waiting): a popup confirms it and offers CONTINUE TO FLASH, which reveals
+  the firmware choice and FLASH LCM (then the usual acknowledgement).
+  Failed: a popup explains the LCM firmware most likely has no bootloader
+  for flashing over BLE and must be flashed once with an ST-Link
+  (ALCM_VP_BL_full.hex), plus what was seen. Closing the window forgets
+  the check. The package-side fail-safe from rf63 is unchanged.

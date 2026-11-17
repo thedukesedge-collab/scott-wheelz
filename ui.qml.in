@@ -231,6 +231,8 @@ Item {
         // simple levels -> real values
         function simpleBuzz(level) { return level * 1.5; }
         function simpleBeep(level) { return level * 0.5; }
+        // boot melody 1-10 -> 0.25-2.5 V; the package caps it at 2.5 V too
+        function bootVolume(level) { return Math.max(1, Math.min(10, level)) * 0.25; }
         function simplePitch(level) { return Math.round((300 + (level - 1) * 700 / 9) / 25) * 25; }
 
         // the values actually sent: [beep V, beep Hz, buzz A, buzz Hz]
@@ -266,12 +268,13 @@ Item {
 
         function send(forceMelody) {
             var v = values();
-            var data = commands.createData(9, commands.c_HORN_SETTINGS);
+            var data = commands.createData(10, commands.c_HORN_SETTINGS);
             data.setUint8(2, Math.round(v[0] * 10));
             data.setUint16(3, v[1]);
             data.setUint8(5, Math.round(v[2] * 10));
             data.setUint16(6, v[3]);
             data.setUint8(8, (swSettings.hornBootMelody ? 1 : 0) | (swSettings.hornBootCustom ? 2 : 0));
+            data.setUint8(9, Math.round(bootVolume(swSettings.bootMelodyVolume) * 10));
             vescCommands.sendCustomAppData(data.buffer);
             // the melody is a big packet: only when it changed (keeps Bluetooth free
             // so setting changes aren't dropped)
@@ -487,17 +490,62 @@ Item {
         // --- what's fitted (fail-safe): the LCM names itself in its polls
         // ("VPBL-<hash>" = ALCM VP with the bootloader, "VP-<hash>" = ALCM VP
         // without it, anything else / nothing = stock or other firmware).
-        // FLASH LCM only exists for a VPBL LCM, or when a bootloader is
-        // asking for pages right now (recovery after an interrupted update).
+        // The rider must press CHECK LCM first; FLASH LCM only appears after
+        // the check passed (a VPBL LCM, or a bootloader asking for pages right
+        // now: recovery after an interrupted update) and they chose CONTINUE.
+        // Closing the window forgets the check.
         property string lcmName: ""
         property bool nameKnown: false  // the package answered at least once
         property bool blActive: false  // STATUS flag: a bootloader is asking
         readonly property bool hasBootloader: lcmName.indexOf("VPBL-") === 0
-        readonly property bool canFlash: hasBootloader || blActive || active
+        readonly property bool capable: hasBootloader || blActive
+        property int checkState: 0  // 0 not checked, 1 checking, 2 passed, 3 failed
+        property bool gotStatus: false
+        property bool unlocked: false  // check passed + CONTINUE
+        readonly property bool canFlash: (unlocked && capable) || active
+        property int checkTicks: 0
+
+        function check() {
+            if (active || checkState === 1) return;
+            lcmName = "";
+            nameKnown = false;
+            blActive = false;
+            gotStatus = false;
+            unlocked = false;
+            checkTicks = 0;
+            checkState = 1;
+            lcmCheckTimer.restart();
+        }
+
+        function forgetCheck() {
+            if (active) return;
+            lcmCheckTimer.stop();
+            checkState = 0;
+            unlocked = false;
+        }
+
+        property Timer checkTimer: Timer {
+            id: lcmCheckTimer
+            interval: 300
+            repeat: true
+            triggeredOnStart: true
+            onTriggered: {
+                // ask a few times (Bluetooth can drop one), then decide
+                if (++lcmFw.checkTicks <= 6) {
+                    lcmFw.probe();
+                    return;
+                }
+                stop();
+                lcmFw.checkState = lcmFw.capable ? 2 : 3;
+                lcmCheckPopup.open();
+            }
+        }
         readonly property bool upToDate: hasBootloader && !!builtin && lcmName === "VPBL-" + builtin.version
         readonly property string fitted: blActive && !hasBootloader ? "recovery"
             : (hasBootloader ? "vpbl" : (lcmName.indexOf("VP-") === 0 ? "vp" : (lcmName !== "" ? "other" : "none")))
-        readonly property string fittedText: !nameKnown ? "Checking the light module..."
+        readonly property string fittedText: checkState === 0 ? "Press CHECK LCM to see whether this light module can be updated from the app."
+            : checkState === 1 ? "Checking the light module..."
+            : !nameKnown && !gotStatus ? "The board didn't answer. Check the connection and that the board is powered on, then press CHECK LCM again."
             : fitted === "recovery" ? "LCM bootloader is waiting for firmware (an earlier update didn't finish). Flash it now to recover the light module."
             : fitted === "vpbl" ? "ALCM VP with bootloader · build " + lcmName.substr(5)
                 + (builtin ? (upToDate ? " · up to date with this package" : " · this package carries build " + builtin.version) : "")
@@ -521,13 +569,6 @@ Item {
             nameKnown = true;
         }
 
-        property Timer probeTimer: Timer {
-            interval: 1000
-            repeat: true
-            triggeredOnStart: true
-            running: ledWindow.opened && ledWindow.section === "fw"
-            onTriggered: lcmFw.probe()
-        }
 
         readonly property var errorText: [
             "",
@@ -676,6 +717,7 @@ Item {
             ind += 4;  // size
             // flags (older packages: none) - bit0 a bootloader is asking
             blActive = dv.byteLength > ind ? (dv.getUint8(ind) & 1) !== 0 : false;
+            gotStatus = true;
             noReply = 0;
             if (!active) return;
             var pages = image.size / 128;
@@ -1856,6 +1898,7 @@ Item {
         property int ledColor: 200
         property int hornSimpleStrength: 5    // 0-10 -> buzz 0-15 A
         property int hornSimpleVolume: 5      // 1-10 -> beep 0.5-5 V
+        property int bootMelodyVolume: 6      // 1-10 -> 0.25-2.5 V (capped low on purpose)
         property int hornSimplePitch: 3       // 1-10 -> beep 300-1000 Hz
         property real freespinLimitKmh: 72.4  // 45 mph
         property bool speedo40Migrated: false  // one-time bump of a saved 30 mph dial to 40
@@ -6525,8 +6568,12 @@ Item {
         function show(which) {
             section = which;
             ledWindowFlick.contentY = 0;
+            if (which === "fw") lcmFw.forgetCheck();
             open();
         }
+
+        // the LCM check must be done again each time the tools are opened
+        onClosed: lcmFw.forgetCheck()
 
         background: Rectangle {
             color: "#0b0718"
@@ -6847,8 +6894,10 @@ Item {
                             width: parent.width
                             height: lcmFittedText.implicitHeight + 0.24 * unit
                             radius: 0.08 * unit
-                            color: lcmFw.canFlash ? "#0d2a12" : "#2A1F00"
-                            border.color: lcmFw.canFlash ? swTheme.neonGreen : "#FFB300"
+                            readonly property color tone: lcmFw.checkState === 2 || lcmFw.active ? swTheme.neonGreen
+                                : (lcmFw.checkState === 3 ? "#FFB300" : swTheme.neonPurple)
+                            color: lcmFw.checkState === 2 || lcmFw.active ? "#0d2a12" : (lcmFw.checkState === 3 ? "#2A1F00" : "#140c26")
+                            border.color: tone
                             border.width: 2
                             Text {
                                 id: lcmFittedText
@@ -6856,10 +6905,45 @@ Item {
                                 width: parent.width - 0.24 * unit
                                 horizontalAlignment: Text.AlignHCenter
                                 wrapMode: Text.WordWrap
-                                color: lcmFw.canFlash ? swTheme.neonGreen : "#FFB300"
+                                color: parent.tone === swTheme.neonPurple ? "#ead6ff" : parent.tone
                                 font.pixelSize: fontSizeSmall
                                 text: lcmFw.fittedText
                             }
+                        }
+
+                        // step 1: CHECK LCM (required before FLASH LCM shows)
+                        Rectangle {
+                            visible: !lcmFw.canFlash
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: Math.min(parent.width, 4.6 * unit)
+                            height: 1.4 * unit
+                            radius: height / 2
+                            opacity: lcmFw.checkState === 1 ? 0.5 : 1
+                            color: checkBtnArea.pressed ? "#FFB300" : "transparent"
+                            border.color: "#FFB300"
+                            border.width: 3
+                            Text {
+                                anchors.centerIn: parent
+                                text: lcmFw.checkState === 1 ? "CHECKING..." : (lcmFw.checkState === 0 ? "\u2714  CHECK LCM" : "\u21BB  CHECK AGAIN")
+                                color: checkBtnArea.pressed ? swTheme.background : "#FFB300"
+                                font.family: "Exan"
+                                font.pixelSize: 0.36 * unit
+                            }
+                            MouseArea {
+                                id: checkBtnArea
+                                anchors.fill: parent
+                                enabled: lcmFw.checkState !== 1
+                                onClicked: lcmFw.check()
+                            }
+                        }
+
+                        SwLText {
+                            visible: !lcmFw.canFlash
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "Board powered on and connected. The check asks the package which light module firmware is fitted; FLASH LCM only appears when it has the bootloader."
                         }
 
                         LedHeading { visible: lcmFw.canFlash; text: "Firmware to flash" }
@@ -7294,6 +7378,82 @@ Item {
         }
     }
 
+    // Re-Float Rink-Mixed: result of CHECK LCM (LEDS > LCM firmware tools)
+    Popup {
+        id: lcmCheckPopup
+        parent: mainItem
+        x: (mainItem.width - width) / 2
+        y: (mainItem.height - height) / 2
+        width: mainItem.width * 0.92
+        modal: true
+        dim: true
+        padding: 0.3 * unit
+        closePolicy: Popup.CloseOnEscape
+
+        readonly property bool passed: lcmFw.checkState === 2
+        readonly property color tone: passed ? swTheme.neonGreen : "#FFB300"
+
+        background: Rectangle {
+            color: lcmCheckPopup.passed ? "#06180b" : "#140d02"
+            radius: 0.25 * unit
+            border.color: lcmCheckPopup.tone
+            border.width: 3
+        }
+
+        Column {
+            width: parent.width
+            spacing: 0.2 * unit
+
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: lcmCheckPopup.passed ? "\u2714 LCM CHECK PASSED" : "\u26A0 LCM CHECK FAILED"
+                color: lcmCheckPopup.tone
+                font.family: "Exan"
+                font.pixelSize: 0.36 * unit
+            }
+
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: lcmCheckPopup.passed ? "#c9ffd8" : "#ffe3a3"
+                font.pixelSize: fontSizeSmall
+                text: lcmCheckPopup.passed
+                    ? (lcmFw.fitted === "recovery"
+                        ? "The LCM bootloader is waiting for firmware (an earlier update didn't finish). Continue to flash it and recover the light module."
+                        : "Found ALCM VP light module firmware with the bootloader (build " + lcmFw.lcmName.substr(5) + ")."
+                            + (lcmFw.builtin ? (lcmFw.upToDate ? " It already matches this package's LCM firmware." : " This package carries build " + lcmFw.builtin.version + ".") : "")
+                            + "\n\nThe package can update it over Bluetooth. Continue to choose the firmware and flash.")
+                    : "This is most likely because your board is running a version of LCM firmware that doesn't contain a bootloader for flashing over BLE.\n\n"
+                        + "To resolve this, first flash the LCM with an ST-Link using the correct firmware: ALCM_VP_BL_full.hex (lcm-latest release). After that, CHECK LCM passes and future updates work from the app.\n\n"
+                        + "What the package saw: " + (!lcmFw.nameKnown && !lcmFw.gotStatus ? "no answer from the board (check the connection)."
+                            : lcmFw.fitted === "vp" ? "ALCM VP build " + lcmFw.lcmName.substr(3) + " without the bootloader."
+                            : lcmFw.fitted === "other" ? "LCM firmware \u201C" + lcmFw.lcmName + "\u201D."
+                            : "no ALCM VP light module (stock or other LCM firmware, or none connected).")
+            }
+
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 0.3 * unit
+                SwPill {
+                    minWidth: 2.2 * unit
+                    label: lcmCheckPopup.passed ? "CANCEL" : "OK"
+                    onClicked: lcmCheckPopup.close()
+                }
+                SwPill {
+                    visible: lcmCheckPopup.passed
+                    minWidth: 3.2 * unit
+                    label: "CONTINUE TO FLASH"
+                    lit: true
+                    onClicked: {
+                        lcmCheckPopup.close();
+                        if (lcmFw.capable) lcmFw.unlocked = true;
+                    }
+                }
+            }
+        }
+    }
+
     Popup {
         id: myMelodiesPopup
         parent: mainItem
@@ -7339,8 +7499,11 @@ Item {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 font.pixelSize: fontSizeSmall
-                text: "Tap a melody to play it at bootup. \u270E re-records it, \u2715 (tap twice) deletes it."
+                text: "Tap a melody to play it at bootup. \u29C9 copies it as text, \u270E re-records it, \u2715 (tap twice) deletes it."
             }
+
+            // clipboard helper for \u29C9
+            TextEdit { id: melodyClip; visible: false }
 
             Flickable {
                 Layout.fillWidth: true
@@ -7380,7 +7543,7 @@ Item {
                                 property string name: modelData.name
 
                                 SwPill {
-                                    width: 4.6 * unit
+                                    width: 3.7 * unit
                                     label: parent.name
                                     lit: swSettings.hornBootMelody && swSettings.hornBootCustom && savedMelodyList.current === parent.name
                                     onClicked: { savedMelodyList.deleteArmed = ""; melodyLib.select(parent.name); }
@@ -7399,6 +7562,20 @@ Item {
                                         }
                                         myMelodiesPopup.close();
                     melodyPad.startRecording();
+                                    }
+                                }
+
+                                // copy the notes as text (to share it, or send it to the developer)
+                                SwPill {
+                                    minWidth: 0.8 * unit
+                                    label: "\u29C9"
+                                    onClicked: {
+                                        var i = melodyLib.find(parent.name);
+                                        if (i < 0) return;
+                                        melodyClip.text = "RFMELODY " + parent.name + " " + JSON.stringify(melodyLib.items[i].notes);
+                                        melodyClip.selectAll();
+                                        melodyClip.copy();
+                                        VescIf.emitStatusMessage("Melody code copied: paste it in a message", true);
                                     }
                                 }
 
@@ -11126,6 +11303,23 @@ Item {
                             }
                         }
 
+                        SwStepper {
+                            visible: swSettings.hornBootMelody
+                            label: "MELODY VOLUME / INTENSITY"
+                            value: swSettings.bootMelodyVolume
+                            from: 1; to: 10; step: 1
+                            valueText: value + " / 10"
+                            onMoved: { swSettings.bootMelodyVolume = newValue; hornSettingsSender.changed(); }
+                        }
+
+                        SwLText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            visible: swSettings.hornBootMelody
+                            font.pixelSize: fontSizeSmall
+                            color: "#c98bff"
+                            text: "10 / 10 is only half the horn's top volume, so it stays gentle on the motor"
+                        }
+
                         // which custom melody is in use (the list lives in MY MELODIES)
                         SwLText {
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -11194,6 +11388,7 @@ Item {
                                     swSettings.hornSimpleStrength = 5;
                                     swSettings.hornSimpleVolume = 5;
                                     swSettings.hornSimplePitch = 3;
+                                    swSettings.bootMelodyVolume = 6;
                                     hornSettingsSender.send();
                                     VescIf.emitStatusMessage("Horn settings reset", true);
                                 }

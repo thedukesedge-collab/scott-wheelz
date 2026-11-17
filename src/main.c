@@ -1249,14 +1249,18 @@ static int horn_eeprom_addr(int i) {
     return i < 2 ? HORN_EEPROM_ADDR + i : MELODY_EEPROM_ADDR + i - 2;
 }
 
-static uint32_t horn_pack0(float beep, float buzz, bool melody, bool custom) {
-    return (HORN_EEPROM_MAGIC << 24) | ((melody ? 1u : 0u) << 16) | ((custom ? 2u : 0u) << 16) |
+// word 0: magic, flags (bit16 melody, bit17 custom, bits 18-22 boot melody
+// volume in 0.1 V, 0 = not set: older saves), beep 0.1 V, buzz 0.1 A
+static uint32_t horn_pack0(float beep, float buzz, bool melody, bool custom, float boot_v) {
+    uint32_t bv = (uint32_t) (fminf(boot_v, BOOT_MELODY_MAX_V) * 10.0f + 0.5f) & 0x1F;
+    return (HORN_EEPROM_MAGIC << 24) | (bv << 18) | ((melody ? 1u : 0u) << 16) |
+        ((custom ? 2u : 0u) << 16) |
         ((uint32_t) (beep * 10.0f + 0.5f) << 8) | (uint32_t) (buzz * 10.0f + 0.5f);
 }
 
 static void horn_settings_load(Data *d) {
     d->boot_melody = true;
-    d->boot_melody_volume = 2.5f;
+    d->boot_melody_volume = BOOT_MELODY_DEFAULT_V;
     eeprom_var v[HORN_EEPROM_WORDS];
     for (int i = 0; i < 2; ++i) {
         if (!VESC_IF->read_eeprom_var(&v[i], HORN_EEPROM_ADDR + i)) {
@@ -1308,7 +1312,9 @@ static void horn_settings_load(Data *d) {
     float beep = ((v0.as_u32 >> 8) & 0xFF) * 0.1f;
     float buzz = (v0.as_u32 & 0xFF) * 0.1f;
     d->boot_melody = (v0.as_u32 >> 16) & 1;
-    d->boot_melody_volume = beep;
+    uint32_t boot_v = (v0.as_u32 >> 18) & 0x1F;
+    // older saves had none: the horn beep volume, capped
+    d->boot_melody_volume = boot_v ? boot_v * 0.1f : fminf(beep, BOOT_MELODY_MAX_V);
     haptic_feedback_horn_settings(
         &d->haptic_feedback, beep, v1.as_u32 >> 16, buzz, v1.as_u32 & 0xFFFF
     );
@@ -2681,7 +2687,8 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
         return;
     }
     case COMMAND_HORN_SETTINGS: {
-        if (len == 8 || len == 9) {
+        // [8] boot melody flags, [9] boot melody volume (0.1 V, rf64)
+        if (len >= 8 && len <= 10) {
             HapticFeedback *hf = &d->haptic_feedback;
             haptic_feedback_horn_settings(
                 hf,
@@ -2690,16 +2697,19 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
                 buffer[5] * 0.1f,
                 (buffer[6] << 8) | buffer[7]
             );
-            if (len == 9) {
+            if (len >= 9) {
                 d->boot_melody = buffer[8] & 1;
                 d->boot_melody_custom = (buffer[8] >> 1) & 1;
             }
-            d->boot_melody_volume = hf->horn_beep_strength;
+            d->boot_melody_volume = len == 10 && buffer[9] > 0 ? buffer[9] * 0.1f
+                                                                : hf->horn_beep_strength;
+            d->boot_melody_volume = fminf(d->boot_melody_volume, BOOT_MELODY_MAX_V);
             d->horn_last_w0 = horn_pack0(
                 hf->horn_beep_strength,
                 hf->horn_buzz_strength,
                 d->boot_melody,
-                d->boot_melody_custom
+                d->boot_melody_custom,
+                d->boot_melody_volume
             );
             d->horn_last_w1 = ((uint32_t) hf->horn_beep_frequency << 16) | hf->horn_buzz_frequency;
             // remember on the board (written later, only if it changed)
