@@ -693,3 +693,17 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   for flashing over BLE and must be flashed once with an ST-Link
   (ALCM_VP_BL_full.hex), plus what was seen. Closing the window forgets
   the check. The package-side fail-safe from rf63 is unchanged.
+
+### CHECK LCM also checks the version / best fit (v1.2.3-rf65)
+- LCM firmware version is now `r<N>-<hash>` (lcm/tools/lcm_version.sh): N =
+  commits that changed lcm/alcm (only goes up), hash = git tree hash of
+  lcm/alcm. The LCM names itself `VPBL-r<N>-<hash>` / `VP-r<N>-<hash>`,
+  and the package's embedded image carries the same version (CI checks out
+  the full history for N; a shallow clone gives r0 = compare hash only).
+- After a passed check the app compares the LCM's version with the one this
+  package carries (the LCM firmware built and tested with this package):
+  UP TO DATE · BEST FIT (exact match: REFLASH ANYWAY), UPDATE AVAILABLE
+  (older: UPDATE LCM, recommended), LCM NEWER THAN THIS PACKAGE (best fit:
+  update the VESC package; DOWNGRADE ANYWAY), DIFFERENT BUILD (same
+  revision, other code, e.g. custom: FLASH PACKAGE BUILD). rf63/rf64 LCM
+  builds (hash-only names) count as older.

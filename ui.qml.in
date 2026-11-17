@@ -540,16 +540,46 @@ Item {
                 lcmCheckPopup.open();
             }
         }
-        readonly property bool upToDate: hasBootloader && !!builtin && lcmName === "VPBL-" + builtin.version
+        // --- is it the best fit? Versions are "r<N>-<hash>": N counts the
+        // commits that changed the LCM code (higher = newer), hash = that
+        // code exactly. rf63/rf64 builds named themselves with the hash only:
+        // those are older than any r<N> build.
+        readonly property string pkgVersion: "{{VERSION}}"
+        function parseVer(v) {
+            var m = /^r(\d+)-([0-9a-f]+)$/.exec(v || "");
+            return m ? {rev: parseInt(m[1]), hash: m[2]} : {rev: -1, hash: v || ""};
+        }
+        function verText(v) { return v.rev > 0 ? "r" + v.rev + " (" + v.hash + ")" : (v.rev === 0 ? v.hash : v.hash + ", pre-rf65"); }
+        readonly property var lcmVer: parseVer(hasBootloader ? lcmName.substr(5) : (lcmName.indexOf("VP-") === 0 ? lcmName.substr(3) : ""))
+        readonly property var pkgVer: builtin ? parseVer(builtin.version) : null
+        // "same", "older", "newer", "other" (same revision, different build), "" (can't tell)
+        readonly property string fit: !hasBootloader || !pkgVer ? ""
+            : lcmVer.hash === pkgVer.hash ? "same"
+            : (lcmVer.rev > 0 && pkgVer.rev > 0) ? (lcmVer.rev < pkgVer.rev ? "older" : (lcmVer.rev > pkgVer.rev ? "newer" : "other"))
+            : (lcmVer.rev < 0 && pkgVer.rev !== -1 ? "older" : "other")
+        readonly property bool upToDate: fit === "same"
+        readonly property string fitTitle: fit === "same" ? "UP TO DATE \u00B7 BEST FIT"
+            : fit === "older" ? "UPDATE AVAILABLE" : fit === "newer" ? "LCM NEWER THAN THIS PACKAGE"
+            : fit === "other" ? "DIFFERENT BUILD" : ""
+        readonly property string fitText: !pkgVer ? "This package has no built-in LCM firmware to compare with."
+            : fit === "same" ? "Your LCM runs ALCM VP " + verText(lcmVer) + ", the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed " + pkgVersion + "). Nothing to update. You can still reflash it if you want."
+            : fit === "older" ? "Your LCM runs ALCM VP " + verText(lcmVer) + ". This package (" + pkgVersion + ") carries " + verText(pkgVer) + ", the LCM firmware built and tested with it. Updating is recommended so the LCM and package stay matched."
+            : fit === "newer" ? "Your LCM runs ALCM VP " + verText(lcmVer) + ", newer than the " + verText(pkgVer) + " this package (" + pkgVersion + ") carries. Best fit: update the VESC package to the latest build so they match. Flashing from this package would downgrade the LCM."
+            : fit === "other" ? "Your LCM runs a different ALCM VP build (" + verText(lcmVer) + ") than the one made for this package (" + verText(pkgVer) + "), for example a custom build. Flashing this package's build is recommended for the best fit."
+            : ""
+        readonly property string continueLabel: fitted === "recovery" ? "CONTINUE TO FLASH"
+            : fit === "same" ? "REFLASH ANYWAY" : fit === "older" ? "UPDATE LCM"
+            : fit === "newer" ? "DOWNGRADE ANYWAY" : fit === "other" ? "FLASH PACKAGE BUILD" : "CONTINUE TO FLASH"
         readonly property string fitted: blActive && !hasBootloader ? "recovery"
             : (hasBootloader ? "vpbl" : (lcmName.indexOf("VP-") === 0 ? "vp" : (lcmName !== "" ? "other" : "none")))
         readonly property string fittedText: checkState === 0 ? "Press CHECK LCM to see whether this light module can be updated from the app."
             : checkState === 1 ? "Checking the light module..."
             : !nameKnown && !gotStatus ? "The board didn't answer. Check the connection and that the board is powered on, then press CHECK LCM again."
             : fitted === "recovery" ? "LCM bootloader is waiting for firmware (an earlier update didn't finish). Flash it now to recover the light module."
-            : fitted === "vpbl" ? "ALCM VP with bootloader · build " + lcmName.substr(5)
-                + (builtin ? (upToDate ? " · up to date with this package" : " · this package carries build " + builtin.version) : "")
-            : fitted === "vp" ? "ALCM VP build " + lcmName.substr(3) + " WITHOUT the bootloader. It can't be flashed from the app: install ALCM_VP_BL_full.hex once with an ST-Link, after that updates work from here."
+            : fitted === "vpbl" ? "ALCM VP with bootloader \u00B7 " + verText(lcmVer)
+                + (fitTitle ? " \u00B7 " + fitTitle.toLowerCase() : "")
+                + (pkgVer && !upToDate ? " (this package: " + verText(pkgVer) + ")" : "")
+            : fitted === "vp" ? "ALCM VP " + verText(lcmVer) + " WITHOUT the bootloader. It can't be flashed from the app: install ALCM_VP_BL_full.hex once with an ST-Link, after that updates work from here."
             : fitted === "other" ? "Light module firmware \u201C" + lcmName + "\u201D can't be flashed from the app. It needs ALCM VP with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
             : "No ALCM VP light module answered (stock or other LCM firmware, or none). Flashing from the app needs ALCM VP with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
 
@@ -7413,6 +7443,26 @@ Item {
                 font.pixelSize: 0.36 * unit
             }
 
+            // firmware version verdict (passed checks)
+            Rectangle {
+                visible: lcmCheckPopup.passed && lcmFw.fitTitle !== "" && lcmFw.fitted !== "recovery"
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: fitTitleText.implicitWidth + 0.5 * unit
+                height: 0.6 * unit
+                radius: height / 2
+                color: "transparent"
+                border.width: 2
+                border.color: lcmFw.fit === "same" ? swTheme.neonGreen : "#FFB300"
+                Text {
+                    id: fitTitleText
+                    anchors.centerIn: parent
+                    text: lcmFw.fitTitle
+                    color: parent.border.color
+                    font.family: "Exan"
+                    font.pixelSize: 0.22 * unit
+                }
+            }
+
             Text {
                 width: parent.width
                 wrapMode: Text.WordWrap
@@ -7421,13 +7471,12 @@ Item {
                 text: lcmCheckPopup.passed
                     ? (lcmFw.fitted === "recovery"
                         ? "The LCM bootloader is waiting for firmware (an earlier update didn't finish). Continue to flash it and recover the light module."
-                        : "Found ALCM VP light module firmware with the bootloader (build " + lcmFw.lcmName.substr(5) + ")."
-                            + (lcmFw.builtin ? (lcmFw.upToDate ? " It already matches this package's LCM firmware." : " This package carries build " + lcmFw.builtin.version + ".") : "")
-                            + "\n\nThe package can update it over Bluetooth. Continue to choose the firmware and flash.")
+                        : "Found ALCM VP light module firmware with the bootloader, so the package can update it over Bluetooth.\n\n"
+                            + lcmFw.fitText)
                     : "This is most likely because your board is running a version of LCM firmware that doesn't contain a bootloader for flashing over BLE.\n\n"
                         + "To resolve this, first flash the LCM with an ST-Link using the correct firmware: ALCM_VP_BL_full.hex (lcm-latest release). After that, CHECK LCM passes and future updates work from the app.\n\n"
                         + "What the package saw: " + (!lcmFw.nameKnown && !lcmFw.gotStatus ? "no answer from the board (check the connection)."
-                            : lcmFw.fitted === "vp" ? "ALCM VP build " + lcmFw.lcmName.substr(3) + " without the bootloader."
+                            : lcmFw.fitted === "vp" ? "ALCM VP " + lcmFw.verText(lcmFw.lcmVer) + " without the bootloader."
                             : lcmFw.fitted === "other" ? "LCM firmware \u201C" + lcmFw.lcmName + "\u201D."
                             : "no ALCM VP light module (stock or other LCM firmware, or none connected).")
             }
@@ -7443,8 +7492,8 @@ Item {
                 SwPill {
                     visible: lcmCheckPopup.passed
                     minWidth: 3.2 * unit
-                    label: "CONTINUE TO FLASH"
-                    lit: true
+                    label: lcmFw.continueLabel
+                    lit: lcmFw.fit !== "newer"
                     onClicked: {
                         lcmCheckPopup.close();
                         if (lcmFw.capable) lcmFw.unlocked = true;

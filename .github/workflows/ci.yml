@@ -14,6 +14,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # LCM firmware revision = commits that changed lcm/alcm
       - uses: cachix/install-nix-action@v25
       - uses: rrbutani/use-nix-shell-action@v1
         with:

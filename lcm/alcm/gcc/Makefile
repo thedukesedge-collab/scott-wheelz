@@ -35,12 +35,13 @@ DEF := -DHK32F030M -DHK32F030MF4P6 $(if $(filter 1,$(VP)),-DVP_LIGHT_CONTROL) \
        $(if $(filter 1,$(BL)),-DLCM_BOOTLOADER -DVECT_TAB_OFFSET=0x600)
 LDS := $(if $(filter 1,$(BL)),build/app_bl.ld,hk32f030m.ld)
 
-# firmware name sent in every LCM poll (VP builds): "VPBL-<lcm source hash>"
-# with the bootloader, "VP-<hash>" without. The hash is git's tree hash of
-# lcm/alcm, so it only changes when the LCM code changes; the package build
-# labels its embedded LCM image with the same hash (lcm_images.py).
-LCM_HASH ?= $(shell git rev-parse --short=7 HEAD:lcm/alcm 2>/dev/null || echo 0000000)
-LCM_NAME := $(if $(filter 1,$(BL)),VPBL,VP)-$(LCM_HASH)
+# firmware name sent in every LCM poll (VP builds): "VPBL-r<N>-<hash>" with
+# the bootloader, "VP-r<N>-<hash>" without (lcm/tools/lcm_version.sh: N =
+# commits that changed lcm/alcm, hash = git tree hash of lcm/alcm). The
+# package build labels its embedded LCM image with the same version, so the
+# app can tell up to date / older / newer.
+LCM_VERSION ?= $(shell sh ../../tools/lcm_version.sh 2>/dev/null || echo r0-0000000)
+LCM_NAME := $(if $(filter 1,$(BL)),VPBL,VP)-$(LCM_VERSION)
 TAG_H := build/lcm_tag_$(if $(filter 1,$(BL)),bl,vp).h
 CFLAGS_TAG := $(if $(filter 1,$(VP)),-include $(TAG_H))
 ARCH := -mcpu=cortex-m0 -mthumb
