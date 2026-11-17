@@ -491,3 +491,7 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - The Lights / Headlights buttons moved from the CONTROL tab to the bottom
   of BOARD STYLE, as neon toggle pills (LIGHTS ON/OFF, HEADLIGHTS ON/OFF;
   green = on). Still only shown when the board reports lights.
+
+### Neon green headings (v1.2.3-rf53)
+- The white section headings (Move, Tilt, Rails, Tire, View, Lights) are
+  now neon green in the digital font, like the rest of the UI.

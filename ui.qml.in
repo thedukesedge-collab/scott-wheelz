@@ -9305,7 +9305,11 @@ Item {
                             id: movementControlsHeader
                             anchors.horizontalCenter: parent.horizontalCenter
 
-                            font.pixelSize: fontSizeBig
+                            // Re-RinkFloat: section headings in neon green digital font
+                            font.pixelSize: 0.38 * unit
+                            font.family: "Exan"
+                            font.letterSpacing: 0.03 * unit
+                            color: swTheme.neonGreen
                             text: "Move"
                         }
 
@@ -9344,7 +9348,11 @@ Item {
                                 id: tiltControlsHeader
                                 anchors.centerIn: parent
 
-                                font.pixelSize: fontSizeBig
+                                // Re-RinkFloat: section headings in neon green digital font
+                                font.pixelSize: 0.38 * unit
+                                font.family: "Exan"
+                                font.letterSpacing: 0.03 * unit
+                                color: swTheme.neonGreen
                                 text: "Tilt"
                             }
 
@@ -10415,7 +10423,11 @@ Item {
                         SwLText {
                             anchors.horizontalCenter: parent.horizontalCenter
 
-                            font.pixelSize: fontSizeBig
+                            // Re-RinkFloat: section headings in neon green digital font
+                            font.pixelSize: 0.38 * unit
+                            font.family: "Exan"
+                            font.letterSpacing: 0.03 * unit
+                            color: swTheme.neonGreen
                             text: "Rails"
                         }
 
@@ -10455,7 +10467,11 @@ Item {
                         SwLText {
                             anchors.horizontalCenter: parent.horizontalCenter
 
-                            font.pixelSize: fontSizeBig
+                            // Re-RinkFloat: section headings in neon green digital font
+                            font.pixelSize: 0.38 * unit
+                            font.family: "Exan"
+                            font.letterSpacing: 0.03 * unit
+                            color: swTheme.neonGreen
                             text: "Tire"
                         }
 
@@ -10495,7 +10511,11 @@ Item {
                         SwLText {
                             anchors.horizontalCenter: parent.horizontalCenter
 
-                            font.pixelSize: fontSizeBig
+                            // Re-RinkFloat: section headings in neon green digital font
+                            font.pixelSize: 0.38 * unit
+                            font.family: "Exan"
+                            font.letterSpacing: 0.03 * unit
+                            color: swTheme.neonGreen
                             text: "View"
                         }
 
@@ -10529,7 +10549,11 @@ Item {
                         SwLText {
                             anchors.horizontalCenter: parent.horizontalCenter
                             visible: lights.enabled
-                            font.pixelSize: fontSizeBig
+                            // Re-RinkFloat: section headings in neon green digital font
+                            font.pixelSize: 0.38 * unit
+                            font.family: "Exan"
+                            font.letterSpacing: 0.03 * unit
+                            color: swTheme.neonGreen
                             text: "Lights"
                         }
 
