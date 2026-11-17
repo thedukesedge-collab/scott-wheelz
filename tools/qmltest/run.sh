@@ -149,13 +149,10 @@ cd "$here/../.."
 mkdir -p /tmp/shots
 for c in "$@"; do
   # frame 0: collapsed, 1: open on TUNES, 2: open on MIXER (REC mode)
-  # 3: open on LEDS, 4/5: LCM firmware tools with an LCM without / with
-  # the bootloader
-  for shot in 0 1 2 3 4 5; do
+  # 3: open on LEDS
+  for shot in 0 1 2 3; do
     frac=$([ $shot = 0 ] && echo 0 || echo 1)
-    tab=$([ $shot = 2 ] && echo 2 || ([ $shot -ge 3 ] && echo 5 || echo 0))
-    lcm=$([ $shot = 4 ] && echo VP-0c01814 || echo VPBL-0c01814)
-    fwwin=$([ $shot -ge 4 ] && echo "s/id: ledWindow\$/id: ledWindow; Component.onCompleted: show(\"fw\")/; s/property string lcmName: \"\"/property string lcmName: \"$lcm\"/; s/property bool nameKnown: false/property bool nameKnown: true/" || echo "s/^\$//")
+    tab=$([ $shot = 2 ] && echo 2 || ([ $shot = 3 ] && echo 5 || echo 0))
     rec=$([ $shot = 2 ] && echo true || echo false)
     echo "=================== $c (shot $shot, sheetFraction=$frac)"
     mkdir -p ~/.config/QtProject
@@ -163,7 +160,7 @@ for c in "$@"; do
     printf "[scottWheelz]\nsheetFraction=$frac\nrailStyle=$frac\n\n[uiHints]\nstatusText=true\nplotCursor=true\ndrGeneral=true\ndrStartStop=true\ndrDownload=true\n" > ~/.config/QtProject/qmlscene.conf
     git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Re-RinkFloat/g; s/{{VERSION}}/test/g; s/{{LCM_FW_JSON}}/null/g" \
       | sed "s/category: \"scottWheelz\"/category: \"scottWheelzTest$shot\"/; s/property int railStyle: 0 /property int railStyle: $((2 - 2 * frac)) /; s/property bool flipView: false /property bool flipView: $([ $frac = 1 ] && echo true || echo false) /; s/property real sheetFraction: 0 /property real sheetFraction: $frac /; s/bottomSheet.open();//; s/bottomStackTabs.currentIndex = 3;//; s/id: bottomStackTabs$/id: bottomStackTabs; currentIndex: $tab/; s/id: bottomStackLayout$/id: bottomStackLayout; currentIndex: $tab/; s/property bool recording: false/property bool recording: $rec/; s/Component.onCompleted: fraction = swSettings.sheetFraction >= 0.5 ? 1 : 0/Component.onCompleted: fraction = $frac/" \
-      | sed "$fwwin" | python3 rjsmin.py > /tmp/ui.qml
+      | python3 rjsmin.py > /tmp/ui.qml
     QML2_IMPORT_PATH=$stubs QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout 30 \
       /usr/lib/qt5/bin/qmlscene /tmp/wrapper.qml 2>&1 \
       | grep -v "Cannot read property\|is not a function\|of null\|of undefined\|Unable to assign \[undefined\]\|is not defined" | head -120
