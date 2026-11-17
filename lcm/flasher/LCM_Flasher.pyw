@@ -1,12 +1,12 @@
 """
 LCM Flasher - pick a .hex file and flash it to the LCM over ST-Link.
 
-Runs the same steps as flash.bat:
-    pyocd erase -c -t hk32f030mf4p6 --config ./pyocd.yaml
-    pyocd load <file> -t hk32f030mf4p6 --config ./pyocd.yaml
+Runs the same steps as flash.bat, with the chip pack passed directly:
+    pyocd erase -c -t hk32f030mf4p6 --pack <HKMicroChip...pack>
+    pyocd load <file> -t hk32f030mf4p6 --pack <HKMicroChip...pack>
 
-Put this file in the same folder as pyocd.yaml and the HKMicroChip .pack file,
-then double-click it.
+The .pack is looked for next to this program first, then in the folder of
+the chosen .hex. Easiest: keep this file in the folder with flash.bat.
 """
 import os
 import sys
@@ -20,7 +20,6 @@ from tkinter import filedialog, messagebox, scrolledtext
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 TARGET = "hk32f030mf4p6"
-CONFIG_NAME = "pyocd.yaml"
 SETTINGS = os.path.join(APP_DIR, "lcm_flasher_settings.json")
 NO_WINDOW = 0x08000000 if os.name == "nt" else 0  # hide console popups
 
@@ -40,6 +39,17 @@ def find_pyocd():
     if os.path.exists(scripts):
         return [scripts]
     return [py, "-m", "pyocd"]
+
+
+def find_pack(folders):
+    """Return (folder, pack path) for the first folder holding an HK32 .pack."""
+    for d in folders:
+        if not d or not os.path.isdir(d):
+            continue
+        for f in sorted(os.listdir(d)):
+            if f.lower().endswith(".pack") and "hk32" in f.lower():
+                return d, os.path.join(d, f)
+    return None, None
 
 
 def load_settings():
@@ -64,6 +74,7 @@ class App:
         self.settings = load_settings()
         self.hex_path = None
         self.busy = False
+        self.work_dir = APP_DIR
         self.q = queue.Queue()
 
         root.title("LCM Flasher")
@@ -127,16 +138,10 @@ class App:
         save_settings(self.settings)
 
     def check_setup(self):
-        missing = []
-        if not os.path.exists(os.path.join(APP_DIR, CONFIG_NAME)):
-            missing.append(CONFIG_NAME)
-        if not any(f.lower().endswith(".pack") for f in os.listdir(APP_DIR)):
-            missing.append("HKMicroChip .pack file")
-        if missing:
-            self.write("WARNING: not found next to this program: "
-                       + ", ".join(missing) + "\n"
-                       "Put LCM_Flasher.pyw in your flashing folder.\n\n")
-        self.write("Folder: " + APP_DIR + "\n")
+        self.write("Program folder: " + APP_DIR + "\n")
+        if find_pack([APP_DIR])[1] is None:
+            self.write("No HK32 .pack next to this program. It will also look "
+                       "in the folder of the .hex you choose.\n")
 
     # ---------- actions ----------
     def choose_file(self):
@@ -167,7 +172,7 @@ class App:
         """Run a command, stream its output to the log, return exit code."""
         self.q.put(("log", "> " + " ".join(args) + "\n"))
         try:
-            proc = subprocess.Popen(args, cwd=APP_DIR,
+            proc = subprocess.Popen(args, cwd=self.work_dir,
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT,
                                     stdin=subprocess.DEVNULL,
@@ -182,7 +187,19 @@ class App:
 
     def flash_worker(self):
         pyocd = find_pyocd()
-        common = ["-t", TARGET, "--config", CONFIG_NAME]
+        folder, pack = find_pack([APP_DIR, os.path.dirname(self.hex_path)])
+        if pack is None:
+            self.q.put(("log", "Can't find the HKMicroChip .pack file. Put "
+                        "LCM_Flasher.pyw in the folder with the .pack "
+                        "(where flash.bat is).\n"))
+            self.q.put(("done", -1))
+            return
+        self.work_dir = folder
+        self.q.put(("log", "Chip pack: " + pack + "\n"))
+        # Pass the pack directly (all pyocd.yaml does is name it), so this
+        # works whatever folder pyocd starts in. Not combined with
+        # --config, which would load the same pack a second time.
+        common = ["-t", TARGET, "--pack", pack]
         rc = self.run(pyocd + ["erase", "-c"] + common)
         if rc == 0:
             rc = self.run(pyocd + ["load", self.hex_path, "--format", "hex"]
