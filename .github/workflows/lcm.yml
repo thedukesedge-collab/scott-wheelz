@@ -29,6 +29,13 @@ jobs:
           ls -la build/*.hex
           make analyze || true
 
+      - name: Bootloader (build + host tests)
+        if: always()
+        working-directory: lcm/bootloader
+        run: |
+          sh tests/run.sh
+          make
+
       - name: Unit tests (stock + VP)
         if: always()
         working-directory: lcm/alcm/Library/HK32F030Mxx_Library_V1.1.6/HK32F030M_Project
@@ -47,6 +54,7 @@ jobs:
             lcm/alcm/gcc/build/*.hex
             lcm/alcm/gcc/build/*.bin
             lcm/alcm/gcc/build/analyze.txt
+            lcm/bootloader/build/*
           if-no-files-found: ignore
 
       - name: Publish ALCM_VP.hex

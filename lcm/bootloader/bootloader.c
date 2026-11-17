@@ -5,19 +5,25 @@
  * Part of Re-Float Rink-Mixed. GPL-3.0-or-later.
  *
  * Flash map (16 KB, 128-byte pages):
- *   0x08000000 - 0x080003FF  this bootloader (1 KB, never rewritten by it)
+ *   0x08000000 - 0x080003FF  this bootloader (1 KB, never written by it)
  *   0x08000400 - 0x08003F7F  ALCM application (vector table at 0x08000400,
  *                            selected with FLASH->INT_VEC_OFFSET = 0x400)
  *   0x08003F80 - 0x08003FFF  last page, holds the battery LUT block at
  *                            0x08003FC0 (tools/battery_lut_patch); never
  *                            written by updates, so the LUT is kept
  *
- * Normal power-up: if the application looks valid, jump to it at once, with
+ * POWER: the LCM only stays powered while it drives PA2 (PWR_EN) high - the
+ * button press powers it up, PA2 latches it. A chip reset would let go of
+ * PA2, so nothing here ever resets the chip: we only jump. PA2 is driven
+ * high before anything else in update mode and only released on purpose
+ * (button held 2 s, or 5 minutes with nothing to do).
+ *
+ * Normal power-up: if the application looks valid, jump to it at once with
  * nothing touched, so the app starts exactly as it did without us.
  *
- * Update: on the VP poll-reply flag (LCM_VP_FLAG_UPDATE) the app calls the
- * entry point stored in vector slot 7 (0x0800001C). We then pull the image
- * from the VP package over the existing VESC UART link, a page at a time:
+ * Update: the app calls the entry point stored in vector slot 7
+ * (0x0800001C) when the VP package asks for an update. We then pull the
+ * image from the package over the existing VESC UART link, a page at a time:
  *
  *   LCM -> VESC  36 (COMM_CUSTOM_APP_DATA), 101, 127 (COMMAND_LCM_FW),
  *                0x10 (LCM_FW_REQ), offset (u32 BE)
@@ -29,17 +35,22 @@
  *                0 = written and verified, 1 = CRC mismatch (starts over),
  *                2 = nothing came, back to the unchanged app
  *
- * Pages are requested 128, 256, ... and page 0 (the app's vector table)
- * last; page 0 is erased as soon as the first chunk arrives. So until the
- * whole image is in and verified there is no valid app, and an update that
- * is cut short (power loss) just ends up back here on the next power-up,
- * waiting for the image again. While waiting, the power latch is held on;
- * after ~5 minutes with no image it is released (board off).
+ * Fail-safe order:
+ *  - page 0 (the app's vector table, which decides "is there an app") is
+ *    erased before the first page is written and written LAST, back to
+ *    front, so its stack pointer / reset vector words land last of all;
+ *  - every page is read back and compared after writing;
+ *  - the whole image CRC is checked before page 0 counts; on a mismatch
+ *    page 0 is erased again, and after 3 bad images nothing more is
+ *    written until the next power-up (no flash wear from a bad source).
+ * So an update cut short at any point (power loss, phone gone) leaves no
+ * valid app, and the next power-up comes straight back here, holds the
+ * power on and waits for the image again - no ST-Link needed.
  *
  * The image CRC is CRC16-CCITT (XMODEM), the same as the VESC packet CRC.
  * No interrupts are used.
  */
-#include "hk32f030m.h"
+#include "bl_hw.h"
 
 #define APP_BASE 0x08000400u
 #define FLASH_END 0x08003F80u /* last page = battery LUT, never written */
@@ -56,67 +67,49 @@
 #define RX_MAX (HDR + PAGE_SIZE)
 
 #define REQUEST_TIMEOUT_MS 300u
-#define GIVE_UP_TRIES 66u     /* ~20 s without an image when coming from the app */
-#define POWER_OFF_TRIES 1000u /* ~5 min without an image: power off */
-
-extern uint32_t _estack;
-
-void Reset_Handler(void);
-void Update_Entry(void);
-
-/* Only the core vectors: interrupts are never enabled here. Slot 7
- * (reserved on Cortex-M0) holds the update entry the app calls. */
-__attribute__((section(".isr_vector"), used)) void (*const vectors[8])(void) = {
-    (void (*)(void))(&_estack), Reset_Handler, 0, 0, 0, 0, 0, Update_Entry,
-};
+#define GIVE_UP_MS 20000u      /* from the app, nothing staged: back to the app */
+#define POWER_OFF_MS 300000u   /* nothing to do for 5 min: release the power */
+#define BUTTON_OFF_MS 2000u    /* button held 2 s (after a release): power off */
+#define MAX_FAILS 3u           /* whole-image CRC failures before we stop writing */
 
 /* ---------------------------------------------------------------- app */
 
-static int app_valid(void)
+int bl_app_valid(void)
 {
-    uint32_t sp = *(volatile uint32_t *)APP_BASE;
-    uint32_t pc = *(volatile uint32_t *)(APP_BASE + 4u);
+    uint32_t sp = bl_rd32(APP_BASE);
+    uint32_t pc = bl_rd32(APP_BASE + 4u);
 
     return ((sp - 0x20000001u) < 0x800u) && ((pc & 1u) != 0u) && (pc - APP_BASE < MAX_IMAGE);
 }
 
-static void __attribute__((noreturn)) jump_to_app(void)
-{
-    uint32_t sp = *(volatile uint32_t *)APP_BASE;
-    uint32_t pc = *(volatile uint32_t *)(APP_BASE + 4u);
+/* ---------------------------------------------------------------- CRC */
 
-    __asm volatile("msr msp, %0\n bx %1\n" : : "r"(sp), "r"(pc));
-    __builtin_unreachable();
+static uint32_t crc16_step(uint32_t crc, uint32_t byte)
+{
+    crc ^= byte << 8;
+    for (int i = 0; i < 8; i++)
+    {
+        crc <<= 1;
+        if (crc & 0x10000u)
+        {
+            crc ^= 0x1021u;
+        }
+    }
+    return crc & 0xFFFFu;
 }
 
-/* --------------------------------------------------------------- UART */
-
-static uint16_t crc16(const uint8_t *p, uint32_t n)
+static uint32_t crc16_buf(const uint8_t *p, uint32_t n)
 {
     uint32_t crc = 0;
 
     while (n--)
     {
-        crc ^= (uint32_t)*p++ << 8;
-        for (int i = 0; i < 8; i++)
-        {
-            crc <<= 1;
-            if (crc & 0x10000u)
-            {
-                crc ^= 0x1021u;
-            }
-        }
+        crc = crc16_step(crc, *p++);
     }
-    return (uint16_t)crc;
+    return crc;
 }
 
-static void uart_put(uint32_t b)
-{
-    while ((USART1->ISR & USART_ISR_TXE) == 0u)
-    {
-    }
-    USART1->TDR = b;
-}
+/* ------------------------------------------------------------ packets */
 
 /* Sends a FW packet: 0x02, len, 36, 101, 127, sub, value(4), crc, 0x03.
  * len 5 sends only the top byte of value (the DONE status). */
@@ -132,223 +125,211 @@ static void send_fw(uint32_t sub, uint32_t value, uint32_t len)
     {
         p[4 + i] = (uint8_t)(value >> (24 - 8 * i));
     }
-    uint32_t crc = crc16(p, len);
+    uint32_t crc = crc16_buf(p, len);
 
-    uart_put(0x02);
-    uart_put(len);
+    bl_uart_put(0x02);
+    bl_uart_put(len);
     for (uint32_t i = 0; i < len; i++)
     {
-        uart_put(p[i]);
+        bl_uart_put(p[i]);
     }
-    uart_put(crc >> 8);
-    uart_put(crc & 0xFFu);
-    uart_put(0x03);
+    bl_uart_put(crc >> 8);
+    bl_uart_put(crc & 0xFFu);
+    bl_uart_put(0x03);
 }
-
-/* Next received byte, or -1 once *budget_ms runs out. */
-static int uart_get(uint32_t *budget_ms)
-{
-    for (;;)
-    {
-        if (USART1->ISR & USART_ISR_ORE)
-        {
-            USART1->ICR = USART_ICR_ORECF;
-        }
-        if (USART1->ISR & USART_ISR_RXNE)
-        {
-            return (int)(USART1->RDR & 0xFFu);
-        }
-        if ((SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk) && (*budget_ms)-- == 0u)
-        {
-            return -1;
-        }
-    }
-}
-
-/* Waits for a valid short VESC packet; returns its payload length, or 0 on
- * timeout. buf receives payload, crc (2) and end byte. */
-static uint32_t receive_packet(uint8_t *buf)
-{
-    uint32_t budget = REQUEST_TIMEOUT_MS;
-
-    for (;;)
-    {
-        int b = uart_get(&budget);
-        if (b < 0)
-        {
-            return 0;
-        }
-        if (b != 0x02)
-        {
-            continue;
-        }
-        int len = uart_get(&budget);
-        if (len <= 0 || len > (int)RX_MAX)
-        {
-            continue;
-        }
-        for (int i = 0; i < len + 3; i++)
-        {
-            b = uart_get(&budget);
-            if (b < 0)
-            {
-                return 0;
-            }
-            buf[i] = (uint8_t)b;
-        }
-        if (buf[len + 2] == 0x03u && crc16(buf, (uint32_t)len) == ((buf[len] << 8) | buf[len + 1]))
-        {
-            return (uint32_t)len;
-        }
-    }
-}
-
-/* -------------------------------------------------------------- flash */
-
-static void flash_wait(void)
-{
-    while (FLASH->SR & FLASH_SR_BSY)
-    {
-    }
-    FLASH->SR = FLASH_SR_EOP;
-}
-
-static void flash_erase(uint32_t addr)
-{
-    FLASH->CR = FLASH_CR_PER;
-    FLASH->AR = addr;
-    FLASH->CR = FLASH_CR_PER | FLASH_CR_STRT;
-    flash_wait();
-    FLASH->CR = 0;
-}
-
-/* ------------------------------------------------------------ updater */
 
 static uint32_t get_u32(const uint8_t *p)
 {
     return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | p[3];
 }
 
-static void __attribute__((noreturn)) updater(int from_app)
+/* ------------------------------------------------------------- flash */
+
+/* Erases and writes one page, then reads it back. Page 0 of the app is
+ * written back to front, so its first words (SP, reset vector) go last.
+ * Returns nonzero if the page reads back as intended. */
+static int write_page(uint32_t addr, const uint8_t *data)
+{
+    bl_flash_erase(addr);
+    for (uint32_t k = 0; k < PAGE_SIZE; k += 2u)
+    {
+        uint32_t i = (addr == APP_BASE) ? (PAGE_SIZE - 2u - k) : k;
+        bl_flash_write16(addr + i, (uint32_t)data[i] | ((uint32_t)data[i + 1u] << 8));
+    }
+    for (uint32_t i = 0; i < PAGE_SIZE; i++)
+    {
+        if (bl_rd8(addr + i) != data[i])
+        {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* ------------------------------------------------------------ updater */
+
+/* Returns (back to the app) only when an update finished and verified, or
+ * when coming from the app and nothing was staged. Otherwise it stays here
+ * (power held) until an image arrives, or powers the board off. */
+void bl_updater(int from_app)
 {
     uint8_t rx[RX_MAX + 3];
-    uint32_t offset = PAGE_SIZE, size = 0, crc = 0, tries = 0;
-    int erased = 0;
+    uint32_t rx_n = 0, rx_len = 0;
+    uint32_t offset = PAGE_SIZE, size = 0, crc = 0;
+    uint32_t wait_ms = 0, idle_ms = 0, button_ms = 0, fails = 0;
+    int erased = 0, request = 1;
+    int armed = !bl_button_pressed(); /* a hold only counts after a release */
 
-    /* HSI 32 MHz with the factory trim, as the app's SystemInit sets it
-     * (no-op when coming from the app). */
-    uint32_t trim = *(volatile uint32_t *)0x1FFFF820u;
-    RCC->CR |= 1u;
-    RCC->CFGR &= 0xF8FFB81Cu; /* SW = HSI, HCLK = PCLK = SYSCLK */
-    if (((trim >> 16) & trim & 0xFFFFu) == 0u)
-    {
-        RCC->CR |= ((trim & 0x1Fu) << 3) | (((trim >> 5) & 0x3Fu) << 8);
-    }
-    RCC->CFGR4 = (RCC->CFGR4 & ~RCC_RCC_CFGR4_FLITFCLK_PRE) | (7u << RCC_RCC_CFGR4_FLITFCLK_PRE_Pos);
-    FLASH->ACR = (FLASH->ACR & ~7u) | 2u; /* 2 wait states */
-    FLASH->INT_VEC_OFFSET = 0;
-
-    /* GPIO: PA2 power latch on, PD1/PD6 USART1 TX/RX (AF1). Coming from
-     * the app these are already set up (PA2 is config-locked there, which
-     * only blocks the MODER write). */
-    RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIODEN;
-    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
-    GPIOA->BSRR = 1u << 2;
-    GPIOA->MODER = (GPIOA->MODER & ~(3u << 4)) | (1u << 4);
-    GPIOD->MODER = (GPIOD->MODER & ~((3u << 2) | (3u << 12))) | (2u << 2) | (2u << 12);
-    GPIOD->AFR[0] = (GPIOD->AFR[0] & ~((0xFu << 4) | (0xFu << 24))) | (1u << 4) | (1u << 24);
-
-    USART1->CR1 = 0;
-    USART1->BRR = 278u; /* 32 MHz / 115200 */
-    USART1->CR1 = USART_CR1_TE | USART_CR1_RE | USART_CR1_UE;
-
-    SysTick->LOAD = 32000u - 1u; /* 1 ms */
-    SysTick->VAL = 0;
-    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;
-
-    FLASH->KEYR = FLASH_FKEY1;
-    FLASH->KEYR = FLASH_FKEY2;
+    bl_power_on();
+    bl_hw_init();
 
     for (;;)
     {
-        if (size != 0u && offset >= size)
+        if (request)
         {
-            offset = 0; /* page 0 goes last */
+            request = 0;
+            wait_ms = 0;
+            rx_n = 0;
+            if (size != 0u && offset >= size)
+            {
+                offset = 0; /* page 0 goes last */
+            }
+            send_fw(LCM_FW_REQ, offset, 8);
         }
-        send_fw(LCM_FW_REQ, offset, 8);
-        uint32_t len = receive_packet(rx);
+
+        /* ---- 1 ms housekeeping: request timeout, idle power-off, button */
+        if (bl_tick_ms())
+        {
+            if (++wait_ms >= REQUEST_TIMEOUT_MS)
+            {
+                request = 1;
+            }
+            ++idle_ms;
+            if (from_app && !erased && idle_ms >= GIVE_UP_MS)
+            {
+                send_fw(LCM_FW_DONE, 2u << 24, 5); /* app untouched: back to it */
+                return;
+            }
+            if (bl_button_pressed())
+            {
+                if (armed && ++button_ms >= BUTTON_OFF_MS)
+                {
+                    bl_power_off();
+                    return;
+                }
+            }
+            else
+            {
+                armed = 1;
+                button_ms = 0;
+            }
+            if (idle_ms >= POWER_OFF_MS)
+            {
+                bl_power_off();
+                return;
+            }
+        }
+
+        /* ---- receive: short VESC packet 0x02, len, payload, crc16, 0x03 */
+        int b = bl_uart_get();
+        if (b < 0)
+        {
+            continue;
+        }
+        if (rx_n == 0u)
+        {
+            if (b == 0x02)
+            {
+                rx_n = 1;
+            }
+            continue;
+        }
+        if (rx_n == 1u)
+        {
+            rx_len = (uint32_t)b;
+            rx_n = (rx_len == 0u || rx_len > RX_MAX) ? 0u : 2u;
+            continue;
+        }
+        rx[rx_n++ - 2u] = (uint8_t)b;
+        if (rx_n < rx_len + 5u)
+        {
+            continue;
+        }
+        rx_n = 0;
+        if (rx[rx_len + 2u] != 0x03u ||
+            crc16_buf(rx, rx_len) != (((uint32_t)rx[rx_len] << 8) | rx[rx_len + 1u]))
+        {
+            continue; /* broken packet: keep listening */
+        }
+
+        /* ---- a valid packet */
         uint32_t r_size = get_u32(&rx[8]);
-        uint32_t r_crc = (uint32_t)(rx[12] << 8) | rx[13];
-        if (len < HDR || get_u32(rx) != ((COMM_CUSTOM_APP_DATA << 24) | (LCM_PACKAGE_ID << 16) |
-                                         (COMMAND_LCM_FW << 8) | LCM_FW_REQ) ||
-            r_size == 0u || r_size > MAX_IMAGE || (r_size % PAGE_SIZE) != 0u)
+        uint32_t r_crc = ((uint32_t)rx[12] << 8) | rx[13];
+        if (rx_len < HDR ||
+            get_u32(rx) != ((COMM_CUSTOM_APP_DATA << 24) | (LCM_PACKAGE_ID << 16) |
+                            (COMMAND_LCM_FW << 8) | LCM_FW_REQ))
         {
-            /* timeout, other packet or nothing staged: ask again */
-            ++tries;
-            if (from_app && !erased && tries >= GIVE_UP_TRIES)
-            {
-                send_fw(LCM_FW_DONE, 2u << 24, 5);
-                break;
-            }
-            if (tries >= POWER_OFF_TRIES)
-            {
-                GPIOA->BRR = 1u << 2; /* nothing for 5 min: release the power latch */
-            }
+            continue; /* not for us */
         }
-        else if (r_size != size || r_crc != crc)
+        request = 1;
+        if (r_size == 0u || r_size > MAX_IMAGE || (r_size % PAGE_SIZE) != 0u)
+        {
+            continue; /* nothing staged (yet): ask again */
+        }
+        if (r_size != size || r_crc != crc)
         {
             size = r_size; /* (new) image: start over */
             crc = r_crc;
             offset = PAGE_SIZE;
+            continue;
         }
-        else if (get_u32(&rx[4]) == offset && len == RX_MAX)
+        if (get_u32(&rx[4]) != offset || rx_len != RX_MAX || fails >= MAX_FAILS)
         {
-            uint32_t addr = APP_BASE + offset;
-
-            tries = 0;
-            if (!erased)
-            {
-                flash_erase(APP_BASE); /* no valid app until we're done */
-                erased = 1;
-            }
-            flash_erase(addr);
-            FLASH->CR = FLASH_CR_PG;
-            for (uint32_t i = 0; i < PAGE_SIZE; i += 2u)
-            {
-                *(volatile uint16_t *)(addr + i) = (uint16_t)(rx[HDR + i] | (rx[HDR + i + 1u] << 8));
-                flash_wait();
-            }
-            FLASH->CR = 0;
-
-            if (offset == 0u)
-            {
-                if (crc16((const uint8_t *)APP_BASE, size) == crc && app_valid())
-                {
-                    send_fw(LCM_FW_DONE, 0, 5);
-                    break;
-                }
-                send_fw(LCM_FW_DONE, 1u << 24, 5);
-                size = 0; /* re-read size/CRC and start over */
-            }
-            offset += PAGE_SIZE;
+            continue; /* (after 3 bad images: no more writing, idle power-off) */
         }
-    }
 
-    /* hand over in a clean state for the app's own init */
-    while ((USART1->ISR & USART_ISR_TC) == 0u)
-    {
+        idle_ms = 0;
+        if (!erased)
+        {
+            bl_flash_erase(APP_BASE); /* no valid app until we're done */
+            erased = 1;
+        }
+        if (!write_page(APP_BASE + offset, &rx[HDR]))
+        {
+            continue; /* didn't read back right: ask for the same page again */
+        }
+        if (offset == 0u)
+        {
+            if (crc16_buf((const uint8_t *)bl_ptr(APP_BASE), size) == crc && bl_app_valid())
+            {
+                send_fw(LCM_FW_DONE, 0, 5);
+                return;
+            }
+            bl_flash_erase(APP_BASE); /* not the image we were sent: no app */
+            ++fails;
+            send_fw(LCM_FW_DONE, 1u << 24, 5);
+            size = 0; /* re-read size/CRC and start over */
+        }
+        offset += PAGE_SIZE;
     }
-    FLASH->CR = FLASH_CR_LOCK;
-    SysTick->CTRL = 0;
-    NVIC->ICPR[0] = 0xFFFFFFFFu;
-    __asm volatile("cpsie i");
-    jump_to_app();
 }
+
+/* -------------------------------------------------------- entry points */
+
+#ifndef BL_HOST
+void Reset_Handler(void);
+void Update_Entry(void);
+
+/* Only the core vectors: interrupts are never enabled here. Slot 7
+ * (reserved on Cortex-M0) holds the update entry the app calls. */
+__attribute__((section(".isr_vector"), used)) void (*const vectors[8])(void) = {
+    (void (*)(void))(&_estack), Reset_Handler, 0, 0, 0, 0, 0, Update_Entry,
+};
 
 void __attribute__((used, noreturn)) update_from_app(void)
 {
-    NVIC->ICER[0] = 0xFFFFFFFFu;
-    updater(1);
+    bl_updater(1);
+    bl_start_app();
 }
 
 /* Called by the app with a plain function call (interrupts may still be
@@ -362,11 +343,12 @@ __attribute__((naked)) void Update_Entry(void)
                    ".ltorg\n");
 }
 
-void Reset_Handler(void)
+void __attribute__((noreturn)) Reset_Handler(void)
 {
-    if (app_valid())
+    if (!bl_app_valid())
     {
-        jump_to_app();
+        bl_updater(0);
     }
-    updater(0);
+    bl_start_app();
 }
+#endif
