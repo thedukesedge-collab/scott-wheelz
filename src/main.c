@@ -1444,6 +1444,7 @@ static void data_init(Data *d) {
     leds_init(&d->leds);
     leds_setup(&d->leds, &d->float_conf.hardware.leds, &d->float_conf.leds);
     lcm_init(&d->lcm, &d->float_conf.hardware.leds);
+    lcm_fw_init(&d->lcm_fw);
     lcm_vp_load(d);
     charging_init(&d->charging);
     bms_init(&d->bms);
@@ -1511,6 +1512,7 @@ enum {
     COMMAND_MELODY_SET = 124,  // custom melody: up to 6 x (pitch level, length in 20 ms)
     COMMAND_LCM_VP_SETTINGS = 126,  // light module (ALCM VP) settings, 12 bytes, see lcm.h
     COMMAND_LCM_TEST_BEEP = 127,  // light module (ALCM VP) test beep, no data
+    COMMAND_LCM_FW = 128,  // LCM firmware update relay, see lcm_fw.h
     COMMAND_LIVE_TONE = 125,  // melody tiles: u8 pitch level (0 = stop), resent every 100 ms
 
     // commands above 200 are unstable and can change protocol at any time
@@ -2542,6 +2544,7 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
     }
     case COMMAND_LCM_POLL: {
         lcm_poll_request(&d->lcm, &buffer[2], len - 2);
+        d->lcm.vp_update = lcm_fw_update_flag(&d->lcm_fw, &d->state, &d->time);
         lcm_poll_response(&d->lcm, &d->state, d->footpad.state, &d->motor, d->imu.pitch);
         return;
     }
@@ -2670,6 +2673,10 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
     }
     case COMMAND_LCM_TEST_BEEP: {
         lcm_vp_test_beep(&d->lcm);
+        return;
+    }
+    case COMMAND_LCM_FW: {
+        lcm_fw_command(&d->lcm_fw, &d->state, &d->time, &buffer[2], len - 2);
         return;
     }
     case COMMAND_LIVE_TONE: {

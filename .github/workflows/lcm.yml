@@ -5,7 +5,7 @@ name: LCM firmware
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'lcm-*']
     paths: ['lcm/**', '.github/workflows/lcm.yml']
   workflow_dispatch:
 
@@ -27,6 +27,27 @@ jobs:
           make VP=0 || echo "stock GCC build does not fit (expected: Keil packs it tighter)"
           make VP=1
           ls -la build/*.hex
+          make analyze || true
+
+      - name: Bootloader (build + host tests)
+        if: always()
+        working-directory: lcm/bootloader
+        run: |
+          sh tests/run.sh
+          make
+
+      - name: Bootloader images (BL app + full hex + update image)
+        if: always()
+        run: |
+          make -C lcm/alcm/gcc VP=1 BL=1
+          python3 lcm/tools/lcm_images.py lcm/bootloader/build/lcm_bootloader.hex \
+            lcm/alcm/gcc/build/ALCM_VP_BL_app.hex lcm/alcm/gcc/build "$(git rev-parse --short HEAD)"
+          ls -la lcm/alcm/gcc/build/ALCM_VP_BL_full.hex lcm/alcm/gcc/build/ALCM_VP_app.bin
+
+      - name: Runtime replacements (host test)
+        if: always()
+        working-directory: lcm/alcm/Library/HK32F030Mxx_Library_V1.1.6/HK32F030M_Project
+        run: sh tests/tiny_rt/run.sh
 
       - name: Unit tests (stock + VP)
         if: always()
@@ -36,13 +57,26 @@ jobs:
           cmake --build build -j4
           cd build && ctest --output-on-failure
 
+      - name: Size report (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcm-build
+          path: |
+            lcm/alcm/gcc/build/*.map
+            lcm/alcm/gcc/build/*.hex
+            lcm/alcm/gcc/build/*.bin
+            lcm/alcm/gcc/build/analyze.txt
+            lcm/bootloader/build/*
+          if-no-files-found: ignore
+
       - name: Publish ALCM_VP.hex
-        if: success()
+        if: success() && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           F=lcm/alcm/gcc/build
           gh release view lcm-latest >/dev/null 2>&1 || gh release create lcm-latest --prerelease \
             --title "LCM firmware (ALCM VP)" --notes "ALCM with VP light control." --target "$GITHUB_SHA"
-          gh release edit lcm-latest --notes "ALCM v0.1.1 + VP light control, built from ${GITHUB_SHA::7}. ALCM_VP.hex = lights set from the Re-Float Rink-Mixed package, button keeps power on/off."
-          gh release upload lcm-latest $F/ALCM_VP.hex --clobber
+          gh release edit lcm-latest --notes "ALCM v0.1.1 + VP light control, built from ${GITHUB_SHA::7}. ALCM_VP.hex = lights set from the Re-Float Rink-Mixed package, button keeps power on/off (no bootloader). ALCM_VP_BL_full.hex = bootloader + the same light firmware: flash ONCE with the ST-Link, after that update from the app (LEDS > LCM FIRMWARE). ALCM_VP_app.bin = the update image (the package already contains it). See lcm/bootloader/README.md."
+          gh release upload lcm-latest $F/ALCM_VP.hex $F/ALCM_VP_BL_full.hex $F/ALCM_VP_app.bin --clobber

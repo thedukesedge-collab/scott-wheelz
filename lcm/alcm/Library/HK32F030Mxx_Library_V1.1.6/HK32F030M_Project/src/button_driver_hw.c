@@ -18,6 +18,7 @@
  */
 
 #include "hk32f030m.h"
+#include "hw_regs.h"
 #include "button_driver_hw.h"
 
 #define BUTTON_PRESSED (((GPIOC->IDR >> 3) & 1) == 0)
@@ -25,8 +26,6 @@
 void button_driver_hw_init(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure = {0};
-    EXTI_InitTypeDef EXTI_InitStructure = {0};
-    NVIC_InitTypeDef NVIC_InitStructure = {0};
 
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOC, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
@@ -42,19 +41,18 @@ void button_driver_hw_init(void)
     // Set SYSCFG pin
     SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOC, EXTI_PinSource3);
 
-    // Set the EXTI line to trigger on falling edge (assert)
-    EXTI_StructInit(&EXTI_InitStructure);
-    EXTI_InitStructure.EXTI_Line = EXTI_Line3;
-    EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
-    EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;
-    EXTI_InitStructure.EXTI_LineCmd = ENABLE;
-    EXTI_Init(&EXTI_InitStructure);
+    // Re-Float Rink-Mixed: what EXTI_Init() / NVIC_Init() write for these
+    // settings, written directly (smaller, to make room for the bootloader).
+    // EXTI line 3: interrupt (not event), falling edge only
+    EXTI->IMR &= ~EXTI_Line3;
+    EXTI->EMR &= ~EXTI_Line3;
+    EXTI->IMR |= EXTI_Line3;
+    EXTI->RTSR &= ~EXTI_Line3;
+    EXTI->FTSR &= ~EXTI_Line3;
+    EXTI->FTSR |= EXTI_Line3;
 
-    // Enable EXTI3 in NVIC
-    NVIC_InitStructure.NVIC_IRQChannel = EXTI3_IRQn;
-    NVIC_InitStructure.NVIC_IRQChannelPriority = 1;
-    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-    NVIC_Init(&NVIC_InitStructure);
+    // EXTI3 in the NVIC, priority 1
+    hw_nvic_enable(EXTI3_IRQn, 1U);
 }
 
 bool button_driver_hw_is_pressed(void)

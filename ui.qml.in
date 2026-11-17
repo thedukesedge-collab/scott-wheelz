@@ -457,6 +457,128 @@ Item {
         }
     }
 
+    // Re-RinkFloat: LCM firmware update over the VESC link (needs the LCM
+    // bootloader, installed once with an ST-Link). The image is built with
+    // the package (lcm/alcm, BL=1) and embedded here. The package relays it
+    // to the LCM bootloader two 128-byte pages at a time: we poll STATUS and
+    // send the page the LCM wants plus the next one. See lcm_fw.h.
+    QtObject {
+        id: lcmFw
+
+        // {size, crc, version, b64}, or null if this build has no LCM image
+        readonly property var image: {{LCM_FW_JSON}}
+        property var bytes: null
+
+        // package state: 0 idle, 1 staged, 2 sending, 3 ok, 4 failed
+        property int pkgState: 0
+        property int pkgError: 0
+        property int want: 0
+        property bool active: false  // an update this app started is in progress
+        property real progress: 0
+        property string message: image ? "" : "This build has no LCM firmware image."
+        property int noReply: 0
+
+        readonly property var errorText: [
+            "",
+            "The board is running. Stop riding and try again.",
+            "The firmware image is broken (this build).",
+            "The LCM didn't start updating. It needs the LCM bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex).",
+            "The LCM got nothing and went back to its old firmware.",
+            "Checksum mismatch: the LCM is retrying."
+        ]
+
+        function send(sub, extra) {
+            var data = commands.createData(3 + extra.length, commands.c_LCM_FW);
+            data.setUint8(2, sub);
+            for (var i = 0; i < extra.length; i++) data.setUint8(3 + i, extra[i]);
+            vescCommands.sendCustomAppData(data.buffer);
+        }
+
+        function u32(v) { return [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255]; }
+
+        function decode() {
+            if (bytes) return;
+            var s = Qt.atob(image.b64);
+            var b = new Uint8Array(s.length);
+            for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 255;
+            bytes = b;
+        }
+
+        function start() {
+            if (!image || active) return;
+            decode();
+            // the update flag rides in the VP block, so the LED settings must be on
+            swSettings.ledConfigured = true;
+            ledSender.send();
+            active = true;
+            progress = 0;
+            noReply = 0;
+            message = "Starting... (the board must be powered on and idle)";
+            send(1, u32(image.size).concat([(image.crc >> 8) & 255, image.crc & 255]));
+            lcmFwTimer.start();
+        }
+
+        function cancel() {
+            send(4, []);
+            active = false;
+            lcmFwTimer.stop();
+            message = "Cancelled. If the LCM had already started, power the board off and on, then press UPDATE again.";
+        }
+
+        function sendPage(off) {
+            if (off < 0 || off >= image.size) return;
+            var d = u32(off);
+            for (var i = 0; i < 128; i++) d.push(bytes[off + i]);
+            send(2, d);
+        }
+
+        // STATUS reply: state, error, wanted offset (u32), size (u32)
+        function onReply(dv, ind) {
+            if (dv.byteLength < ind + 11 || dv.getUint8(ind++) !== 3) return;
+            pkgState = dv.getUint8(ind++);
+            pkgError = dv.getUint8(ind++);
+            want = dv.getUint32(ind); ind += 4;
+            noReply = 0;
+            if (!active) return;
+            var pages = image.size / 128;
+            if (pkgState === 1) {
+                message = "Waiting for the LCM to start its bootloader...";
+                sendPage(128);  // ready for its first requests
+                sendPage(256);
+            } else if (pkgState === 2) {
+                var done = want === 0 ? pages - 1 : Math.max(0, want / 128 - 1);
+                progress = done / pages;
+                message = (pkgError === 5 ? errorText[5] + " " : "") + "Updating the LCM: " + Math.round(progress * 100) + "%. Keep the app connected, don't ride.";
+                sendPage(want);
+                sendPage(want === 0 ? -1 : (want + 128 < image.size ? want + 128 : 0));
+            } else if (pkgState === 3) {
+                progress = 1;
+                active = false;
+                lcmFwTimer.stop();
+                message = "Done: the LCM firmware is updated and running.";
+            } else if (pkgState === 4) {
+                active = false;
+                lcmFwTimer.stop();
+                message = errorText[pkgError] || "The update failed.";
+            }
+        }
+
+        property Timer pollTimer: Timer {
+            id: lcmFwTimer
+            interval: 80
+            repeat: true
+            onTriggered: {
+                if (++lcmFw.noReply > 150) {  // ~12 s without any reply
+                    lcmFw.active = false;
+                    stop();
+                    lcmFw.message = "Lost the connection to the board. The LCM keeps its power on and waits: reconnect and press UPDATE again (or power the board off and on).";
+                    return;
+                }
+                lcmFw.send(3, []);
+            }
+        }
+    }
+
     // Re-RinkFloat: saved melodies, kept in the app (swSettings.savedMelodies,
     // JSON [{name, notes: [[level, ms], ...]}]). The board only holds the one
     // custom melody in use (swSettings.melodyRec); choosing a saved melody
@@ -1023,6 +1145,7 @@ Item {
         readonly property int c_LIVE_TONE: 125  // Re-RinkFloat
         readonly property int c_LCM_VP_SETTINGS: 126  // Re-RinkFloat: light module (ALCM VP)
         readonly property int c_LCM_TEST_BEEP: 127  // Re-RinkFloat: light module test beep
+        readonly property int c_LCM_FW: 128  // Re-RinkFloat: LCM firmware update relay
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
         // Dynamic range: +-131008.0
@@ -1242,6 +1365,8 @@ Item {
                 var extraFlags = dv.getUint8(ind++);
 
                 state.commsState = state.comms_RTDataIDs;
+            } else if (msgtype === c_LCM_FW) {
+                lcmFw.onReply(dv, ind);
             } else if (msgtype == c_LIGHTS_CONTROL) {
                 var values = dv.getUint8(ind++);
                 lights.on = values & 0b01;
@@ -6057,7 +6182,7 @@ Item {
         closePolicy: Popup.CloseOnEscape
 
         property string section: "head"
-        readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "ANIMATIONS", "sound": "SOUND"})
+        readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "ANIMATIONS", "sound": "SOUND", "fw": "LCM FIRMWARE"})
 
         function show(which) {
             section = which;
@@ -6268,6 +6393,90 @@ Item {
                             text: swSettings.ledBeep
                             ? "The light module plays one short beep. No beep = the module isn't running the ALCM VP firmware or isn't connected."
                             : "The LCM beeper is off, so the test beep is silent. Turn it on above first."
+                        }
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: 0.14 * unit
+                        visible: ledWindow.section === "fw"
+
+                        SwLText {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: lcmFw.image
+                                ? "Firmware in this package: ALCM VP build " + lcmFw.image.version + " (" + lcmFw.image.size + " bytes)."
+                                : "This build of the package has no LCM firmware image."
+                        }
+
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: Math.min(parent.width, 4.6 * unit)
+                            height: 1.4 * unit
+                            radius: height / 2
+                            opacity: lcmFw.image && !lcmFw.active ? 1 : 0.4
+                            color: fwBtnArea.pressed ? swTheme.neonGreen : "transparent"
+                            border.color: swTheme.neonGreen
+                            border.width: 3
+                            Text {
+                                anchors.centerIn: parent
+                                text: lcmFw.active ? "UPDATING..." : "\u21BB  UPDATE LCM"
+                                color: fwBtnArea.pressed ? swTheme.background : swTheme.neonGreen
+                                font.family: "Exan"
+                                font.pixelSize: 0.36 * unit
+                            }
+                            MouseArea {
+                                id: fwBtnArea
+                                anchors.fill: parent
+                                enabled: !!lcmFw.image && !lcmFw.active
+                                onClicked: lcmFw.start()
+                            }
+                        }
+
+                        // progress
+                        Rectangle {
+                            visible: lcmFw.active || lcmFw.progress > 0
+                            width: parent.width
+                            height: 0.22 * unit
+                            radius: height / 2
+                            color: "transparent"
+                            border.color: swTheme.neonPurple
+                            border.width: 2
+                            Rectangle {
+                                x: 2; y: 2
+                                height: parent.height - 4
+                                radius: height / 2
+                                width: Math.max(0, (parent.width - 4) * lcmFw.progress)
+                                color: swTheme.neonGreen
+                            }
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            color: lcmFw.pkgState === 4 ? "#FFB300" : swTheme.neonGreen
+                            text: lcmFw.message
+                        }
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            visible: lcmFw.active
+                            minWidth: 2.4 * unit
+                            label: "CANCEL"
+                            onClicked: lcmFw.cancel()
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "\u2022 Only for LCMs with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex). Others ignore this.\n"
+                                + "\u2022 Board powered on and idle. The update is refused while riding; don't ride until it's done.\n"
+                                + "\u2022 Headlights and beeper go off while it updates (about a minute). Keep the app connected.\n"
+                                + "\u2022 If it's interrupted, the LCM keeps the power on and waits for the update. Press UPDATE again, or power the board off and on first. Hold the button 2 s to power off."
                         }
                     }
                 }
@@ -11127,6 +11336,16 @@ Item {
                                 lit: swSettings.ledBeep
                                 summary: (swSettings.ledBeep ? "BEEPER ON" : "BEEPER OFF") + " \u00B7 TEST BEEP"
                                 onClicked: ledWindow.show("sound")
+                            }
+                            LedTile {
+                                Layout.columnSpan: 2
+                                Layout.preferredHeight: 1.5 * unit
+                                title: "LCM FIRMWARE"
+                                glyph: "\u21BB"
+                                lit: lcmFw.active
+                                summary: lcmFw.active ? "UPDATING \u00B7 " + Math.round(lcmFw.progress * 100) + "%"
+                                    : (lcmFw.image ? "UPDATE OVER BLUETOOTH \u00B7 BOOTLOADER LCMs ONLY" : "NOT IN THIS BUILD")
+                                onClicked: ledWindow.show("fw")
                             }
                         }
 

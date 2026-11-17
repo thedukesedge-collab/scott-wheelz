@@ -137,7 +137,12 @@
 // unchanged. This flag just needs to stay enabled so the input voltage is
 // decoded and available for that decision - it's no longer an either/or
 // choice for the person building the firmware.
+#ifndef LCM_BOOTLOADER
 #define ENABLE_VOLTAGE_MONITORING 1 // Enable battery voltage monitoring
+#endif
+// Re-Float Rink-Mixed: left out of the bootloader build (BL=1) to make room
+// for the bootloader - the battery % then always comes from the VESC (what
+// you get anyway without a patched LUT). The standalone build keeps it.
 
 //------------------------------------------------------------------------------
 // IMU configuration

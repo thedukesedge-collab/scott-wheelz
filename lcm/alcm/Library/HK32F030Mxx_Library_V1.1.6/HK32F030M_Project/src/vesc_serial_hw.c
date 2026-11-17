@@ -18,12 +18,11 @@
  */
 #include "vesc_serial_hw.h"
 #include "hk32f030m.h"
+#include "hw_regs.h"
 
 void vesc_serial_hw_init(uint32_t baud)
 {
     GPIO_InitTypeDef GPIO_InitStructure = {0};
-    USART_InitTypeDef USART_InitStructure = {0};
-    NVIC_InitTypeDef NVIC_InitStructure = {0};
 
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOD, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
@@ -45,23 +44,32 @@ void vesc_serial_hw_init(uint32_t baud)
     GPIO_Init(GPIOD, &GPIO_InitStructure);
     GPIO_PinAFConfig(GPIOD, GPIO_PinSource6, GPIO_AF_1);
 
-    USART_StructInit(&USART_InitStructure);
-    USART_InitStructure.USART_BaudRate = baud;
-    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-    USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
-    USART_InitStructure.USART_Parity = USART_Parity_No;
-    USART_InitStructure.USART_StopBits = USART_StopBits_1;
-    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
-    USART_Init(USART1, &USART_InitStructure);
+    // Re-Float Rink-Mixed: the registers USART_Init() would write for 8N1,
+    // RX+TX, no flow control, written directly - USART_Init() needs
+    // RCC_GetClocksFreq() just to find PCLK (~320 bytes together). USART1
+    // runs from PCLK = SystemCoreClock (SystemInit: USART1SW = PCLK, HCLK
+    // and PCLK undivided). Same rounding as USART_Init().
+    {
+        uint32_t divider = SystemCoreClock / baud;
+
+        if (SystemCoreClock % baud >= baud / 2U)
+        {
+            divider++;
+        }
+        USART1->CR1 &= ~USART_CR1_UE;
+        USART1->CR2 &= ~USART_CR2_STOP;                                   // 1 stop bit
+        USART1->CR1 = (USART1->CR1 & ~(USART_CR1_M | USART_CR1_PCE | USART_CR1_PS |
+                                       USART_CR1_TE | USART_CR1_RE)) |
+                      USART_CR1_TE | USART_CR1_RE;                        // 8 bits, no parity
+        USART1->CR3 &= ~(USART_CR3_RTSE | USART_CR3_CTSE);                 // no flow control
+        USART1->BRR = (uint16_t)divider;
+    }
     USART_Cmd(USART1, ENABLE);
 
     USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
     USART_ITConfig(USART1, USART_IT_IDLE, ENABLE);
 
-    NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQn;
-    NVIC_InitStructure.NVIC_IRQChannelPriority = 0;
-    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-    NVIC_Init(&NVIC_InitStructure);
+    hw_nvic_enable(USART1_IRQn, 0U); // = NVIC_Init(), priority 0
 }
 
 /**

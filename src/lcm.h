@@ -44,6 +44,7 @@ typedef enum {
 #define LCM_VP_FLAG_STATUS_BAR 0x02
 #define LCM_VP_FLAG_BEEP 0x04
 #define LCM_VP_FLAG_TEST_BEEP 0x08  // toggled on each test-beep request (not stored)
+#define LCM_VP_FLAG_UPDATE 0x10  // firmware update staged: start the LCM bootloader (not stored)
 #define LCM_VP_ANIMATIONS 5  // idle, riding, dozing (snooze), boot, shutdown
 #define LCM_VP_ANIMATION_COUNT 13
 #define LCM_VP_SETTINGS_LENGTH 12  // bytes in COMMAND_LCM_VP_SETTINGS (11 accepted)
@@ -73,6 +74,7 @@ typedef struct {
 
     LcmVpSettings vp;
     bool vp_test_beep;  // toggled by COMMAND_LCM_TEST_BEEP, sent as LCM_VP_FLAG_TEST_BEEP
+    bool vp_update;  // set from lcm_fw_update_flag() before each poll reply
 } LcmData;
 
 void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg);
