@@ -5,9 +5,9 @@
  * Part of Re-Float Rink-Mixed. GPL-3.0-or-later.
  *
  * Flash map (16 KB, 128-byte pages):
- *   0x08000000 - 0x080003FF  this bootloader (1 KB, never written by it)
- *   0x08000400 - 0x08003F7F  ALCM application (vector table at 0x08000400,
- *                            selected with FLASH->INT_VEC_OFFSET = 0x400)
+ *   0x08000000 - 0x080005FF  this bootloader (1.5 KB, never written by it)
+ *   0x08000600 - 0x08003F7F  ALCM application (vector table at 0x08000600,
+ *                            selected with FLASH->INT_VEC_OFFSET = 0x600)
  *   0x08003F80 - 0x08003FFF  last page, holds the battery LUT block at
  *                            0x08003FC0 (tools/battery_lut_patch); never
  *                            written by updates, so the LUT is kept
@@ -25,13 +25,14 @@
  * (0x0800001C) when the VP package asks for an update. We then pull the
  * image from the package over the existing VESC UART link, a page at a time:
  *
- *   LCM -> VESC  36 (COMM_CUSTOM_APP_DATA), 101, 127 (COMMAND_LCM_FW),
+ *   LCM -> VESC  36 (COMM_CUSTOM_APP_DATA), 101, 128 (COMMAND_LCM_FW),
  *                0x10 (LCM_FW_REQ), offset (u32 BE)
- *   VESC -> LCM  36, 101, 127, 0x10, offset (u32), image size (u32),
+ *   VESC -> LCM  36, 101, 128, 0x10, offset (u32), image size (u32),
  *                image CRC16 (u16), then 128 data bytes (the image is
  *                padded with 0xFF to whole 128-byte pages);
- *                size 0 = nothing staged (yet), ask again later
- *   LCM -> VESC  36, 101, 127, 0x11 (LCM_FW_DONE), status:
+ *                size 0 = nothing staged / that page not there yet: ask
+ *                again 20 ms later
+ *   LCM -> VESC  36, 101, 128, 0x11 (LCM_FW_DONE), status:
  *                0 = written and verified, 1 = CRC mismatch (starts over),
  *                2 = nothing came, back to the unchanged app
  *
@@ -52,21 +53,22 @@
  */
 #include "bl_hw.h"
 
-#define APP_BASE 0x08000400u
+#define APP_BASE 0x08000600u
 #define FLASH_END 0x08003F80u /* last page = battery LUT, never written */
 #define PAGE_SIZE 128u
 #define MAX_IMAGE (FLASH_END - APP_BASE)
 
 #define COMM_CUSTOM_APP_DATA 36u
 #define LCM_PACKAGE_ID 101u
-#define COMMAND_LCM_FW 127u
+#define COMMAND_LCM_FW 128u
 #define LCM_FW_REQ 0x10u
 #define LCM_FW_DONE 0x11u
 
-#define HDR 14u /* 36,101,127,sub, offset(4), size(4), crc(2) */
+#define HDR 14u /* 36,101,128,sub, offset(4), size(4), crc(2) */
 #define RX_MAX (HDR + PAGE_SIZE)
 
 #define REQUEST_TIMEOUT_MS 300u
+#define RETRY_MS 20u           /* page not there yet: ask again this much later */
 #define GIVE_UP_MS 20000u      /* from the app, nothing staged: back to the app */
 #define POWER_OFF_MS 300000u   /* nothing to do for 5 min: release the power */
 #define BUTTON_OFF_MS 2000u    /* button held 2 s (after a release): power off */
@@ -111,7 +113,7 @@ static uint32_t crc16_buf(const uint8_t *p, uint32_t n)
 
 /* ------------------------------------------------------------ packets */
 
-/* Sends a FW packet: 0x02, len, 36, 101, 127, sub, value(4), crc, 0x03.
+/* Sends a FW packet: 0x02, len, 36, 101, 128, sub, value(4), crc, 0x03.
  * len 5 sends only the top byte of value (the DONE status). */
 static void send_fw(uint32_t sub, uint32_t value, uint32_t len)
 {
@@ -271,11 +273,12 @@ void bl_updater(int from_app)
         {
             continue; /* not for us */
         }
-        request = 1;
         if (r_size == 0u || r_size > MAX_IMAGE || (r_size % PAGE_SIZE) != 0u)
         {
-            continue; /* nothing staged (yet): ask again */
+            wait_ms = REQUEST_TIMEOUT_MS - RETRY_MS; /* not there yet: ask again soon */
+            continue;
         }
+        request = 1;
         if (r_size != size || r_crc != crc)
         {
             size = r_size; /* (new) image: start over */

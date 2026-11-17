@@ -40,7 +40,9 @@
 #define SYSCLK_SOURCE	SYSCLK_SRC_HSI32M
 
 // #define VECT_TAB_SRAM
+#ifndef VECT_TAB_OFFSET /* Re-Float Rink-Mixed: 0x600 when built to run after the LCM bootloader */
 #define VECT_TAB_OFFSET  0x0 /*!< Vector Table base offset field. This value must be a multiple of 0x200. */
+#endif
 
 
 

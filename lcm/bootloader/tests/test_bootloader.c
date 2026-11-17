@@ -14,7 +14,7 @@
 
 #include "bl_host.h"
 
-#define APP_BASE 0x08000400u
+#define APP_BASE 0x08000600u
 #define APP_OFF (APP_BASE - SIM_FLASH_BASE)
 #define FLASH_END_OFF (0x08003F80u - SIM_FLASH_BASE)
 #define PAGE 128u
@@ -86,7 +86,7 @@ static void put_u32(uint8_t *p, uint32_t v)
 
 static void package_handle(const uint8_t *p, int len)
 {
-    if (!pkg_present || len < 5 || p[0] != 36 || p[1] != 101 || p[2] != 127)
+    if (!pkg_present || len < 5 || p[0] != 36 || p[1] != 101 || p[2] != 128)
         return;
     if (p[3] == 0x11)
     {
@@ -98,7 +98,7 @@ static void package_handle(const uint8_t *p, int len)
     pkg_requests++;
     uint32_t off = ((uint32_t)p[4] << 24) | (p[5] << 16) | (p[6] << 8) | p[7];
     uint8_t r[14 + PAGE];
-    r[0] = 36, r[1] = 101, r[2] = 127, r[3] = 0x10;
+    r[0] = 36, r[1] = 101, r[2] = 128, r[3] = 0x10;
     put_u32(&r[4], off);
     if (!pkg_image || off >= pkg_size)
     {
@@ -241,14 +241,15 @@ void bl_start_app(void)
 
 /* -------------------------------------------------------------- helpers */
 
-static uint8_t img_a[0x3B80], img_b[0x3B80], img_bad[0x3B80];
+#define MAXIMG (0x08003F80u - APP_BASE)
+static uint8_t img_a[MAXIMG], img_b[MAXIMG], img_bad[MAXIMG];
 static uint32_t size_a, size_b, size_bad;
 
 /* An app image: valid SP/reset vector at the start, pseudo-random body,
  * padded with 0xFF to whole pages. */
 static void make_image(uint8_t *img, uint32_t *size, uint32_t len, uint32_t seed, uint32_t base)
 {
-    memset(img, 0xFF, 0x3B80);
+    memset(img, 0xFF, MAXIMG);
     uint32_t sp = 0x20000800u, pc = base + 0x101u;
     memcpy(img, &sp, 4);
     memcpy(img + 4, &pc, 4);
@@ -508,8 +509,8 @@ static void test_button_power_off_2(void)
 int main(void)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
-    make_image(img_a, &size_a, 0x3B80 - 200, 1, APP_BASE);
-    make_image(img_b, &size_b, 0x3B80, 2, APP_BASE);
+    make_image(img_a, &size_a, MAXIMG - 200, 1, APP_BASE);
+    make_image(img_b, &size_b, MAXIMG, 2, APP_BASE);
     make_image(img_bad, &size_bad, 4000, 3, 0x08000000u);
 
     test_cold_boot_valid_app();
@@ -522,7 +523,7 @@ int main(void)
 
     /* power cut at every flash operation: small images both ways, then
      * full-size images */
-    static uint8_t sa[0x3B80], sb[0x3B80];
+    static uint8_t sa[MAXIMG], sb[MAXIMG];
     uint32_t na, nb;
     make_image(sa, &na, 9 * PAGE - 10, 11, APP_BASE);
     make_image(sb, &nb, 12 * PAGE, 12, APP_BASE);

@@ -19,6 +19,11 @@
 #include <string.h>
 
 #include "vesc_serial.h"
+#ifdef LCM_BOOTLOADER
+#include "buzzer_hw.h"
+#include "headlights_hw.h"
+#include "hk32f030m.h"
+#endif
 #include "vesc_serial_hw.h"
 #include "event_queue.h"
 #include "timer.h"
@@ -78,7 +83,8 @@
  *   15  magic 0x56 ('V')
  *   16  version (1)
  *   17  flags: bit0 headlights on, bit1 status bar on, bit2 beeper on,
- *       bit3 toggles once per test-beep request from the app
+ *       bit3 toggles once per test-beep request from the app,
+ *       bit4 = update staged (bootloader builds: start the bootloader)
  *   18  idle animation      (animation_option_t)
  *   19  riding animation
  *   20  dozing ("snooze") animation
@@ -96,6 +102,7 @@
 #define VP_FLAG_STATUS_LEDS 0x02U
 #define VP_FLAG_BEEP 0x04U
 #define VP_FLAG_TEST_BEEP 0x08U // toggled by the app for a test beep
+#define VP_FLAG_UPDATE 0x10U    // firmware update staged: hand over to the bootloader
 #endif
 #endif
 
@@ -704,6 +711,31 @@ static bool_t vp_apply_animation(animation_option_t *setting, uint8_t value)
  * @param block Pointer to the block (payload + VP_BLOCK_OFFSET)
  * @param settings Current settings
  */
+#ifdef LCM_BOOTLOADER
+/**
+ * @brief Hands over to the LCM bootloader for a firmware update
+ *
+ * The bootloader keeps its update entry in vector slot 7 (0x0800001C, a
+ * reserved slot on Cortex-M0). It holds the power latch (PA2) on, pulls the
+ * image from the package, and starts the new app - or this one again if
+ * nothing comes. Lights and buzzer are switched off first; interrupts are
+ * masked and never come back on here.
+ */
+static void vp_enter_bootloader(void)
+{
+    uint32_t entry = *(volatile const uint32_t *)0x0800001CU;
+
+    if (((entry & 1U) == 0U) || (entry < 0x08000000U) || (entry >= 0x08000600U))
+    {
+        return; // no bootloader on this LCM
+    }
+    __disable_irq();
+    headlights_hw_set_brightness(0U);
+    buzzer_off();
+    ((void (*)(void))entry)();
+}
+#endif
+
 static void vp_apply_block(const uint8_t *block, settings_t *settings)
 {
     bool_t refresh = false;
@@ -762,6 +794,15 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
     {
         event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
     }
+
+#ifdef LCM_BOOTLOADER
+    // Update staged (the package only sets this while the board isn't
+    // running); only taken while idle - never while riding or booting
+    if (((flags & VP_FLAG_UPDATE) != 0U) && (board_mode_get() == BOARD_MODE_IDLE))
+    {
+        vp_enter_bootloader();
+    }
+#endif
 
     // Test beep: the app toggles bit 3; the first block only records it
     flags &= VP_FLAG_TEST_BEEP;

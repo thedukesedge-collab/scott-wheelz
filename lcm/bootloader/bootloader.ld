@@ -1,9 +1,9 @@
-/* LCM bootloader: first 1 KB of flash. The app starts at 0x08000400. */
+/* LCM bootloader: first 1.5 KB of flash. The app starts at 0x08000600. */
 ENTRY(Reset_Handler)
 
 MEMORY
 {
-    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 0x400
+    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 0x600
     RAM   (rwx) : ORIGIN = 0x20000000, LENGTH = 0x800
 }
 

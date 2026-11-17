@@ -136,7 +136,7 @@ static inline void bl_flash_wait(void)
  * the battery LUT page are out of reach whatever the caller asks. */
 static inline int bl_in_app(uint32_t addr)
 {
-    return addr - 0x08000400u < 0x08003F80u - 0x08000400u;
+    return addr - 0x08000600u < 0x08003F80u - 0x08000600u;
 }
 
 static inline void bl_flash_erase(uint32_t addr)
@@ -165,7 +165,7 @@ static inline void bl_flash_write16(uint32_t addr, uint32_t value)
 }
 
 /* Hands over to the app in a clean, reset-like state for its own init
- * (it sets FLASH->INT_VEC_OFFSET = 0x400 in SystemInit). */
+ * (it sets FLASH->INT_VEC_OFFSET = 0x600 in SystemInit). */
 static inline void __attribute__((noreturn)) bl_start_app(void)
 {
     while ((USART1->ISR & USART_ISR_TC) == 0u && (USART1->CR1 & USART_CR1_UE))
@@ -176,8 +176,8 @@ static inline void __attribute__((noreturn)) bl_start_app(void)
     SysTick->CTRL = 0;
     NVIC->ICER[0] = 0xFFFFFFFFu;
     NVIC->ICPR[0] = 0xFFFFFFFFu;
-    uint32_t sp = *(volatile uint32_t *)0x08000400u;
-    uint32_t pc = *(volatile uint32_t *)0x08000404u;
+    uint32_t sp = *(volatile uint32_t *)0x08000600u;
+    uint32_t pc = *(volatile uint32_t *)0x08000604u;
     __asm volatile("cpsie i\n msr msp, %0\n bx %1\n" : : "r"(sp), "r"(pc));
     __builtin_unreachable();
 }

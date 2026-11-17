@@ -33,7 +33,15 @@ lcm_status_t power_init(void)
     power_hw_init();
 
     // Set initial state
+#ifdef LCM_BOOTLOADER
+    // Re-Float Rink-Mixed: started by the bootloader after an update, nobody
+    // is holding the button, and PA2 is what keeps the LCM (and the board)
+    // powered - never drive it low here. On a normal power-up this is what
+    // happens a moment later anyway (main() boots straight away).
+    power_hw_set_power(POWER_HW_ON);
+#else
     power_hw_set_power(POWER_HW_OFF);
+#endif
     power_hw_set_charge(POWER_HW_OFF);
 
     // Subscribe to events

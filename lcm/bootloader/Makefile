@@ -1,4 +1,4 @@
-# LCM bootloader (1 KB at 0x08000000), arm-none-eabi-gcc.
+# LCM bootloader (1.5 KB at 0x08000000), arm-none-eabi-gcc.
 #   make -> build/lcm_bootloader.hex
 L      := ../alcm/Library/HK32F030Mxx_Library_V1.1.6
 CC     := arm-none-eabi-gcc
@@ -15,7 +15,7 @@ all: build/lcm_bootloader.hex
 
 build/lcm_bootloader.elf: $(SRC) bl_hw.h bootloader.ld
 	@mkdir -p build
-	sed 's/LENGTH = 0x400/LENGTH = 0x1000/' bootloader.ld > build/measure.ld
+	sed 's/LENGTH = 0x600/LENGTH = 0x1000/' bootloader.ld > build/measure.ld
 	$(CC) $(CFLAGS) $(SRC) $(subst bootloader.ld,build/measure.ld,$(LDFLAGS)) -o build/measure.elf
 	arm-none-eabi-size -A build/measure.elf
 	arm-none-eabi-nm --size-sort -S build/measure.elf
@@ -25,8 +25,8 @@ build/lcm_bootloader.elf: $(SRC) bl_hw.h bootloader.ld
 	$(CC) $(CFLAGS) $(SRC) $(LDFLAGS) -o $@
 	arm-none-eabi-size $@
 	arm-none-eabi-nm --size-sort -S $@
-	@test $$(arm-none-eabi-size -A $@ | awk '/^\.isr_vector|^\.text/ {s+=$$2} END {print s}') -le 1024 \
-	  || (echo "bootloader over 1024 bytes"; exit 1)
+	@test $$(arm-none-eabi-size -A $@ | awk '/^\.isr_vector|^\.text/ {s+=$$2} END {print s}') -le 1536 \
+	  || (echo "bootloader over 1536 bytes"; exit 1)
 
 build/lcm_bootloader.hex: build/lcm_bootloader.elf
 	arm-none-eabi-objcopy -O ihex $< $@

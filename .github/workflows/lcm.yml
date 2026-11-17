@@ -36,6 +36,14 @@ jobs:
           sh tests/run.sh
           make
 
+      - name: Bootloader images (BL app + full hex + update image)
+        if: always()
+        run: |
+          make -C lcm/alcm/gcc VP=1 BL=1
+          python3 lcm/tools/lcm_images.py lcm/bootloader/build/lcm_bootloader.hex \
+            lcm/alcm/gcc/build/ALCM_VP_BL_app.hex lcm/alcm/gcc/build "$(git rev-parse --short HEAD)"
+          ls -la lcm/alcm/gcc/build/ALCM_VP_BL_full.hex lcm/alcm/gcc/build/ALCM_VP_app.bin
+
       - name: Runtime replacements (host test)
         if: always()
         working-directory: lcm/alcm/Library/HK32F030Mxx_Library_V1.1.6/HK32F030M_Project
