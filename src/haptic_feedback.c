@@ -64,6 +64,9 @@ void haptic_feedback_init(HapticFeedback *hf) {
     hf->horn_timer = 0;
     hf->horn_start = 0;
     hf->horn_budget = HORN_BUDGET;
+    hf->tone_budget = TONE_BUDGET;
+    hf->tone_budget_timer = 0;
+    hf->tone_rest = false;
     hf->horn_budget_timer = 0;
     hf->horn_on = false;
     hf->horn_used = false;
@@ -321,6 +324,21 @@ void haptic_feedback_update(
     const AlertTracker *at,
     const Time *time
 ) {
+    // Re-RinkFloat: tone budget for melodies + live tiles
+    float tdt = fminf(timer_age(time, hf->tone_budget_timer), 0.1f);
+    hf->tone_budget_timer = time->now;
+    if (hf->melody_active || hf->live_playing) {
+        hf->tone_budget -= tdt;
+    } else {
+        hf->tone_budget = fminf(hf->tone_budget + TONE_BUDGET_REFILL * tdt, TONE_BUDGET);
+    }
+    if (hf->tone_budget <= 0.0f) {
+        hf->tone_budget = 0.0f;
+        hf->tone_rest = true;
+    } else if (hf->tone_rest && hf->tone_budget >= TONE_BUDGET_RESUME) {
+        hf->tone_rest = false;
+    }
+
     // Re-RinkFloat: boot melody takes over the tone while it plays (READY only)
     if (hf->melody_active) {
         float age = timer_age(time, hf->melody_start);
@@ -329,7 +347,7 @@ void haptic_feedback_update(
             age -= hf->melody_len[step];
             ++step;
         }
-        if (state->state != STATE_READY || step >= hf->melody_count) {
+        if (state->state != STATE_READY || step >= hf->melody_count || hf->tone_rest) {
             hf->melody_active = false;
             foc_play_tone(0, 1, 0.0f);
             hf->is_playing = false;
@@ -350,7 +368,7 @@ void haptic_feedback_update(
 
     // Re-RinkFloat: live tone from the melody tiles (READY only)
     // (a single held tile sounds for at most MELODY_MAX_NOTE)
-    bool live = hf->live_hz > 0 && state->state == STATE_READY &&
+    bool live = hf->live_hz > 0 && state->state == STATE_READY && !hf->tone_rest &&
         !timer_older(time, hf->live_timer, 0.3f) &&
         !timer_older(time, hf->live_start, MELODY_MAX_NOTE);
     if (live) {

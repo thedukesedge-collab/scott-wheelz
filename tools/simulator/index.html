@@ -209,6 +209,7 @@
           <div id="hornSteps"></div>
           <div class="secTitle neonL" style="font-size:12px;margin-top:10px">BOOT MELODY</div>
           <div class="pills" id="melBoot"></div>
+          <div id="melSaved" style="display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:8px"></div>
           <div class="pills" style="margin-top:6px"><div class="pill" id="padOpen">CUSTOM MELODY &#9834;</div><div class="pill" id="melTest">TEST</div></div>
           <div style="text-align:center;margin-top:6px"><div class="pill" id="hornReset" style="display:inline-block">RESET HORN</div></div>
           <div class="secTitle neonL" style="font-size:16px;margin-top:14px">MAGIC FLYWHEEL</div>
@@ -220,7 +221,7 @@
           <div class="recOnly" style="display:flex;align-items:center"><span class="neonL" style="flex:1;font-size:13px">CUSTOM MELODY</span><span class="neonL" id="padInfo" style="font-size:10px"></span></div>
           <div class="recOnly" id="padLine" style="height:22px;background:#140a26;border:1px solid #3d2266;border-radius:4px;display:flex;gap:2px;padding:2px;overflow:hidden"></div>
           <div id="padTiles" style="flex:1;min-height:0;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:1fr 1fr;gap:8px"></div>
-          <div class="pills recOnly"><div class="pill" id="padUndo">UNDO</div><div class="pill" id="padClear">CLEAR</div><div class="pill" id="padPlay">PLAY</div><div class="pill on" id="padDone">DONE</div></div>
+          <div class="pills recOnly"><div class="pill" id="padUndo">UNDO</div><div class="pill" id="padClear">CLEAR</div><div class="pill" id="padPlay">PLAY</div><div class="pill" id="padSave">SAVE</div><div class="pill on" id="padDone">DONE</div></div>
           <div class="recOnly" id="padHint" style="text-align:center;font-size:11px;color:var(--text)"></div>
         </div>
         <div class="page" id="pgData">
@@ -237,7 +238,7 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf44 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf45 · sim</span></div>
     </div>
   </div>
 
@@ -282,7 +283,7 @@ const NEON = ['#39ff7a', '#b14cff', '#00f0ff', '#ff2bd6', '#ff8a1f', '#f5ff3b', 
 const fx1 = v => (isFinite(v) ? (Math.round(v * 10) / 10).toFixed(1) : '-.-');
 
 // ---------- persisted prefs (this browser only) ----------
-const defaults = { rec: [[1,500],[2,500],[3,500]], hBootCustom: false, hMelody: true, hAdv: false, hsStr: 5, hsVol: 5, hsPitch: 3, hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, tempF: false, fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
+const defaults = { rec: [[1,500],[2,500],[3,500]], saved: [], hBootCustom: false, hMelody: true, hAdv: false, hsStr: 5, hsVol: 5, hsPitch: 3, hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, tempF: false, fsOn: false, fsMph: 45, name: 'Growler', rail: 0, tire: 0, flip: false, dialMax: 40, tuneColors: {}, tunes: { 1: 'Chill', 2: 'Trail', 3: 'Carve', 4: null }, activeTune: 1, peakSpeed: 0, peakDuty: 0, sheet: 0, tab: 0 };
 let P = Object.assign({}, defaults);
 try { Object.assign(P, JSON.parse(localStorage.getItem('rrfSim') || '{}')); } catch (e) {}
 const save = () => { try { localStorage.setItem('rrfSim', JSON.stringify(P)); } catch (e) {} };
@@ -430,7 +431,7 @@ function setSheet(f) { sheetF = f; P.sheet = f; save(); $('sheet').classList.add
   const end = () => { if (!dragging) return; dragging = false; hd.classList.remove('drag'); if (!moved) setSheet(sheetF < 0.5 ? 1 : 0); else setSheet(sheetF < 0.5 ? 0 : 1); };
   hd.addEventListener('pointerup', end); hd.addEventListener('pointercancel', end);
 })();
-function setTab(i) { const was = P.tab; P.tab = i; save(); if (i !== 2 && typeof padRelease === 'function') padRelease(); if ((was === 2) !== (i === 2)) layout(); document.querySelectorAll('.tab').forEach((t, k) => t.classList.toggle('on', k === i)); document.querySelectorAll('.page').forEach((p, k) => p.classList.toggle('on', k === i)); if (i === 2) renderPad(); }
+function setTab(i) { const was = P.tab; P.tab = i; save(); if (i !== 2 && typeof padRelease === 'function') padRelease(); if ((was === 2) !== (i === 2)) layout(); document.querySelectorAll('.tab').forEach((t, k) => t.classList.toggle('on', k === i)); document.querySelectorAll('.page').forEach((p, k) => p.classList.toggle('on', k === i)); if (i === 2) renderPad(); if (i === 1 && typeof renderMelody === 'function') renderMelody(); }
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setTab(+t.dataset.i)));
 
 // ---------- long press helper ----------
@@ -609,8 +610,21 @@ function renderHorn() {
 }
 // boot melody: pitch levels 1, 2, 3 (300, 375, 450 Hz), 0.5 s each, at the horn volume
 function hornVolume() { return P.hAdv ? P.hBeep : P.hsVol * 0.5; }  // volts
+// sound budget shared by melodies and live tiles (mirrors the board):
+// 10 s of sound, refills at half speed; when empty, quiet until 3 s is back
+let toneBudget = 10, toneRest = false;
+setInterval(() => {
+  const playing = !!liveOsc || Date.now() < (playMelody.until || 0);
+  toneBudget = playing ? toneBudget - 0.1 : Math.min(10, toneBudget + 0.05);
+  if (toneBudget <= 0) {
+    toneBudget = 0;
+    if (!toneRest) { toneRest = true; liveStop(); (playMelody.oscs || []).forEach(o => { try { o.stop(); } catch (e) {} }); playMelody.until = 0; toast('Board resting its motor for a moment'); }
+  } else if (toneRest && toneBudget >= 3) toneRest = false;
+}, 100);
 function playMelody(notes) {
   notes = notes || [[1, 500], [2, 500], [3, 500]];
+  if (toneRest) { toast('Board resting its motor for a moment'); return; }
+  playMelody.oscs = [];
   try {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     const ac = playMelody.ac || (playMelody.ac = new AC());
@@ -624,10 +638,11 @@ function playMelody(notes) {
         o.type = 'square'; o.frequency.value = simplePitchHz(lvl);
         g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gainV, t + 0.01);
         g.gain.setValueAtTime(gainV, t + len - 0.04); g.gain.linearRampToValueAtTime(0, t + len - 0.03);
-        o.connect(g).connect(ac.destination); o.start(t); o.stop(t + len);
+        o.connect(g).connect(ac.destination); o.start(t); o.stop(t + len); playMelody.oscs.push(o);
       }
       t += len;
     });
+    playMelody.until = Date.now() + (t - t0) * 1000 + 50;
   } catch (e) {}
 }
 function renderMelody() {
@@ -636,15 +651,39 @@ function renderMelody() {
     const p = document.createElement('div'); p.className = 'pill' + (on ? ' on' : ''); p.textContent = t;
     p.onclick = () => { fn(); save(); renderMelody(); }; boot.appendChild(p);
   });
+  // saved melodies: tap a name to use it as the boot melody, pencil to edit, x to delete
+  const list = $('melSaved'); list.innerHTML = ''; const cur = savedCurrent();
+  if (!P.saved.length) { const t = document.createElement('div'); t.style.cssText = 'font-size:11px;color:var(--text);text-align:center'; t.textContent = 'No saved melodies yet: record one in MIXER \u25B8 REC, then SAVE.'; list.appendChild(t); }
+  P.saved.forEach(m => {
+    const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:6px';
+    const mk = (txt, on, w, fn) => { const p = document.createElement('div'); p.className = 'pill' + (on ? ' on' : ''); p.textContent = txt; p.style.cssText = 'min-width:' + w + 'px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'; p.onclick = fn; row.appendChild(p); };
+    mk(m.name, P.hMelody && P.hBootCustom && cur === m.name, 170, () => { melDel = ''; P.rec = m.notes.slice(); P.hMelody = true; P.hBootCustom = true; save(); renderMelody(); toast('Boot melody: ' + m.name); });
+    mk('\u270E', false, 26, () => { melDel = ''; P.rec = m.notes.slice(); save(); $('padOpen').onclick(); });
+    mk(melDel === m.name ? 'DELETE?' : '\u2715', melDel === m.name, 26, () => { if (melDel === m.name) { melDel = ''; P.saved = P.saved.filter(x => x.name !== m.name); save(); } else melDel = m.name; renderMelody(); });
+    list.appendChild(row);
+  });
+}
+let melDel = '';
+function savedCurrent() { const c = JSON.stringify(P.rec); const m = P.saved.find(x => JSON.stringify(x.notes) === c); return m ? m.name : ''; }
+function saveMelodyAs() {
+  if (!P.rec.length) return;
+  let def = savedCurrent(); for (let k = P.saved.length + 1; !def; k++) if (!P.saved.some(x => x.name === 'Melody ' + k)) def = 'Melody ' + k;
+  let name = prompt('Save melody as (saved in this app, pick it under CONTROL \u25B8 BOOT MELODY):', def);
+  if (name === null) return; name = name.trim().slice(0, 20); if (!name) return;
+  const i = P.saved.findIndex(x => x.name === name);
+  if (i < 0 && P.saved.length >= SAVED_MAX) { toast('You can save up to 12 melodies: delete one first'); return; }
+  const m = { name, notes: P.rec.slice() }; if (i < 0) P.saved.push(m); else P.saved[i] = m;
+  save(); renderMelody(); toast('Saved "' + name + '"');
 }
 $('melTest').onclick = () => { if (S.mode !== 'ready') { toast('Melody test works when the board is idle (READY)'); return; } playMelody(P.hBootCustom && P.rec.length ? P.rec : null); toast('Playing boot melody'); };
 
 // ---------- CUSTOM MELODY pad ----------
-const PAD_MAX_N = 6, PAD_MAX_MS = 5000, PAD_NOTE_MS = 2000;
+const PAD_MAX_N = 32, PAD_MAX_MS = 10000, PAD_NOTE_MS = 2000, SAVED_MAX = 12;
 const padTotal = () => P.rec.reduce((a, n) => a + n[1], 0);
 const tileCol = l => { const f = (l - 1) / 9; return 'rgb(' + Math.round(177 * (1 - f) + 57 * f) + ',' + Math.round(76 * (1 - f) + 255 * f) + ',' + Math.round(255 * (1 - f) + 122 * f) + ')'; };
 let hold = null, liveOsc = null, mxRec = false;
 function liveStart(level) {
+  if (toneRest) return;
   try {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     const ac = playMelody.ac || (playMelody.ac = new AC()); if (ac.state === 'suspended') ac.resume();
@@ -657,7 +696,7 @@ function padFull() { return P.rec.length >= PAD_MAX_N || padTotal() >= PAD_MAX_M
 function renderPad() {
   const rec = hold && !hold.preview;
   const held = rec ? Math.min(Date.now() - hold.t, PAD_NOTE_MS, PAD_MAX_MS - padTotal()) : 0;
-  $('padInfo').textContent = (P.rec.length + (rec ? 1 : 0)) + '/6  ' + ((padTotal() + held) / 1000).toFixed(1) + ' s / 5 s  (2 s max per note)';
+  $('padInfo').textContent = (P.rec.length + (rec ? 1 : 0)) + ' notes  ' + ((padTotal() + held) / 1000).toFixed(1) + ' s / 10 s';
   $('padInfo').style.color = padFull() ? 'var(--orange)' : 'var(--lav)';
   const line = $('padLine'); line.innerHTML = '';
   const W = line.clientWidth - 4;
@@ -671,7 +710,7 @@ function renderPad() {
     t.style.background = on ? tileCol(l) : '#140a26'; t.style.color = on ? '#05060d' : tileCol(l);
     t.style.opacity = mxRec && padFull() && !on ? 0.6 : 1;
   });
-  $('padHint').textContent = padFull() ? 'Melody full: tiles still play as a preview. UNDO or CLEAR to record more.' : S.mode === 'ready' ? 'Hold a tile to record that note (2 s max). DONE sets it as your boot melody.' : 'The board plays notes only when idle (READY); you can still record.';
+  $('padHint').textContent = padFull() ? 'Melody full: tiles still play as a preview. UNDO or CLEAR to record more.' : S.mode === 'ready' ? 'Hold a tile to record that note (2 s max). SAVE keeps it in your list, DONE sets it as your boot melody.' : 'The board plays notes only when idle (READY); you can still record.';
   $('mxHint').textContent = S.mode === 'ready' ? 'TAP TO PLAY' : 'BOARD PLAYS WHEN IDLE'; $('mxHint').style.display = mxRec ? 'none' : '';
   $('pgMixer').classList.toggle('rec', mxRec); $('mxPlay').classList.toggle('on', !mxRec); $('mxRec').classList.toggle('on', mxRec);
 }
@@ -679,7 +718,7 @@ for (let l = 1; l <= 10; l++) {
   const t = document.createElement('div'); t.className = 'tile'; t.dataset.l = l; t.textContent = l;
   t.style.cssText = 'border:3px solid ' + tileCol(l) + ';border-radius:12px;display:flex;align-items:center;justify-content:center;font:700 22px Orbitron,monospace;touch-action:none;user-select:none;cursor:pointer';
   t.addEventListener('pointerdown', e => {
-    e.preventDefault(); padRelease(); const preview = !mxRec || padFull(); if (mxRec && padFull()) toast('Melody is full (6 notes / 5 s): preview only');
+    e.preventDefault(); padRelease(); const preview = !mxRec || padFull(); if (mxRec && padFull()) toast('Melody is full (32 notes / 10 s): preview only');
     t.setPointerCapture(e.pointerId); hold = { l, t: Date.now(), preview }; if (S.mode === 'ready') liveStart(l);
     const tick = () => { if (!hold) return; const ms = Date.now() - hold.t; if (ms >= PAD_NOTE_MS || (!hold.preview && padTotal() + ms >= PAD_MAX_MS)) { padRelease(); return; } renderPad(); hold.raf = requestAnimationFrame(tick); }; tick();
   });
@@ -700,7 +739,8 @@ $('padOpen').onclick = () => { mxRec = true; setTab(2); sheetF = 1; P.sheet = 1;
 $('padUndo').onclick = () => { P.rec = P.rec.slice(0, -1); save(); renderPad(); };
 $('padClear').onclick = () => { P.rec = []; save(); renderPad(); };
 $('padPlay').onclick = () => { if (S.mode !== 'ready') { toast('Melody plays when the board is idle (READY)'); return; } if (P.rec.length) playMelody(P.rec); };
-$('padDone').onclick = () => { if (P.rec.length) { P.hMelody = true; P.hBootCustom = true; save(); renderMelody(); toast('Custom melody set as boot melody'); } mxMode(false); };
+$('padSave').onclick = () => { padRelease(); saveMelodyAs(); };
+$('padDone').onclick = () => { if (P.rec.length) { P.hMelody = true; P.hBootCustom = true; save(); toast('Custom melody set as boot melody'); } renderMelody(); mxMode(false); };
 $('hornReset').onclick = () => { Object.assign(P, { hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, hsStr: 5, hsVol: 5, hsPitch: 3 }); save(); renderHorn(); toast('Horn settings reset'); };
 
 // ---------- flywheel ----------

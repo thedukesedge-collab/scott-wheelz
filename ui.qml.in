@@ -271,11 +271,11 @@ Item {
             sendMelody();
         }
 
-        // custom melody: up to 6 notes, 5 s total, 2 s per note; sent as (level, 20 ms units)
+        // custom melody: up to 32 notes, 10 s total, 2 s per note; sent as (level, 20 ms units)
         function notes() {
             try {
                 var n = JSON.parse(swSettings.melodyRec);
-                return Array.isArray(n) ? n.slice(0, 6) : [];
+                return Array.isArray(n) ? n.slice(0, 32) : [];
             } catch (e) {
                 return [];
             }
@@ -303,6 +303,82 @@ Item {
             var data = commands.createData(3, commands.c_PLAY_MELODY);
             data.setUint8(2, custom ? 1 : 0);
             vescCommands.sendCustomAppData(data.buffer);
+        }
+    }
+
+    // Re-RinkFloat: saved melodies, kept in the app (swSettings.savedMelodies,
+    // JSON [{name, notes: [[level, ms], ...]}]). The board only holds the one
+    // custom melody in use (swSettings.melodyRec); choosing a saved melody
+    // copies it there and sends it.
+    QtObject {
+        id: melodyLib
+
+        readonly property int maxSaved: 12
+        readonly property var items: {
+            try {
+                var a = JSON.parse(swSettings.savedMelodies);
+                return Array.isArray(a) ? a : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function find(name) {
+            for (var i = 0; i < items.length; i++) {
+                if (items[i].name === name) return i;
+            }
+            return -1;
+        }
+
+        // the saved melody whose notes match the current custom melody, or ""
+        function currentName() {
+            var cur = JSON.stringify(hornSettingsSender.notes());
+            for (var i = 0; i < items.length; i++) {
+                if (JSON.stringify(items[i].notes) === cur) return items[i].name;
+            }
+            return "";
+        }
+
+        function nextName() {
+            for (var k = items.length + 1; ; k++) {
+                if (find("Melody " + k) < 0) return "Melody " + k;
+            }
+        }
+
+        function save(name, notes) {
+            name = name.trim().substring(0, 20);
+            if (!name.length || !notes.length) return false;
+            var a = items.slice();
+            var i = find(name);
+            if (i < 0 && a.length >= maxSaved) {
+                VescIf.emitStatusMessage("You can save up to %1 melodies: delete one first".arg(maxSaved), false);
+                return false;
+            }
+            var m = {name: name, notes: notes};
+            if (i < 0) a.push(m); else a[i] = m;
+            swSettings.savedMelodies = JSON.stringify(a);
+            VescIf.emitStatusMessage("Saved \"%1\"".arg(name), true);
+            return true;
+        }
+
+        function remove(name) {
+            var a = items.slice();
+            var i = find(name);
+            if (i >= 0) {
+                a.splice(i, 1);
+                swSettings.savedMelodies = JSON.stringify(a);
+            }
+        }
+
+        // use a saved melody as the boot melody
+        function select(name) {
+            var i = find(name);
+            if (i < 0) return;
+            swSettings.melodyRec = JSON.stringify(items[i].notes);
+            swSettings.hornBootMelody = true;
+            swSettings.hornBootCustom = true;
+            hornSettingsSender.send();
+            VescIf.emitStatusMessage("Boot melody: %1".arg(name), true);
         }
     }
 
@@ -1164,6 +1240,7 @@ Item {
         property bool hornBootMelody: true    // 3 rising notes at power-up
         property bool hornBootCustom: false   // play the custom melody at boot instead
         property string melodyRec: "[[1,500],[2,500],[3,500]]"  // custom melody: [pitch 1-10, ms]
+        property string savedMelodies: "[]"  // saved melodies: [{name, notes}]
         property int hornSimpleStrength: 5    // 0-10 -> buzz 0-15 A
         property int hornSimpleVolume: 5      // 1-10 -> beep 0.5-5 V
         property int hornSimplePitch: 3       // 1-10 -> beep 300-1000 Hz
@@ -2618,9 +2695,10 @@ Item {
         property string label
         property bool lit: false
         property bool enabledLook: true
+        property real minWidth: 2.0 * unit
         signal clicked()
         // implicit size, so pills also work inside Row/ColumnLayouts
-        implicitWidth: Math.max(2.0 * unit, pillText.implicitWidth + 0.6 * unit)
+        implicitWidth: Math.max(minWidth, pillText.implicitWidth + 0.6 * unit)
         implicitHeight: 0.72 * unit
         radius: height / 2
         opacity: enabledLook ? 1 : 0.4
@@ -2631,6 +2709,9 @@ Item {
         Text {
             id: pillText
             anchors.centerIn: parent
+            width: Math.min(implicitWidth, pill.width - 0.3 * unit)
+            elide: Text.ElideRight
+            horizontalAlignment: Text.AlignHCenter
             text: pill.label
             color: pill.lit || pillArea.pressed ? swTheme.background : swTheme.neonPurple
             font.family: "Exan"
@@ -5690,6 +5771,44 @@ Item {
 
             maximumLength: 30
             text: boardNameText.name
+        }
+    }
+
+    // Re-RinkFloat: name a melody from the MIXER recorder
+    BaseDialog {
+        id: saveMelodyDialog
+        parent: ApplicationWindow.overlay
+
+        title: "Save Melody"
+        standardButtons: Dialog.Save | Dialog.Cancel
+
+        function show() {
+            var cur = melodyLib.currentName();
+            melodyNameInput.text = cur.length ? cur : melodyLib.nextName();
+            open();
+            melodyNameInput.selectAll();
+            melodyNameInput.forceActiveFocus();
+        }
+
+        onAccepted: melodyLib.save(melodyNameInput.text, hornSettingsSender.notes())
+
+        Column {
+            width: saveMelodyDialog.availableWidth
+            spacing: 10
+
+            TextField {
+                id: melodyNameInput
+                width: parent.width
+                maximumLength: 20
+                placeholderText: "Melody name"
+            }
+
+            NText {
+                width: parent.width
+                font.pointSize: 11
+                wrapMode: Text.WordWrap
+                text: "Saved in this app. Pick it as your boot melody under CONTROL ▸ BOOT MELODY. Using an existing name replaces that melody."
+            }
         }
     }
 
@@ -9337,6 +9456,72 @@ Item {
                             }
                         }
 
+                        // saved melodies: tap a name to use it as the boot melody
+                        Column {
+                            id: savedMelodyList
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.12 * unit
+                            property string deleteArmed: ""
+                            property string current: {
+                                swSettings.melodyRec;  // re-evaluate when the melody changes
+                                return melodyLib.currentName();
+                            }
+
+                            SwLText {
+                                width: 8.4 * unit
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                visible: melodyLib.items.length === 0
+                                font.pixelSize: fontSizeSmall
+                                text: "No saved melodies yet: record one in MIXER \u25B8 REC, then SAVE."
+                            }
+
+                            Repeater {
+                                model: melodyLib.items
+
+                                Row {
+                                    spacing: 0.12 * unit
+                                    property string name: modelData.name
+
+                                    SwPill {
+                                        width: 4.6 * unit
+                                        label: parent.name
+                                        lit: swSettings.hornBootMelody && swSettings.hornBootCustom && savedMelodyList.current === parent.name
+                                        onClicked: { savedMelodyList.deleteArmed = ""; melodyLib.select(parent.name); }
+                                    }
+
+                                    SwPill {
+                                        minWidth: 1.0 * unit
+                                        label: "\u270E"
+                                        onClicked: {
+                                            // open it in the MIXER recorder (boot setting unchanged)
+                                            savedMelodyList.deleteArmed = "";
+                                            var i = melodyLib.find(parent.name);
+                                            if (i >= 0) {
+                                                swSettings.melodyRec = JSON.stringify(melodyLib.items[i].notes);
+                                                hornSettingsSender.sendMelody();
+                                            }
+                                            melodyPad.startRecording();
+                                        }
+                                    }
+
+                                    SwPill {
+                                        minWidth: savedMelodyList.deleteArmed === parent.name ? 1.9 * unit : 1.0 * unit
+                                        label: savedMelodyList.deleteArmed === parent.name ? "DELETE?" : "\u2715"
+                                        lit: savedMelodyList.deleteArmed === parent.name
+                                        onClicked: {
+                                            if (savedMelodyList.deleteArmed === parent.name) {
+                                                savedMelodyList.deleteArmed = "";
+                                                melodyLib.remove(parent.name);
+                                            } else {
+                                                savedMelodyList.deleteArmed = parent.name;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter
                             spacing: 0.2 * unit
@@ -9476,7 +9661,7 @@ Item {
                 // Re-RinkFloat: MIXER tab - tile keyboard, pitch 1 (low) ... 10 (high).
                 // LIVE mode: tap / hold a tile and the board plays that note live.
                 // REC mode: the same, and each note is recorded for as long as it's held
-                // (custom boot melody: up to 6 notes / 5 s, each note at most 2 s). Once
+                // (custom boot melody: up to 32 notes / 10 s, each note at most 2 s). Once
                 // the melody is full the tiles still play as a preview. The CONTROL tab's
                 // CUSTOM MELODY button opens this tab in REC mode. A held tile always stops
                 // after 2 s (also enforced on the board). Sound only while idle (READY).
@@ -9486,8 +9671,8 @@ Item {
                     Layout.fillHeight: true
 
                     property bool recording: false
-                    readonly property int maxNotes: 6
-                    readonly property int maxMs: 5000
+                    readonly property int maxNotes: 32
+                    readonly property int maxMs: 10000
                     readonly property int maxNoteMs: 2000
                     property bool previewOnly: false
                     property var notes: hornSettingsSender.notes()
@@ -9522,7 +9707,7 @@ Item {
                         release();
                         previewOnly = !recording || full;
                         if (recording && full) {
-                            VescIf.emitStatusMessage("Melody is full (6 notes / 5 s): preview only", false);
+                            VescIf.emitStatusMessage("Melody is full (32 notes / 10 s): preview only", false);
                         }
                         holdLevel = level;
                         holdStart = Date.now();
@@ -9556,7 +9741,7 @@ Item {
                             melodyPad.holdMs = Date.now() - melodyPad.holdStart;
                             if (melodyPad.holdMs >= melodyPad.maxNoteMs ||
                                     (!melodyPad.previewOnly && melodyPad.totalMs + melodyPad.holdMs >= melodyPad.maxMs)) {
-                                melodyPad.release();  // 2 s per note, 5 s in total
+                                melodyPad.release();  // 2 s per note, 10 s in total
                             } else {
                                 hornSettingsSender.liveTone(melodyPad.holdLevel);  // keepalive
                             }
@@ -9609,7 +9794,7 @@ Item {
                             SwNeonLabel {
                                 color: melodyPad.full ? swTheme.color("orange") : "#c98bff"
                                 font.pixelSize: 0.26 * unit
-                                text: "%1/6  %2 s / 5 s  (2 s max per note)".arg(melodyPad.notes.length + (melodyPad.holdLevel && !melodyPad.previewOnly ? 1 : 0)).arg(((melodyPad.totalMs + (melodyPad.previewOnly ? 0 : melodyPad.holdMs)) / 1000).toFixed(1))
+                                text: "%1 notes  %2 s / 10 s".arg(melodyPad.notes.length + (melodyPad.holdLevel && !melodyPad.previewOnly ? 1 : 0)).arg(((melodyPad.totalMs + (melodyPad.previewOnly ? 0 : melodyPad.holdMs)) / 1000).toFixed(1))
                             }
                         }
 
@@ -9703,9 +9888,10 @@ Item {
                         Row {
                             visible: melodyPad.recording
                             Layout.alignment: Qt.AlignHCenter
-                            spacing: 0.15 * unit
+                            spacing: 0.1 * unit
 
                             SwPill {
+                                minWidth: 1.5 * unit
                                 label: "UNDO"
                                 enabledLook: melodyPad.notes.length > 0
                                 onClicked: {
@@ -9716,12 +9902,14 @@ Item {
                             }
 
                             SwPill {
+                                minWidth: 1.5 * unit
                                 label: "CLEAR"
                                 enabledLook: melodyPad.notes.length > 0
                                 onClicked: melodyPad.store([])
                             }
 
                             SwPill {
+                                minWidth: 1.5 * unit
                                 label: "PLAY"
                                 enabledLook: melodyPad.notes.length > 0 && state.pkgState === state.s_Ready
                                 onClicked: {
@@ -9734,6 +9922,17 @@ Item {
                             }
 
                             SwPill {
+                                minWidth: 1.5 * unit
+                                label: "SAVE"
+                                enabledLook: melodyPad.notes.length > 0
+                                onClicked: {
+                                    melodyPad.release();
+                                    if (melodyPad.notes.length > 0) saveMelodyDialog.show();
+                                }
+                            }
+
+                            SwPill {
+                                minWidth: 1.5 * unit
                                 label: "DONE"
                                 lit: true
                                 onClicked: {
@@ -9758,7 +9957,7 @@ Item {
                             text: melodyPad.full
                                 ? "Melody full: tiles still play as a preview. UNDO or CLEAR to record more."
                                 : state.pkgState === state.s_Ready
-                                ? "Hold a tile to record that note (2 s max). DONE sets it as your boot melody."
+                                ? "Hold a tile to record that note (2 s max). SAVE keeps it in your list, DONE sets it as your boot melody."
                                 : "The board plays notes only when idle (READY); you can still record."
                         }
                     }

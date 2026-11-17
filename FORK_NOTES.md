@@ -414,3 +414,16 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   DONE, 6 notes / 5 s / 2 s per note). The CONTROL tab's CUSTOM MELODY
   button jumps to MIXER in REC mode; DONE sets it as the boot melody and
   goes back to LIVE. The old pop-up pad is gone.
+
+### Longer melodies, saved melodies, sound budget (v1.2.3-rf45)
+- Custom melody: up to 32 notes and 10 s total (was 6 notes / 5 s); each
+  note still at most 2 s, with a short break between notes. The note count
+  is set by board storage (the melody is now in EEPROM words 100-115;
+  older 6-note saves are read and moved over automatically).
+- Sound budget on the board, shared by melodies and LIVE tiles: 10 s of
+  sound, refilled at half speed while quiet. If it runs out (non-stop
+  jamming), tones pause until 3 s is back. Tones stay at the horn's beep
+  voltage (max 6 V) and only play while idle (READY).
+- MIXER REC: SAVE names the melody and keeps it in the app (up to 12).
+- CONTROL ▸ BOOT MELODY lists saved melodies: tap a name to make it the
+  boot melody, ✎ to edit it in the MIXER, ✕ (tap twice) to delete.

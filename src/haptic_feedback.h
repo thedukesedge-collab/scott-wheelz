@@ -42,10 +42,16 @@ typedef enum {
 } HornMode;
 
 // Re-RinkFloat: melodies are up to 8 notes and 4 s long
-#define MELODY_MAX_NOTES 6
-#define MELODY_MAX_LENGTH 5.0f  // whole melody (s)
+#define MELODY_MAX_NOTES 32
+#define MELODY_MAX_LENGTH 10.0f  // whole melody (s)
 #define MELODY_MAX_NOTE 2.0f  // one note / one held tile (s)
 #define MELODY_UNIT 0.02f  // note length unit (s)
+// Re-RinkFloat: sound budget shared by melodies and live tiles, so the motor
+// never plays tones for long stretches: 10 s of sound, refilled at half
+// speed while quiet; when it runs out, tones pause until 3 s is back.
+#define TONE_BUDGET 10.0f
+#define TONE_BUDGET_REFILL 0.5f
+#define TONE_BUDGET_RESUME 3.0f
 
 // a note is 2 bytes: pitch level 0-10 (0 = rest), length in 20 ms units
 uint16_t melody_level_hz(uint8_t level);
@@ -93,6 +99,9 @@ typedef struct {
     volatile time_t live_start;
     volatile float live_volume;
     bool live_playing;
+    float tone_budget;  // s of tone left
+    time_t tone_budget_timer;
+    bool tone_rest;  // budget ran out, waiting for TONE_BUDGET_RESUME
 } HapticFeedback;
 
 void haptic_feedback_init(HapticFeedback *hf);

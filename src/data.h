@@ -42,7 +42,7 @@
 #include <vesc_c_if.h>
 
 // Re-RinkFloat: horn settings + custom melody in custom EEPROM words
-#define HORN_EEPROM_WORDS 5
+#define HORN_EEPROM_WORDS 18  // 2 settings words + 16 melody words (32 notes)
 
 typedef struct {
     lib_thread main_thread;
@@ -103,7 +103,7 @@ typedef struct {
     bool boot_melody;
     bool boot_melody_custom;  // play the custom melody at boot
     float boot_melody_volume;
-    uint8_t melody_custom[12];  // 6 notes x (pitch level, length in 20 ms), 0 length = end
+    uint8_t melody_custom[64];  // 32 notes x (pitch level, length in 20 ms), 0 length = end
     uint32_t horn_last_w0, horn_last_w1;  // last horn settings words from the app
 
     // Config values

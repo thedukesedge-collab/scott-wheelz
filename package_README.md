@@ -14,8 +14,8 @@
 - **Pull-up panel**: collapses to a handle; Tunes / Control / Mixer / Data / Board Style live in a panel that snaps open or closed. The main screen shrinks to fit above it.
 - **Board Style tab**: Straight, WTF or ATOM rails, treaded or slick tire, FLIP.
 - **Horn settings** (Control tab, horn only): SIMPLE (strength / volume / pitch) or ADVANCED, with safe limits.
-- **MIXER tab**: 10 note tiles. LIVE: tap to play notes on the board (when idle). REC: record your own boot melody (up to 6 notes, 5 s total, 2 s max per note).
-- **Boot melody**: plays when the board is ready. Default 1-2-3 or your custom one.
+- **MIXER tab**: 10 note tiles. LIVE: tap to play notes on the board (when idle). REC: record and SAVE your own melodies (up to 32 notes, 10 s total, 2 s max per note).
+- **Boot melody**: plays when the board is ready. Default 1-2-3, or pick one of your saved melodies. A sound budget keeps the motor from playing tones for long stretches.
 - **Free-spin limiter** (optional, min 40 mph): gently caps tire speed only while it's spinning free; braking always works.
 - **DATA tab**: live graph or plain text.
 
