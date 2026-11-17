@@ -189,7 +189,7 @@
     <div id="sheetInner">
       <div id="handle"><div class="grip"></div></div>
       <div id="tabs">
-        <div class="tab on" data-i="0">TUNES</div><div class="tab" data-i="1">CONTROL</div><div class="tab" data-i="2">MIXER</div><div class="tab" data-i="3">DATA</div><div class="tab" data-i="4">BOARD STYLE</div>
+        <div class="tab on" data-i="0">TUNES</div><div class="tab" data-i="1">CONTROL</div><div class="tab" data-i="2">MIXER</div><div class="tab" data-i="3">DATA</div><div class="tab" data-i="4">BOARD STYLE</div><div class="tab" data-i="5">LEDS</div>
       </div>
       <div id="pages">
         <div class="page on" id="pgTunes"><div class="tunes" id="tunes"></div></div>
@@ -236,11 +236,25 @@
           <div class="pills" id="tirePills"></div>
           <div class="secTitle">View</div>
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
-          <div class="secTitle">Lights</div>
-          <div class="pills"><div class="pill" id="lightsPill">LIGHTS OFF</div><div class="pill" id="headPill">HEADLIGHTS OFF</div></div>
+        </div>
+        <div class="page" id="pgLeds">
+          <p id="ledNote" style="font-size:11px;color:var(--text);text-align:center;margin:4px 6px"></p>
+          <div class="secTitle">Headlights</div>
+          <div class="pills"><div class="pill" id="ledHeadPill"></div></div>
+          <div id="ledHeadSteps"></div>
+          <div class="secTitle">Status bar</div>
+          <div class="pills"><div class="pill" id="ledBarPill"></div></div>
+          <div id="ledBarSteps"></div>
+          <div class="secTitle">Animations</div>
+          <div id="ledAnimSteps"></div>
+          <div id="ledColorSteps"></div>
+          <div id="ledSwatch" style="height:8px;border-radius:4px;width:70%;margin:4px auto 0"></div>
+          <div class="secTitle">Sound</div>
+          <div class="pills"><div class="pill" id="ledBeepPill"></div></div>
+          <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf54 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf55 · sim</span></div>
     </div>
   </div>
 
@@ -794,15 +808,45 @@ $('padSave').onclick = () => { if (take || armed) return; padRelease(); saveMelo
 $('padDone').onclick = () => { if (take) return; if (!armed && P.rec.length) { P.hMelody = true; P.hBootCustom = true; save(); toast('Custom melody set as boot melody'); } renderMelody(); mxMode(false); };
 $('hornReset').onclick = () => { Object.assign(P, { hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, hsStr: 5, hsVol: 5, hsPitch: 3 }); save(); renderHorn(); toast('Horn settings reset'); };
 
-// ---------- lights (BOARD STYLE tab; simulated) ----------
-let simLights = false, simHead = false;
-function renderLights() {
-  $('lightsPill').textContent = simLights ? 'LIGHTS ON' : 'LIGHTS OFF'; $('lightsPill').classList.toggle('on', simLights);
-  $('headPill').textContent = simHead ? 'HEADLIGHTS ON' : 'HEADLIGHTS OFF'; $('headPill').classList.toggle('on', simHead);
+// ---------- LEDS tab (light module, ALCM VP firmware; simulated) ----------
+const LED_ANIMS = ['STANDARD', 'RAINBOW SCAN', 'RAINBOW MIRROR', 'KNIGHT RIDER', 'RAINBOW BAR', 'THE FUZZ', 'FIRE',
+  'PULSE OUT', 'PULSE IN', '120 SCROLL', 'COMP. WAVE', 'CLASSIC', 'COLOR SCAN'];
+const LED_DEF = { ledCfg: false, ledHead: true, ledBar: true, ledBeep: true, ledHeadPct: 80, ledIdlePct: 80, ledRidePct: 80,
+  ledAnimIdle: 0, ledAnimRide: 0, ledAnimDoze: 0, ledAnimBoot: 11, ledAnimShut: 0, ledColor: 200 };
+for (const k in LED_DEF) if (P[k] === undefined) P[k] = LED_DEF[k];
+function ledStep(box, k, label, mn, mx, stp, fmt, wide) {
+  const row = document.createElement('div'); row.className = 'stepRow';
+  row.innerHTML = '<span class="lbl">' + label + '</span><span class="stepCtl"><span class="stepBtn" data-d="-1">&#9660;</span><span class="stepVal"' + (wide ? ' style="width:118px;font-size:11px"' : '') + '></span><span class="stepBtn" data-d="1">&#9650;</span></span>';
+  const val = row.querySelector('.stepVal');
+  const paint = () => { val.textContent = fmt(P[k]); row.querySelectorAll('.stepBtn').forEach(b => b.classList.toggle('lim', +b.dataset.d < 0 ? P[k] <= mn : P[k] >= mx)); };
+  row.querySelectorAll('.stepBtn').forEach(b => {
+    let t = null;
+    const nudge = () => { const v = clamp(P[k] + +b.dataset.d * stp, mn, mx); if (v !== P[k]) { P[k] = v; P.ledCfg = true; save(); paint(); renderLedsSoft(); } };
+    b.addEventListener('pointerdown', e => { e.preventDefault(); nudge(); t = setTimeout(function rep() { nudge(); t = setTimeout(rep, 90); }, 450); });
+    const stop = () => clearTimeout(t);
+    b.addEventListener('pointerup', stop); b.addEventListener('pointerleave', stop); b.addEventListener('pointercancel', stop);
+  });
+  paint(); box.appendChild(row);
 }
-$('lightsPill').onclick = () => { simLights = !simLights; renderLights(); };
-$('headPill').onclick = () => { simHead = !simHead; renderLights(); };
-renderLights();
+function renderLedsSoft() {
+  $('ledNote').textContent = P.ledCfg ? 'Sent to the light module (ALCM VP firmware) and stored on the board, so it applies even without the phone.'
+    : 'For a light module running the ALCM VP firmware. Nothing is sent until you change a setting here; until then the module keeps its own settings.';
+  const pill = (id, on, txt) => { $(id).textContent = txt + (on ? ' ON' : ' OFF'); $(id).classList.toggle('on', on); };
+  pill('ledHeadPill', P.ledHead, 'HEADLIGHTS'); pill('ledBarPill', P.ledBar, 'STATUS BAR'); pill('ledBeepPill', P.ledBeep, 'LCM BEEPER');
+  $('ledSwatch').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
+}
+function renderLeds() {
+  const pct = v => v + '%';
+  $('ledHeadSteps').innerHTML = ''; ledStep($('ledHeadSteps'), 'ledHeadPct', 'BRIGHTNESS', 0, 100, 5, pct);
+  $('ledBarSteps').innerHTML = ''; ledStep($('ledBarSteps'), 'ledIdlePct', 'IDLE BRIGHTNESS', 0, 100, 5, pct); ledStep($('ledBarSteps'), 'ledRidePct', 'RIDING BRIGHTNESS', 0, 100, 5, pct);
+  $('ledAnimSteps').innerHTML = '';
+  [['ledAnimIdle', 'IDLE'], ['ledAnimRide', 'RIDING'], ['ledAnimDoze', 'SNOOZE'], ['ledAnimBoot', 'BOOT'], ['ledAnimShut', 'SHUTDOWN']]
+    .forEach(([k, l]) => ledStep($('ledAnimSteps'), k, l, 0, LED_ANIMS.length - 1, 1, v => LED_ANIMS[v], true));
+  $('ledColorSteps').innerHTML = ''; ledStep($('ledColorSteps'), 'ledColor', 'COLOR', 0, 350, 10, v => v + '°');
+  renderLedsSoft();
+}
+const ledToggle = k => () => { P[k] = !P[k]; P.ledCfg = true; save(); renderLedsSoft(); };
+$('ledHeadPill').onclick = ledToggle('ledHead'); $('ledBarPill').onclick = ledToggle('ledBar'); $('ledBeepPill').onclick = ledToggle('ledBeep');
 
 // ---------- flywheel ----------
 $('flyBtn').onclick = () => {
@@ -1379,7 +1423,7 @@ function frame(now) {
 }
 
 // ---------- start ----------
-layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); renderHorn(); renderMelody(); setTab(Math.min(P.tab || 0, 4));
+layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); renderHorn(); renderMelody(); renderLeds(); setTab(Math.min(P.tab || 0, 5));
 window.addEventListener('resize', () => { layout(); renderTunes(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { layout(); renderTunes(); });
 requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
