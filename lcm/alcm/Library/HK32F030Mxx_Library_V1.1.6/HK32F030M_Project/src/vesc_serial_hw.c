@@ -18,11 +18,11 @@
  */
 #include "vesc_serial_hw.h"
 #include "hk32f030m.h"
+#include "hw_regs.h"
 
 void vesc_serial_hw_init(uint32_t baud)
 {
     GPIO_InitTypeDef GPIO_InitStructure = {0};
-    NVIC_InitTypeDef NVIC_InitStructure = {0};
 
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOD, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
@@ -69,10 +69,7 @@ void vesc_serial_hw_init(uint32_t baud)
     USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
     USART_ITConfig(USART1, USART_IT_IDLE, ENABLE);
 
-    NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQn;
-    NVIC_InitStructure.NVIC_IRQChannelPriority = 0;
-    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-    NVIC_Init(&NVIC_InitStructure);
+    hw_nvic_enable(USART1_IRQn, 0U); // = NVIC_Init(), priority 0
 }
 
 /**

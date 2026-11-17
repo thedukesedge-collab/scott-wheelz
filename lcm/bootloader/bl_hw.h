@@ -63,11 +63,12 @@ static inline void bl_hw_init(void)
      * factory trim, as the app's SystemInit sets it (no-op from the app). */
     FLASH->ACR = (FLASH->ACR & ~7u) | 2u;
     RCC->CFGR4 = (RCC->CFGR4 & ~RCC_RCC_CFGR4_FLITFCLK_PRE) | (7u << RCC_RCC_CFGR4_FLITFCLK_PRE_Pos);
+    /* trim exactly as the vendor SetSysClock() does it (ORed in) - that is
+     * what the app does on every boot, so the clock matches it */
     uint32_t trim = *(volatile uint32_t *)0x1FFFF820u;
     if (((trim >> 16) & trim & 0xFFFFu) == 0u)
     {
-        RCC->CR = (RCC->CR & ~(RCC_CR_HSITRIM | RCC_CR_HSICAL)) | ((trim & 0x1Fu) << 3) |
-                  (((trim >> 5) & 0x3Fu) << 8);
+        RCC->CR |= ((trim & 0x1Fu) << 3) | (((trim >> 5) & 0x3Fu) << 8);
     }
     RCC->CR |= RCC_CR_HSION;
     while ((RCC->CR & RCC_CR_HSIRDY) == 0u)
