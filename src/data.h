@@ -29,6 +29,7 @@
 #include "imu.h"
 #include "konami.h"
 #include "lcm.h"
+#include "lcm_fw.h"
 #include "leds.h"
 #include "motor_control.h"
 #include "motor_data.h"
@@ -76,6 +77,7 @@ typedef struct {
 
     Leds leds;
     LcmData lcm;
+    LcmFw lcm_fw;  // LCM firmware update relay
     Charging charging;
     BMS bms;
 

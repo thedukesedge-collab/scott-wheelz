@@ -35,6 +35,7 @@ void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg) {
     lcm->lights_off_when_lifted = true;
     lcm->vp.valid = false;
     lcm->vp_test_beep = false;
+    lcm->vp_update = false;
 }
 
 void lcm_configure(LcmData *lcm, const Leds *leds) {
@@ -133,7 +134,8 @@ void lcm_poll_response(
             buffer[ind++] = riding ? vp->status_riding_brightness : vp->status_idle_brightness;
             buffer[ind++] = 0x56;  // 'V'
             buffer[ind++] = 1;  // version
-            buffer[ind++] = vp->flags | (lcm->vp_test_beep ? LCM_VP_FLAG_TEST_BEEP : 0);
+            buffer[ind++] = vp->flags | (lcm->vp_test_beep ? LCM_VP_FLAG_TEST_BEEP : 0) |
+                (lcm->vp_update ? LCM_VP_FLAG_UPDATE : 0);
             for (int i = 0; i < LCM_VP_ANIMATIONS; ++i) {
                 buffer[ind++] = vp->animations[i];
             }
