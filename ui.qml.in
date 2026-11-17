@@ -9302,38 +9302,6 @@ Item {
                         }
 
                         SwLText {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            visible: lights.enabled
-
-                            font.pixelSize: fontSizeBig
-                            text: "Lights"
-                        }
-
-                        RowLayout {
-                            width: parent.width
-                            visible: lights.enabled
-
-                            Button {
-                                Layout.preferredWidth: 3 * unit
-                                Layout.alignment: Qt.AlignHCenter
-                                text: lights.on ? "Lights Off" : "Lights On"
-                                onClicked: {
-                                    commands.sendLightsControl(!lights.on);
-                                }
-                            }
-
-                            Button {
-                                id : headlightsButton
-                                Layout.minimumWidth: 3 * unit
-                                Layout.alignment: Qt.AlignHCenter
-                                text: lights.headlightsOn ? "Headlights Off" : "Headlights On"
-                                onClicked: {
-                                    commands.sendLightsControl(undefined, !lights.headlightsOn);
-                                }
-                            }
-                        }
-
-                        SwLText {
                             id: movementControlsHeader
                             anchors.horizontalCenter: parent.horizontalCenter
 
@@ -10553,6 +10521,37 @@ Item {
                             MouseArea {
                                 anchors.fill: parent
                                 onClicked: swSettings.flipView = !swSettings.flipView
+                            }
+                        }
+
+                        // Re-RinkFloat: light controls, moved here from CONTROL (only
+                        // shown when the board reports lights). Lit = on; tap to toggle.
+                        SwLText {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            visible: lights.enabled
+                            font.pixelSize: fontSizeBig
+                            text: "Lights"
+                        }
+
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            visible: lights.enabled
+                            spacing: 0.2 * unit
+
+                            SwPill {
+                                minWidth: 2.8 * unit
+                                implicitHeight: 0.75 * unit
+                                label: lights.on ? "LIGHTS ON" : "LIGHTS OFF"
+                                lit: lights.on
+                                onClicked: commands.sendLightsControl(!lights.on)
+                            }
+
+                            SwPill {
+                                minWidth: 3.4 * unit
+                                implicitHeight: 0.75 * unit
+                                label: lights.headlightsOn ? "HEADLIGHTS ON" : "HEADLIGHTS OFF"
+                                lit: lights.headlightsOn
+                                onClicked: commands.sendLightsControl(undefined, !lights.headlightsOn)
                             }
                         }
 

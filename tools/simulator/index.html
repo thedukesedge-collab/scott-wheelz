@@ -235,9 +235,11 @@
           <div class="pills" id="tirePills"></div>
           <div class="secTitle">View</div>
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
+          <div class="secTitle">Lights</div>
+          <div class="pills"><div class="pill" id="lightsPill">LIGHTS OFF</div><div class="pill" id="headPill">HEADLIGHTS OFF</div></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf51 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf52 · sim</span></div>
     </div>
   </div>
 
@@ -790,6 +792,16 @@ $('padPlay').onclick = () => {
 $('padSave').onclick = () => { if (take || armed) return; padRelease(); saveMelodyAs(); };
 $('padDone').onclick = () => { if (take) return; if (!armed && P.rec.length) { P.hMelody = true; P.hBootCustom = true; save(); toast('Custom melody set as boot melody'); } renderMelody(); mxMode(false); };
 $('hornReset').onclick = () => { Object.assign(P, { hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, hsStr: 5, hsVol: 5, hsPitch: 3 }); save(); renderHorn(); toast('Horn settings reset'); };
+
+// ---------- lights (BOARD STYLE tab; simulated) ----------
+let simLights = false, simHead = false;
+function renderLights() {
+  $('lightsPill').textContent = simLights ? 'LIGHTS ON' : 'LIGHTS OFF'; $('lightsPill').classList.toggle('on', simLights);
+  $('headPill').textContent = simHead ? 'HEADLIGHTS ON' : 'HEADLIGHTS OFF'; $('headPill').classList.toggle('on', simHead);
+}
+$('lightsPill').onclick = () => { simLights = !simLights; renderLights(); };
+$('headPill').onclick = () => { simHead = !simHead; renderLights(); };
+renderLights();
 
 // ---------- flywheel ----------
 $('flyBtn').onclick = () => {

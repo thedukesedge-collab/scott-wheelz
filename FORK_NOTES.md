@@ -486,3 +486,8 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   RECORD and TEST buttons.
 - MY MELODIES: tap a melody to use it at bootup, pencil to re-record it,
   x twice to delete; DEFAULT 1-2-3 and + RECORD NEW at the bottom.
+
+### Lights moved to BOARD STYLE (v1.2.3-rf52)
+- The Lights / Headlights buttons moved from the CONTROL tab to the bottom
+  of BOARD STYLE, as neon toggle pills (LIGHTS ON/OFF, HEADLIGHTS ON/OFF;
+  green = on). Still only shown when the board reports lights.
