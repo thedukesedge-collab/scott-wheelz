@@ -218,10 +218,9 @@
         </div>
         <div class="page" id="pgMixer">
           <div style="display:flex;align-items:center;gap:8px"><div class="pill" id="mxPlay">LIVE</div><div class="pill" id="mxRec">&#9679; REC</div><span style="flex:1"></span><span class="neonL" id="mxHint" style="font-size:10px">TAP TO PLAY</span></div>
-          <div class="recOnly" style="display:flex;align-items:center"><span class="neonL" style="flex:1;font-size:13px">CUSTOM MELODY</span><span class="neonL" id="padInfo" style="font-size:10px"></span></div>
-          <div class="recOnly" id="padLine" style="height:22px;background:#140a26;border:1px solid #3d2266;border-radius:4px;display:flex;gap:2px;padding:2px;overflow:hidden"></div>
+          <div class="recOnly" id="padLine" style="position:relative;height:24px;background:#140a26;border:1px solid #3d2266;border-radius:4px;overflow:hidden"></div>
           <div id="padTiles" style="flex:1;min-height:0;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:1fr 1fr;gap:8px"></div>
-          <div class="pills recOnly"><div class="pill" id="padUndo">UNDO</div><div class="pill" id="padClear">CLEAR</div><div class="pill" id="padPlay">PLAY</div><div class="pill" id="padSave">SAVE</div><div class="pill on" id="padDone">DONE</div></div>
+          <div class="pills recOnly"><div class="pill" id="padClear">CLEAR</div><div class="pill" id="padPlay">PLAY</div><div class="pill" id="padSave">SAVE</div><div class="pill on" id="padDone">DONE</div></div>
           <div class="recOnly" id="padHint" style="text-align:center;font-size:11px;color:var(--text)"></div>
         </div>
         <div class="page" id="pgData">
@@ -238,7 +237,7 @@
           <div class="pills"><div class="pill" id="flipPill">FLIP</div></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf45 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf46 · sim</span></div>
     </div>
   </div>
 
@@ -635,7 +634,7 @@ function playMelody(notes) {
       const len = ms / 1000;
       if (lvl > 0) {
         const o = ac.createOscillator(), g = ac.createGain();
-        o.type = 'square'; o.frequency.value = simplePitchHz(lvl);
+        o.type = 'square'; o.frequency.value = noteHz(lvl);
         g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gainV, t + 0.01);
         g.gain.setValueAtTime(gainV, t + len - 0.04); g.gain.linearRampToValueAtTime(0, t + len - 0.03);
         o.connect(g).connect(ac.destination); o.start(t); o.stop(t + len); playMelody.oscs.push(o);
@@ -678,69 +677,101 @@ function saveMelodyAs() {
 $('melTest').onclick = () => { if (S.mode !== 'ready') { toast('Melody test works when the board is idle (READY)'); return; } playMelody(P.hBootCustom && P.rec.length ? P.rec : null); toast('Playing boot melody'); };
 
 // ---------- CUSTOM MELODY pad ----------
-const PAD_MAX_N = 32, PAD_MAX_MS = 10000, PAD_NOTE_MS = 2000, SAVED_MAX = 12;
+// MIXER: real notes E4..G5 (white keys), REC works like a custom iOS vibration:
+// the first tap starts a 5 s take, a playhead sweeps across, gaps become rests
+const NOTE_HZ = [330, 349, 392, 440, 494, 523, 587, 659, 698, 784], NOTE_NAMES = ['E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5', 'F5', 'G5'];
+const noteHz = l => NOTE_HZ[Math.max(1, Math.min(10, l)) - 1];
+const REC_MS = 5000, PAD_NOTE_MS = 2000, MAX_ENTRIES = 64, SAVED_MAX = 12;
 const padTotal = () => P.rec.reduce((a, n) => a + n[1], 0);
 const tileCol = l => { const f = (l - 1) / 9; return 'rgb(' + Math.round(177 * (1 - f) + 57 * f) + ',' + Math.round(76 * (1 - f) + 255 * f) + ',' + Math.round(255 * (1 - f) + 122 * f) + ')'; };
-let hold = null, liveOsc = null, mxRec = false;
+let hold = null, liveOsc = null, mxRec = false, armed = false, take = null, playT0 = 0;
 function liveStart(level) {
   if (toneRest) return;
   try {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     const ac = playMelody.ac || (playMelody.ac = new AC()); if (ac.state === 'suspended') ac.resume();
-    const o = ac.createOscillator(), g = ac.createGain(); o.type = 'square'; o.frequency.value = simplePitchHz(level);
+    const o = ac.createOscillator(), g = ac.createGain(); o.type = 'square'; o.frequency.value = noteHz(level);
     g.gain.value = 0.02 + 0.06 * hornVolume(); o.connect(g).connect(ac.destination); o.start(); liveOsc = o;
   } catch (e) {}
 }
 function liveStop() { try { if (liveOsc) liveOsc.stop(); } catch (e) {} liveOsc = null; }
-function padFull() { return P.rec.length >= PAD_MAX_N || padTotal() >= PAD_MAX_MS - 40; }
+function buildTake(ev) {
+  const out = []; let cur = 0;
+  for (const [l, s0, e0] of ev) {
+    if (out.length >= MAX_ENTRIES - 1) break;
+    let s = Math.round(s0 / 20) * 20; const e = Math.round(e0 / 20) * 20;
+    if (s - cur >= 40) out.push([0, s - cur]); else s = cur;
+    const len = Math.min(PAD_NOTE_MS, Math.max(60, e - s), REC_MS - s); if (len < 40) break;
+    out.push([l, len]); cur = s + len;
+  }
+  return out;
+}
+function padBlocks() {
+  if (take) { const b = take.ev.slice(); if (hold) { const s = hold.t - take.t0; b.push([hold.l, s, Math.min(Date.now() - take.t0, s + PAD_NOTE_MS)]); } return b; }
+  if (armed) return [];
+  const out = []; let t = 0; P.rec.forEach(([l, ms]) => { if (l > 0) out.push([l, t, t + ms]); t += ms; }); return out;
+}
 function renderPad() {
-  const rec = hold && !hold.preview;
-  const held = rec ? Math.min(Date.now() - hold.t, PAD_NOTE_MS, PAD_MAX_MS - padTotal()) : 0;
-  $('padInfo').textContent = (P.rec.length + (rec ? 1 : 0)) + ' notes  ' + ((padTotal() + held) / 1000).toFixed(1) + ' s / 10 s';
-  $('padInfo').style.color = padFull() ? 'var(--orange)' : 'var(--lav)';
-  const line = $('padLine'); line.innerHTML = '';
-  const W = line.clientWidth - 4;
-  P.rec.concat(rec ? [[hold.l, held]] : []).forEach(([l, ms], k) => {
-    const b = document.createElement('div');
-    b.style.cssText = 'height:100%;border-radius:3px;font:700 10px Orbitron,monospace;color:#05060d;display:flex;align-items:center;justify-content:center;background:' + tileCol(l) + ';width:' + Math.max(3, W * ms / PAD_MAX_MS - 2) + 'px;opacity:' + (rec && k === P.rec.length ? 0.7 : 1);
-    b.textContent = W * ms / PAD_MAX_MS > 16 ? l : ''; line.appendChild(b);
+  const line = $('padLine'); line.innerHTML = ''; const W = line.clientWidth;
+  for (let k = 1; k < 5; k++) { const g = document.createElement('div'); g.style.cssText = 'position:absolute;top:0;bottom:0;width:1px;background:#3d2266;left:' + (W * k / 5) + 'px'; line.appendChild(g); }
+  padBlocks().forEach(([l, s, e]) => {
+    const b = document.createElement('div'), w = Math.max(3, W * (e - s) / REC_MS - 1);
+    b.style.cssText = 'position:absolute;top:2px;bottom:2px;border-radius:3px;font:700 10px Orbitron,monospace;color:#05060d;display:flex;align-items:center;justify-content:center;background:' + tileCol(l) + ';left:' + (W * s / REC_MS) + 'px;width:' + w + 'px';
+    b.textContent = w > 14 ? NOTE_NAMES[l - 1][0] : ''; line.appendChild(b);
   });
+  const ph = take ? Date.now() - take.t0 : playT0 ? Date.now() - playT0 : -1;
+  if (ph >= 0) { const h = document.createElement('div'); h.style.cssText = 'position:absolute;top:0;bottom:0;width:2px;background:' + (take ? '#ff4d6d' : 'var(--green)') + ';left:' + (W * Math.min(1, ph / REC_MS) - 1) + 'px'; line.appendChild(h); }
+  line.style.borderColor = take ? '#ff4d6d' : '#3d2266';
   document.querySelectorAll('#padTiles .tile').forEach(t => {
     const l = +t.dataset.l, on = hold && hold.l === l;
     t.style.background = on ? tileCol(l) : '#140a26'; t.style.color = on ? '#05060d' : tileCol(l);
-    t.style.opacity = mxRec && padFull() && !on ? 0.6 : 1;
   });
-  $('padHint').textContent = padFull() ? 'Melody full: tiles still play as a preview. UNDO or CLEAR to record more.' : S.mode === 'ready' ? 'Hold a tile to record that note (2 s max). SAVE keeps it in your list, DONE sets it as your boot melody.' : 'The board plays notes only when idle (READY); you can still record.';
-  $('mxHint').textContent = S.mode === 'ready' ? 'TAP TO PLAY' : 'BOARD PLAYS WHEN IDLE'; $('mxHint').style.display = mxRec ? 'none' : '';
+  const idle = S.mode === 'ready' ? '' : ' (The board plays notes only when idle.)';
+  $('padHint').textContent = (take ? 'Recording... tap the tiles. It stops by itself at 5 s.' : armed ? 'Your first tap starts a 5 s recording. Gaps between taps are kept; each note stops at 2 s.' : 'PLAY to hear it, SAVE to keep it, DONE to use it at boot. CLEAR to record again.') + idle;
+  $('mxHint').textContent = !mxRec ? (S.mode === 'ready' ? 'TAP TO PLAY' : 'BOARD PLAYS WHEN IDLE') : take ? '● REC  ' + (Math.min(REC_MS, Date.now() - take.t0) / 1000).toFixed(1) + ' / 5.0 s' : armed ? 'TAP A TILE TO START' : (padTotal() / 1000).toFixed(1) + ' s MELODY';
+  $('mxHint').style.color = take ? '#ff4d6d' : '';
+  $('padClear').textContent = take ? '■ STOP' : 'CLEAR'; $('padClear').classList.toggle('on', !!take);
+  const ready = !take && !armed && P.rec.length;
+  $('padPlay').style.opacity = ready && S.mode === 'ready' ? 1 : 0.4; $('padSave').style.opacity = ready ? 1 : 0.4; $('padDone').style.opacity = take ? 0.4 : 1;
   $('pgMixer').classList.toggle('rec', mxRec); $('mxPlay').classList.toggle('on', !mxRec); $('mxRec').classList.toggle('on', mxRec);
 }
+function takeTick() { if (!take) return; if (Date.now() - take.t0 >= REC_MS) { takeFinish(); return; } renderPad(); requestAnimationFrame(takeTick); }
+function takeFinish() {
+  padRelease(); if (!take) return; const ev = take.ev; take = null; armed = false;
+  if (ev.length) { P.rec = buildTake(ev); save(); } else armed = true;
+  renderPad();
+}
 for (let l = 1; l <= 10; l++) {
-  const t = document.createElement('div'); t.className = 'tile'; t.dataset.l = l; t.textContent = l;
+  const t = document.createElement('div'); t.className = 'tile'; t.dataset.l = l; t.innerHTML = NOTE_NAMES[l - 1][0] + '<small style="font-size:11px">' + NOTE_NAMES[l - 1][1] + '</small>';
   t.style.cssText = 'border:3px solid ' + tileCol(l) + ';border-radius:12px;display:flex;align-items:center;justify-content:center;font:700 22px Orbitron,monospace;touch-action:none;user-select:none;cursor:pointer';
   t.addEventListener('pointerdown', e => {
-    e.preventDefault(); padRelease(); const preview = !mxRec || padFull(); if (mxRec && padFull()) toast('Melody is full (32 notes / 10 s): preview only');
-    t.setPointerCapture(e.pointerId); hold = { l, t: Date.now(), preview }; if (S.mode === 'ready') liveStart(l);
-    const tick = () => { if (!hold) return; const ms = Date.now() - hold.t; if (ms >= PAD_NOTE_MS || (!hold.preview && padTotal() + ms >= PAD_MAX_MS)) { padRelease(); return; } renderPad(); hold.raf = requestAnimationFrame(tick); }; tick();
+    e.preventDefault(); padRelease();
+    if (mxRec && armed && !take) { take = { t0: Date.now(), ev: [] }; playT0 = 0; requestAnimationFrame(takeTick); }
+    t.setPointerCapture(e.pointerId); hold = { l, t: Date.now() }; if (S.mode === 'ready') liveStart(l);
+    const tick = () => { if (!hold) return; if (Date.now() - hold.t >= PAD_NOTE_MS) { padRelease(); return; } if (!take) renderPad(); hold.raf = requestAnimationFrame(tick); }; tick();
   });
   t.addEventListener('pointerup', padRelease); t.addEventListener('pointercancel', padRelease);
   $('padTiles').appendChild(t);
 }
 function padRelease() {
   if (!hold) return; liveStop();
-  const ms = Math.min(Date.now() - hold.t, PAD_NOTE_MS, PAD_MAX_MS - padTotal());
-  if (!hold.preview && ms >= 40) P.rec = P.rec.concat([[hold.l, Math.max(60, Math.round(ms / 20) * 20)]]);
-  hold = null; save(); renderPad();
+  if (take) { const s = hold.t - take.t0, e = Math.min(Date.now() - take.t0, s + PAD_NOTE_MS, REC_MS); if (e - s >= 40) take.ev.push([hold.l, s, e]); }
+  hold = null; renderPad();
 }
-function mxMode(rec) { padRelease(); mxRec = rec; renderPad(); }
+function mxMode(rec) { padRelease(); take = null; mxRec = rec; armed = rec && !P.rec.length; renderPad(); }
 $('mxPlay').onclick = () => mxMode(false);
 $('mxRec').onclick = () => mxMode(true);
 // CONTROL tab's CUSTOM MELODY button: open the MIXER tab in REC mode
-$('padOpen').onclick = () => { mxRec = true; setTab(2); sheetF = 1; P.sheet = 1; save(); $('sheet').classList.add('anim'); applySheet(); renderPad(); };
-$('padUndo').onclick = () => { P.rec = P.rec.slice(0, -1); save(); renderPad(); };
-$('padClear').onclick = () => { P.rec = []; save(); renderPad(); };
-$('padPlay').onclick = () => { if (S.mode !== 'ready') { toast('Melody plays when the board is idle (READY)'); return; } if (P.rec.length) playMelody(P.rec); };
-$('padSave').onclick = () => { padRelease(); saveMelodyAs(); };
-$('padDone').onclick = () => { if (P.rec.length) { P.hMelody = true; P.hBootCustom = true; save(); toast('Custom melody set as boot melody'); } renderMelody(); mxMode(false); };
+$('padOpen').onclick = () => { mxMode(true); setTab(2); sheetF = 1; P.sheet = 1; save(); $('sheet').classList.add('anim'); applySheet(); renderPad(); };
+$('padClear').onclick = () => { if (take) { takeFinish(); return; } padRelease(); armed = true; playT0 = 0; renderPad(); };
+$('padPlay').onclick = () => {
+  if (take || armed || !P.rec.length) return;
+  if (S.mode !== 'ready') { toast('Melody plays when the board is idle (READY)'); return; }
+  playMelody(P.rec); playT0 = Date.now(); const tot = padTotal();
+  const f = () => { if (!playT0) return; if (Date.now() - playT0 >= tot) { playT0 = 0; renderPad(); return; } renderPad(); requestAnimationFrame(f); }; f();
+};
+$('padSave').onclick = () => { if (take || armed) return; padRelease(); saveMelodyAs(); };
+$('padDone').onclick = () => { if (take) return; if (!armed && P.rec.length) { P.hMelody = true; P.hBootCustom = true; save(); toast('Custom melody set as boot melody'); } renderMelody(); mxMode(false); };
 $('hornReset').onclick = () => { Object.assign(P, { hBeep: 2.5, hBeepHz: 495, hBuzz: 8, hBuzzHz: 70, hsStr: 5, hsVol: 5, hsPitch: 3 }); save(); renderHorn(); toast('Horn settings reset'); };
 
 // ---------- flywheel ----------

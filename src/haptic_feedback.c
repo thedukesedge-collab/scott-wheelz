@@ -85,9 +85,10 @@ uint16_t melody_level_hz(uint8_t level) {
     if (level > 10) {
         level = 10;
     }
-    // same scale as the horn PITCH setting: 1 = 300 Hz ... 10 = 1000 Hz
-    float hz = 300.0f + (level - 1) * 700.0f / 9.0f;
-    return (uint16_t) (25.0f * (int) (hz / 25.0f + 0.5f));
+    // real musical notes (equal temperament, A4 = 440 Hz), the white keys
+    // E4 F4 G4 A4 B4 C5 D5 E5 F5 G5 - all inside the safe 300-1000 Hz range
+    static const uint16_t note_hz[10] = {330, 349, 392, 440, 494, 523, 587, 659, 698, 784};
+    return note_hz[level - 1];
 }
 
 void haptic_feedback_play_melody(
@@ -106,7 +107,9 @@ void haptic_feedback_play_melody(
         if (len <= 0.0f) {
             break;
         }
-        len = fminf(len, MELODY_MAX_NOTE);
+        if (level > 0) {
+            len = fminf(len, MELODY_MAX_NOTE);
+        }
         len = fminf(len, MELODY_MAX_LENGTH - total);
         if (len < 0.04f) {
             break;

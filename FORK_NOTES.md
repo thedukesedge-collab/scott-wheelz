@@ -427,3 +427,17 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - MIXER REC: SAVE names the melody and keeps it in the app (up to 12).
 - CONTROL ▸ BOOT MELODY lists saved melodies: tap a name to make it the
   boot melody, ✎ to edit it in the MIXER, ✕ (tap twice) to delete.
+
+### Real notes, iOS-style melody recorder (v1.2.3-rf46)
+- The 10 tiles are real musical notes now (equal temperament, A4 = 440 Hz):
+  the white keys E4 F4 G4 A4 B4 C5 D5 E5 F5 G5 (330-784 Hz), labelled by
+  name. Melodies use the same notes (older ones keep their tile numbers and
+  shift slightly in pitch). Enough for tunes like the Super Mario intro.
+- MIXER REC works like making a custom vibration on iOS: the first tap
+  starts a 5 s recording, a playhead sweeps across the timeline at a steady
+  rate, and each tap lands where it happened, so the gaps become rests. It
+  stops by itself at 5 s (or STOP). Each note still stops at 2 s, like the
+  horn. CLEAR gets ready for a new take; PLAY shows a playhead too.
+- Board: melody = up to 64 notes/rests, 5 s total (stored in EEPROM words
+  88-119; rf45 and older saves are moved over automatically). Rests are not
+  limited to 2 s. The sound budget from rf45 still applies.

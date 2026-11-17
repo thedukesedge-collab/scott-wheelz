@@ -271,7 +271,8 @@ Item {
             sendMelody();
         }
 
-        // custom melody: up to 32 notes, 10 s total, 2 s per note; sent as (level, 20 ms units)
+        // custom melody: notes + rests (level 0), 5 s total, 2 s per note; sent as
+        // (level, 20 ms units). Levels 1-10 are the notes E4 F4 G4 A4 B4 C5 D5 E5 F5 G5.
         function notes() {
             try {
                 var n = JSON.parse(swSettings.melodyRec);
@@ -9662,33 +9663,42 @@ Item {
                     }
                 }
 
-                // Re-RinkFloat: MIXER tab - tile keyboard, pitch 1 (low) ... 10 (high).
+                // Re-RinkFloat: MIXER tab - tile keyboard, real notes E4 ... G5 (white keys).
                 // LIVE mode: tap / hold a tile and the board plays that note live.
-                // REC mode: the same, and each note is recorded for as long as it's held
-                // (custom boot melody: up to 32 notes / 10 s, each note at most 2 s). Once
-                // the melody is full the tiles still play as a preview. The CONTROL tab's
-                // CUSTOM MELODY button opens this tab in REC mode. A held tile always stops
-                // after 2 s (also enforced on the board). Sound only while idle (READY).
+                // REC mode (like making a custom vibration on iOS): the first tap
+                // starts a 5 s recording, a playhead sweeps across the timeline at a
+                // steady rate, and every tap is placed where it happened, so the gaps
+                // between taps become rests. It stops by itself at 5 s. A held tile
+                // stops at 2 s, like the horn (also enforced on the board). The board
+                // only makes sound while idle (READY). The CONTROL tab's CUSTOM MELODY
+                // button opens this tab in REC mode.
                 Item {
                     id: melodyPad
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
-                    property bool recording: false
-                    readonly property int maxNotes: 32
-                    readonly property int maxMs: 10000
+                    property bool recording: false  // REC mode
+                    property bool armed: false  // REC: waiting for the first tap
+                    property bool capturing: false  // REC: a take is running
+                    readonly property int windowMs: 5000
                     readonly property int maxNoteMs: 2000
-                    property bool previewOnly: false
+                    readonly property int maxEntries: 64  // notes + rests the board holds
                     property var notes: hornSettingsSender.notes()
+                    property var events: []  // this take: [level, startMs, endMs]
+                    property double recStart: 0
+                    property int recMs: 0
+                    property int holdLevel: 0
+                    property double holdStart: 0
+                    property int holdMs: 0
+                    property double playStart: 0
+                    property int playMs: -1  // playhead while PLAY runs, -1 = off
                     property int totalMs: {
                         var t = 0;
                         for (var i = 0; i < notes.length; i++) t += notes[i][1];
                         return t;
                     }
-                    property int holdLevel: 0
-                    property double holdStart: 0
-                    property int holdMs: 0
-                    readonly property bool full: notes.length >= maxNotes || totalMs >= maxMs - 40
+
+                    readonly property var noteNames: ["E4", "F4", "G4", "A4", "B4", "C5", "D5", "E5", "F5", "G5"]
 
                     function tileColor(level) {
                         // purple (low) -> green (high)
@@ -9701,17 +9711,28 @@ Item {
                         hornSettingsSender.sendMelody();
                     }
 
+                    function setRec(on) {
+                        release();
+                        stopTake();
+                        recording = on;
+                        armed = on && notes.length === 0;
+                    }
+
                     function startRecording() {
-                        recording = true;
+                        setRec(true);
                         bottomStackTabs.currentIndex = 2;
                         bottomSheet.open();
                     }
 
                     function press(level) {
                         release();
-                        previewOnly = !recording || full;
-                        if (recording && full) {
-                            VescIf.emitStatusMessage("Melody is full (32 notes / 10 s): preview only", false);
+                        if (recording && armed && !capturing) {
+                            capturing = true;
+                            recStart = Date.now();
+                            recMs = 0;
+                            events = [];
+                            playMs = -1;
+                            recTimer.start();
                         }
                         holdLevel = level;
                         holdStart = Date.now();
@@ -9724,18 +9745,75 @@ Item {
                         if (holdLevel === 0) return;
                         holdTimer.stop();
                         hornSettingsSender.liveTone(0);
-                        var ms = Math.min(Date.now() - holdStart, maxNoteMs, maxMs - totalMs);
-                        if (!previewOnly && ms >= 40) {
-                            var n = notes.slice();
-                            n.push([holdLevel, Math.max(60, Math.round(ms / 20) * 20)]);
-                            store(n);
+                        if (capturing) {
+                            var s = holdStart - recStart;
+                            var e = Math.min(Date.now() - recStart, s + maxNoteMs, windowMs);
+                            if (e - s >= 40) {
+                                var ev = events.slice();
+                                ev.push([holdLevel, s, e]);
+                                events = ev;
+                            }
                         }
                         holdLevel = 0;
                         holdMs = 0;
-                        previewOnly = false;
                     }
 
-                    onVisibleChanged: if (!visible) release()
+                    // events -> [[level, ms], ...] with rests (level 0) for the gaps
+                    function build(ev) {
+                        var out = [], cursor = 0;
+                        for (var i = 0; i < ev.length && out.length < maxEntries - 1; i++) {
+                            var s = Math.round(ev[i][1] / 20) * 20;
+                            var e = Math.round(ev[i][2] / 20) * 20;
+                            if (s - cursor >= 40) {
+                                out.push([0, s - cursor]);
+                            } else {
+                                s = cursor;
+                            }
+                            var len = Math.min(maxNoteMs, Math.max(60, e - s), windowMs - s);
+                            if (len < 40) break;
+                            out.push([ev[i][0], len]);
+                            cursor = s + len;
+                        }
+                        return out;
+                    }
+
+                    function stopTake() {
+                        recTimer.stop();
+                        capturing = false;
+                    }
+
+                    function finish() {
+                        release();
+                        stopTake();
+                        armed = false;
+                        recMs = windowMs;
+                        if (events.length > 0) {
+                            store(build(events));
+                        } else {
+                            armed = true;
+                        }
+                    }
+
+                    // timeline blocks: [level, startMs, endMs]
+                    function blocks() {
+                        if (capturing) {
+                            var b = events.slice();
+                            if (holdLevel > 0) {
+                                var s = holdStart - recStart;
+                                b.push([holdLevel, s, Math.min(recMs, s + maxNoteMs)]);
+                            }
+                            return b;
+                        }
+                        if (armed) return [];
+                        var out = [], t = 0;
+                        for (var i = 0; i < notes.length; i++) {
+                            if (notes[i][0] > 0) out.push([notes[i][0], t, t + notes[i][1]]);
+                            t += notes[i][1];
+                        }
+                        return out;
+                    }
+
+                    onVisibleChanged: if (!visible) { release(); if (capturing) finish(); }
 
                     Timer {
                         id: holdTimer
@@ -9743,11 +9821,35 @@ Item {
                         repeat: true
                         onTriggered: {
                             melodyPad.holdMs = Date.now() - melodyPad.holdStart;
-                            if (melodyPad.holdMs >= melodyPad.maxNoteMs ||
-                                    (!melodyPad.previewOnly && melodyPad.totalMs + melodyPad.holdMs >= melodyPad.maxMs)) {
-                                melodyPad.release();  // 2 s per note, 10 s in total
+                            if (melodyPad.holdMs >= melodyPad.maxNoteMs) {
+                                melodyPad.release();  // 2 s per note, like the horn
                             } else {
                                 hornSettingsSender.liveTone(melodyPad.holdLevel);  // keepalive
+                            }
+                        }
+                    }
+
+                    Timer {
+                        id: recTimer
+                        interval: 30
+                        repeat: true
+                        onTriggered: {
+                            melodyPad.recMs = Date.now() - melodyPad.recStart;
+                            if (melodyPad.recMs >= melodyPad.windowMs) {
+                                melodyPad.finish();
+                            }
+                        }
+                    }
+
+                    Timer {
+                        id: playTimer
+                        interval: 30
+                        repeat: true
+                        onTriggered: {
+                            melodyPad.playMs = Date.now() - melodyPad.playStart;
+                            if (melodyPad.playMs >= melodyPad.totalMs) {
+                                melodyPad.playMs = -1;
+                                stop();
                             }
                         }
                     }
@@ -9757,7 +9859,7 @@ Item {
                         anchors.margins: 0.2 * unit
                         spacing: 0.12 * unit
 
-                        // mode: LIVE (play only) or REC (live + record the boot melody)
+                        // mode: LIVE (play only) or REC (record the boot melody)
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 0.15 * unit
@@ -9765,91 +9867,95 @@ Item {
                             SwPill {
                                 label: "LIVE"
                                 lit: !melodyPad.recording
-                                onClicked: { melodyPad.release(); melodyPad.recording = false; }
+                                onClicked: melodyPad.setRec(false)
                             }
 
                             SwPill {
-                                label: "\u25CF REC"
+                                label: "● REC"
                                 lit: melodyPad.recording
-                                onClicked: { melodyPad.release(); melodyPad.recording = true; }
+                                onClicked: melodyPad.setRec(true)
                             }
 
                             Item { Layout.fillWidth: true }
 
                             SwNeonLabel {
-                                visible: !melodyPad.recording
-                                color: "#c98bff"
+                                color: melodyPad.capturing ? "#ff4d6d" : "#c98bff"
                                 font.pixelSize: 0.24 * unit
-                                text: state.pkgState === state.s_Ready ? "TAP TO PLAY" : "BOARD PLAYS WHEN IDLE"
+                                text: !melodyPad.recording
+                                    ? (state.pkgState === state.s_Ready ? "TAP TO PLAY" : "BOARD PLAYS WHEN IDLE")
+                                    : melodyPad.capturing
+                                    ? "● REC  %1 / 5.0 s".arg((melodyPad.recMs / 1000).toFixed(1))
+                                    : melodyPad.armed
+                                    ? "TAP A TILE TO START"
+                                    : "%1 s MELODY".arg((melodyPad.totalMs / 1000).toFixed(1))
                             }
                         }
 
-                        RowLayout {
-                            Layout.fillWidth: true
-                            visible: melodyPad.recording
-
-                            SwNeonLabel {
-                                Layout.fillWidth: true
-                                horizontalAlignment: Text.AlignLeft
-                                font.pixelSize: 0.3 * unit
-                                text: "CUSTOM MELODY"
-                            }
-
-                            SwNeonLabel {
-                                color: melodyPad.full ? swTheme.color("orange") : "#c98bff"
-                                font.pixelSize: 0.26 * unit
-                                text: "%1 notes  %2 s / 10 s".arg(melodyPad.notes.length + (melodyPad.holdLevel && !melodyPad.previewOnly ? 1 : 0)).arg(((melodyPad.totalMs + (melodyPad.previewOnly ? 0 : melodyPad.holdMs)) / 1000).toFixed(1))
-                            }
-                        }
-
-                        // timeline: one block per note, width = length
+                        // timeline: 5 s wide; notes sit where they were played, a
+                        // playhead moves across while recording / playing
                         Rectangle {
+                            id: timelineBox
                             visible: melodyPad.recording
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 0.55 * unit
+                            Layout.preferredHeight: 0.6 * unit
                             color: "#140a26"
                             radius: 0.1 * unit
-                            border.color: "#3d2266"
+                            border.color: melodyPad.capturing ? "#ff4d6d" : "#3d2266"
 
-                            Row {
+                            Item {
                                 id: timeline
                                 anchors.fill: parent
                                 anchors.margins: 3
-                                spacing: 2
 
+                                // 1 s grid marks
                                 Repeater {
-                                    model: melodyPad.notes.length
+                                    model: 4
 
                                     Rectangle {
+                                        x: timeline.width * (index + 1) / 5
+                                        width: 1
                                         height: timeline.height
-                                        width: Math.max(4, timeline.width * melodyPad.notes[index][1] / melodyPad.maxMs - 2)
+                                        color: "#3d2266"
+                                    }
+                                }
+
+                                Repeater {
+                                    model: {
+                                        melodyPad.recMs; melodyPad.holdMs; melodyPad.events; melodyPad.notes; melodyPad.armed;
+                                        return melodyPad.blocks();
+                                    }
+
+                                    Rectangle {
+                                        x: timeline.width * modelData[1] / melodyPad.windowMs
+                                        width: Math.max(3, timeline.width * (modelData[2] - modelData[1]) / melodyPad.windowMs - 1)
+                                        height: timeline.height
                                         radius: 3
-                                        color: melodyPad.tileColor(melodyPad.notes[index][0])
+                                        color: melodyPad.tileColor(modelData[0])
 
                                         Text {
                                             anchors.centerIn: parent
-                                            visible: parent.width > 0.5 * unit
-                                            text: melodyPad.notes[index][0]
+                                            visible: parent.width > 0.4 * unit
+                                            text: melodyPad.noteNames[modelData[0] - 1].charAt(0)
                                             color: swTheme.background
                                             font.family: "Exan"
-                                            font.pixelSize: 0.24 * unit
+                                            font.pixelSize: 0.22 * unit
                                         }
                                     }
                                 }
 
-                                // the note being held right now
+                                // playhead
                                 Rectangle {
-                                    visible: melodyPad.holdLevel > 0 && !melodyPad.previewOnly
-                                    height: timeline.height
-                                    width: Math.max(4, timeline.width * melodyPad.holdMs / melodyPad.maxMs)
-                                    radius: 3
-                                    color: melodyPad.holdLevel > 0 ? melodyPad.tileColor(melodyPad.holdLevel) : "transparent"
-                                    opacity: 0.7
+                                    visible: melodyPad.capturing || melodyPad.playMs >= 0
+                                    x: timeline.width * Math.min(1, (melodyPad.capturing ? melodyPad.recMs : melodyPad.playMs) / melodyPad.windowMs) - 1
+                                    y: -2
+                                    width: 2
+                                    height: timeline.height + 4
+                                    color: melodyPad.capturing ? "#ff4d6d" : swTheme.neonGreen
                                 }
                             }
                         }
 
-                        // tiles: pitch 1 (low) ... 10 (high), two rows for thumbs
+                        // tiles: notes E4 (low) ... G5 (high), two rows for thumbs
                         GridLayout {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
@@ -9869,11 +9975,11 @@ Item {
                                     color: held ? melodyPad.tileColor(level) : "#140a26"
                                     border.color: melodyPad.tileColor(level)
                                     border.width: 3
-                                    opacity: melodyPad.recording && melodyPad.full && !held ? 0.6 : 1  // still playable as a preview
 
                                     Text {
                                         anchors.centerIn: parent
-                                        text: parent.level
+                                        text: melodyPad.noteNames[parent.level - 1].charAt(0) + "<font size=\"2\">" + melodyPad.noteNames[parent.level - 1].charAt(1) + "</font>"
+                                        textFormat: Text.StyledText
                                         color: parent.held ? swTheme.background : melodyPad.tileColor(parent.level)
                                         font.family: "Exan"
                                         font.pixelSize: 0.5 * unit
@@ -9892,33 +9998,36 @@ Item {
                         Row {
                             visible: melodyPad.recording
                             Layout.alignment: Qt.AlignHCenter
-                            spacing: 0.1 * unit
+                            spacing: 0.12 * unit
 
                             SwPill {
-                                minWidth: 1.5 * unit
-                                label: "UNDO"
-                                enabledLook: melodyPad.notes.length > 0
+                                minWidth: 1.7 * unit
+                                label: melodyPad.capturing ? "■ STOP" : "CLEAR"
+                                lit: melodyPad.capturing
                                 onClicked: {
-                                    var n = melodyPad.notes.slice();
-                                    n.pop();
-                                    melodyPad.store(n);
+                                    if (melodyPad.capturing) {
+                                        melodyPad.finish();
+                                    } else {
+                                        // ready for a new take (the current melody stays until it's recorded)
+                                        melodyPad.release();
+                                        melodyPad.events = [];
+                                        melodyPad.recMs = 0;
+                                        melodyPad.armed = true;
+                                    }
                                 }
                             }
 
                             SwPill {
-                                minWidth: 1.5 * unit
-                                label: "CLEAR"
-                                enabledLook: melodyPad.notes.length > 0
-                                onClicked: melodyPad.store([])
-                            }
-
-                            SwPill {
-                                minWidth: 1.5 * unit
+                                minWidth: 1.7 * unit
                                 label: "PLAY"
-                                enabledLook: melodyPad.notes.length > 0 && state.pkgState === state.s_Ready
+                                enabledLook: !melodyPad.capturing && !melodyPad.armed && melodyPad.notes.length > 0 && state.pkgState === state.s_Ready
                                 onClicked: {
+                                    if (melodyPad.capturing || melodyPad.armed || !melodyPad.notes.length) return;
                                     if (state.pkgState === state.s_Ready) {
                                         hornSettingsSender.playMelody(true);
+                                        melodyPad.playStart = Date.now();
+                                        melodyPad.playMs = 0;
+                                        playTimer.restart();
                                     } else {
                                         VescIf.emitStatusMessage("Melody plays when the board is idle (READY)", false);
                                     }
@@ -9926,28 +10035,28 @@ Item {
                             }
 
                             SwPill {
-                                minWidth: 1.5 * unit
+                                minWidth: 1.7 * unit
                                 label: "SAVE"
-                                enabledLook: melodyPad.notes.length > 0
+                                enabledLook: !melodyPad.capturing && !melodyPad.armed && melodyPad.notes.length > 0
                                 onClicked: {
-                                    melodyPad.release();
-                                    if (melodyPad.notes.length > 0) saveMelodyDialog.show();
+                                    if (!melodyPad.capturing && !melodyPad.armed && melodyPad.notes.length > 0) saveMelodyDialog.show();
                                 }
                             }
 
                             SwPill {
-                                minWidth: 1.5 * unit
+                                minWidth: 1.7 * unit
                                 label: "DONE"
-                                lit: true
+                                lit: !melodyPad.capturing
+                                enabledLook: !melodyPad.capturing
                                 onClicked: {
-                                    if (melodyPad.notes.length > 0) {
+                                    if (melodyPad.capturing) return;
+                                    if (!melodyPad.armed && melodyPad.notes.length > 0) {
                                         swSettings.hornBootMelody = true;
                                         swSettings.hornBootCustom = true;
                                         hornSettingsSender.send();
                                         VescIf.emitStatusMessage("Custom melody set as boot melody", true);
                                     }
-                                    melodyPad.release();
-                                    melodyPad.recording = false;
+                                    melodyPad.setRec(false);
                                 }
                             }
                         }
@@ -9958,11 +10067,12 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             font.pixelSize: fontSizeSmall
                             wrapMode: Text.WordWrap
-                            text: melodyPad.full
-                                ? "Melody full: tiles still play as a preview. UNDO or CLEAR to record more."
-                                : state.pkgState === state.s_Ready
-                                ? "Hold a tile to record that note (2 s max). SAVE keeps it in your list, DONE sets it as your boot melody."
-                                : "The board plays notes only when idle (READY); you can still record."
+                            text: (melodyPad.capturing
+                                ? "Recording... tap the tiles. It stops by itself at 5 s."
+                                : melodyPad.armed
+                                ? "Your first tap starts a 5 s recording. Gaps between taps are kept; each note stops at 2 s."
+                                : "PLAY to hear it, SAVE to keep it, DONE to use it at boot. CLEAR to record again.")
+                                + (state.pkgState === state.s_Ready ? "" : " (The board plays notes only when idle.)")
                         }
                     }
                 }

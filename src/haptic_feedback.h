@@ -42,9 +42,9 @@ typedef enum {
 } HornMode;
 
 // Re-RinkFloat: melodies are up to 8 notes and 4 s long
-#define MELODY_MAX_NOTES 32
-#define MELODY_MAX_LENGTH 10.0f  // whole melody (s)
-#define MELODY_MAX_NOTE 2.0f  // one note / one held tile (s)
+#define MELODY_MAX_NOTES 64  // notes + rests
+#define MELODY_MAX_LENGTH 5.0f  // whole melody incl. rests (s), = recording window
+#define MELODY_MAX_NOTE 2.0f  // one note / one held tile (s); rests are not capped
 #define MELODY_UNIT 0.02f  // note length unit (s)
 // Re-RinkFloat: sound budget shared by melodies and live tiles, so the motor
 // never plays tones for long stretches: 10 s of sound, refilled at half

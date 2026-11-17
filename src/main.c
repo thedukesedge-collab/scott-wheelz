@@ -1233,11 +1233,12 @@ static void read_cfg_from_eeprom(Data *d) {
 // Re-RinkFloat: horn settings in two custom EEPROM words, past the config
 // (which uses the first SERIALIZED_CONFIG_LENGTH / 4 words).
 #define HORN_EEPROM_ADDR 120
-#define HORN_EEPROM_MAGIC 0xB2u  // B2: 32-note melody in words 100-115
+#define HORN_EEPROM_MAGIC 0xB3u  // B3: 64-entry melody in words 88-119
+#define HORN_EEPROM_MAGIC_B2 0xB2u  // B2: 32-note melody in words 100-115 (migrated)
 #define HORN_EEPROM_MAGIC_B1 0xB1u  // B1: 6-note melody in words 122-124 (migrated)
-#define MELODY_EEPROM_ADDR 100  // past the config (80 words), before the horn words
+#define MELODY_EEPROM_ADDR 88  // past the config (80 words), before the horn words
 
-// EEPROM address of horn word i: settings at 120-121, melody at 100-115
+// EEPROM address of horn word i: settings at 120-121, melody at 88-119
 static int horn_eeprom_addr(int i) {
     return i < 2 ? HORN_EEPROM_ADDR + i : MELODY_EEPROM_ADDR + i - 2;
 }
@@ -1265,6 +1266,16 @@ static void horn_settings_load(Data *d) {
         }
         for (int i = 0; i < HORN_EEPROM_WORDS; ++i) {
             d->horn_saved[i] = v[i].as_u32;
+        }
+    } else if (magic == HORN_EEPROM_MAGIC_B2) {
+        // rf45 save: 32-note melody in words 100-115; re-saved in the new layout
+        for (int i = 2; i < 18; ++i) {
+            if (!VESC_IF->read_eeprom_var(&v[i], 100 + i - 2)) {
+                return;
+            }
+        }
+        for (int i = 18; i < HORN_EEPROM_WORDS; ++i) {
+            v[i].as_u32 = 0;
         }
     } else if (magic == HORN_EEPROM_MAGIC_B1) {
         // older save: 6-note melody in words 122-124; re-saved in the new layout
@@ -2570,7 +2581,7 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
         return;
     }
     case COMMAND_MELODY_SET: {
-        // up to 32 notes x 2 bytes; missing ones end the melody
+        // up to 64 notes/rests x 2 bytes; missing ones end the melody
         if (len >= 2 && len <= 2 + sizeof(d->melody_custom) && len % 2 == 0) {
             for (uint32_t i = 0; i < sizeof(d->melody_custom); ++i) {
                 d->melody_custom[i] = i + 2 < len ? buffer[i + 2] : 0;
