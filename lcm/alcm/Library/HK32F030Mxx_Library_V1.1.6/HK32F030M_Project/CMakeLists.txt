@@ -173,6 +173,11 @@ add_library(alcm_vp STATIC
     src/ring_buffer.c
     src/vesc_serial.c
 )
+add_library(status_leds_vp STATIC
+    src/status_leds.c
+)
+target_include_directories(status_leds_vp PUBLIC inc tests/mocks)
+target_compile_definitions(status_leds_vp PUBLIC VP_LIGHT_CONTROL)
 add_library(board_mode_vp STATIC
     src/board_mode.c
     src/hysteresis.c

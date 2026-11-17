@@ -83,7 +83,15 @@
 // board like an XR.
 #define ENABLE_STATUS_LEDS 1                      // Enable the status LEDs
 #define STATUS_LEDS_FADE_TO_BLACK_TIMEOUT (1000U) // Time to fade to black when shutting down
+#ifdef VP_LIGHT_CONTROL
+// Re-Float Rink-Mixed: earlier warning colors on the battery gauge -
+// white above 35 %, yellow 35-20 %, red 20-5 %, flashing red 5 % and below.
+// The gauge also shows while riding from 35 % down.
+#define LOW_BATTERY_THRESHOLD (350)               // Threshold for yellow/always on indicator (tenths of a %)
+#define RED_BATTERY_THRESHOLD (200)               // Threshold for a solid red gauge (tenths of a %)
+#else
 #define LOW_BATTERY_THRESHOLD (150)               // Threshold for yellow/always on indicator (tenths of a %)
+#endif
 #define CRITICAL_BATTERY_THRESHOLD (50)           // Threshold for red flashing indicator (tenths of a %)
 #define STATUS_LEDS_SCAN_SPEED (2000U)            // Speed of the scan animation (ms)
 #define DISABLED_BREATH_PERIOD (3000U)            // Speed of the locked/disabled breathing animation (ms)

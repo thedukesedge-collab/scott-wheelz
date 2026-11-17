@@ -189,6 +189,20 @@ target_include_directories(test_alcm_vp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/incl
 target_link_libraries(test_alcm_vp PRIVATE alcm_vp cmocka)
 add_test(NAME ALCMTestVP COMMAND test_alcm_vp)
 
+add_executable(test_status_leds_vp
+    status_leds_vp_main.c
+    mocks/mock_event_queue.c
+    mocks/mock_footpads.c
+    mocks/mock_vesc_serial.c
+    mocks/mock_animations.c
+    mocks/mock_settings.c
+    mocks/mock_board_mode.c
+    mocks/mock_timer.c
+    mocks/mock_status_leds_hw.c
+    )
+target_link_libraries(test_status_leds_vp PRIVATE status_leds_vp cmocka)
+add_test(NAME StatusLedsTestVP COMMAND test_status_leds_vp)
+
 add_executable(test_board_mode_vp
     board_mode_vp_main.c
     mocks/mock_event_queue.c

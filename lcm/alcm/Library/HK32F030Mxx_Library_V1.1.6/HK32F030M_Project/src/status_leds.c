@@ -42,6 +42,9 @@ typedef struct
     const status_leds_color_t blue;
     const status_leds_color_t magenta;
     const status_leds_color_t light_blue;
+#ifdef VP_LIGHT_CONTROL
+    const status_leds_color_t yellow;
+#endif
 } color_palette_t;
 
 // Color palette
@@ -53,7 +56,11 @@ static const color_palette_t colors = {.black = {0x00, 0x00, 0x00},
                                        .green = {0xff, 0x00, 0x00},
                                        .blue = {0x00, 0x00, 0xff},
                                        .magenta = {0x00, 0xff, 0xff},
-                                       .light_blue = {0x77, 0x00, 0xb6}};
+                                       .light_blue = {0x77, 0x00, 0xb6},
+#ifdef VP_LIGHT_CONTROL
+                                       .yellow = {0xc0, 0xff, 0x00},
+#endif
+};
 
 // Status LED buffer
 static status_leds_color_t status_leds_buffer[STATUS_LEDS_COUNT] = {0};
@@ -366,10 +373,21 @@ void display_battery(int16_t battery_level)
     {
         const status_leds_color_t *color = &colors.white;
 
+#ifdef VP_LIGHT_CONTROL
+        if (battery_level <= RED_BATTERY_THRESHOLD)
+        {
+            color = &colors.red;
+        }
+        else if (battery_level <= LOW_BATTERY_THRESHOLD)
+        {
+            color = &colors.yellow;
+        }
+#else
         if (battery_level <= LOW_BATTERY_THRESHOLD)
         {
             color = &colors.orange;
         }
+#endif
 
         display_gauge_bar(battery_level, color);
     }
