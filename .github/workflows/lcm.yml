@@ -36,6 +36,11 @@ jobs:
           sh tests/run.sh
           make
 
+      - name: Runtime replacements (host test)
+        if: always()
+        working-directory: lcm/alcm/Library/HK32F030Mxx_Library_V1.1.6/HK32F030M_Project
+        run: sh tests/tiny_rt/run.sh
+
       - name: Unit tests (stock + VP)
         if: always()
         working-directory: lcm/alcm/Library/HK32F030Mxx_Library_V1.1.6/HK32F030M_Project

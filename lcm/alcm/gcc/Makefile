@@ -19,7 +19,7 @@ SRC := startup_hk32f030m.c \
     buzzer_hw.c footpads.c footpads_hw.c status_leds.c status_leds_hw.c headlights_hw.c \
     button_driver_hw.c vesc_serial.c vesc_serial_hw.c battery_lut.c battery_lut_hw.c \
     ring_buffer.c crc16_ccitt.c animations.c settings.c eeprom.c command_processor.c \
-    function_generator.c hysteresis.c interrupts_hw.c) \
+    function_generator.c hysteresis.c interrupts_hw.c tiny_rt.c) \
   $(L)/HK32F030M/CMSIS/HK32F030M/Source/system_hk32f030m.c \
   $(addprefix $(L)/HK32F030M/HK32F030M_Lib/src/, hk32f030m_rcc.c hk32f030m_gpio.c \
     hk32f030m_exti.c hk32f030m_misc.c hk32f030m_syscfg.c hk32f030m_tim.c hk32f030m_adc.c \

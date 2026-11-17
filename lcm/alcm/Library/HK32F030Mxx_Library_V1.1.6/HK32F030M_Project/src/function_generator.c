@@ -284,8 +284,33 @@ lcm_status_t function_generator_initial_sample(function_generator_t *fg, const f
         return LCM_ERROR_INVALID_PARAM;
     }
 
-    // normalized = (sample - offset) / scale, as a Q16.16 ratio in [-1, 1]
-    normalized_value = (int32_t)(((int64_t)(sample - fg->offset) << 16) / fg->scale);
+    // normalized = (sample - offset) / scale, as a Q16.16 ratio in [-1, 1].
+    // Re-Float Rink-Mixed: 32-bit long division instead of a 64-bit divide
+    // (libgcc's __divdi3 is ~550 bytes on the M0); same result for every
+    // value in range, and anything beyond [-1, 1] is still rejected below.
+    {
+        int32_t diff = sample - fg->offset;
+        uint32_t ud = diff < 0 ? 0u - (uint32_t)diff : (uint32_t)diff;
+        uint32_t us = fg->scale < 0 ? 0u - (uint32_t)fg->scale : (uint32_t)fg->scale;
+        uint32_t q = ud / us;
+        uint32_t rem = ud % us;
+
+        if (q > 1u)
+        {
+            return LCM_ERROR_INVALID_PARAM; // |ratio| >= 2
+        }
+        q <<= 16;
+        for (uint32_t bit = 1u << 15; bit != 0u; bit >>= 1)
+        {
+            rem <<= 1; // rem < us <= 2^31, so this can't overflow
+            if (rem >= us)
+            {
+                rem -= us;
+                q |= bit;
+            }
+        }
+        normalized_value = ((diff < 0) != (fg->scale < 0)) ? -(int32_t)q : (int32_t)q;
+    }
 
     // Apply inversion if requested
     if (fg->inverse)
