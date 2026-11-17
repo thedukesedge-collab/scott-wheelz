@@ -226,12 +226,46 @@ Item {
     QtObject {
         id: hornSettingsSender
 
+        // simple levels -> real values
+        function simpleBuzz(level) { return level * 1.5; }
+        function simpleBeep(level) { return level; }
+        function simplePitch(level) { return Math.round((300 + (level - 1) * 700 / 9) / 25) * 25; }
+
+        // the values actually sent: [beep V, beep Hz, buzz A, buzz Hz]
+        function values() {
+            if (swSettings.hornAdvanced) {
+                return [swSettings.hornBeepStrength, swSettings.hornBeepFreq,
+                        swSettings.hornBuzzStrength, swSettings.hornBuzzFreq];
+            }
+            return [simpleBeep(swSettings.hornSimpleVolume), simplePitch(swSettings.hornSimplePitch),
+                    simpleBuzz(swSettings.hornSimpleStrength), 70];
+        }
+
+        // switching modes carries the sound over, so nothing jumps
+        function setAdvanced(on) {
+            if (on === swSettings.hornAdvanced) return;
+            var v = values();
+            if (on) {
+                swSettings.hornBeepStrength = Math.round(v[0] * 2) / 2;
+                swSettings.hornBeepFreq = v[1];
+                swSettings.hornBuzzStrength = Math.round(v[2]);
+                swSettings.hornBuzzFreq = v[3];
+            } else {
+                swSettings.hornSimpleVolume = Math.max(1, Math.min(10, Math.round(v[0])));
+                swSettings.hornSimplePitch = Math.max(1, Math.min(10, Math.round((v[1] - 300) * 9 / 700) + 1));
+                swSettings.hornSimpleStrength = Math.max(0, Math.min(10, Math.round(v[2] / 1.5)));
+            }
+            swSettings.hornAdvanced = on;
+            send();
+        }
+
         function send() {
+            var v = values();
             var data = commands.createData(8, commands.c_HORN_SETTINGS);
-            data.setUint8(2, Math.round(swSettings.hornBeepStrength * 10));
-            data.setUint16(3, swSettings.hornBeepFreq);
-            data.setUint8(5, Math.round(swSettings.hornBuzzStrength * 10));
-            data.setUint16(6, swSettings.hornBuzzFreq);
+            data.setUint8(2, Math.round(v[0] * 10));
+            data.setUint16(3, v[1]);
+            data.setUint8(5, Math.round(v[2] * 10));
+            data.setUint16(6, v[3]);
             vescCommands.sendCustomAppData(data.buffer);
         }
     }
@@ -1086,6 +1120,11 @@ Item {
         property int hornBeepFreq: 495        // Hz
         property real hornBuzzStrength: 8     // A
         property int hornBuzzFreq: 70         // Hz
+        // simple mode (default): plain 0-10 levels mapped onto the values above
+        property bool hornAdvanced: false
+        property int hornSimpleStrength: 5    // 0-10 -> buzz 0-15 A
+        property int hornSimpleVolume: 5      // 1-10 -> beep 1-10 V
+        property int hornSimplePitch: 3       // 1-10 -> beep 300-1000 Hz
         property real freespinLimitKmh: 72.4  // 45 mph
         property bool speedo40Migrated: false  // one-time bump of a saved 30 mph dial to 40
         // ride peaks, kept until the board's trip counter resets (power cycle)
@@ -2495,6 +2534,7 @@ Item {
         property real step: 1
         property int decimals: 0
         property string suffix: ""
+        property string valueText: ""  // overrides the number if set
         signal moved(real newValue)
 
         function nudge(dir) {
@@ -2529,7 +2569,7 @@ Item {
                         color: swTheme.neonGreen
                         font.family: "Exan"
                         font.pixelSize: 0.32 * unit
-                        text: stepper.value.toFixed(stepper.decimals) + stepper.suffix
+                        text: stepper.valueText !== "" ? stepper.valueText : stepper.value.toFixed(stepper.decimals) + stepper.suffix
                     }
 
                     Rectangle {
@@ -9034,10 +9074,81 @@ Item {
                             width: parent.width
                             font.pixelSize: fontSizeNormal
                             wrapMode: Text.WordWrap
-                            text: "Used only for the HORN button, separate from the Haptic Feedback settings. The beep plays any time; the buzz only while riding."
+                            text: "Used only for the HORN button, separate from the Haptic Feedback settings. You feel the buzz only while riding; the beep plays any time."
+                        }
+
+                        // SIMPLE | ADVANCED
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: 4.6 * unit
+                            height: 0.65 * unit
+                            radius: height / 2
+                            color: "#0b0718"
+                            border.color: swTheme.neonPurple
+                            border.width: 2
+
+                            Row {
+                                anchors.fill: parent
+                                anchors.margins: 3
+
+                                Repeater {
+                                    model: ["SIMPLE", "ADVANCED"]
+
+                                    Rectangle {
+                                        width: parent.width / 2
+                                        height: parent.height
+                                        radius: height / 2
+                                        property bool on: (index === 1) === swSettings.hornAdvanced
+                                        color: on ? swTheme.neonGreen : "transparent"
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: modelData
+                                            color: parent.on ? swTheme.background : "#c98bff"
+                                            font.family: "Exan"
+                                            font.pixelSize: 0.22 * unit
+                                        }
+                                    }
+                                }
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                onClicked: hornSettingsSender.setAdvanced(mouse.x >= width / 2)
+                            }
+                        }
+
+                        // simple mode
+                        SwStepper {
+                            visible: !swSettings.hornAdvanced
+                            label: "STRENGTH (buzz you feel)"
+                            value: swSettings.hornSimpleStrength
+                            from: 0; to: 10; step: 1
+                            valueText: value === 0 ? "OFF" : value + " / 10"
+                            onMoved: { swSettings.hornSimpleStrength = newValue; hornSettingsSender.send(); }
                         }
 
                         SwStepper {
+                            visible: !swSettings.hornAdvanced
+                            label: "VOLUME (beep loudness)"
+                            value: swSettings.hornSimpleVolume
+                            from: 1; to: 10; step: 1
+                            valueText: value + " / 10"
+                            onMoved: { swSettings.hornSimpleVolume = newValue; hornSettingsSender.send(); }
+                        }
+
+                        SwStepper {
+                            visible: !swSettings.hornAdvanced
+                            label: "PITCH (low - high)"
+                            value: swSettings.hornSimplePitch
+                            from: 1; to: 10; step: 1
+                            valueText: value + " / 10"
+                            onMoved: { swSettings.hornSimplePitch = newValue; hornSettingsSender.send(); }
+                        }
+
+                        // advanced mode
+                        SwStepper {
+                            visible: swSettings.hornAdvanced
                             label: "BEEP STRENGTH"
                             value: swSettings.hornBeepStrength
                             from: 1; to: 10; step: 0.5; decimals: 1; suffix: " V"
@@ -9045,6 +9156,7 @@ Item {
                         }
 
                         SwStepper {
+                            visible: swSettings.hornAdvanced
                             label: "BEEP PITCH"
                             value: swSettings.hornBeepFreq
                             from: 300; to: 1000; step: 25; suffix: " Hz"
@@ -9052,6 +9164,7 @@ Item {
                         }
 
                         SwStepper {
+                            visible: swSettings.hornAdvanced
                             label: "BUZZ STRENGTH"
                             value: swSettings.hornBuzzStrength
                             from: 0; to: 15; step: 1; suffix: " A"
@@ -9059,6 +9172,7 @@ Item {
                         }
 
                         SwStepper {
+                            visible: swSettings.hornAdvanced
                             label: "BUZZ FREQUENCY"
                             value: swSettings.hornBuzzFreq
                             from: 30; to: 150; step: 5; suffix: " Hz"
@@ -9090,6 +9204,9 @@ Item {
                                     swSettings.hornBeepFreq = 495;
                                     swSettings.hornBuzzStrength = 8;
                                     swSettings.hornBuzzFreq = 70;
+                                    swSettings.hornSimpleStrength = 5;
+                                    swSettings.hornSimpleVolume = 5;
+                                    swSettings.hornSimplePitch = 3;
                                     hornSettingsSender.send();
                                     VescIf.emitStatusMessage("Horn settings reset", true);
                                 }
