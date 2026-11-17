@@ -1,0 +1,37 @@
+# Fetches an official, unmodified Refloat release package from
+# lukash/refloat and re-publishes it here (release "refloat-stock").
+name: Stock Refloat package
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Refloat release tag'
+        default: 'v1.2.1'
+
+jobs:
+  fetch:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag || 'v1.2.1' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: List upstream releases
+        run: gh release list -R lukash/refloat --limit 40
+      - name: Download the official package
+        run: |
+          mkdir -p dl
+          gh release download "$TAG" -R lukash/refloat -D dl
+          ls -la dl
+          sha256sum dl/*
+      - name: Publish
+        run: |
+          NAME="refloat-${TAG#v}.vescpkg"
+          cp dl/*.vescpkg "$NAME"
+          gh release view refloat-stock >/dev/null 2>&1 || gh release create refloat-stock --prerelease \
+            --title "Stock Refloat (unmodified)" --notes "Official Refloat packages from lukash/refloat, unmodified." --target "$GITHUB_SHA"
+          gh release upload refloat-stock "$NAME" --clobber
+          echo "SHA256: $(sha256sum "$NAME")"
