@@ -6,4 +6,4 @@ repos:
         entry: clang-format -i
         language: system
         types: [c]
-exclude: ^(vesc_pkg_lib|lcm|apps)/
+exclude: ^(vesc_pkg_lib|lcm|apps|tools/lcm_vp_test)/
