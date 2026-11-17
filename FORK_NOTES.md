@@ -557,3 +557,11 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   change; read back whenever the config loads or is written in Refloat Cfg.
 - leds.* are no longer part of tunes (not saved, not matched for ACTIVE, not
   applied from older tunes that contain them). Full backups still include them.
+
+### ALCM VP: battery gauge colors (lcm-latest, 2026-11-17)
+- Idle status bar = battery gauge, 1 LED per 10 % (unchanged). Colors now:
+  white above 35 %, yellow 35-20 %, red 20-5 %, flashing red at 5 % and
+  below (stock: orange at 15 %). While riding the gauge shows from 35 % down.
+- Accuracy depends on the VESC's battery % (Motor Cfg > Additional Info >
+  battery cells in series / type) unless a battery LUT is patched in.
+- Test: StatusLedsTestVP. Size 16,136 / 16,320 B.
