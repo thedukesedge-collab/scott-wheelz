@@ -1591,7 +1591,9 @@ enum {
     // commands above 200 are unstable and can change protocol at any time
 } Commands;
 
-static void send_realtime_data(Data *d) {
+// rf75: noinline keeps its buffer out of on_command_received's frame (live
+// under data_recorder_request); the reply grew by one item (imu.yaw)
+static __attribute__((noinline)) void send_realtime_data(Data *d) {
     static const int bufsize = 72;
     uint8_t buffer[bufsize];
     int32_t ind = 0;
