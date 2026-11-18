@@ -793,6 +793,37 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   backup; Dashboard, Tunes, Data & App), neon buttons, CLOSE pill.
 - lcm.yml: apt install retried with a timeout (a stuck mirror hung runs).
 
+### Safety hardening (v1.2.3-rf75)
+Prompted by lukash's point on refloat PR #119: the package runs on the
+controller's own CPU, so a crash anywhere in it (LEDs included) stops
+balancing. Audit of every change against upstream Refloat v1.2.3:
+- Free-spin limiter REMOVED from the balance loop. It was the only change to
+  the balance current: within 3 km/h of its limit it scaled drive current
+  down while Refloat flagged wheelslip - a false flag (bump, lost traction)
+  could cut drive current at speed. refloat_thd's current path is now
+  upstream's. COMMAND_FREESPIN_LIMIT (121) is accepted and ignored; the app
+  hides the setting; rt-data flag bit 2 is always 0.
+- Horn never adds motor current: the buzz (up to 15 A square wave on top of
+  the balance current; 8 A even with Refloat's default Vibrate Strength 0)
+  is gone - riding or idle, the horn is the foc_play_tone beep only, the
+  same mechanism upstream uses for its duty warning (<= 6 V vs upstream's
+  12 V max). While riding it also only sounds below 60% duty, and stays
+  lowest priority (never masks pushback / alerts). App hides the buzz.
+- Package settings saves (horn/melody, light module, battery curve) only
+  with the board at rest: not running, footpads off, < 100 ERPM (stricter
+  than upstream's own config save). The horn save writes straight from
+  horn_pending (no 136-byte copy on the 1 kB aux-thread stack).
+- CI: tools/stack_report.sh compiles every file with -fstack-usage (no LTO),
+  lists the largest frames and those new / bigger than upstream v1.2.3, and
+  fails above 512 bytes in one frame.
+- Reviewed, unchanged: command parsing (all lengths checked, len >= 2
+  before any `len - 2`), lcm poll buffer (84 B, worst case ~55 used), LCM
+  name parse (bounded, fixes upstream's one-byte over-read), battery curve
+  (cells / voltage 0 guarded, strictly decreasing points so no divide by 0),
+  idle-animation translation (speed 0 / color / mode bounds checked), no
+  writable statics (VESC packages have no .data/.bss), melody / live tones
+  READY only, LCM update and power-off refused while running.
+
 ### POWER OFF from the app, SLCM r22 (v1.2.3-rf74)
 - For a board whose LCM can't read its button any more (here: damaged by an
   ST-Link connected with the battery on - the button still powers the

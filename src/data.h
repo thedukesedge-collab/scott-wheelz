@@ -139,9 +139,6 @@ typedef struct {
     time_t wheelslip_timer, tb_highvoltage_timer;
     float switch_warn_beep_erpm;
     bool traction_control;
-    // Re-RinkFloat: free-spin limiter, set from the app (not saved on the board)
-    float freespin_limit_speed;  // km/h, 0 = off
-    bool freespin_limiting;  // limiter is holding the wheel back right now
 
     // Darkride aka upside down mode:
     bool is_upside_down_started;  // dark ride has been engaged

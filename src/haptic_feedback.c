@@ -46,6 +46,10 @@
 #define HORN_REFILL 1.0f
 // - in ALT mode, beep and buzz swap this often
 #define HORN_ALT_STEP 0.125f
+// rf75 safety: while riding the horn is the audible beep only (the same
+// foc_play_tone upstream uses for its duty warning), never an extra motor
+// current, and only below this duty
+#define HORN_MAX_RIDING_DUTY 0.6f
 // - the horn works out of the box: if the rider's haptic strengths are lower
 //   (Refloat's default Vibrate Strength is 0), these minimums are used for the
 //   horn only. Other haptic alerts keep using the configured values.
@@ -266,8 +270,10 @@ static HapticFeedbackType haptic_feedback_get_type(
     }
 
     // Re-RinkFloat: the horn has the lowest priority, so real pushback and
-    // error alerts are never masked by it.
-    if (horn_active(hf, time, HORN_MAX_TIME_RIDING)) {
+    // error alerts are never masked by it. rf75: and never above 60% duty,
+    // where the motor needs all its voltage headroom.
+    if (fabsf(md->duty_cycle) < HORN_MAX_RIDING_DUTY &&
+        horn_active(hf, time, HORN_MAX_TIME_RIDING)) {
         return HAPTIC_FEEDBACK_HORN;
     }
 
@@ -477,9 +483,12 @@ void haptic_feedback_update(
         bool play_buzz = buzz_strength > 0.0f;
 
         if (hf->type_playing == HAPTIC_FEEDBACK_HORN) {
-            // Re-RinkFloat: no current-based vibration when the board isn't
-            // running, so an idle horn never moves the wheel.
-            bool can_buzz = play_buzz && state->state == STATE_RUNNING;
+            // rf75 safety: the horn never adds current to the motor. Idle, a
+            // current tone would move the wheel; riding, it would add a square
+            // wave on top of the balance current. Buzz modes fall back to the
+            // beep.
+            bool can_buzz = false;
+            (void) play_buzz;
             switch (hf->horn_mode) {
             case HORN_MODE_BEEP:
                 play_buzz = false;

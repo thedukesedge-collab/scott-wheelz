@@ -207,7 +207,7 @@ Item {
 
         function send() {
             var data = commands.createData(4, commands.c_FREESPIN_LIMIT);
-            var v = swSettings.freespinOn ? Math.round(Math.max(minKmh, swSettings.freespinLimitKmh) * 10) : 0;
+            var v = 0;  // rf75: the limiter was removed from the package
             data.setUint16(2, v);
             vescCommands.sendCustomAppData(data.buffer);
         }
@@ -11944,8 +11944,11 @@ Item {
                             value: 0
                         }
 
-                        // Re-RinkFloat: free-spin limiter
+                        // Re-RinkFloat: free-spin limiter - rf75: removed from the
+                        // package (it was the only change to the balance current);
+                        // the controls stay hidden
                         SwNeonLabel {
+                            visible: false
                             anchors.horizontalCenter: parent.horizontalCenter
 
                             font.pixelSize: 0.45 * unit
@@ -11954,6 +11957,7 @@ Item {
                         }
 
                         SwLText {
+                            visible: false
                             width: parent.width
                             font.pixelSize: fontSizeNormal
                             wrapMode: Text.WordWrap
@@ -11962,6 +11966,7 @@ Item {
 
                         Row {
                             id: freespinUi
+                            visible: false
                             anchors.horizontalCenter: parent.horizontalCenter
                             spacing: 0.2 * unit
 
@@ -12032,7 +12037,7 @@ Item {
 
                         SwLText {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            visible: swSettings.freespinOn
+                            visible: false
                             font.pixelSize: fontSizeSmall
                             color: swTheme.neonGreen
                             text: "Active: limit %1 %2 (press OFF/ON to change)".arg(Math.round(swSettings.freespinLimitKmh * freespinUi.factor)).arg(freespinUi.unitText)
@@ -12056,7 +12061,7 @@ Item {
                             width: parent.width
                             font.pixelSize: fontSizeNormal
                             wrapMode: Text.WordWrap
-                            text: "Used only for the HORN button, separate from the Haptic Feedback settings. You feel the buzz only while riding; the beep plays any time."
+                            text: "Used only for the HORN button, separate from the Haptic Feedback settings. The horn is a beep (no motor buzz). While riding it only sounds below 60% duty and never overrides a real warning."
                         }
 
                         // SIMPLE | ADVANCED
@@ -12102,7 +12107,7 @@ Item {
 
                         // simple mode
                         SwStepper {
-                            visible: !swSettings.hornAdvanced
+                            visible: false  // rf75: the horn never adds motor current
                             label: "STRENGTH (buzz, riding only)"
                             value: swSettings.hornSimpleStrength
                             from: 0; to: 10; step: 1
@@ -12146,7 +12151,7 @@ Item {
                         }
 
                         SwStepper {
-                            visible: swSettings.hornAdvanced
+                            visible: false  // rf75: the horn never adds motor current
                             label: "BUZZ STRENGTH (riding)"
                             value: swSettings.hornBuzzStrength
                             from: 0; to: 15; step: 1; suffix: " A"
@@ -12154,7 +12159,7 @@ Item {
                         }
 
                         SwStepper {
-                            visible: swSettings.hornAdvanced
+                            visible: false  // rf75: the horn never adds motor current
                             label: "BUZZ FREQ (riding)"
                             value: swSettings.hornBuzzFreq
                             from: 30; to: 150; step: 5; suffix: " Hz"

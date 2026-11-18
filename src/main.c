@@ -964,23 +964,10 @@ static void refloat_thd(void *arg) {
                 new_current = sign(new_current) * current_limit;
             }
 
-            // Re-RinkFloat: free-spin limiter (governor). Only while the package has
-            // flagged wheelslip (tire spinning without load, e.g. in the air after a
-            // jump): within 3 km/h of the limit the drive current is eased off
-            // proportionally, reaching 0 at the limit, so the tire keeps spinning and
-            // settles just under the limit instead of spinning up further. Braking
-            // requests still pass. Never active in darkride, flywheel or handtest, and
-            // the limit is never below 40 mph / 64 km/h.
-            d->freespin_limiting = false;
-            if (d->freespin_limit_speed > 0.0f && d->state.wheelslip && !d->state.darkride &&
-                d->state.mode == MODE_NORMAL && sign(new_current) == d->motor.erpm_sign) {
-                static const float band = 3.0f;  // km/h
-                float headroom = d->freespin_limit_speed - fabsf(d->motor.speed);
-                if (headroom < band) {
-                    new_current *= fminf(fmaxf(headroom / band, 0.0f), 1.0f);
-                    d->freespin_limiting = true;
-                }
-            }
+            // Re-Float Rink-Mixed (rf75): the free-spin limiter that used to be
+            // here was removed. It was the only change to the balance current:
+            // a false wheelslip flag near its speed could cut drive current.
+            // The balance loop is now exactly upstream Refloat 1.2.3.
 
             if (d->state.darkride) {
                 new_current = -new_current;
@@ -1170,6 +1157,14 @@ static void write_cfg_to_eeprom(Data *d) {
 
 static void horn_settings_save_if_due(Data *d);
 static void lcm_vp_save_if_due(Data *d);
+
+// rf75 safety: a flash write stalls the CPU for a moment, so the package's
+// own settings are only written with the board fully at rest - not running,
+// nobody on the footpads, wheel still (stricter than upstream's config save)
+static bool can_save_settings(const Data *d) {
+    return d->state.state != STATE_RUNNING && d->footpad.state == FS_NONE &&
+        d->motor.abs_erpm < 100.0f;
+}
 static void battery_curve_save_if_due(Data *d);
 
 static void aux_thd(void *arg) {
@@ -1370,7 +1365,7 @@ static void lcm_vp_load(Data *d) {
 }
 
 static void lcm_vp_save_if_due(Data *d) {
-    if (!d->lcm_vp_save_pending || d->state.state == STATE_RUNNING ||
+    if (!d->lcm_vp_save_pending || !can_save_settings(d) ||
         !timer_older(&d->time, d->lcm_vp_change_time, 2.0f)) {
         return;
     }
@@ -1408,7 +1403,7 @@ static void battery_curve_load(Data *d) {
 }
 
 static void battery_curve_save_if_due(Data *d) {
-    if (!d->battery_save_pending || d->state.state == STATE_RUNNING ||
+    if (!d->battery_save_pending || !can_save_settings(d) ||
         !timer_older(&d->time, d->battery_change_time, 2.0f)) {
         return;
     }
@@ -1455,39 +1450,36 @@ static void battery_curve_reply(Data *d) {
 }
 
 static void horn_settings_save_if_due(Data *d) {
-    if (!d->horn_save_pending || d->state.state == STATE_RUNNING ||
+    if (!d->horn_save_pending || !can_save_settings(d) ||
         !timer_older(&d->time, d->horn_change_time, 2.0f)) {
         return;
     }
-    uint32_t w[HORN_EEPROM_WORDS];
-    for (int i = 0; i < HORN_EEPROM_WORDS; ++i) {
-        w[i] = d->horn_pending[i];
-    }
+    // rf75: written straight from horn_pending (no 136-byte copy on the aux
+    // thread's 1 kB stack). A change arriving mid-save sets horn_save_pending
+    // again, so it's written 2 s later.
     d->horn_save_pending = false;
     // melody words first, then the settings words (word 0 holds the magic),
     // so an interrupted save never pairs a new magic with an old melody
     bool ok = true;
     for (int k = 0; k < HORN_EEPROM_WORDS && ok; ++k) {
         int i = (k + 2) % HORN_EEPROM_WORDS;
-        if (w[i] != d->horn_saved[i]) {
-            eeprom_var v = {.as_u32 = w[i]};
+        uint32_t w = d->horn_pending[i];
+        if (w != d->horn_saved[i]) {
+            eeprom_var v = {.as_u32 = w};
             ok = VESC_IF->store_eeprom_var(&v, horn_eeprom_addr(i));
+            if (ok) {
+                d->horn_saved[i] = w;
+            }
         }
     }
     if (ok) {
         d->horn_save_retries = 0;
-        for (int i = 0; i < HORN_EEPROM_WORDS; ++i) {
-            d->horn_saved[i] = w[i];
-        }
     } else {
         // try again a little later (unless something newer is queued by then),
         // at most 3 times so a failing flash is never hammered
         log_error("Failed to save horn settings.");
         if (!d->horn_save_pending && d->horn_save_retries < 3) {
             ++d->horn_save_retries;
-            for (int i = 0; i < HORN_EEPROM_WORDS; ++i) {
-                d->horn_pending[i] = w[i];
-            }
             d->horn_change_time = d->time.now;
             d->horn_save_pending = true;
         }
@@ -1547,8 +1539,6 @@ static void data_init(Data *d) {
 
     d->beep_num_left = 0;
     d->sw_horn_beeping = false;
-    d->freespin_limit_speed = 0.0f;
-    d->freespin_limiting = false;
     d->beep_duration = 0.0f;
     d->beeper_timer = 0;
 
@@ -2310,9 +2300,7 @@ static void cmd_realtime_data(Data *d) {
 
     buffer[ind++] = d->state.mode << 4 | d->state.state;
 
-    uint8_t flags = d->state.charging << 5 |
-        (d->freespin_limiting && d->state.state == STATE_RUNNING) << 2 | d->state.darkride << 1 |
-        d->state.wheelslip;
+    uint8_t flags = d->state.charging << 5 | d->state.darkride << 1 | d->state.wheelslip;
     buffer[ind++] = d->footpad.state << 6 | flags;
 
     buffer[ind++] = d->state.sat << 4 | d->state.stop_condition;
@@ -2809,21 +2797,8 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
         return;
     }
     case COMMAND_FREESPIN_LIMIT: {
-        if (len == 4) {
-            float limit = ((buffer[2] << 8) | buffer[3]) * 0.1f;
-            if (limit > 0.0f && limit < 64.3f) {
-                limit = 64.3f;  // never below 40 mph
-            }
-            if (limit > 200.0f) {
-                limit = 200.0f;
-            }
-            d->freespin_limit_speed = limit;
-            if (limit == 0.0f) {
-                d->freespin_limiting = false;
-            }
-        } else {
-            log_error("Command data length incorrect: %u", len);
-        }
+        // rf75: the free-spin limiter was removed; older apps may still send
+        // this, it's accepted and ignored
         return;
     }
     default: {

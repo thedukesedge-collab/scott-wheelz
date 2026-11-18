@@ -237,16 +237,16 @@
         <div class="page" id="pgControl">
           <div class="secTitle">Move</div>
           <div id="moveBox"><div class="neonL" id="fwdL">FWD</div><div id="moveTrack"><div class="bar"></div><div id="moveKnob"></div></div><div class="neonL" id="revL">REV</div></div>
-          <div class="secTitle neonL" style="font-size:16px;margin-top:14px">FREE-SPIN LIMITER</div>
+          <div style="display:none"><div class="secTitle neonL" style="font-size:16px;margin-top:14px">FREE-SPIN LIMITER</div>
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Holds the tire at this speed while wheelslip is detected (e.g. in the air off a jump): the motor eases off so the tire keeps spinning just under the limit. Normal riding is not limited. Minimum 40 mph.</p>
           <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0 4px">
             <input id="fsInput" type="number" min="40" max="150" style="width:80px;background:#140a26;border:1px solid var(--purple);color:var(--green);font-family:Orbitron,monospace;font-size:18px;text-align:center;border-radius:6px;padding:6px">
             <span class="neonL">mph</span>
             <div class="pill" id="fsPill">OFF</div>
           </div>
-          <div id="fsActive" style="text-align:center;font-size:12px;color:var(--green)"></div>
+          <div id="fsActive" style="text-align:center;font-size:12px;color:var(--green)"></div></div>
           <div class="secTitle neonL" style="font-size:16px;margin-top:14px">HORN SETTINGS</div>
-          <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Used only for the HORN button, separate from the Haptic Feedback settings. You feel the buzz only while riding; the beep plays any time.</p>
+          <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Used only for the HORN button, separate from the Haptic Feedback settings. The horn is a beep (no motor buzz). While riding it only sounds below 60% duty and never overrides a real warning.</p>
           <div style="display:flex;justify-content:center;margin:8px 0"><div id="hornMode" style="display:flex;border:2px solid var(--purple);border-radius:999px;background:#0b0718;padding:2px"><div data-v="0" style="padding:5px 14px;border-radius:999px;font-family:Orbitron,monospace;font-size:10px;cursor:pointer">SIMPLE</div><div data-v="1" style="padding:5px 14px;border-radius:999px;font-family:Orbitron,monospace;font-size:10px;cursor:pointer">ADVANCED</div></div></div>
           <div id="hornSteps"></div>
           <div class="secTitle neonL" style="font-size:12px;margin-top:10px">BOOT MELODY</div>
@@ -306,7 +306,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf74 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf75 · sim</span></div>
     </div>
   </div>
 
@@ -775,10 +775,9 @@ $('motorStat').onclick = () => { P.tempF = !P.tempF; save(); toast(P.tempF ? 'Te
 // ---------- horn settings (horn only) ----------
 const HORN_ADV = [
   ['hBeep', 'BEEP STRENGTH', 0.5, 6, 0.5, 1, ' V'], ['hBeepHz', 'BEEP PITCH', 300, 1000, 25, 0, ' Hz'],
-  ['hBuzz', 'BUZZ STRENGTH (riding)', 0, 15, 1, 0, ' A'], ['hBuzzHz', 'BUZZ FREQ (riding)', 30, 150, 5, 0, ' Hz'],
 ];
 const HORN_SIMPLE = [
-  ['hsStr', 'STRENGTH (buzz, riding only)', 0, 10, 1, 0, ' / 10'], ['hsVol', 'VOLUME (beep loudness)', 1, 10, 1, 0, ' / 10'],
+  ['hsVol', 'VOLUME (beep loudness)', 1, 10, 1, 0, ' / 10'],
   ['hsPitch', 'PITCH (low - high)', 1, 10, 1, 0, ' / 10'],
 ];
 const simplePitchHz = l => Math.round((300 + (l - 1) * 700 / 9) / 25) * 25;
@@ -1598,7 +1597,7 @@ function step(now) {
   // free-spin limiter: while wheelslip, don't drive the tire past the limit
   S.limiting = false;
   // governor: eases off within ~2 mph of the limit, tire keeps spinning just under it
-  if (P.fsOn && S.wheelslip && running() && S.speed > P.fsMph - 2) {
+  if (false && P.fsOn && S.wheelslip && running() && S.speed > P.fsMph - 2) {  // rf75: removed
     const hold = P.fsMph - 0.5;
     if (S.speed > hold) S.speed = Math.max(hold, prev - 20 * dt);
     S.limiting = true;
