@@ -292,17 +292,20 @@
           <div class="ledTiles">
             <div class="ledTile" data-w="head"><span class="g">&#9673;</span><b>HEADLIGHTS</b><small id="ltHead"></small><i>&#8250;</i></div>
             <div class="ledTile" data-w="bar"><span class="g">&#9609;</span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
-            <div class="ledTile slcm" data-w="anim"><em class="slcmTag">SLCM</em><span class="g">&#10022;</span><span class="sw" id="ltSw"></span><b>ANIMATIONS</b><small id="ltAnim"></small><i>&#8250;</i></div>
-            <div class="ledTile slcm" data-w="sound"><em class="slcmTag">SLCM</em><span class="g">&#9834;</span><b>SOUND</b><small id="ltSound"></small><i>&#8250;</i></div>
-            <div class="ledTile wide slcm" data-w="battery"><em class="slcmTag">SLCM</em><span class="g">&#9646;</span><b>BATTERY GAUGE</b><small id="ltBat"></small><i>&#8250;</i></div>
           </div>
-          <p style="font-size:11px;color:var(--text);text-align:center;margin:8px 6px">Headlight and status bar levels are kept in step with Refloat's LED settings (VESC Tool &#8250; Refloat Cfg &#8250; LEDs), both ways.</p>
+          <p style="font-size:11px;color:var(--text);text-align:center;margin:8px 6px">These are Refloat's LED settings (VESC Tool &#8250; Refloat Cfg &#8250; LEDs), kept in step both ways, so they work the same on every controller.</p>
+          <div id="slcmExtras"><div class="secTitle" style="text-align:center;margin-top:6px">SLCM extras</div>
+          <div class="ledTiles">
+            <div class="ledTile" data-w="anim"><span class="g">&#10022;</span><span class="sw" id="ltSw"></span><b>ANIMATIONS</b><small id="ltAnim"></small><i>&#8250;</i></div>
+            <div class="ledTile" data-w="sound"><span class="g">&#9834;</span><b>SOUND</b><small id="ltSound"></small><i>&#8250;</i></div>
+            <div class="ledTile wide" data-w="battery"><span class="g">&#9646;</span><b>BATTERY GAUGE</b><small id="ltBat"></small><i>&#8250;</i></div>
+          </div></div>
           <div style="height:22px"></div>
           <div id="lcmTools"><span id="lcmToolsText">LCM firmware tools</span><i id="lcmToolsFill"></i></div>
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf71 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf72 · sim</span></div>
     </div>
   </div>
 
@@ -314,19 +317,25 @@
       <div class="ledSec" data-s="head">
         <div class="pills"><div class="pill" id="ledHeadPill"></div></div>
         <div id="ledHeadSteps"></div>
-        <div class="pills"><div class="pill" id="ledBreathPill"></div></div>
+        <div class="pills" id="ledBreathBox"><div class="pill" id="ledBreathPill"></div></div>
         <p class="ledHint">HEADLIGHTS OFF is fully off (riding and idle). RIDING LIGHTS apply while the board is engaged, RUNNING LIGHTS the rest of the time; 0% = off. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). SNOOZE BREATHING: the head and tail lights slowly breathe while the board snoozes (SLCM); off = dark in snooze.</p>
       </div>
       <div class="ledSec" data-s="bar">
         <div class="pills"><div class="pill" id="ledBarPill"></div></div>
         <div id="ledBarSteps"></div>
         <p class="ledHint">Same as Refloat's Status Idle Brightness (idle) and Status Brightness (riding).</p>
+        <div class="secTitle">Idle animation</div>
+        <div class="stepVal animName" id="rfPreview" data-anim="15" style="width:100%;font-size:18px;text-align:center;margin:4px 0 8px"></div>
+        <div class="pills"><div class="pill" id="rfPill"></div></div>
+        <div id="rfSteps"></div>
+        <div id="rfSwatch" style="height:8px;border-radius:4px;width:70%;margin:4px auto 0"></div>
+        <p class="ledHint" id="rfHint"></p>
       </div>
       <div class="ledSec" data-s="anim">
         <div id="ledAnimSteps"></div>
         <div id="ledColorSteps"></div>
         <div id="ledSwatch" style="height:8px;border-radius:4px;width:70%;margin:4px auto 0"></div>
-        <p class="ledHint">OFF = nothing shown (riding still warns when the battery is low). STANDARD = battery level, footpad sensors when stepped on. BATTERY LEVEL shows the battery gauge anywhere (riding: live); it needs the SLCM build that comes with this package (CHECK LCM: up to date).</p>
+        <p class="ledHint">OFF = nothing shown (riding still warns when the battery is low). STANDARD = battery level, footpad sensors when stepped on. BATTERY LEVEL shows the battery gauge anywhere (riding: live); it needs the SLCM build that comes with this package (CHECK LCM: up to date). IDLE STATUS BAR = the idle animation set in STATUS BAR (Refloat's own), the same on every controller.</p>
         <div class="pills"><div class="pill on" id="cuOpen">DESIGN CUSTOM &#8250;</div></div>
       </div>
       <div class="ledSec" data-s="custom">
@@ -1023,9 +1032,18 @@ function renderCustom() {
 }
 // 0 means STANDARD (battery + footpads) at idle / boot / shutdown, OFF riding and in snooze
 const ANIM_ZERO = { ledAnimIdle: 'STANDARD', ledAnimRide: 'OFF', ledAnimDoze: 'OFF', ledAnimBoot: 'STANDARD', ledAnimShut: 'STANDARD' };
-const animLabel = (k, v) => v === 0 ? ANIM_ZERO[k] : LED_ANIMS[v];
+const animLabel = (k, v) => v === 15 ? 'STATUS BAR' : v === 0 ? ANIM_ZERO[k] : LED_ANIMS[v];
+// rf72: Refloat's own Status Idle animation (leds.status_idle.*, leds.status.idle_timeout)
+const RF_MODES = ['SOLID', 'FADE', 'PULSE', 'STROBE', 'KNIGHT RIDER', 'FELONY', 'RAINBOW CYCLE', 'RAINBOW FADE', 'RAINBOW ROLL'];
+const RF_COLORS = ['BLACK', 'WHITE (FULL)', 'WHITE (RGB)', 'WHITE (SINGLE)', 'RED', 'FERRARI', 'FLAME', 'CORAL', 'SUNSET', 'SUNRISE', 'GOLD', 'ORANGE',
+  'YELLOW', 'BANANA', 'LIME', 'ACID', 'SAGE', 'GREEN', 'MINT', 'TIFFANY', 'CYAN', 'STEEL', 'SKY', 'AZURE', 'SAPPHIRE', 'BLUE', 'VIOLET', 'AMETHYST',
+  'MAGENTA', 'PINK', 'FUCHSIA', 'LAVENDER'];
+const RF_HUE = [-1, -1, -1, -1, 0, 7, 9, 5, 10, 13, 13, 14, 19, 18, 30, 41, 46, 60, 69, 83, 90, 107, 100, 101, 107, 120, 135, 132, 150, 157, 167, 170];
+const rfRgb = i => i === 0 ? [32, 32, 32] : RF_HUE[i] < 0 ? [255, 255, 255] : hsl2rgb(RF_HUE[i] * 2 / 360);
+function hsl2rgb(h) { const f = n => { const k = (n + h * 12) % 12; return Math.round(255 * (0.5 - 0.5 * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); }; return [f(0), f(8), f(4)]; }
+const rfCss = (c, a) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (a === undefined ? 1 : a).toFixed(2) + ')';
 const LED_DEF = { ledCfg: false, ledHead: true, ledBar: true, ledBeep: true, ledHeadPct: 80, ledHeadIdlePct: 50, ledIdlePct: 80, ledRidePct: 80,
-  ledAnimIdle: 0, ledAnimRide: 0, ledAnimDoze: 0, ledAnimBoot: 11, ledAnimShut: 0, ledColor: 200 };
+  ledAnimIdle: 15, rfMode: 4, rfColor1: 4, rfColor2: 0, rfSpeed: 1, rfTimeout: 0, ledAnimRide: 0, ledAnimDoze: 0, ledAnimBoot: 11, ledAnimShut: 0, ledColor: 200 };
 for (const k in LED_DEF) if (P[k] === undefined) P[k] = LED_DEF[k];
 function ledStep(box, k, label, mn, mx, stp, fmt, wide) {
   const row = document.createElement('div'); row.className = 'stepRow';
@@ -1062,6 +1080,18 @@ function animCol(anim, i, n, t, hueDeg, el_text_off) {
     case 11: h = hu; a = x <= Math.min(1, frac(t / 6.5) * 6.5 / 5.5) ? 1 : 0.15; break;
     case 12: h = hu; a = spot(x, sweep(t, 2)); break;
     case 13: return x <= 0.8 ? 'rgba(244,240,255,1)' : 'rgba(255,255,255,0.22)';
+    case 15: {  // Refloat's Status Idle animation (approximation)
+      if (!P.rfTimeout) return 'rgba(234,214,255,1)';
+      const c1 = rfRgb(P.rfColor1), c2 = rfRgb(P.rfColor2), sp = Math.max(0.1, P.rfSpeed), md = P.rfMode;
+      const mix = q => [0, 1, 2].map(j => Math.round(c1[j] + (c2[j] - c1[j]) * q));
+      if (md === 0) return rfCss(c1);
+      if (md === 1) return rfCss(mix(0.5 - 0.5 * Math.cos(2 * Math.PI * t * sp)));
+      if (md === 2) return rfCss(c1, Math.max(0.15, spot(m, frac(t * sp))));
+      if (md === 3) return rfCss(c1, frac(t * sp * 2) < 0.5 ? 1 : 0.15);
+      if (md === 4) return rfCss(c1, Math.max(0.15, spot(x, sweep(t, 2 / sp))));
+      if (md === 5) { const fp = Math.floor(t * sp * 2) % 2; return rfCss((x < 0.5) === (fp === 0) ? c1 : c2, Math.floor(t * 16) % 2 === 0 ? 1 : 0.2); }
+      h = md === 8 ? frac(x - t * sp) : frac(t * sp / 3); break;
+    }
     case 14: {
       const c = cuGet(), scan = (c[0] & 1) === 1, cm = (c[0] >> 1) & 7, pat = (c[0] >> 4) & 7;
       const ha = c[2] * 2 / 360, hb = c[3] * 2 / 360, cs = (c[4] + 1) * 0.05, ms = (c[5] + 1) * 0.05;
@@ -1094,8 +1124,9 @@ function renderLedsSoft() {
   $('pgLeds').classList.toggle('slcmOn', slcm); $('pgLeds').classList.toggle('slcmOff', !slcm);
   document.querySelectorAll('#simSetup .pill').forEach(x => x.classList.toggle('on', x.dataset.k === setup));
   $('slcmBanner').className = 'fwFit' + (slcm ? ' ok' : '');
-  $('slcmBanner').innerHTML = slcm ? '<b>&#10004; SLCM DETECTED</b> · ' + FW_BUILD + '<br>All the light settings below work on this board.'
-    : "<b>NO SLCM DETECTED</b><br>LIGHTS / HEADLIGHTS and the headlight and status bar brightness use Refloat's own LED controls and work on any controller (Thor, Floatwheel, ...). Tiles marked SLCM need a light module running the SLCM firmware.";
+  $('slcmBanner').innerHTML = slcm ? '<b>&#10004; SLCM DETECTED</b> · ' + FW_BUILD + '<br>Same light settings as any controller, plus the SLCM EXTRAS below.'
+    : "<b>REFLOAT LIGHTS</b><br>These are Refloat's own LED settings, the same on any controller (Thor, Floatwheel, ...).";
+  $('slcmExtras').style.display = slcm ? '' : 'none'; $('ledBreathBox').style.display = slcm ? '' : 'none';
   $('lightsBox').style.display = lightsOk ? '' : 'none';
   const pl = (id, on, txt) => { $(id).textContent = txt + (on ? ' ON' : ' OFF'); $(id).classList.toggle('on', on); };
   const allOn = P.ledHead && P.ledBar && P.lightsOn !== false;
@@ -1113,7 +1144,7 @@ function renderLedsSoft() {
   $('ledSwatch').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
   $('ltSw').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
   $('ltHead').textContent = P.ledHead ? 'ON · RIDE ' + P.ledHeadPct + '% · IDLE ' + P.ledHeadIdlePct + '%' : 'OFF';
-  $('ltBar').textContent = P.ledBar ? 'ON · RIDE ' + P.ledRidePct + '% · IDLE ' + P.ledIdlePct + '%' : 'OFF';
+  $('ltBar').textContent = P.ledBar ? 'ON · RIDE ' + P.ledRidePct + '% · ' + (P.rfTimeout > 0 ? 'IDLE: ' + RF_MODES[P.rfMode] : 'IDLE: BATTERY') : 'OFF';
   $('ltAnim').textContent = 'IDLE ' + animLabel('ledAnimIdle', P.ledAnimIdle) + ' · RIDE ' + animLabel('ledAnimRide', P.ledAnimRide);
   $('ltSound').textContent = (P.ledBeep ? 'BEEPER ON' : 'BEEPER OFF') + ' · TEST BEEP';
   for (let i = 0; i < 11; i++) { const v = P['_pt' + i]; const c0 = P.batCustom || batCur(); if (v !== undefined && $('batAdv').style.display === 'flex' && v !== c0.points[i]) batEdit(x => { x.points[i] = v; }); }
@@ -1133,11 +1164,31 @@ function renderLeds() {
   $('ledBarSteps').innerHTML = ''; ledStep($('ledBarSteps'), 'ledIdlePct', 'IDLE BRIGHTNESS', 0, 100, 5, pct); ledStep($('ledBarSteps'), 'ledRidePct', 'RIDING BRIGHTNESS', 0, 100, 5, pct);
   $('ledAnimSteps').innerHTML = '';
   [['ledAnimIdle', 'IDLE'], ['ledAnimRide', 'RIDING'], ['ledAnimDoze', 'SNOOZE'], ['ledAnimBoot', 'BOOT'], ['ledAnimShut', 'SHUTDOWN']]
-    .forEach(([k, l]) => ledStep($('ledAnimSteps'), k, l, 0, LED_ANIMS.length - 1, 1, v => animLabel(k, v), true));
+    .forEach(([k, l]) => ledStep($('ledAnimSteps'), k, l, 0, LED_ANIMS.length - (k === 'ledAnimIdle' ? 0 : 1), 1, v => animLabel(k, v), true));
+  renderRf();
   renderBattery();
   $('ledColorSteps').innerHTML = ''; ledStep($('ledColorSteps'), 'ledColor', 'COLOR', 0, 350, 10, v => v + '°');
   renderLedsSoft();
 }
+function renderRf() {
+  const on = P.rfTimeout > 0, box = $('rfSteps');
+  $('rfPill').textContent = 'IDLE ANIMATION ' + (on ? 'ON' : 'OFF'); $('rfPill').classList.toggle('on', on);
+  $('rfPreview').innerHTML = [...(on ? RF_MODES[P.rfMode] : 'BATTERY LEVEL')].map(ch => '<span>' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
+  box.innerHTML = ''; $('rfSwatch').style.display = on && P.rfMode < 6 ? '' : 'none';
+  if (on) {
+    const st = (k, l, mn, mx, stp, fmt) => cuStep('rfSteps', l, () => P[k], mn, mx, stp, fmt, v => { P[k] = Math.round(v * 10) / 10; P.ledAnimIdle = 15; P.ledCfg = true; save(); renderRf(); renderLedsSoft(); });
+    st('rfMode', 'ANIMATION', 0, 8, 1, v => RF_MODES[v]);
+    if (P.rfMode < 6) st('rfColor1', 'COLOR 1', 0, 31, 1, v => RF_COLORS[v]);
+    if (P.rfMode === 1 || P.rfMode === 5) st('rfColor2', 'COLOR 2', 0, 31, 1, v => RF_COLORS[v]);
+    if (P.rfMode !== 0) st('rfSpeed', 'SPEED', 0.1, 5, 0.1, v => v.toFixed(1) + '/s');
+    st('rfTimeout', 'START AFTER', 1, 300, 1, v => v + ' s');
+    $('rfSwatch').style.background = 'linear-gradient(90deg,' + rfCss(rfRgb(P.rfColor1)) + ',' + rfCss(rfRgb(P.rfMode === 1 || P.rfMode === 5 ? P.rfColor2 : P.rfColor1)) + ')';
+  }
+  const slcm = (P.simSetup || 'slcm') === 'slcm';
+  $('rfHint').textContent = "Refloat's own Status Idle animation, so it's the same on every controller (Thor, Floatwheel, ...): Refloat's LEDs play it themselves, and for an SLCM light module the package turns it into the closest SLCM animation (from SLCM r19; older builds show the battery). Off = the battery level. START AFTER only applies to Refloat's LEDs, an SLCM starts right away."
+    + (slcm && P.ledAnimIdle !== 15 ? ' Right now the SLCM plays ' + animLabel('ledAnimIdle', P.ledAnimIdle) + ' from SLCM EXTRAS \u203A ANIMATIONS instead; change anything here to follow this again.' : '');
+}
+$('rfPill').onclick = () => { P.rfTimeout = P.rfTimeout > 0 ? 0 : 10; P.ledAnimIdle = 15; P.ledCfg = true; save(); renderRf(); renderLedsSoft(); };
 const ledToggle = k => () => { P[k] = !P[k]; P.ledCfg = true; save(); renderLedsSoft(); };
 const P42A = [170, 156, 144, 135, 128, 120, 112, 104, 96, 84, 50];
 const CELLS = [
@@ -1203,6 +1254,7 @@ const ledWin = w => {
   $('ledWinTitle').textContent = LED_TITLES[w];
   document.querySelectorAll('.ledSec').forEach(x => x.classList.toggle('on', x.dataset.s === w));
   if (w === 'fw') { fwForget(); fwFitPaint(); }
+  $('slcmFooter').style.display = (P.simSetup || 'slcm') !== 'slcm' && (w === 'head' || w === 'bar') ? 'none' : '';
 };
 document.querySelectorAll('.ledTile').forEach(t => t.onclick = () => ledWin(t.dataset.w));
 $('ledWinBack').onclick = () => { if (document.querySelector('.ledSec.on[data-s="custom"]')) { ledWin('anim'); renderLeds(); return; } fwForget(); ledWin(null); };
@@ -1421,7 +1473,7 @@ function fwStart() {
   }, 80);
 }
 $('fwCancel').onclick = () => { clearInterval(FW.t); FW.active = false; fwPaint('Cancelled. If the LCM had already started, power the board off and on, then press FLASH LCM again.'); };
-document.querySelectorAll('#simSetup .pill').forEach(x => x.onclick = () => { P.simSetup = x.dataset.k; save(); renderLedsSoft(); });
+document.querySelectorAll('#simSetup .pill').forEach(x => x.onclick = () => { P.simSetup = x.dataset.k; save(); renderLedsSoft(); renderRf(); });
 $('lightsPill').onclick = () => { const on = !(P.ledHead && P.ledBar && P.lightsOn !== false); P.ledHead = P.ledBar = on; P.lightsOn = on; P.ledCfg = true; save(); renderLedsSoft(); };
 $('headPill2').onclick = () => { P.ledHead = !P.ledHead; if (P.ledHead) P.lightsOn = true; P.ledCfg = true; save(); renderLedsSoft(); };
 $('statusPill2').onclick = () => { P.ledBar = !P.ledBar; if (P.ledBar) P.lightsOn = true; P.ledCfg = true; save(); renderLedsSoft(); };

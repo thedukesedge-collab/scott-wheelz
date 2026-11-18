@@ -793,6 +793,29 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   backup; Dashboard, Tunes, Data & App), neon buttons, CLOSE pill.
 - lcm.yml: apt install retried with a timeout (a stuck mirror hung runs).
 
+### One set of light settings for every controller (v1.2.3-rf72)
+- The LEDS tab now edits Refloat's own LED settings for everything that every
+  controller understands: lights on/off, headlight riding / idle level,
+  status bar riding / idle level and (new) the Status Idle animation
+  (STATUS BAR > Idle animation: Refloat's 9 modes, color 1 / 2 from Refloat's
+  palette, speed, start after = leds.status_idle.*, leds.status.idle_timeout).
+  They are kept in step with VESC Tool > Refloat Cfg > LEDs both ways
+  (rfLoaded: the app never writes its defaults over a config it hasn't read).
+- Refloat's own LEDs (Thor, Floatwheel, internal strips) play them directly.
+  For an SLCM the package translates: IDLE animation 128 (new default) =
+  "follow Refloat" - lcm.c refloat_idle_anim() turns Refloat's mode into the
+  closest SLCM animation each poll: Felony -> THE FUZZ, everything else ->
+  CUSTOM (fill / scan engine, Refloat colors -> hues, speed -> steps).
+  Idle timeout 0 (Refloat's default) = STANDARD (battery), as before.
+  SLCM before r19 (no CUSTOM) gets STANDARD. While riding the rider's own
+  CUSTOM block is sent (the SLCM has one CUSTOM slot). No SLCM change.
+- SLCM EXTRAS (ANIMATIONS for the other moments, CUSTOM designer, SOUND,
+  BATTERY GAUGE, snooze breathing) are only shown when an SLCM is detected.
+  ANIMATIONS > IDLE has STATUS BAR as an extra choice (= follow Refloat);
+  picking another SLCM animation there overrides it until something in
+  STATUS BAR > Idle animation is changed.
+- tools/lcm_vp_test: stub has Refloat's LED types; follow-Refloat tests.
+
 ### SLCM r19+: settings kept right away, CUSTOM animation (v1.2.3-rf71)
 - Plan agreed with the rider: the SLCM keeps all 13 animations and runs the
   lights itself, so status bar and head / tail lights work with the package

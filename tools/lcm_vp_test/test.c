@@ -84,6 +84,39 @@ int main(void){
     assert(sent_len == 33 && sent[25]==0x13 && sent[31]==40);  /* 34 at the LCM */
     uint8_t n7[] = "VP-r7-abcdef0"; lcm_poll_request(&lcm, n7, sizeof n7 - 1);
     assert(lcm_slcm_rev(&lcm) == 7);
+    /* idle following Refloat's Status Idle animation (rf72) */
+    {
+        CfgLeds cl; memset(&cl, 0, sizeof cl);
+        lcm_poll_request(&lcm, n19, sizeof n19 - 1);
+        lcm.leds_cfg = &cl;
+        uint8_t fol[20]; memcpy(fol, cus, 20); fol[4] = LCM_VP_ANIM_REFLOAT;
+        assert(lcm_vp_set(&lcm, fol, 20) && lcm.vp.animations[0] == LCM_VP_ANIM_REFLOAT);
+        lcm_poll_response(&lcm, &st, 0, &md, 0);
+        assert(sent[17] == 0);                       /* timeout 0 (Refloat default): STANDARD */
+        cl.status.idle_timeout = 5; cl.status_idle.mode = LED_ANIM_KNIGHT_RIDER;
+        cl.status_idle.color1 = COLOR_RED; cl.status_idle.color2 = COLOR_BLUE; cl.status_idle.speed = 1.0f;
+        lcm_poll_response(&lcm, &st, 0, &md, 0);
+        assert(sent[17] == 14 && sent[25] == (1 | (2 << 1) | (6 << 4)) && sent[27] == 0 && sent[28] == 0);
+        assert(sent[29] == 19 && sent[30] == 19);   /* 1 s = 20 x 50 ms */
+        st.state = STATE_RUNNING; lcm_poll_response(&lcm, &st, 0, &md, 0);
+        assert(sent[25] == 0x13);                    /* riding: the rider's own CUSTOM */
+        st.state = STATE_READY;
+        cl.status_idle.mode = LED_ANIM_FADE;
+        lcm_poll_response(&lcm, &st, 0, &md, 0);
+        assert(sent[17] == 14 && sent[27] == 0 && sent[28] == 120);  /* red -> blue */
+        cl.status_idle.mode = LED_ANIM_FELONY;
+        lcm_poll_response(&lcm, &st, 0, &md, 0);
+        assert(sent[17] == 5 && sent[25] == 0x13);  /* THE FUZZ, own custom block kept */
+        cl.status_idle.mode = LED_ANIM_SOLID; cl.status_idle.color1 = COLOR_WHITE_FULL;
+        lcm_poll_response(&lcm, &st, 0, &md, 0);
+        assert(sent[17] == 14 && sent[25] == (4 << 1));  /* white: the SLCM's own color */
+        lcm_poll_request(&lcm, n7, sizeof n7 - 1);        /* older SLCM: no CUSTOM */
+        lcm_poll_response(&lcm, &st, 0, &md, 0);
+        assert(sent[17] == 0 && sent_len == 25);
+        lcm_poll_request(&lcm, n19, sizeof n19 - 1);
+        assert(lcm_vp_set(&lcm, cus, 20));
+        lcm.leds_cfg = NULL;
+    }
     /* an older app (12 bytes) keeps the custom block */
     assert(lcm_vp_set(&lcm, in12, 12) == true && lcm.vp.custom[0]==0x13);
     lcm_poll_request(&lcm, n19, sizeof n19 - 1);

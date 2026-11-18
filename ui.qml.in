@@ -379,7 +379,40 @@ Item {
         readonly property var animContexts: [["IDLE", "ledAnimIdle", "STANDARD"], ["RIDING", "ledAnimRide", "OFF"],
             ["SNOOZE", "ledAnimDoze", "OFF"], ["BOOT", "ledAnimBoot", "STANDARD"], ["SHUTDOWN", "ledAnimShutdown", "STANDARD"]]
         function animLabel(ctx, v) {
-            return v === 0 ? animContexts[ctx][2] : (animNames[v] || "");
+            return v === 128 || v === 15 ? "STATUS BAR" : v === 0 ? animContexts[ctx][2] : (animNames[v] || "");
+        }
+
+        // ---- Refloat's own Status Idle animation (rf72): the one idle
+        // animation every controller understands. Stored in the Refloat
+        // config (leds.status_idle.*, leds.status.idle_timeout); Refloat's
+        // LEDs play it themselves, for an SLCM the package translates it
+        // (IDLE = 128, see lcm.c refloat_idle_anim).
+        readonly property var rfModes: ["SOLID", "FADE", "PULSE", "STROBE", "KNIGHT RIDER", "FELONY",
+            "RAINBOW CYCLE", "RAINBOW FADE", "RAINBOW ROLL"]
+        readonly property var rfColors: ["BLACK", "WHITE (FULL)", "WHITE (RGB)", "WHITE (SINGLE)", "RED", "FERRARI",
+            "FLAME", "CORAL", "SUNSET", "SUNRISE", "GOLD", "ORANGE", "YELLOW", "BANANA", "LIME", "ACID", "SAGE",
+            "GREEN", "MINT", "TIFFANY", "CYAN", "STEEL", "SKY", "AZURE", "SAPPHIRE", "BLUE", "VIOLET", "AMETHYST",
+            "MAGENTA", "PINK", "FUCHSIA", "LAVENDER"]
+        // hue / 2 per color, as in lcm.c (-1: black / white)
+        readonly property var rfHue: [-1, -1, -1, -1, 0, 7, 9, 5, 10, 13, 13, 14, 19, 18, 30, 41, 46, 60, 69, 83, 90,
+            107, 100, 101, 107, 120, 135, 132, 150, 157, 167, 170]
+        function rfQColor(i) {
+            return i === 0 ? "#202020" : rfHue[i] < 0 ? "#ffffff" : Qt.hsla(rfHue[i] * 2 / 360, 1, 0.5, 1);
+        }
+        property int rfMode: 4
+        property int rfColor1: 4
+        property int rfColor2: 0
+        property real rfSpeed: 1.0
+        property int rfTimeout: 0  // 0: Refloat's idle animation off (battery display)
+        property bool rfLoaded: false  // read from the Refloat config (never write defaults over it)
+        readonly property bool rfOn: rfTimeout > 0
+        readonly property bool idleFollows: swSettings.ledAnimIdle === 128
+        readonly property string rfSummary: !rfOn ? "IDLE: BATTERY" : "IDLE: " + rfModes[rfMode]
+        function setRf(key, v) {
+            if (!rfLoaded) fromConfig();
+            ledSender[key] = v;
+            swSettings.ledAnimIdle = 128;  // the SLCM follows it again
+            changed();
         }
         property int count: 0
 
@@ -481,6 +514,22 @@ Item {
                     dirty = true;
                 }
             }
+            var en = !rfLoaded ? [] : [["leds.status_idle.mode", rfMode], ["leds.status_idle.color1", rfColor1],
+                ["leds.status_idle.color2", rfColor2]];
+            for (var e = 0; e < en.length; e++) {
+                if (c.getParamEnum(en[e][0]) !== en[e][1]) {
+                    c.updateParamEnum(en[e][0], en[e][1]);
+                    dirty = true;
+                }
+            }
+            if (rfLoaded && Math.abs(c.getParamDouble("leds.status_idle.speed") - rfSpeed) > 0.001) {
+                c.updateParamDouble("leds.status_idle.speed", rfSpeed);
+                dirty = true;
+            }
+            if (rfLoaded && c.getParamInt("leds.status.idle_timeout") !== rfTimeout) {
+                c.updateParamInt("leds.status.idle_timeout", rfTimeout);
+                dirty = true;
+            }
             if (dirty) packageConfig.writeConfig();
         }
 
@@ -500,6 +549,12 @@ Item {
                     changedAny = true;
                 }
             }
+            rfMode = c.getParamEnum("leds.status_idle.mode");
+            rfColor1 = c.getParamEnum("leds.status_idle.color1");
+            rfColor2 = c.getParamEnum("leds.status_idle.color2");
+            rfSpeed = c.getParamDouble("leds.status_idle.speed");
+            rfTimeout = c.getParamInt("leds.status.idle_timeout");  // the package reads these itself
+            rfLoaded = true;
             if (changedAny) send();  // only goes out once the LEDS tab has been used
         }
 
@@ -2031,7 +2086,7 @@ Item {
         property string batCustom: ""  // my cell: {name, size, points, ir, cap}
         property int ledStatusIdlePct: 80
         property int ledStatusRidePct: 80
-        property int ledAnimIdle: 0
+        property int ledAnimIdle: 128  // 128: Refloat's Status Idle animation (rf72)
         property int ledAnimRide: 0
         property int ledAnimDoze: 0
         property bool ledDozeBreath: true  // headlights breathe in snooze (SLCM; off = dark)
@@ -3778,6 +3833,24 @@ Item {
                     a = frac(t / ms) < 0.5 ? 1 : Math.max(0.12, c[6] / 255);
                 }
                 break;
+            }
+            case 15: {  // Refloat's Status Idle animation (approximation)
+                if (!ledSender.rfOn) return "#ead6ff";  // battery display
+                var c1 = ledSender.rfQColor(ledSender.rfColor1), c2 = ledSender.rfQColor(ledSender.rfColor2);
+                var sp = Math.max(0.1, ledSender.rfSpeed), md = ledSender.rfMode;
+                var mix = function(p) { return Qt.rgba(c1.r + (c2.r - c1.r) * p, c1.g + (c2.g - c1.g) * p, c1.b + (c2.b - c1.b) * p, 1); };
+                var dim = function(cc, k) { return Qt.rgba(cc.r, cc.g, cc.b, Math.max(0.15, k)); };
+                if (md === 0) return c1;
+                if (md === 1) return mix(0.5 - 0.5 * Math.cos(2 * Math.PI * t * sp));
+                if (md === 2) return dim(c1, spot(m, frac(t * sp)));
+                if (md === 3) return dim(c1, frac(t * sp * 2) < 0.5 ? 1 : 0);
+                if (md === 4) return dim(c1, spot(x, sweep(t, 2 / sp)));
+                if (md === 5) {
+                    var fp = Math.floor(t * sp * 2) % 2;
+                    return dim((x < 0.5) === (fp === 0) ? c1 : c2, Math.floor(t * 16) % 2 === 0 ? 1 : 0.2);
+                }
+                if (md === 8) { h = frac(x - t * sp); break; }
+                h = frac(t * sp / 3); break;
             }
             default:  // STANDARD (white) / OFF (dark)
                 return an.text === "OFF" ? "#5c5470" : "#ead6ff";
@@ -6978,6 +7051,7 @@ Item {
         function show(which) {
             section = which;
             ledWindowFlick.contentY = 0;
+            ledSender.fromConfig();  // Refloat's LED settings may have changed in VESC Tool
             if (which === "fw") lcmFw.forgetCheck();
             open();
         }
@@ -7062,6 +7136,7 @@ Item {
                         }
 
                         SwPill {
+                            visible: slcmDetect.present
                             anchors.horizontalCenter: parent.horizontalCenter
                             minWidth: 3.4 * unit
                             label: swSettings.ledDozeBreath ? "SNOOZE BREATHING ON" : "SNOOZE BREATHING OFF"
@@ -7111,6 +7186,98 @@ Item {
                             font.pixelSize: fontSizeSmall
                             text: "Same as Refloat's Status Idle Brightness (idle) and Status Brightness (riding)."
                         }
+
+                        // rf72: Refloat's Status Idle animation - one setting for
+                        // every controller (Refloat's LEDs play it, an SLCM gets it
+                        // translated by the package)
+                        LedHeading { text: "Idle animation" }
+
+                        AnimName {
+                            width: parent.width
+                            height: 0.9 * unit
+                            anim: 15
+                            text: ledSender.rfOn ? ledSender.rfModes[ledSender.rfMode] : "BATTERY LEVEL"
+                            basePixelSize: 0.4 * unit
+                        }
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 4.4 * unit
+                            label: ledSender.rfOn ? "IDLE ANIMATION ON" : "IDLE ANIMATION OFF"
+                            lit: ledSender.rfOn
+                            onClicked: ledSender.setRf("rfTimeout", ledSender.rfOn ? 0 : 10)
+                        }
+
+                        Column {
+                            width: parent.width
+                            spacing: 0.14 * unit
+                            visible: ledSender.rfOn
+
+                            SwStepper {
+                                label: "ANIMATION"
+                                valueWidth: 3.6 * unit
+                                value: ledSender.rfMode
+                                from: 0; to: ledSender.rfModes.length - 1; step: 1
+                                valueText: ledSender.rfModes[value]
+                                onMoved: ledSender.setRf("rfMode", newValue)
+                            }
+                            SwStepper {
+                                visible: ledSender.rfMode < 6
+                                label: "COLOR 1"
+                                valueWidth: 3.2 * unit
+                                value: ledSender.rfColor1
+                                from: 0; to: ledSender.rfColors.length - 1; step: 1
+                                valueText: ledSender.rfColors[value]
+                                onMoved: ledSender.setRf("rfColor1", newValue)
+                            }
+                            SwStepper {
+                                visible: ledSender.rfMode === 1 || ledSender.rfMode === 5
+                                label: "COLOR 2"
+                                valueWidth: 3.2 * unit
+                                value: ledSender.rfColor2
+                                from: 0; to: ledSender.rfColors.length - 1; step: 1
+                                valueText: ledSender.rfColors[value]
+                                onMoved: ledSender.setRf("rfColor2", newValue)
+                            }
+                            Rectangle {
+                                visible: ledSender.rfMode < 6
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                width: parent.width * 0.7; height: 0.14 * unit; radius: height / 2
+                                gradient: Gradient {
+                                    orientation: Gradient.Horizontal
+                                    GradientStop { position: 0; color: ledSender.rfQColor(ledSender.rfColor1) }
+                                    GradientStop {
+                                        position: 1
+                                        color: ledSender.rfQColor(ledSender.rfMode === 1 || ledSender.rfMode === 5 ? ledSender.rfColor2 : ledSender.rfColor1)
+                                    }
+                                }
+                            }
+                            SwStepper {
+                                visible: ledSender.rfMode !== 0
+                                label: "SPEED"
+                                value: ledSender.rfSpeed
+                                from: 0.1; to: 5; step: 0.1; decimals: 1; suffix: "/s"
+                                onMoved: ledSender.setRf("rfSpeed", newValue)
+                            }
+                            SwStepper {
+                                label: "START AFTER"
+                                value: ledSender.rfTimeout
+                                from: 1; to: 300; step: 1; suffix: " s"
+                                onMoved: ledSender.setRf("rfTimeout", newValue)
+                            }
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "Refloat's own Status Idle animation, so it's the same on every controller (Thor, Floatwheel, ...): Refloat's LEDs play it themselves, "
+                                + "and for an SLCM light module the package turns it into the closest SLCM animation (from SLCM r19; older builds show the battery). "
+                                + "Off = the battery level. START AFTER only applies to Refloat's LEDs, an SLCM starts right away."
+                                + (slcmDetect.present && !ledSender.idleFollows
+                                    ? " Right now the SLCM plays " + ledSender.animLabel(0, swSettings.ledAnimIdle) + " from SLCM EXTRAS \u203A ANIMATIONS instead; change anything here to follow this again."
+                                    : "")
+                        }
                     }
                     Column {
                         width: parent.width
@@ -7125,10 +7292,12 @@ Item {
                                 label: modelData[0]
                                 valueWidth: 3.6 * unit
                                 animName: true
-                                value: swSettings[modelData[1]]
-                                from: 0; to: ledSender.animNames.length - 1; step: 1
+                                // IDLE: one more choice at the end, STATUS BAR = Refloat's
+                                // Status Idle animation (stored as 128)
+                                value: index === 0 && swSettings.ledAnimIdle === 128 ? 15 : swSettings[modelData[1]]
+                                from: 0; to: ledSender.animNames.length - (index === 0 ? 0 : 1); step: 1
                                 valueText: ledSender.animLabel(index, value)
-                                onMoved: { swSettings[modelData[1]] = newValue; ledSender.changed(); }
+                                onMoved: { swSettings[modelData[1]] = index === 0 && newValue === 15 ? 128 : newValue; ledSender.changed(); }
                             }
                         }
 
@@ -7153,7 +7322,8 @@ Item {
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
                             text: "OFF = nothing shown (riding still warns when the battery is low). STANDARD = battery level, footpad sensors when stepped on. "
-                                + "BATTERY LEVEL shows the battery gauge anywhere (riding: live); it needs the SLCM build that comes with this package (CHECK LCM: up to date)."
+                                + "BATTERY LEVEL shows the battery gauge anywhere (riding: live); it needs the SLCM build that comes with this package (CHECK LCM: up to date). "
+                                + "IDLE STATUS BAR = the idle animation set in STATUS BAR (Refloat's own), the same on every controller."
                         }
 
                         SwPill {
@@ -7642,6 +7812,8 @@ Item {
             }
 
             SwLText {
+                // head / bar are Refloat's own settings (any controller)
+                visible: slcmDetect.present || (ledWindow.section !== "head" && ledWindow.section !== "bar")
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
@@ -12898,10 +13070,9 @@ Item {
                                 font.pixelSize: fontSizeSmall
                                 textFormat: Text.StyledText
                                 text: slcmDetect.present
-                                    ? "<b>&#10004; SLCM DETECTED</b> &middot; " + slcmDetect.version + "<br>All the light settings below work on this board."
+                                    ? "<b>&#10004; SLCM DETECTED</b> &middot; " + slcmDetect.version + "<br>Same light settings as any controller, plus the SLCM EXTRAS below."
                                     : slcmDetect.known
-                                        ? "<b>NO SLCM DETECTED</b><br>LIGHTS / HEADLIGHTS and the headlight and status bar brightness use Refloat's own LED controls and work on any controller (Thor, Floatwheel, ...). "
-                                            + "Tiles marked SLCM need a light module running the SLCM firmware."
+                                        ? "<b>REFLOAT LIGHTS</b><br>These are Refloat's own LED settings, the same on any controller (Thor, Floatwheel, ...)."
                                         : "Looking for an SLCM light module..."
                             }
                         }
@@ -12987,12 +13158,31 @@ Item {
                                 glyph: "\u2589"
                                 lit: swSettings.ledStatusBar
                                 summary: swSettings.ledStatusBar
-                                    ? "ON \u00B7 RIDE " + swSettings.ledStatusRidePct + "% \u00B7 IDLE " + swSettings.ledStatusIdlePct + "%"
+                                    ? "ON \u00B7 RIDE " + swSettings.ledStatusRidePct + "% \u00B7 " + ledSender.rfSummary
                                     : "OFF"
                                 onClicked: ledWindow.show("bar")
                             }
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "These are Refloat's LED settings (VESC Tool \u203A Refloat Cfg \u203A LEDs), kept in step both ways, so they work the same on every controller."
+                        }
+
+                        // SLCM extras: only with an SLCM light module
+                        LedHeading { visible: slcmDetect.present; text: "SLCM extras" }
+
+                        GridLayout {
+                            visible: slcmDetect.present
+                            width: parent.width
+                            columns: 2
+                            rowSpacing: 0.18 * unit
+                            columnSpacing: 0.18 * unit
+
                             LedTile {
-                                slcmOnly: true
                                 title: "ANIMATIONS"
                                 glyph: "\u2726"
                                 lit: true
@@ -13002,7 +13192,6 @@ Item {
                                 onClicked: ledWindow.show("anim")
                             }
                             LedTile {
-                                slcmOnly: true
                                 title: "SOUND"
                                 glyph: "\u266A"
                                 lit: swSettings.ledBeep
@@ -13011,7 +13200,6 @@ Item {
                             }
                             LedTile {
                                 Layout.columnSpan: 2
-                                slcmOnly: true
                                 title: "BATTERY GAUGE"
                                 glyph: "\u25AE"
                                 lit: swSettings.batCurveOn
@@ -13021,14 +13209,6 @@ Item {
                                     : "VESC BATTERY %"
                                 onClicked: ledWindow.show("battery")
                             }
-                        }
-
-                        SwLText {
-                            width: parent.width
-                            horizontalAlignment: Text.AlignHCenter
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: fontSizeSmall
-                            text: "Headlight and status bar levels are kept in step with Refloat's LED settings (VESC Tool \u203A Refloat Cfg \u203A LEDs), both ways."
                         }
 
                         Item { width: parent.width; height: 0.6 * unit }

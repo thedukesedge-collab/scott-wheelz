@@ -54,6 +54,10 @@ typedef enum {
 #define LCM_VP_SETTINGS_LENGTH 12  // bytes in COMMAND_LCM_VP_SETTINGS (11 accepted)
 #define LCM_VP_CUSTOM_LENGTH 8  // + CUSTOM animation parameters (20 bytes, rf71+)
 #define LCM_SLCM_CUSTOM_REV 19  // SLCM builds from r19 take the CUSTOM block
+// idle animation value: follow Refloat's own Status Idle animation (mode,
+// colors, speed, timeout) - translated for the SLCM in each poll reply, so
+// changes in VESC Tool's Refloat Cfg reach the LCM too (rf72)
+#define LCM_VP_ANIM_REFLOAT 0x80
 #define LCM_VP_EEPROM_WORDS 6  // 80-83 + 125-126 (CUSTOM animation)
 
 typedef struct {
@@ -74,6 +78,7 @@ typedef struct {
     uint8_t brightness_idle;
     uint8_t status_brightness;
     bool lights_off_when_lifted;
+    const CfgLeds *leds_cfg;  // Refloat's LED settings (for LCM_VP_ANIM_REFLOAT)
 
     char name[MAX_LCM_NAME_LENGTH];
     uint8_t payload[MAX_LCM_PAYLOAD_LENGTH];

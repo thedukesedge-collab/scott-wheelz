@@ -25,6 +25,8 @@
 #include <math.h>
 #include <string.h>
 
+static uint8_t refloat_idle_anim(const LcmData *lcm, uint8_t custom[LCM_VP_CUSTOM_LENGTH]);
+
 void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg) {
     lcm->enabled = hw_cfg->mode & LED_MODE_EXTERNAL;
     lcm->brightness = 0;
@@ -40,6 +42,7 @@ void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg) {
 }
 
 void lcm_configure(LcmData *lcm, const Leds *leds) {
+    lcm->leds_cfg = leds->cfg;  // whatever the LED Mode (LCM_VP_ANIM_REFLOAT)
     if (!lcm->enabled) {
         return;
     }
@@ -172,17 +175,32 @@ void lcm_poll_response(
             buffer[ind++] = 1;  // version
             buffer[ind++] = vp->flags | (lcm->vp_test_beep ? LCM_VP_FLAG_TEST_BEEP : 0) |
                 (lcm->vp_update ? LCM_VP_FLAG_UPDATE : 0);
+            // idle following Refloat: its animation, translated (the
+            // fill / scan ones need SLCM r19+, older builds get STANDARD)
+            uint8_t custom[LCM_VP_CUSTOM_LENGTH];
+            memcpy(custom, vp->custom, sizeof(custom));
+            const int rev = lcm_slcm_rev(lcm);
             for (int i = 0; i < LCM_VP_ANIMATIONS; ++i) {
-                buffer[ind++] = vp->animations[i];
+                uint8_t anim = vp->animations[i];
+                if (anim == LCM_VP_ANIM_REFLOAT) {
+                    // riding: the rider's own CUSTOM animation stays in the
+                    // block (the SLCM has one), the idle one isn't playing
+                    uint8_t idle_custom[LCM_VP_CUSTOM_LENGTH];
+                    anim = refloat_idle_anim(lcm, riding ? idle_custom : custom);
+                    if (anim == 14 && rev < LCM_SLCM_CUSTOM_REV) {
+                        anim = 0;
+                    }
+                }
+                buffer[ind++] = anim;
             }
             buffer[ind++] = vp->color >> 8;
             buffer[ind++] = vp->color & 0xFF;
             buffer[ind++] = lcm->vp_battery;  // 0xFF = use the VESC's battery %
             // CUSTOM animation: only to an SLCM that takes it (older builds
             // drop replies over 32 bytes)
-            if (lcm_slcm_rev(lcm) >= LCM_SLCM_CUSTOM_REV) {
+            if (rev >= LCM_SLCM_CUSTOM_REV) {
                 for (int i = 0; i < LCM_VP_CUSTOM_LENGTH; ++i) {
-                    buffer[ind++] = vp->custom[i];
+                    buffer[ind++] = custom[i];
                 }
             }
             lcm->payload_size = 0;
@@ -301,6 +319,90 @@ static uint8_t clamp_u8(uint8_t value, uint8_t max) {
     return value > max ? max : value;
 }
 
+// Re-Float Rink-Mixed (rf72): Refloat's LED colors as SLCM hues (degrees / 2;
+// 0xFF = white / black: no hue, the SLCM's own color is used)
+static const uint8_t refloat_color_hue[] = {
+    0xFF, 0xFF, 0xFF, 0xFF, 0,  7,   9,   5,   10,  13,  13,  14,  19,  18,  30,  41,
+    46,   60,   69,   83,   90, 107, 100, 101, 107, 120, 135, 132, 150, 157, 167, 170,
+};
+
+static uint8_t refloat_hue(LedColor c) {
+    return (unsigned) c < sizeof(refloat_color_hue) ? refloat_color_hue[c] : 0xFF;
+}
+
+// Refloat's Status Idle animation as the closest SLCM idle animation; the
+// fill / scan ones are built as a CUSTOM animation (custom[8], see the SLCM's
+// status_leds.c). Refloat's idle animation off (timeout 0, its default) =
+// STANDARD, the battery display, as on a stock LCM.
+static uint8_t refloat_idle_anim(const LcmData *lcm, uint8_t custom[LCM_VP_CUSTOM_LENGTH]) {
+    const CfgLeds *cfg = lcm->leds_cfg;
+    if (!cfg || cfg->status.idle_timeout == 0) {
+        return 0;
+    }
+    const LedBar *bar = &cfg->status_idle;
+    uint8_t a = refloat_hue(bar->color1), b = refloat_hue(bar->color2);
+    bool white = a == 0xFF;
+    if (white) {
+        a = b == 0xFF ? 0 : b;
+    }
+    if (b == 0xFF) {
+        b = a;
+    }
+    // Refloat's animation time runs at `speed` cycles per second
+    float period = bar->speed > 0.01f ? 1.0f / bar->speed : 12.8f;
+    uint8_t steps = (uint8_t) fminf(fmaxf(period / 0.05f - 1.0f, 0.0f), 255.0f);
+    // [0] bit0 engine (0 fill, 1 scan), bits1-3 colors (0 hue up, 2 wave A-B,
+    // 4 my color), bits4-6 pattern; [1] brightness (0 steady, 1 breathe,
+    // 2 flash); [2], [3] hues; [4] color speed, [5] motion speed; [6] lowest
+    const uint8_t solid_colors = white ? 4 : 2;  // white: the SLCM's own color
+    uint8_t c0 = 0, c1 = 0;
+    switch (bar->mode) {
+    case LED_ANIM_SOLID:
+        c0 = solid_colors << 1;
+        b = a;
+        break;
+    case LED_ANIM_FADE:  // fade between the two colors
+        c0 = 2 << 1;
+        break;
+    case LED_ANIM_PULSE:  // a moving pulse in color 1
+        c0 = 1 | (solid_colors << 1);
+        b = a;
+        break;
+    case LED_ANIM_STROBE:
+        c0 = solid_colors << 1;
+        c1 = 2;
+        b = a;
+        break;
+    case LED_ANIM_KNIGHT_RIDER:  // a bouncing scanner in color 1
+        c0 = 1 | (solid_colors << 1) | (6 << 4);
+        b = a;
+        break;
+    case LED_ANIM_FELONY:
+        return 5;  // THE FUZZ
+    case LED_ANIM_RAINBOW_CYCLE:
+    case LED_ANIM_RAINBOW_FADE:  // whole bar through the rainbow
+        a = 0;
+        b = 179;
+        break;
+    case LED_ANIM_RAINBOW_ROLL:  // rainbow rolling along the bar
+        c0 = 1 << 4;
+        a = 0;
+        b = 179;
+        break;
+    default:
+        return 0;
+    }
+    custom[0] = c0;
+    custom[1] = c1;
+    custom[2] = a;
+    custom[3] = b;
+    custom[4] = steps;
+    custom[5] = steps;
+    custom[6] = 0;
+    custom[7] = 0;
+    return 14;  // CUSTOM
+}
+
 bool lcm_vp_set(LcmData *lcm, const uint8_t *buffer, int len) {
     if (len < LCM_VP_SETTINGS_LENGTH - 1) {
         return false;
@@ -314,7 +416,9 @@ bool lcm_vp_set(LcmData *lcm, const uint8_t *buffer, int len) {
     vp.status_idle_brightness = clamp_u8(buffer[2], 100);
     vp.status_riding_brightness = clamp_u8(buffer[3], 100);
     for (int i = 0; i < LCM_VP_ANIMATIONS; ++i) {
-        vp.animations[i] = clamp_u8(buffer[4 + i], LCM_VP_ANIMATION_COUNT - 1);
+        vp.animations[i] = buffer[4 + i] == LCM_VP_ANIM_REFLOAT && i == 0
+            ? LCM_VP_ANIM_REFLOAT
+            : clamp_u8(buffer[4 + i], LCM_VP_ANIMATION_COUNT - 1);
     }
     vp.color = ((uint16_t) buffer[9] << 8) | buffer[10];
     if (vp.color > 359) {
