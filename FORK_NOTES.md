@@ -793,6 +793,18 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   backup; Dashboard, Tunes, Data & App), neon buttons, CLOSE pill.
 - lcm.yml: apt install retried with a timeout (a stuck mirror hung runs).
 
+### SLCM r21: power button hold-to-off fixed (v1.2.3-rf73)
+- r20 (rf71) skipped the clock setup in the bootloader build's SystemInit,
+  assuming the bootloader had done it - but on a normal power-up the
+  bootloader jumps to the app without touching the clock. The app then ran
+  on the untrimmed reset clock with reset flash timing (wait states, flash
+  clock prescaler for EEPROM programming). Reported: holding the button no
+  longer powered the board off (shutdown saves the settings to EEPROM).
+- SystemInit (LCM_BOOTLOADER) now sets the same clock as SetSysClock()
+  (HSI 32 MHz + factory trim, 2 wait states, FLITFCLK_PRE 7, HCLK = PCLK =
+  SYSCLK) in a compact form. Bootloader unchanged (no ST-Link needed: the
+  update goes over Bluetooth from an r20 board).
+
 ### One set of light settings for every controller (v1.2.3-rf72)
 - The LEDS tab now edits Refloat's own LED settings for everything that every
   controller understands: lights on/off, headlight riding / idle level,

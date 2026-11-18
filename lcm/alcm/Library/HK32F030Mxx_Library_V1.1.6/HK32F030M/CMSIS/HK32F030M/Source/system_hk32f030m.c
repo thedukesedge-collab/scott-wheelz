@@ -93,12 +93,29 @@ void SystemInit(void)
 
 	SetSysClock();
 #else
-	/* Re-Float Rink-Mixed (SLCM): the bootloader always runs first and sets
-	 * up exactly this clock (HSI 32 MHz with the factory trim, 2 flash wait
-	 * states, flash clock prescaler 7, HCLK = PCLK = SYSCLK - lcm/bootloader/
-	 * bl_hw.h, bl_hw_init), so the bootloader build of the app keeps it
-	 * instead of repeating it (frees ~200 bytes of flash). */
+	/* Re-Float Rink-Mixed (SLCM, bootloader build): the same clock as
+	 * SetSysClock() (HSI 32 MHz with the factory trim, 2 flash wait states,
+	 * flash clock prescaler 7, HCLK = PCLK = SYSCLK), written compactly to
+	 * save flash. It must be done here: on a normal power-up the bootloader
+	 * jumps straight to the app without touching the clock (r20 skipped this
+	 * and ran untrimmed with the reset flash timing - EEPROM writes at
+	 * shutdown misbehaved, so holding the button didn't power off). */
 	(void)SetSysClock;
+	{
+		uint32_t trim = *(volatile uint32_t *)0x1FFFF820u;
+		FLASH->ACR = (FLASH->ACR & ~7u) | 2u;
+		RCC->CFGR4 = (RCC->CFGR4 & ~RCC_RCC_CFGR4_FLITFCLK_PRE) | (7u << RCC_RCC_CFGR4_FLITFCLK_PRE_Pos);
+		if (((trim >> 16) & trim & 0xFFFFu) == 0u)
+		{
+			/* ORed in, exactly as SetSysClock() does */
+			RCC->CR |= ((trim & 0x1Fu) << 3) | (((trim >> 5) & 0x3Fu) << 8);
+		}
+		RCC->CR |= RCC_CR_HSION;
+		while ((RCC->CR & RCC_CR_HSIRDY) == 0u)
+		{
+		}
+		RCC->CFGR &= 0xF8FFB81Cu; /* SW = HSI, HCLK = PCLK = SYSCLK */
+	}
 #endif
 
 #ifdef VECT_TAB_SRAM
