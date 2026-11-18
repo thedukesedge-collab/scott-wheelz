@@ -22,7 +22,7 @@ report() {  # $1 = source dir, $2 = output dir
     for f in "$1"/*.c "$1"/conf/confparser.c "$1"/conf/buffer.c; do
         [ -f "$f" ] || continue
         arm-none-eabi-gcc $FLAGS -I"$1" -I"$1/conf" -c "$f" -o "$2/$(basename "$f" .c).o" \
-            -fstack-usage 2>/dev/null || echo "  (could not compile $f)"
+            -fstack-usage 2>"$2/err.txt" || { echo "  (could not compile $f)" >&2; head -5 "$2/err.txt" >&2; }
         mv "$2/$(basename "$f" .c).su" "$2/" 2>/dev/null || true
     done
     # file:line:col:function  bytes  type  ->  "bytes function type"
@@ -34,7 +34,9 @@ report src /tmp/su_ours > /tmp/su_ours.txt
 head -25 /tmp/su_ours.txt
 
 if [ -n "$1" ] && [ -d "$1" ]; then
-    cp -r src/conf/conf_general.h src/conf/conf_default.h src/conf/confparser.h "$1/conf/" 2>/dev/null || true
+    # upstream's settings.xml is identical, so the generated conf files fit
+    cp src/conf/conf_general.h src/conf/conf_default.h src/conf/confparser.h \
+       src/conf/confparser.c src/conf/confxml.h src/conf/confxml.c "$1/conf/" 2>/dev/null || true
     report "$1" /tmp/su_up > /tmp/su_up.txt
     echo
     echo "== Frames that are new or bigger than upstream v1.2.3 (>= 64 bytes) =="
@@ -47,10 +49,16 @@ if grep -q "dynamic" /tmp/su_ours.txt; then
     echo; echo "== Dynamic (variable-size) frames =="; grep "dynamic" /tmp/su_ours.txt
 fi
 
-worst=$(head -1 /tmp/su_ours.txt | cut -d' ' -f1)
+# fail on a frame over MAX_FRAME that is ours (new, or bigger than upstream's)
 echo
-if [ "${worst:-0}" -gt "$MAX_FRAME" ]; then
-    echo "FAIL: a single stack frame is $worst bytes (limit $MAX_FRAME)"
+if [ -f /tmp/su_up.txt ]; then
+    bad=$(awk -v m="$MAX_FRAME" 'NR==FNR {up[$2]=$1; next} $1 > m && (!($2 in up) || $1 > up[$2]) \
+        {print $1, $2}' /tmp/su_up.txt /tmp/su_ours.txt)
+else
+    bad=$(awk -v m="$MAX_FRAME" '$1 > m {print $1, $2}' /tmp/su_ours.txt)
+fi
+if [ -n "$bad" ]; then
+    echo "FAIL: frames over $MAX_FRAME bytes that upstream doesn't have:"; echo "$bad"
     exit 1
 fi
-echo "OK: largest frame $worst bytes (limit $MAX_FRAME)"
+echo "OK: no frame over $MAX_FRAME bytes beyond upstream's own"
