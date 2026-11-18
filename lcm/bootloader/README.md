@@ -127,7 +127,7 @@ The image is the app area from `0x08000600`, padded with `0xFF` to whole
   `make test` → host tests).
 - `../alcm/gcc`: `make BL=1` → `ALCM_VP_BL_app.hex` (the app for after the
   bootloader).
-- `../tools/lcm_images.py` → `ALCM_VP_BL_full.hex` (bootloader + app, for the
+- `../tools/lcm_images.py` → `ALCM_VP_BL_full.hex`, published as `SLCM.hex` (bootloader + app, for the
   ST-Link, once) and `ALCM_VP_app.bin` / `.json` (the update image); the
   package build embeds the `.json` (`make LCM_FW=0` to leave it out).
 - `../flasher/LCM_Flasher.pyw` - Windows GUI: choose a .hex, flash it with
@@ -137,7 +137,7 @@ The image is the app area from `0x08000600`, padded with `0xFF` to whole
 
 1. Keep a copy of the firmware you have now (`ALCM_v0.1.1.hex` or
    `ALCM_VP.hex`) to flash back if needed.
-2. Flash **`ALCM_VP_BL_full.hex`** with the ST-Link (LCM Flasher or
+2. Flash **`SLCM.hex`** with the ST-Link (LCM Flasher or
    `flash.bat`), exactly like before.
 3. Board on a stand: power on with the button, check the lights, hold the
    button to power off. Then in the app: LEDS › LCM FIRMWARE › UPDATE LCM,

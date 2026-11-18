@@ -306,7 +306,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf75 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf76 · sim</span></div>
     </div>
   </div>
 
@@ -375,7 +375,7 @@
         <p class="ledHint" id="fwMsg" style="text-align:center;color:var(--green)"></p>
         <div class="pills"><div class="pill" id="fwCancel" style="display:none">CANCEL</div></div>
         </div>
-        <p class="ledHint">&#8226; Only for LCMs with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex). Stock LCM firmware can't be flashed from the app: it has no update code and only listens for the VESC's basic data.<br>&#8226; Board powered on and idle. The update is refused while riding; don't ride until it's done.<br>&#8226; Headlights and beeper go off while it updates (about a minute). Keep the app connected.<br>&#8226; If it's interrupted, the LCM keeps the power on and waits for the update. Press FLASH LCM again, or power the board off and on first. Hold the button 2 s to power off.</p>
+        <p class="ledHint">&#8226; Only for LCMs with the bootloader, installed once with an ST-Link (SLCM.hex). Stock LCM firmware can't be flashed from the app: it has no update code and only listens for the VESC's basic data.<br>&#8226; Board powered on and idle. The update is refused while riding; don't ride until it's done.<br>&#8226; Headlights and beeper go off while it updates (about a minute). Keep the app connected.<br>&#8226; If it's interrupted, the LCM keeps the power on and waits for the update. Press FLASH LCM again, or power the board off and on first. Hold the button 2 s to power off.</p>
       </div>
       <div class="ledSec" data-s="sound">
         <div class="pills"><div class="pill" id="ledBeepPill"></div></div>
@@ -410,7 +410,7 @@
   <div id="fwAck" style="position:absolute;left:4%;right:4%;top:50%;transform:translateY(-50%);z-index:48;display:none;background:#140d02;border:3px solid #FFB300;border-radius:12px;padding:12px;color:#ffe3a3;font-size:12px">
     <div style="text-align:center;color:#FFB300;font-family:Orbitron,monospace;font-size:16px;margin-bottom:8px">&#9888; FLASH LCM FIRMWARE</div>
     <p style="margin:0 0 6px">This rewrites the firmware of your board's light control module (LCM), the part that also switches the board's power.</p>
-    <p style="margin:0">&#8226; Only for light modules (Floatwheel LCM board, tested target: XRV) that already have the SLCM bootloader (ALCM_VP_BL_full.hex, flashed once with an ST-Link). Stock LCM firmware can't be flashed from the app.<br>&#8226; Board powered on, idle, on a stand. Do not ride, step on it or switch it off until it says Done (about a minute).<br>&#8226; Headlights and beeper are off while it flashes. Keep this app open and connected.<br>&#8226; If it's interrupted, the LCM keeps the board on and waits: press FLASH LCM again (power-cycle first if needed). Hold the button 2 s to power off.<br>&#8226; Experimental, at your own risk. Keep an ST-Link and your old LCM firmware as a fallback.</p>
+    <p style="margin:0">&#8226; Only for light modules (Floatwheel LCM board, tested target: XRV) that already have the SLCM bootloader (SLCM.hex, flashed once with an ST-Link). Stock LCM firmware can't be flashed from the app.<br>&#8226; Board powered on, idle, on a stand. Do not ride, step on it or switch it off until it says Done (about a minute).<br>&#8226; Headlights and beeper are off while it flashes. Keep this app open and connected.<br>&#8226; If it's interrupted, the LCM keeps the board on and waits: press FLASH LCM again (power-cycle first if needed). Hold the button 2 s to power off.<br>&#8226; Experimental, at your own risk. Keep an ST-Link and your old LCM firmware as a fallback.</p>
     <label style="display:flex;gap:8px;align-items:center;margin:10px 0;cursor:pointer"><input type="checkbox" id="fwAckBox" style="width:20px;height:20px;accent-color:#FFB300">I understand and my board is idle on a stand</label>
     <div class="pills"><div class="pill" id="fwAckNo">CANCEL</div><div class="pill" id="fwAckYes" style="opacity:.4">FLASH LCM</div></div>
   </div>
@@ -1313,9 +1313,9 @@ const fwCan = () => FW.active || (FW.unlocked && fwCapable());
 function fwFitPaint() {
   const k = FW.kind, f = FW_FIT[k], t = f ? 'SLCM with bootloader · ' + f[4] + ' · ' + f[3] : {
     recovery: "LCM bootloader is waiting for firmware (an earlier update didn't finish). Flash it now to recover the light module.",
-    vp: "SLCM " + FW_BUILD + " WITHOUT the bootloader. It can't be flashed from the app: install ALCM_VP_BL_full.hex once with an ST-Link, after that updates work from here.",
+    vp: "SLCM " + FW_BUILD + " WITHOUT the bootloader. It can't be flashed from the app: install SLCM.hex once with an ST-Link, after that updates work from here.",
     noname: "Older SLCM / ALCM VP light module (before r15: it doesn't report its version). Your LED settings work. TRY UPDATE works if it was installed with the bootloader.",
-    other: "No SLCM light module answered (stock or other LCM firmware, or none). Flashing from the app needs SLCM with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
+    other: "No SLCM light module answered (stock or other LCM firmware, or none). Flashing from the app needs SLCM with the bootloader, installed once with an ST-Link (SLCM.hex)."
   }[k];
   const chk = FW.active ? 2 : FW.check;
   $('fwFit').textContent = chk === 0 ? 'Press CHECK LCM to see whether this light module can be updated from the app.' : chk === 1 ? 'Checking the light module...' : t;
@@ -1340,12 +1340,12 @@ $('fwCheckBtn').onclick = () => {
     $('fwChkTitle').style.color = ok ? 'var(--green)' : '#FFB300';
     $('fwChkTitle').innerHTML = ok ? '&#10004; LCM CHECK PASSED' : '&#9888; LCM CHECK FAILED';
     $('fwChkText').textContent = ok
-      ? (FW.kind === 'noname' ? "Your light module is talking to the package (your LED settings work), but it's an older SLCM / ALCM VP build from before r15 that doesn't report its version, so the package can't tell whether it has the bootloader.\n\nTRY UPDATE is safe: if it was installed with the bootloader (ALCM_VP_BL_full.hex, rf58 or later) it updates; if not, nothing happens and after 15 s the app says so - then flash ALCM_VP_BL_full.hex once with an ST-Link.\n\nThis package goes with SLCM " + FW_BUILD + "."
+      ? (FW.kind === 'noname' ? "Your light module is talking to the package (your LED settings work), but it's an older SLCM / ALCM VP build from before r15 that doesn't report its version, so the package can't tell whether it has the bootloader.\n\nTRY UPDATE is safe: if it was installed with the bootloader (SLCM.hex, rf58 or later) it updates; if not, nothing happens and after 15 s the app says so - then flash SLCM.hex once with an ST-Link.\n\nThis package goes with SLCM " + FW_BUILD + "."
         : FW.kind === 'recovery' ? "The LCM bootloader is waiting for firmware (an earlier update didn't finish). Continue to flash it and recover the light module."
         : 'Found SLCM light module firmware with the bootloader, so the package can update it over Bluetooth.\n\n' + FW_FIT[FW.kind][1])
-      : "This is most likely because your board is running a version of LCM firmware that doesn't contain a bootloader for flashing over BLE.\n\nTo resolve this, first flash the LCM with an ST-Link using the correct firmware: ALCM_VP_BL_full.hex (lcm-latest release). After that, CHECK LCM passes and future updates work from the app.\n\nWhat the package saw: "
+      : "This is most likely because your board is running a version of LCM firmware that doesn't contain a bootloader for flashing over BLE.\n\nTo resolve this, first flash the LCM with an ST-Link using the correct firmware: SLCM.hex (lcm-latest release). After that, CHECK LCM passes and future updates work from the app.\n\nWhat the package saw: "
         + (FW.kind === 'noname' ? "a light module is talking to the package but doesn't name itself, so it isn't running SLCM r15 or newer (older SLCM / ALCM VP builds from before rf63, original ALCM, or other LCM firmware)." : FW.kind === 'vp' ? 'SLCM ' + FW_BUILD + ' without the bootloader.' : "no light module is talking to the package. Stock Floatwheel LCM firmware never does (it only reads the VESC's basic data); or the LCM isn't connected.")
-        + '\n\nThis package carries SLCM ' + FW_BUILD + ': the ALCM_VP_BL_full.hex for the ST-Link must be that build or newer.';
+        + '\n\nThis package carries SLCM ' + FW_BUILD + ': the SLCM.hex for the ST-Link must be that build or newer.';
     const f = FW_FIT[FW.kind];
     $('fwChkFit').style.display = f ? '' : 'none';
     if (f) { $('fwChkFit').textContent = f[0]; const c = FW.kind === 'vpbl' ? 'var(--green)' : '#FFB300'; $('fwChkFit').style.color = $('fwChkFit').style.borderColor = c; }
@@ -1438,7 +1438,7 @@ function parseHex(text, name) {
         }
     }
     if (n === 0) {
-        return {error: "No firmware for 0x08000600 in this .hex. It must be built for the bootloader (ALCM_VP_BL_full.hex or a BL=1 build), not a plain ALCM .hex."};
+        return {error: "No firmware for 0x08000600 in this .hex. It must be built for the bootloader (SLCM.hex or a BL=1 build), not a plain ALCM .hex."};
     }
     var size = Math.ceil((maxA + 1 - APP) / 128) * 128;
     var b = new Uint8Array(size);
@@ -1462,7 +1462,7 @@ function fwSrcPaint() {
   $('fwSrcChange').style.display = FW.picked ? 'inline-block' : 'none';
   $('fwSrcPick').classList.add('on');
   $('fwSrcText').textContent = FW.picked ? 'File: ' + FW.picked.file + ' · ' + (FW.picked.slcm ? 'SLCM ' + FW.picked.slcm : 'version unknown') + ' (' + FW.picked.size + ' bytes).'
-    : 'Download ALCM_VP_BL_full.hex from the lcm-latest release, then PICK .HEX FILE. This package goes with SLCM ' + FW_BUILD + '.';
+    : 'Download SLCM.hex from the lcm-latest release, then PICK .HEX FILE. This package goes with SLCM ' + FW_BUILD + '.';
 }
 $('fwSrcBuiltin').onclick = () => { if (!FW.active) { FW.usePicked = false; fwSrcPaint(); } };
 $('fwSrcPick').onclick = () => { if (FW.active) return; if (FW.picked && !FW.usePicked) { FW.usePicked = true; fwSrcPaint(); } else $('fwFile').click(); };
@@ -1483,7 +1483,7 @@ $('fwAckBox').onchange = () => { const c = $('fwAckBox').checked; $('fwAckYes').
 $('fwAckNo').onclick = () => fwAck(false);
 $('fwAckBack').onclick = () => { fwAck(false); fwChk(false); };
 $('fwAckYes').onclick = () => { if (!$('fwAckBox').checked) return; fwAck(false); fwStart(); };
-$('fwBtn').onclick = () => { if (FW.active || !fwCan()) return; if (!FW.picked) { toast('Pick ALCM_VP_BL_full.hex first (lcm-latest release)'); return; } fwAck(true); };
+$('fwBtn').onclick = () => { if (FW.active || !fwCan()) return; if (!FW.picked) { toast('Pick SLCM.hex first (lcm-latest release)'); return; } fwAck(true); };
 function fwStart() {
   if (FW.active || !fwCan()) return;
   if (running()) { fwPaint("The board is running. Stop riding and try again."); return; }

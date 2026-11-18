@@ -735,9 +735,9 @@ Item {
             : fitted === "vpbl" ? "SLCM with bootloader \u00B7 " + verText(lcmVer)
                 + (fitTitle ? " \u00B7 " + fitTitle.toLowerCase() : "")
                 + (pkgVer && !upToDate ? " (this package: " + verText(pkgVer) + ")" : "")
-            : fitted === "vp" ? "SLCM " + verText(lcmVer) + " WITHOUT the bootloader. It can't be flashed from the app: install ALCM_VP_BL_full.hex once with an ST-Link, after that updates work from here."
-            : fitted === "other" ? "Light module firmware \u201C" + lcmName + "\u201D can't be flashed from the app. It needs SLCM with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
-            : "No SLCM light module answered (stock or other LCM firmware, or none). Flashing from the app needs SLCM with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex)."
+            : fitted === "vp" ? "SLCM " + verText(lcmVer) + " WITHOUT the bootloader. It can't be flashed from the app: install SLCM.hex once with an ST-Link, after that updates work from here."
+            : fitted === "other" ? "Light module firmware \u201C" + lcmName + "\u201D can't be flashed from the app. It needs SLCM with the bootloader, installed once with an ST-Link (SLCM.hex)."
+            : "No SLCM light module answered (stock or other LCM firmware, or none). Flashing from the app needs SLCM with the bootloader, installed once with an ST-Link (SLCM.hex)."
 
         function probe() {
             vescCommands.sendCustomAppData(commands.createData(2, commands.c_LCM_DEVICE_INFO).buffer);
@@ -760,7 +760,7 @@ Item {
             "",
             "The board is running. Stop riding and try again.",
             "The firmware image is broken (bad size).",
-            "The LCM didn't start updating: it has no bootloader. Install ALCM_VP_BL_full.hex once with an ST-Link.",
+            "The LCM didn't start updating: it has no bootloader. Install SLCM.hex once with an ST-Link.",
             "The LCM got nothing and went back to its old firmware.",
             "Checksum mismatch: the LCM is retrying."
         ]
@@ -840,7 +840,7 @@ Item {
                 }
             }
             if (n === 0) {
-                return {error: "No firmware for 0x08000600 in this .hex. It must be built for the bootloader (ALCM_VP_BL_full.hex or a BL=1 build), not a plain ALCM .hex."};
+                return {error: "No firmware for 0x08000600 in this .hex. It must be built for the bootloader (SLCM.hex or a BL=1 build), not a plain ALCM .hex."};
             }
             var size = Math.ceil((maxA + 1 - APP) / 128) * 128;
             var b = new Uint8Array(size);
@@ -7827,7 +7827,7 @@ Item {
                                     + (lcmFw.pkgVer && lcmFw.picked.slcm && lcmFw.parseVer(lcmFw.picked.slcm).hash !== lcmFw.pkgVer.hash ? " Note: this package goes with SLCM " + lcmFw.verText(lcmFw.pkgVer) + "." : "")
                                 : (lcmFw.builtinImage
                                     ? "Built into this package: SLCM build " + lcmFw.builtin.version + " (" + lcmFw.builtin.size + " bytes)."
-                                    : "Download ALCM_VP_BL_full.hex from the lcm-latest release (github.com/thedukesedge-collab/scott-wheelz/releases/tag/lcm-latest), then PICK .HEX FILE."
+                                    : "Download SLCM.hex from the lcm-latest release (github.com/thedukesedge-collab/scott-wheelz/releases/tag/lcm-latest), then PICK .HEX FILE."
                                         + (lcmFw.pkgVer ? " This package goes with SLCM " + lcmFw.verText(lcmFw.pkgVer) + "." : ""))
                         }
 
@@ -7898,7 +7898,7 @@ Item {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: "\u2022 Only for LCMs with the bootloader, installed once with an ST-Link (ALCM_VP_BL_full.hex). Stock LCM firmware can't be flashed from the app: it has no update code and only listens for the VESC's basic data.\n"
+                            text: "\u2022 Only for LCMs with the bootloader, installed once with an ST-Link (SLCM.hex). Stock LCM firmware can't be flashed from the app: it has no update code and only listens for the VESC's basic data.\n"
                                 + "\u2022 Board powered on and idle. The update is refused while riding; don't ride until it's done.\n"
                                 + "\u2022 Headlights and beeper go off while it updates (about a minute). Keep the app connected.\n"
                                 + "\u2022 If it's interrupted, the LCM keeps the power on and waits for the update. Press FLASH LCM again, or power the board off and on first. Hold the button 2 s to power off."
@@ -8172,7 +8172,7 @@ Item {
                 font.pixelSize: fontSizeSmall
                 text: "This rewrites the firmware of your board's light control module (LCM), the part that also switches the board's power.\n\n"
                     + "Firmware: " + (lcmFw.image ? (lcmFw.usePicked ? "file " : "built-in ") + lcmFw.image.version + " (" + lcmFw.image.size + " bytes)" : "none") + "\n\n"
-                    + "\u2022 Only for light modules (Floatwheel LCM board, tested target: XRV) that already have the SLCM bootloader (ALCM_VP_BL_full.hex, flashed once with an ST-Link). Stock LCM firmware can't be flashed from the app.\n"
+                    + "\u2022 Only for light modules (Floatwheel LCM board, tested target: XRV) that already have the SLCM bootloader (SLCM.hex, flashed once with an ST-Link). Stock LCM firmware can't be flashed from the app.\n"
                     + "\u2022 Only flash files built for this bootloader (SLCM) from a source you trust.\n"
                     + "\u2022 Board powered on, idle, on a stand. Do not ride, step on it or switch it off until it says Done (about a minute).\n"
                     + "\u2022 Headlights and beeper are off while it flashes. Keep this app open and connected.\n"
@@ -8288,18 +8288,18 @@ Item {
                         ? "The LCM bootloader is waiting for firmware (an earlier update didn't finish). Continue to flash it and recover the light module."
                         : lcmFw.fitted === "legacy"
                         ? "Your light module is talking to the package (your LED settings work), but it's an older SLCM / ALCM VP build from before r15 that doesn't report its version, so the package can't tell whether it has the bootloader.\n\n"
-                            + "TRY UPDATE is safe: if it was installed with the bootloader (ALCM_VP_BL_full.hex, rf58 or later) it updates; if not, nothing happens and after 15 s the app says so - then flash ALCM_VP_BL_full.hex once with an ST-Link."
+                            + "TRY UPDATE is safe: if it was installed with the bootloader (SLCM.hex, rf58 or later) it updates; if not, nothing happens and after 15 s the app says so - then flash SLCM.hex once with an ST-Link."
                             + (lcmFw.pkgVer ? "\n\nThis package goes with SLCM " + lcmFw.verText(lcmFw.pkgVer) + "." : "")
                         : "Found SLCM light module firmware with the bootloader, so the package can update it over Bluetooth.\n\n"
                             + lcmFw.fitText)
                     : "This is most likely because your board is running a version of LCM firmware that doesn't contain a bootloader for flashing over BLE.\n\n"
-                        + "To resolve this, first flash the LCM with an ST-Link using the correct firmware: ALCM_VP_BL_full.hex (lcm-latest release). After that, CHECK LCM passes and future updates work from the app.\n\n"
+                        + "To resolve this, first flash the LCM with an ST-Link using the correct firmware: SLCM.hex (lcm-latest release). After that, CHECK LCM passes and future updates work from the app.\n\n"
                         + "What the package saw: " + (!lcmFw.nameKnown && !lcmFw.gotStatus ? "no answer from the board (check the connection)."
                             : lcmFw.fitted === "vp" ? "SLCM " + lcmFw.verText(lcmFw.lcmVer) + " without the bootloader."
                             : lcmFw.fitted === "other" ? "LCM firmware \u201C" + lcmFw.lcmName + "\u201D (not SLCM)."
                             : lcmFw.lcmPolling ? "a light module is talking to the package but doesn't name itself, so it isn't running SLCM r15 or newer (older SLCM / ALCM VP builds from before rf63, original ALCM, or other LCM firmware)."
                             : "no light module is talking to the package. Stock Floatwheel LCM firmware never does (it only reads the VESC's basic data); or the LCM isn't connected.")
-                        + (lcmFw.builtin ? "\n\nThis package carries SLCM " + lcmFw.verText(lcmFw.pkgVer) + ": the ALCM_VP_BL_full.hex for the ST-Link must be that build or newer." : "")
+                        + (lcmFw.builtin ? "\n\nThis package carries SLCM " + lcmFw.verText(lcmFw.pkgVer) + ": the SLCM.hex for the ST-Link must be that build or newer." : "")
             }
 
             Row {

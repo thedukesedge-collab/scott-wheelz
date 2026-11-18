@@ -7,7 +7,7 @@ OLDVT ?= 0
 # use `make LCM_FW=1` to embed the SLCM firmware update image (needs
 # arm-none-eabi-gcc with newlib-nano). Off by default since rf70: it made the
 # package heavy; the package only carries the SLCM version (for CHECK LCM)
-# and the rider picks ALCM_VP_BL_full.hex (lcm-latest release) to flash.
+# and the rider picks SLCM.hex (lcm-latest release) to flash.
 LCM_FW ?= 0
 
 all: refloatrm.vescpkg

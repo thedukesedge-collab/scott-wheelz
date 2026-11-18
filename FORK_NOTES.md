@@ -793,6 +793,12 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   backup; Dashboard, Tunes, Data & App), neon buttons, CLOSE pill.
 - lcm.yml: apt install retried with a timeout (a stuck mirror hung runs).
 
+### SLCM.hex (v1.2.3-rf76)
+- The ST-Link file on the lcm-latest release is now SLCM.hex (built as
+  ALCM_VP_BL_full.hex, bootloader + app; the old asset name is removed from
+  the release). App, simulator and docs say SLCM.hex. Firmware unchanged
+  (r22).
+
 ### Safety hardening (v1.2.3-rf75)
 Prompted by lukash's point on refloat PR #119: the package runs on the
 controller's own CPU, so a crash anywhere in it (LEDs included) stops

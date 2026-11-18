@@ -1,7 +1,7 @@
 # LCM firmware (ALCM, VP light control)
 
 
-> **Bootloader / updates from the app:** `ALCM_VP_BL_full.hex` (bootloader +
+> **Bootloader / updates from the app:** `SLCM.hex` (bootloader +
 > light firmware) is flashed once with the ST-Link; after that the LCM is
 > updated from the phone app (LEDS › hold "LCM firmware tools" at the bottom for 2 s). The app only offers FLASH LCM when the LCM reports itself as `VPBL-...` (built with the bootloader). See
 > [bootloader/README.md](bootloader/README.md).

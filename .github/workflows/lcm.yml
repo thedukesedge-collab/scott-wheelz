@@ -86,5 +86,9 @@ jobs:
           F=lcm/alcm/gcc/build
           gh release view lcm-latest >/dev/null 2>&1 || gh release create lcm-latest --prerelease \
             --title "LCM firmware (ALCM VP)" --notes "ALCM with VP light control." --target "$GITHUB_SHA"
-          gh release edit lcm-latest --notes "ALCM v0.1.1 + VP light control, built from ${GITHUB_SHA::7}. ALCM_VP.hex = lights set from the Re-Float Rink-Mixed package, button keeps power on/off (no bootloader). ALCM_VP_BL_full.hex = bootloader + the same light firmware: flash ONCE with the ST-Link, after that update from the app (LEDS > LCM FIRMWARE). ALCM_VP_app.bin = the update image (the package already contains it). See lcm/bootloader/README.md."
-          gh release upload lcm-latest $F/ALCM_VP.hex $F/ALCM_VP_BL_full.hex $F/ALCM_VP_app.bin --clobber
+          # the rider-facing file is SLCM.hex (= ALCM_VP_BL_full.hex, bootloader + app)
+          cp $F/ALCM_VP_BL_full.hex $F/SLCM.hex
+          gh release edit lcm-latest --notes "SLCM (ALCM v0.1.1 + VP light control), built from ${GITHUB_SHA::7}. SLCM.hex = bootloader + light firmware: flash ONCE with the ST-Link (battery disconnected), after that update from the app (LEDS > LCM firmware tools). ALCM_VP.hex = the same light firmware without the bootloader (ST-Link only, not recommended). ALCM_VP_app.bin = the update image. See lcm/bootloader/README.md."
+          gh release upload lcm-latest $F/ALCM_VP.hex $F/SLCM.hex $F/ALCM_VP_app.bin --clobber
+          # retire the old name so there's one file to pick
+          gh release delete-asset lcm-latest ALCM_VP_BL_full.hex -y 2>/dev/null || true
