@@ -101,6 +101,7 @@
 #define VP_BLOCK_VERSION 1U
 #define VP_REPLY_MIN_LENGTH 25U
 #define VP_BATTERY_OFFSET 25U
+#define VP_CUSTOM_OFFSET 26U // 8 bytes: CUSTOM animation (reply 34 bytes)
 #define VP_FLAG_HEADLIGHTS 0x01U
 #define VP_FLAG_STATUS_LEDS 0x02U
 #define VP_FLAG_BEEP 0x04U
@@ -119,7 +120,7 @@
 
 #define START_BYTE 0x02
 #define END_BYTE 0x03
-#define MAX_PACKET_LENGTH 32
+#define MAX_PACKET_LENGTH 40 // VP reply with the CUSTOM block: 34
 #define MAX_OUTSTANDING_PACKETS 5
 // Millidegrees - 0.02 degrees was the original float threshold.
 #define SIGNIFICANT_CHANGE(x, y) ((((x) > (y)) ? ((x) - (y)) : ((y) - (x))) > 20)
@@ -170,7 +171,10 @@ static uint8_t headlight_remote_baseline = LCM_BASELINE_UNSET;
 static uint8_t status_remote_baseline = LCM_BASELINE_UNSET;
 #ifdef VP_LIGHT_CONTROL
 static uint8_t vp_test_beep_last = 0xFFU; // 0xFF: no VP block seen yet
-uint8_t vp_doze_dark = 0U;                 // VP_FLAG_DOZE_DARK, read by headlights.c
+// app changes are written to the LCM's EEPROM this many polls (250 ms)
+// later, idle only - so they also apply with the package off, power cut or not
+#define VP_SAVE_POLLS 12U
+static uint8_t vp_save_countdown = 0U;
 static int16_t vp_battery_level = -1;      // tenths of a %, -1: the VESC's
 #endif
 static bool_t vesc_locked = false;
@@ -760,7 +764,11 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
     bool_t beep = ((flags & VP_FLAG_BEEP) != 0U) ? true : false;
     uint16_t color = (uint16_t)(((uint16_t)block[8] << 8) | block[9]);
 
-    vp_doze_dark = flags & VP_FLAG_DOZE_DARK; // applies from the next snooze
+    if ((flags & VP_FLAG_DOZE_DARK) != settings->doze_dark) // from the next snooze
+    {
+        settings->doze_dark = flags & VP_FLAG_DOZE_DARK;
+        vp_save_countdown = VP_SAVE_POLLS;
+    }
 
     if ((headlights != settings->enable_headlights) ||
         (status_leds != settings->enable_status_leds))
@@ -772,6 +780,7 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
 
     if (beep != settings->enable_beep)
     {
+        vp_save_countdown = VP_SAVE_POLLS;
         settings->enable_beep = beep;
         event_queue_push(EVENT_COMMAND_TOGGLE_BEEPER, NULL);
     }
@@ -809,6 +818,7 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
 
     if (refresh)
     {
+        vp_save_countdown = VP_SAVE_POLLS;
         event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
     }
 
@@ -883,6 +893,17 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
                             &settings->status_brightness,
                             COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS);
         vp_apply_block(&payload[VP_BLOCK_OFFSET], settings);
+
+        // CUSTOM animation parameters (package rf71+)
+        if ((packet_length >= VP_CUSTOM_OFFSET + sizeof(settings->custom_anim)) &&
+            (memcmp(settings->custom_anim, &payload[VP_CUSTOM_OFFSET],
+                    sizeof(settings->custom_anim)) != 0))
+        {
+            memcpy(settings->custom_anim, &payload[VP_CUSTOM_OFFSET],
+                   sizeof(settings->custom_anim));
+            vp_save_countdown = VP_SAVE_POLLS;
+            event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
+        }
 
         // battery % from the package's curve (takes effect with the next
         // values reply, at most 250 ms later)
@@ -1076,6 +1097,22 @@ EVENT_HANDLER(vesc_serial, board_mode_change)
  */
 TIMER_CALLBACK(vesc_serial, tx)
 {
+#ifdef VP_LIGHT_CONTROL
+    // app changes to the light settings: written to the EEPROM a few seconds
+    // later, never while riding (only if they differ, see settings_save())
+    if ((vp_save_countdown != 0U) && (--vp_save_countdown == 0U))
+    {
+        if (board_mode_get() == BOARD_MODE_RIDING)
+        {
+            vp_save_countdown = 1U; // try again next poll
+        }
+        else
+        {
+            settings_save();
+        }
+    }
+#endif
+
     /*
      * These packets are used to poll the VESC for data.  Since they are
      * sent repeatedly and never change, we can just hardcode each segment

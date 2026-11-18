@@ -56,6 +56,9 @@ typedef enum
     // Re-Float Rink-Mixed (SLCM r16+): the battery gauge as an animation
     // choice, for any context (riding, snooze, boot, ...)
     ANIMATION_OPTION_BATTERY,
+    // SLCM r19+: an animation designed in the app (settings_t.custom_anim):
+    // the fill / scan engines with the app's colors, pattern and speeds
+    ANIMATION_OPTION_CUSTOM,
 #endif
     ANIMATION_OPTION_COUNT
 } animation_option_t;

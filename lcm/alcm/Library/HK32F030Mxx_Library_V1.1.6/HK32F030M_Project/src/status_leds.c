@@ -296,6 +296,40 @@ uint16_t status_leds_start_animation_option(animation_option_t option)
     case ANIMATION_OPTION_BATTERY:
         display_battery(vesc_serial_get_battery_level());
         break;
+    case ANIMATION_OPTION_CUSTOM: {
+        // c[0] bit0 engine (0 fill, 1 scan), bits1-3 color mode, bits4-6
+        // pattern (fill mode / scan direction); c[1] brightness mode (fill);
+        // c[2], c[3] hues / 2; c[4] color speed, c[5] motion / brightness
+        // speed ((n + 1) * 50 ms); c[6] lowest brightness (fill)
+        const uint8_t *c = status_leds_settings->custom_anim;
+        uint8_t cm = (c[0] >> 1) & 7U, pattern = (c[0] >> 4) & 7U;
+        fixed16_t hue_a = degrees_to_fixed16((uint16_t)c[2] * 2U);
+        fixed16_t hue_b = degrees_to_fixed16((uint16_t)c[3] * 2U);
+        uint32_t color_ms = ((uint32_t)c[4] + 1U) * 50U;
+        uint32_t move_ms = ((uint32_t)c[5] + 1U) * 50U;
+        if (cm > (uint8_t)COLOR_MODE_RGB)
+        {
+            cm = (uint8_t)COLOR_MODE_RGB;
+        }
+        if ((c[0] & 1U) != 0U)
+        {
+            animation_id = scan_animation_setup(
+                status_leds_buffer,
+                (scan_direction_t)(pattern > (uint8_t)SCAN_DIRECTION_SINE ? 0U : pattern),
+                (color_mode_t)cm, move_ms, hue_a, hue_b, color_ms, SCAN_START_DEFAULT,
+                SCAN_END_NEVER, FIXED16(0.0), &custom_color);
+        }
+        else
+        {
+            animation_id = fill_animation_setup(
+                status_leds_buffer, (color_mode_t)cm,
+                (brightness_mode_t)(c[1] > (uint8_t)BRIGHTNESS_MODE_FLASH ? 0U : c[1]),
+                (fill_mode_t)(pattern > (uint8_t)FILL_MODE_HSV_GRADIENT_MIRROR ? 0U : pattern),
+                first_led, last_led, hue_a, hue_b, color_ms, frac8_to_fixed16(c[6]),
+                FIXED16(1.0), move_ms, 0U, &custom_color);
+        }
+        break;
+    }
 #endif
     case ANIMATION_OPTION_NONE:
         // Fade out the lights and then disable
