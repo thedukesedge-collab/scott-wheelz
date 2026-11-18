@@ -2510,6 +2510,21 @@ static void cmd_info(const Data *d, unsigned char *buf, int len) {
 }
 
 // Handler for incoming app commands
+// Re-Float Rink-Mixed (rf75): the light module poll, out of line for the
+// same reason as rm_command below
+static __attribute__((noinline)) void lcm_poll(Data *d, unsigned char *buffer, unsigned int len) {
+    lcm_poll_request(&d->lcm, buffer, len);
+    lcm_fw_poll_seen(&d->lcm_fw, &d->time);
+    d->lcm.vp_update = lcm_fw_update_flag(&d->lcm_fw, &d->state, &d->time);
+    d->lcm.vp_battery = battery_curve_update(
+        &d->battery_curve,
+        VESC_IF->mc_get_input_voltage_filtered(),
+        VESC_IF->mc_get_tot_current_in_filtered(),
+        battery_cells()
+    );
+    lcm_poll_response(&d->lcm, &d->state, d->footpad.state, &d->motor, d->imu.pitch);
+}
+
 // Re-Float Rink-Mixed (rf75): the package's own commands (120-130), kept out
 // of on_command_received so its stack frame stays upstream's size (that
 // frame is live under data_recorder_request, the deepest call on this thread)
@@ -2760,16 +2775,7 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
         return;
     }
     case COMMAND_LCM_POLL: {
-        lcm_poll_request(&d->lcm, &buffer[2], len - 2);
-        lcm_fw_poll_seen(&d->lcm_fw, &d->time);
-        d->lcm.vp_update = lcm_fw_update_flag(&d->lcm_fw, &d->state, &d->time);
-        d->lcm.vp_battery = battery_curve_update(
-            &d->battery_curve,
-            VESC_IF->mc_get_input_voltage_filtered(),
-            VESC_IF->mc_get_tot_current_in_filtered(),
-            battery_cells()
-        );
-        lcm_poll_response(&d->lcm, &d->state, d->footpad.state, &d->motor, d->imu.pitch);
+        lcm_poll(d, &buffer[2], len - 2);
         return;
     }
     case COMMAND_LCM_LIGHT_INFO: {
