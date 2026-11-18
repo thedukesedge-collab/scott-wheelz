@@ -1679,6 +1679,7 @@ Item {
         readonly property int c_LCM_TEST_BEEP: 127  // Re-RinkFloat: light module test beep
         readonly property int c_LCM_FW: 128  // Re-RinkFloat: LCM firmware update relay
         readonly property int c_LCM_BATTERY: 129  // Re-RinkFloat: battery curve for the LCM status bar
+        readonly property int c_LCM_POWER_OFF: 130  // Re-Float Rink-Mixed: SLCM r22+ shuts the board down
         readonly property int c_LCM_DEVICE_INFO: 27  // Refloat: the LCM's own name (Re-Float: "VPBL-<hash>")
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
@@ -1905,6 +1906,8 @@ Item {
                 lcmFw.onName(dv, ind);
             } else if (msgtype === c_LCM_BATTERY) {
                 batteryCurve.onReply(dv, ind);
+            } else if (msgtype === c_LCM_POWER_OFF) {
+                VescIf.emitStatusMessage(dv.getUint8(ind) ? "Powering off..." : "Not while riding", dv.getUint8(ind) === 1);
             } else if (msgtype == c_LIGHTS_CONTROL) {
                 var values = dv.getUint8(ind++);
                 lights.on = values & 0b01;
@@ -2823,6 +2826,9 @@ Item {
         }
     }
 
+    // for components (inside one, "state" is the item's own state property)
+    readonly property bool boardRunning: state.pkgState === state.s_Running
+
     property var state: QtObject {
         id: state
 
@@ -3576,6 +3582,96 @@ Item {
             id: pillArea
             anchors.fill: parent
             onClicked: pill.clicked()
+        }
+    }
+
+    // Re-Float Rink-Mixed: POWER OFF from the app (SLCM r22+), for a board
+    // whose button can't be read. Guarded against accidents: tap once to arm,
+    // then tap again and hold 5 s. Never while riding (package and SLCM
+    // refuse it too).
+    component PowerOffControl : Rectangle {
+        id: poc
+        property int stage: 0  // 0 idle, 1 armed, 2 holding, 3 sent
+        property real hold: 0  // 0..1 over 5 s
+        readonly property bool riding: mainItem.boardRunning
+        width: parent ? Math.min(parent.width, 7.4 * unit) : 0
+        height: 0.9 * unit
+        radius: height / 2
+        color: stage === 3 ? "#ff3b3b" : "transparent"
+        border.color: riding ? "#5c5470" : (stage === 0 ? "#ff3b3b" : "#ff8a1f")
+        border.width: 2
+        opacity: riding ? 0.5 : 1
+
+        Rectangle {  // hold progress
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: parent.width * poc.hold
+            radius: parent.radius
+            color: "#ff8a1f"
+            opacity: 0.55
+            visible: poc.stage === 2
+        }
+        Text {
+            anchors.centerIn: parent
+            width: parent.width - 0.3 * unit
+            horizontalAlignment: Text.AlignHCenter
+            fontSizeMode: Text.HorizontalFit
+            minimumPixelSize: 0.14 * unit
+            font.family: "Exan"
+            font.pixelSize: 0.26 * unit
+            color: poc.stage === 3 ? swTheme.background : (poc.stage === 0 ? "#ff3b3b" : "#ff8a1f")
+            text: poc.riding ? "\u23FB POWER OFF (NOT WHILE RIDING)"
+                : poc.stage === 0 ? "\u23FB POWER OFF BOARD"
+                : poc.stage === 1 ? "TAP AGAIN AND HOLD 5 s"
+                : poc.stage === 2 ? "HOLD... " + Math.ceil(5 * (1 - poc.hold)) + " s"
+                : "POWERING OFF..."
+        }
+        Timer {  // armed: the second tap must come within 4 s
+            id: pocArm
+            interval: 4000
+            onTriggered: if (poc.stage === 1) poc.stage = 0
+        }
+        Timer {
+            id: pocHold
+            interval: 50
+            repeat: true
+            running: poc.stage === 2
+            onTriggered: {
+                poc.hold = Math.min(1, poc.hold + 0.01);
+                if (poc.hold >= 1) {
+                    poc.stage = 3;
+                    vescCommands.sendCustomAppData(commands.createData(2, commands.c_LCM_POWER_OFF).buffer);
+                    pocDone.restart();
+                }
+            }
+        }
+        Timer {
+            id: pocDone
+            interval: 4000
+            onTriggered: poc.stage = 0
+        }
+        MouseArea {
+            anchors.fill: parent
+            enabled: !poc.riding && poc.stage !== 3
+            onPressed: {
+                if (poc.stage === 1) {
+                    pocArm.stop();
+                    poc.hold = 0;
+                    poc.stage = 2;
+                }
+            }
+            onReleased: {
+                if (poc.stage === 0) {
+                    poc.stage = 1;
+                    pocArm.restart();
+                } else if (poc.stage === 2) {
+                    poc.stage = 1;  // let go early: still armed, tap and hold again
+                    poc.hold = 0;
+                    pocArm.restart();
+                }
+            }
+            onCanceled: if (poc.stage === 2) { poc.stage = 1; poc.hold = 0; pocArm.restart(); }
         }
     }
 
@@ -13111,6 +13207,20 @@ Item {
                             label: ledSender.allOn ? "ALL LIGHTS ON" : "ALL LIGHTS OFF"
                             lit: ledSender.allOn
                             onClicked: ledSender.setAll(!ledSender.allOn)
+                        }
+
+                        // power off from the app (SLCM r22+)
+                        PowerOffControl {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            visible: slcmDetect.present && lcmFw.lcmVer.rev >= 22
+                        }
+                        SwLText {
+                            visible: slcmDetect.present && lcmFw.lcmVer.rev < 22
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "POWER OFF from the app needs SLCM r22 or newer (LCM firmware tools \u203A CHECK LCM)."
                         }
 
                         SwLText {

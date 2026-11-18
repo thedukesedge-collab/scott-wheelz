@@ -85,6 +85,9 @@
  *   17  flags: bit0 headlights on, bit1 status bar on, bit2 beeper on,
  *       bit3 toggles once per test-beep request from the app,
  *       bit4 = update staged (bootloader builds: start the bootloader)
+ *       bit5 = headlights dark in snooze
+ *       bit6 = power off requested from the app (SLCM r22+; only taken
+ *       while idle: the normal shutdown, as when holding the button)
  *   18  idle animation      (animation_option_t)
  *   19  riding animation
  *   20  dozing ("snooze") animation
@@ -111,6 +114,7 @@
 #define VP_FLAG_TEST_BEEP 0x08U // toggled by the app for a test beep
 #define VP_FLAG_UPDATE 0x10U    // firmware update staged: hand over to the bootloader
 #define VP_FLAG_DOZE_DARK 0x20U // headlights off in snooze (no breathing)
+#define VP_FLAG_POWER_OFF 0x40U // app asks for a shutdown (button-hold equivalent)
 #endif
 #endif
 
@@ -833,6 +837,13 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
         vp_enter_bootloader();
     }
 #endif
+
+    // Power off from the app (for a board whose button can't be read): the
+    // same shutdown as holding the button, only while idle
+    if (((flags & VP_FLAG_POWER_OFF) != 0U) && (board_mode_get() == BOARD_MODE_IDLE))
+    {
+        event_queue_push(EVENT_COMMAND_SHUTDOWN, NULL);
+    }
 
     // Test beep: the app toggles bit 3; the first block only records it
     flags &= VP_FLAG_TEST_BEEP;

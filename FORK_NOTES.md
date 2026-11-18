@@ -793,6 +793,20 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   backup; Dashboard, Tunes, Data & App), neon buttons, CLOSE pill.
 - lcm.yml: apt install retried with a timeout (a stuck mirror hung runs).
 
+### POWER OFF from the app, SLCM r22 (v1.2.3-rf74)
+- For a board whose LCM can't read its button any more (here: damaged by an
+  ST-Link connected with the battery on - the button still powers the
+  board up, but the LCM never sees presses).
+- LEDS > Lights: POWER OFF BOARD (SLCM r22+ only). Tap once to arm (4 s),
+  then tap again and hold 5 s (progress fill; letting go early cancels,
+  stays armed). Disabled while riding.
+- App -> package COMMAND_LCM_POWER_OFF (130), reply [101, 130, ok]; refused
+  while RUNNING. The package sets VP flag bit 6 (0x40) in the next 8 poll
+  replies (~2 s, cancelled if it starts running). The SLCM only takes it
+  while idle and pushes EVENT_COMMAND_SHUTDOWN: the same shutdown as
+  holding the button (shutdown animation, settings saved, power released).
+  Older SLCMs ignore the bit.
+
 ### SLCM r21: power button hold-to-off fixed (v1.2.3-rf73)
 - r20 (rf71) skipped the clock setup in the bootloader build's SystemInit,
   assuming the bootloader had done it - but on a normal power-up the

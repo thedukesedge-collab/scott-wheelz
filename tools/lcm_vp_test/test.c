@@ -117,6 +117,22 @@ int main(void){
         assert(lcm_vp_set(&lcm, cus, 20));
         lcm.leds_cfg = NULL;
     }
+    /* power off from the app: flag 0x40 for 8 replies, never while running */
+    {
+        assert(lcm_vp_power_off(&lcm, true) == false);
+        assert(lcm_vp_power_off(&lcm, false) == true);
+        for (int i = 0; i < LCM_VP_POWER_OFF_POLLS; ++i) {
+            lcm_poll_response(&lcm, &st, 0, &md, 0);
+            assert(sent[16] & 0x40);
+        }
+        lcm_poll_response(&lcm, &st, 0, &md, 0);
+        assert(!(sent[16] & 0x40));
+        lcm_vp_power_off(&lcm, false);
+        st.state = STATE_RUNNING; lcm_poll_response(&lcm, &st, 0, &md, 0);
+        assert(!(sent[16] & 0x40));
+        st.state = STATE_READY; lcm_poll_response(&lcm, &st, 0, &md, 0);
+        assert(!(sent[16] & 0x40));  /* cancelled by riding */
+    }
     /* an older app (12 bytes) keeps the custom block */
     assert(lcm_vp_set(&lcm, in12, 12) == true && lcm.vp.custom[0]==0x13);
     lcm_poll_request(&lcm, n19, sizeof n19 - 1);

@@ -287,6 +287,7 @@
           <div id="lightsBox"><div class="secTitle" style="text-align:center;margin-top:6px">Lights</div>
           <div class="pills"><div class="pill" id="headPill2">HEAD/TAIL OFF</div><div class="pill" id="statusPill2">STATUS OFF</div></div>
           <div class="pills"><div class="pill" id="lightsPill" style="min-width:250px;text-align:center">ALL LIGHTS OFF</div></div>
+          <div id="pwrOff" style="position:relative;overflow:hidden;margin:8px auto 2px;width:250px;height:34px;border:2px solid #ff3b3b;border-radius:17px;display:flex;align-items:center;justify-content:center;font-family:Orbitron,monospace;font-size:11px;color:#ff3b3b;user-select:none;touch-action:none;cursor:pointer"><i id="pwrFill" style="position:absolute;left:0;top:0;bottom:0;width:0;background:#ff8a1f;opacity:.55"></i><span id="pwrText" style="position:relative">&#9211; POWER OFF BOARD</span></div>
           <p class="ledHint" id="overrideNote" style="text-align:center;color:#ff8a1f"></p></div>
           <p id="ledNote" style="font-size:11px;color:var(--text);text-align:center;margin:4px 6px"></p>
           <div class="ledTiles">
@@ -305,7 +306,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf72 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf74 · sim</span></div>
     </div>
   </div>
 
@@ -1126,7 +1127,7 @@ function renderLedsSoft() {
   $('slcmBanner').className = 'fwFit' + (slcm ? ' ok' : '');
   $('slcmBanner').innerHTML = slcm ? '<b>&#10004; SLCM DETECTED</b> · ' + FW_BUILD + '<br>Same light settings as any controller, plus the SLCM EXTRAS below.'
     : "<b>REFLOAT LIGHTS</b><br>These are Refloat's own LED settings, the same on any controller (Thor, Floatwheel, ...).";
-  $('slcmExtras').style.display = slcm ? '' : 'none'; $('ledBreathBox').style.display = slcm ? '' : 'none';
+  $('slcmExtras').style.display = slcm ? '' : 'none'; $('pwrOff').style.display = slcm ? 'flex' : 'none'; pwrPaint(); $('ledBreathBox').style.display = slcm ? '' : 'none';
   $('lightsBox').style.display = lightsOk ? '' : 'none';
   const pl = (id, on, txt) => { $(id).textContent = txt + (on ? ' ON' : ' OFF'); $(id).classList.toggle('on', on); };
   const allOn = P.ledHead && P.ledBar && P.lightsOn !== false;
@@ -1188,6 +1189,31 @@ function renderRf() {
   $('rfHint').textContent = "Refloat's own Status Idle animation, so it's the same on every controller (Thor, Floatwheel, ...): Refloat's LEDs play it themselves, and for an SLCM light module the package turns it into the closest SLCM animation (from SLCM r19; older builds show the battery). Off = the battery level. START AFTER only applies to Refloat's LEDs, an SLCM starts right away."
     + (slcm && P.ledAnimIdle !== 15 ? ' Right now the SLCM plays ' + animLabel('ledAnimIdle', P.ledAnimIdle) + ' from SLCM EXTRAS \u203A ANIMATIONS instead; change anything here to follow this again.' : '');
 }
+// POWER OFF from the app (SLCM r22+): tap to arm, then tap again and hold 5 s
+const PWR = { stage: 0, hold: 0, t: null, arm: null };
+function pwrPaint() {
+  const riding = typeof running === 'function' && running(), st = PWR.stage;
+  $('pwrOff').style.borderColor = riding ? '#5c5470' : st === 0 ? '#ff3b3b' : '#ff8a1f';
+  $('pwrOff').style.background = st === 3 ? '#ff3b3b' : 'transparent';
+  $('pwrText').style.color = st === 3 ? '#0b0718' : st === 0 ? '#ff3b3b' : '#ff8a1f';
+  $('pwrFill').style.width = st === 2 ? (PWR.hold * 100) + '%' : '0';
+  $('pwrText').textContent = riding ? '\u23FB POWER OFF (NOT WHILE RIDING)' : st === 0 ? '\u23FB POWER OFF BOARD' : st === 1 ? 'TAP AGAIN AND HOLD 5 s'
+    : st === 2 ? 'HOLD... ' + Math.ceil(5 * (1 - PWR.hold)) + ' s' : 'POWERING OFF...';
+}
+const pwrArm = () => { clearTimeout(PWR.arm); PWR.arm = setTimeout(() => { if (PWR.stage === 1) { PWR.stage = 0; pwrPaint(); } }, 4000); };
+$('pwrOff').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (PWR.stage !== 1) return;
+  clearTimeout(PWR.arm); PWR.stage = 2; PWR.hold = 0;
+  PWR.t = setInterval(() => { PWR.hold = Math.min(1, PWR.hold + 0.01); if (PWR.hold >= 1) { clearInterval(PWR.t); PWR.stage = 3; setTimeout(() => { PWR.stage = 0; pwrPaint(); }, 4000); } pwrPaint(); }, 50);
+  pwrPaint();
+});
+const pwrUp = () => {
+  if (PWR.stage === 0) { PWR.stage = 1; pwrArm(); }
+  else if (PWR.stage === 2) { clearInterval(PWR.t); PWR.stage = 1; PWR.hold = 0; pwrArm(); }
+  pwrPaint();
+};
+$('pwrOff').addEventListener('pointerup', pwrUp); $('pwrOff').addEventListener('pointercancel', () => { if (PWR.stage === 2) pwrUp(); });
 $('rfPill').onclick = () => { P.rfTimeout = P.rfTimeout > 0 ? 0 : 10; P.ledAnimIdle = 15; P.ledCfg = true; save(); renderRf(); renderLedsSoft(); };
 const ledToggle = k => () => { P[k] = !P[k]; P.ledCfg = true; save(); renderLedsSoft(); };
 const P42A = [170, 156, 144, 135, 128, 120, 112, 104, 96, 84, 50];
