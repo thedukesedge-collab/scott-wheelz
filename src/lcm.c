@@ -69,6 +69,22 @@ void lcm_configure(LcmData *lcm, const Leds *leds) {
     lcm->lights_off_when_lifted = cfg->lights_off_when_lifted;
 }
 
+int lcm_slcm_rev(const LcmData *lcm) {
+    const char *n = lcm->name;
+    if (n[0] != 'V' || n[1] != 'P') {
+        return 0;
+    }
+    n += n[2] == 'B' ? 5 : 3;  // "VPBL-" / "VP-"
+    if (*n++ != 'r') {
+        return 0;
+    }
+    int rev = 0;
+    while (*n >= '0' && *n <= '9' && rev < 10000) {
+        rev = rev * 10 + (*n++ - '0');
+    }
+    return rev;
+}
+
 bool lcm_is_slcm(const LcmData *lcm) {
     // rf70: also an LCM that doesn't name itself - SLCM / ALCM VP builds from
     // before r15 (rf67-rf69 cut them off, and their LED settings with them).
@@ -162,6 +178,13 @@ void lcm_poll_response(
             buffer[ind++] = vp->color >> 8;
             buffer[ind++] = vp->color & 0xFF;
             buffer[ind++] = lcm->vp_battery;  // 0xFF = use the VESC's battery %
+            // CUSTOM animation: only to an SLCM that takes it (older builds
+            // drop replies over 32 bytes)
+            if (lcm_slcm_rev(lcm) >= LCM_SLCM_CUSTOM_REV) {
+                for (int i = 0; i < LCM_VP_CUSTOM_LENGTH; ++i) {
+                    buffer[ind++] = vp->custom[i];
+                }
+            }
             lcm->payload_size = 0;
         } else {
             // LCM control info
@@ -299,6 +322,12 @@ bool lcm_vp_set(LcmData *lcm, const uint8_t *buffer, int len) {
     }
     vp.headlight_idle_brightness =
         len >= LCM_VP_SETTINGS_LENGTH ? clamp_u8(buffer[11], 100) : vp.headlight_brightness;
+    // CUSTOM animation: from rf71 apps; older ones keep what's there
+    if (len >= LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH) {
+        memcpy(vp.custom, &buffer[LCM_VP_SETTINGS_LENGTH], LCM_VP_CUSTOM_LENGTH);
+    } else {
+        memcpy(vp.custom, lcm->vp.custom, LCM_VP_CUSTOM_LENGTH);
+    }
 
     bool changed = memcmp(&vp, &lcm->vp, sizeof(vp)) != 0;
     lcm->vp = vp;
@@ -319,28 +348,29 @@ void lcm_vp_pack(const LcmData *lcm, uint32_t words[LCM_VP_EEPROM_WORDS]) {
         ((uint32_t) vp->animations[3] << 24) | ((uint32_t) vp->animations[4] << 16) | vp->color;
     // word 3: magic 0x49 ('I'), headlight idle %
     words[3] = (0x49u << 24) | vp->headlight_idle_brightness;
+    // words 4, 5: CUSTOM animation
+    for (int i = 0; i < 2; ++i) {
+        words[4 + i] = ((uint32_t) vp->custom[4 * i] << 24) |
+            ((uint32_t) vp->custom[4 * i + 1] << 16) | ((uint32_t) vp->custom[4 * i + 2] << 8) |
+            vp->custom[4 * i + 3];
+    }
 }
 
 void lcm_vp_unpack(LcmData *lcm, const uint32_t words[LCM_VP_EEPROM_WORDS]) {
     if ((words[0] >> 24) != 0x4C) {
         return;
     }
-    uint8_t buffer[LCM_VP_SETTINGS_LENGTH] = {
-        (words[0] >> 16) & 0xFF,
-        (words[0] >> 8) & 0xFF,
-        words[0] & 0xFF,
-        words[1] >> 24,
-        (words[1] >> 16) & 0xFF,
-        (words[1] >> 8) & 0xFF,
-        words[1] & 0xFF,
-        words[2] >> 24,
-        (words[2] >> 16) & 0xFF,
-        (words[2] >> 8) & 0xFF,
-        words[2] & 0xFF,
-        words[3] & 0xFF,
+    uint8_t buffer[LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH] = {
+        (words[0] >> 16) & 0xFF, (words[0] >> 8) & 0xFF,  words[0] & 0xFF,        words[1] >> 24,
+        (words[1] >> 16) & 0xFF, (words[1] >> 8) & 0xFF,  words[1] & 0xFF,        words[2] >> 24,
+        (words[2] >> 16) & 0xFF, (words[2] >> 8) & 0xFF,  words[2] & 0xFF,        words[3] & 0xFF,
+        words[4] >> 24,          (words[4] >> 16) & 0xFF, (words[4] >> 8) & 0xFF, words[4] & 0xFF,
+        words[5] >> 24,          (words[5] >> 16) & 0xFF, (words[5] >> 8) & 0xFF, words[5] & 0xFF,
     };
-    // saved before the idle headlight level existed: idle = riding
-    int len = (words[3] >> 24) == 0x49 ? LCM_VP_SETTINGS_LENGTH : LCM_VP_SETTINGS_LENGTH - 1;
+    // saved before the idle headlight level existed: idle = riding (and no
+    // CUSTOM animation yet either)
+    int len = (words[3] >> 24) == 0x49 ? LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH
+                                       : LCM_VP_SETTINGS_LENGTH - 1;
     lcm_vp_set(lcm, buffer, len);
 }
 

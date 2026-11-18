@@ -78,6 +78,7 @@ static void SetSysClock(void);
   */
 void SystemInit(void)
 {
+#ifndef LCM_BOOTLOADER
 	/* Set HSION bit */
 	RCC->CR |= (uint32_t)0x00000001;
 
@@ -91,6 +92,14 @@ void SystemInit(void)
 	RCC->CIR = 0x00000000;
 
 	SetSysClock();
+#else
+	/* Re-Float Rink-Mixed (SLCM): the bootloader always runs first and sets
+	 * up exactly this clock (HSI 32 MHz with the factory trim, 2 flash wait
+	 * states, flash clock prescaler 7, HCLK = PCLK = SYSCLK - lcm/bootloader/
+	 * bl_hw.h, bl_hw_init), so the bootloader build of the app keeps it
+	 * instead of repeating it (frees ~200 bytes of flash). */
+	(void)SetSysClock;
+#endif
 
 #ifdef VECT_TAB_SRAM
 	SYSCFG->CFGR1 |= SYSCFG_CFGR1_MEM_MODE; /* Vector Table Relocation in Internal SRAM. */

@@ -341,7 +341,38 @@ Item {
 
         readonly property var animNames: ["STANDARD", "RAINBOW SCAN", "RAINBOW MIRROR", "KNIGHT RIDER",
             "RAINBOW BAR", "THE FUZZ", "FIRE", "PULSE OUT", "PULSE IN", "120 SCROLL", "COMP. WAVE",
-            "CLASSIC", "COLOR SCAN", "BATTERY LEVEL"]
+            "CLASSIC", "COLOR SCAN", "BATTERY LEVEL", "CUSTOM"]
+
+        // CUSTOM animation (SLCM r19+): 8 bytes, see the SLCM's status_leds.c
+        // [0] bit0 engine (0 fill, 1 scan), bits1-3 colors, bits4-6 pattern;
+        // [1] brightness (fill: 0 steady, 1 breathe, 2 flash); [2], [3] hues / 2;
+        // [4] color speed, [5] motion speed: (n + 1) * 50 ms; [6] lowest brightness
+        function custom() {
+            try {
+                var c = JSON.parse(swSettings.ledCustom);
+                if (Array.isArray(c) && c.length === 8) return c;
+            } catch (e) {}
+            return [0x24, 1, 0, 150, 39, 29, 60, 0];
+        }
+        function setCustom(i, v) {
+            var c = custom();
+            c[i] = Math.max(0, Math.min(255, Math.round(v)));
+            swSettings.ledCustom = JSON.stringify(c);
+            changed();
+        }
+        // field helpers: engine, colors, pattern
+        function customField(f) {
+            var c0 = custom()[0];
+            return f === 0 ? (c0 & 1) : f === 1 ? ((c0 >> 1) & 7) : ((c0 >> 4) & 7);
+        }
+        function setCustomField(f, v) {
+            var c0 = custom()[0];
+            if (f === 0) c0 = (c0 & ~1) | (v & 1);
+            else if (f === 1) c0 = (c0 & ~0x0E) | ((v & 7) << 1);
+            else c0 = (c0 & ~0x70) | ((v & 7) << 4);
+            if (f === 0) c0 &= ~0x70;  // pattern lists differ: start at the first
+            setCustom(0, c0);
+        }
         // what 0 does depends on where it's used: idle / boot / shutdown show the
         // standard battery + footpad display, riding and snooze show nothing
         // (riding still shows a low battery)
@@ -354,7 +385,7 @@ Item {
 
         function send() {
             if (!swSettings.ledConfigured) return;
-            var data = commands.createData(14, commands.c_LCM_VP_SETTINGS);
+            var data = commands.createData(22, commands.c_LCM_VP_SETTINGS);
             data.setUint8(2, (swSettings.ledHeadlights ? 1 : 0) | (swSettings.ledStatusBar ? 2 : 0) | (swSettings.ledBeep ? 4 : 0)
                 | (swSettings.ledDozeBreath ? 0 : 0x20));
             data.setUint8(3, swSettings.ledHeadlightPct);
@@ -367,6 +398,8 @@ Item {
             data.setUint8(10, swSettings.ledAnimShutdown);
             data.setUint16(11, swSettings.ledColor);
             data.setUint8(13, swSettings.ledHeadlightIdlePct);
+            var cu = custom();
+            for (var ci = 0; ci < 8; ci++) data.setUint8(14 + ci, cu[ci]);
             vescCommands.sendCustomAppData(data.buffer);
         }
 
@@ -2002,6 +2035,7 @@ Item {
         property int ledAnimRide: 0
         property int ledAnimDoze: 0
         property bool ledDozeBreath: true  // headlights breathe in snooze (SLCM; off = dark)
+        property string ledCustom: ""  // CUSTOM animation, 8 numbers (JSON), see ledSender.custom()
         property int ledAnimBoot: 11
         property int ledAnimShutdown: 0
         property int ledColor: 200
@@ -3722,6 +3756,29 @@ Item {
                 h = hu; a = spot(x, sweep(t, 2)); break;
             case 13:  // BATTERY LEVEL: a gauge, white, filled to ~80 %
                 return x <= 0.8 ? "#f4f0ff" : Qt.rgba(1, 1, 1, 0.22);
+            case 14: {  // CUSTOM: an approximation of the SLCM's fill / scan engines
+                var c = ledSender.custom();
+                var scan = (c[0] & 1) === 1, cm = (c[0] >> 1) & 7, pat = (c[0] >> 4) & 7;
+                var ha = c[2] * 2 / 360, hb = c[3] * 2 / 360;
+                var cs = (c[4] + 1) * 0.05, ms = (c[5] + 1) * 0.05;
+                var pos = scan ? 0.5 : (pat === 1 ? x : (pat === 2 ? m : 0));
+                var k = cm === 0 ? frac(pos + t / cs) : cm === 1 ? frac(pos - t / cs)
+                    : cm === 2 ? 0.5 - 0.5 * Math.cos(2 * Math.PI * (t / cs + pos * 0.5))
+                    : (Math.floor(t / cs + pos) % 2);
+                h = cm === 4 ? hu : (cm === 3 ? (k ? hb : ha) : ha + (hb - ha) * k);
+                if (scan) {
+                    var u = frac(t / ms);
+                    var p = pat === 0 ? u : pat === 1 ? 1 - u : pat === 2 ? 0.5 + 0.5 * u : pat === 3 ? 1 - 0.5 * u
+                        : pat === 4 ? u : pat === 5 ? 1 - u : sweep(t, ms * 2);
+                    var xx = pat === 2 || pat === 3 ? 0.5 + Math.abs(x - 0.5) : x;
+                    a = pat === 4 ? (x <= p ? 1 : 0.15) : pat === 5 ? (x >= p ? 1 : 0.15) : spot(xx, p);
+                } else if (c[1] === 1) {
+                    a = c[6] / 255 + (1 - c[6] / 255) * (0.5 - 0.5 * Math.cos(2 * Math.PI * t / ms));
+                } else if (c[1] === 2) {
+                    a = frac(t / ms) < 0.5 ? 1 : Math.max(0.12, c[6] / 255);
+                }
+                break;
+            }
             default:  // STANDARD (white) / OFF (dark)
                 return an.text === "OFF" ? "#5c5470" : "#ead6ff";
             }
@@ -6916,7 +6973,7 @@ Item {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         property string section: "head"
-        readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "ANIMATIONS", "sound": "SOUND", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE"})
+        readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "ANIMATIONS", "sound": "SOUND", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "custom": "CUSTOM ANIMATION"})
 
         function show(which) {
             section = which;
@@ -6945,7 +7002,7 @@ Item {
                 SwPill {
                     minWidth: 1.8 * unit
                     label: "\u2039 BACK"
-                    onClicked: ledWindow.close()
+                    onClicked: ledWindow.section === "custom" ? ledWindow.show("anim") : ledWindow.close()
                 }
 
                 SwNeonLabel {
@@ -7097,6 +7154,146 @@ Item {
                             font.pixelSize: fontSizeSmall
                             text: "OFF = nothing shown (riding still warns when the battery is low). STANDARD = battery level, footpad sensors when stepped on. "
                                 + "BATTERY LEVEL shows the battery gauge anywhere (riding: live); it needs the SLCM build that comes with this package (CHECK LCM: up to date)."
+                        }
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 4.6 * unit
+                            label: "DESIGN CUSTOM \u203A"
+                            lit: true
+                            onClicked: ledWindow.show("custom")
+                        }
+                    }
+
+                    // Re-Float Rink-Mixed: CUSTOM animation designer (SLCM r19+).
+                    // The light module runs it itself (stored there too, so it
+                    // also plays with the package off).
+                    Column {
+                        width: parent.width
+                        spacing: 0.14 * unit
+                        visible: ledWindow.section === "custom"
+
+                        AnimName {
+                            width: parent.width
+                            height: 0.9 * unit
+                            anim: 14
+                            text: "CUSTOM PREVIEW"
+                            hue: swSettings.ledColor
+                            basePixelSize: 0.4 * unit
+                        }
+
+                        LedHeading { text: "Style" }
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.15 * unit
+                            Repeater {
+                                model: ["FILL", "SCANNER"]
+                                SwPill {
+                                    minWidth: 2.8 * unit
+                                    label: modelData
+                                    lit: { swSettings.ledCustom; return ledSender.customField(0) === index; }
+                                    onClicked: ledSender.setCustomField(0, index)
+                                }
+                            }
+                        }
+
+                        LedHeading { text: "Colors" }
+                        Flow {
+                            width: parent.width
+                            spacing: 0.12 * unit
+                            Repeater {
+                                model: ["RAINBOW \u2192", "RAINBOW \u2190", "WAVE A\u2194B", "FLIP A/B", "MY COLOR"]
+                                SwPill {
+                                    minWidth: 2.2 * unit
+                                    label: modelData
+                                    lit: { swSettings.ledCustom; return ledSender.customField(1) === index; }
+                                    onClicked: ledSender.setCustomField(1, index)
+                                }
+                            }
+                        }
+
+                        LedHeading { text: "Pattern" }
+                        Flow {
+                            width: parent.width
+                            spacing: 0.12 * unit
+                            Repeater {
+                                model: { swSettings.ledCustom; return ledSender.customField(0) === 1
+                                    ? ["LEFT \u2192 RIGHT", "RIGHT \u2192 LEFT", "MIRROR OUT", "MIRROR IN", "FILL \u2192", "FILL \u2190", "BOUNCE"]
+                                    : ["SOLID", "GRADIENT", "MIRROR"]; }
+                                SwPill {
+                                    minWidth: 2.2 * unit
+                                    label: modelData
+                                    lit: { swSettings.ledCustom; return ledSender.customField(2) === index; }
+                                    onClicked: ledSender.setCustomField(2, index)
+                                }
+                            }
+                        }
+
+                        SwStepper {
+                            label: "COLOR A"
+                            value: { swSettings.ledCustom; return ledSender.custom()[2] * 2; }
+                            from: 0; to: 358; step: 6; suffix: "\u00B0"
+                            onMoved: ledSender.setCustom(2, newValue / 2)
+                        }
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: parent.width * 0.7; height: 0.14 * unit; radius: height / 2
+                            gradient: Gradient {
+                                orientation: Gradient.Horizontal
+                                GradientStop { position: 0; color: { swSettings.ledCustom; return Qt.hsla(ledSender.custom()[2] * 2 / 360, 1, 0.5, 1); } }
+                                GradientStop { position: 1; color: { swSettings.ledCustom; return Qt.hsla(ledSender.custom()[3] * 2 / 360, 1, 0.5, 1); } }
+                            }
+                        }
+                        SwStepper {
+                            label: "COLOR B"
+                            value: { swSettings.ledCustom; return ledSender.custom()[3] * 2; }
+                            from: 0; to: 358; step: 6; suffix: "\u00B0"
+                            onMoved: ledSender.setCustom(3, newValue / 2)
+                        }
+                        SwStepper {
+                            label: "COLOR SPEED"
+                            value: { swSettings.ledCustom; return ledSender.custom()[4]; }
+                            from: 0; to: 255; step: 1
+                            valueText: ((value + 1) * 0.05).toFixed(2) + " s"
+                            onMoved: ledSender.setCustom(4, newValue)
+                        }
+                        SwStepper {
+                            label: { swSettings.ledCustom; return ledSender.customField(0) === 1 ? "SCAN SPEED" : "PULSE SPEED"; }
+                            value: { swSettings.ledCustom; return ledSender.custom()[5]; }
+                            from: 0; to: 255; step: 1
+                            valueText: ((value + 1) * 0.05).toFixed(2) + " s"
+                            onMoved: ledSender.setCustom(5, newValue)
+                        }
+
+                        LedHeading { visible: ledSender.customField(0) === 0; text: "Brightness" }
+                        Row {
+                            visible: { swSettings.ledCustom; return ledSender.customField(0) === 0; }
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.15 * unit
+                            Repeater {
+                                model: ["STEADY", "BREATHE", "FLASH"]
+                                SwPill {
+                                    minWidth: 2.2 * unit
+                                    label: modelData
+                                    lit: { swSettings.ledCustom; return ledSender.custom()[1] === index; }
+                                    onClicked: ledSender.setCustom(1, index)
+                                }
+                            }
+                        }
+                        SwStepper {
+                            visible: { swSettings.ledCustom; return ledSender.customField(0) === 0 && ledSender.custom()[1] > 0; }
+                            label: "LOWEST BRIGHTNESS"
+                            value: { swSettings.ledCustom; return Math.round(ledSender.custom()[6] / 2.55); }
+                            from: 0; to: 100; step: 5; suffix: "%"
+                            onMoved: ledSender.setCustom(6, newValue * 2.55)
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "Pick CUSTOM for any of IDLE / RIDING / SNOOZE / BOOT / SHUTDOWN in ANIMATIONS. The light module runs it and keeps it, so it also plays with the package off. "
+                                + "MY COLOR uses the COLOR from ANIMATIONS. Needs SLCM r19 or newer (CHECK LCM)."
                         }
                     }
                     Column {

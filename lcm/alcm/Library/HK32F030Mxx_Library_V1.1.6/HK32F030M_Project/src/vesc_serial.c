@@ -95,7 +95,10 @@
  *   25  battery % from the package's battery curve (0-100), 0xFF = none:
  *       use the VESC's (optional, newer packages)
  *
- * The whole reply is 25 (26) bytes, inside MAX_PACKET_LENGTH (32). */
+ *   26-33 CUSTOM animation parameters (package rf71+, to SLCM r19+ only)
+ *
+ * The whole reply is 25 (26) bytes, 33 (34) with the CUSTOM block, inside
+ * MAX_PACKET_LENGTH (40; 32 before r19). */
 #define VP_BLOCK_OFFSET 15U
 #define VP_BLOCK_MAGIC 0x56U
 #define VP_BLOCK_VERSION 1U

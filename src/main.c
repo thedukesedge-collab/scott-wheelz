@@ -1347,16 +1347,21 @@ static void horn_settings_queue_save(Data *d, uint32_t w0, uint32_t w1) {
 // words (80-83, right after the 80-word config). Saved like the horn
 // settings: 2 s after the last change, never while riding.
 #define LCM_VP_EEPROM_ADDR 80  // 4 words: 80-83
+// rf71: + 2 words for the CUSTOM animation, 125-126 (122-124 were the B1
+// horn layout, migrated long ago; 127 left free)
+static int lcm_vp_eeprom_addr(int i) {
+    return i < 4 ? LCM_VP_EEPROM_ADDR + i : 125 + i - 4;
+}
 
 static void lcm_vp_load(Data *d) {
     uint32_t w[LCM_VP_EEPROM_WORDS];
     for (int i = 0; i < LCM_VP_EEPROM_WORDS; ++i) {
         eeprom_var v;
-        if (!VESC_IF->read_eeprom_var(&v, LCM_VP_EEPROM_ADDR + i)) {
+        if (!VESC_IF->read_eeprom_var(&v, lcm_vp_eeprom_addr(i))) {
             if (i < 3) {
                 return;
             }
-            v.as_u32 = 0;  // idle headlight word not written yet: idle = riding
+            v.as_u32 = 0;  // idle headlight / custom words not written yet
         }
         w[i] = v.as_u32;
         d->lcm_vp_saved[i] = w[i];
@@ -1375,7 +1380,7 @@ static void lcm_vp_save_if_due(Data *d) {
     for (int i = 0; i < LCM_VP_EEPROM_WORDS; ++i) {
         if (w[i] != d->lcm_vp_saved[i]) {
             eeprom_var v = {.as_u32 = w[i]};
-            if (!VESC_IF->store_eeprom_var(&v, LCM_VP_EEPROM_ADDR + i)) {
+            if (!VESC_IF->store_eeprom_var(&v, lcm_vp_eeprom_addr(i))) {
                 log_error("Failed to save light module settings.");
                 return;
             }

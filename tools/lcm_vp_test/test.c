@@ -67,15 +67,30 @@ int main(void){
     st.state = STATE_RUNNING; lcm_poll_response(&lcm, &st, 0, &md, 0);
     assert(sent[11]==0 && sent[12]==0 && sent[13]==90);
     st.state = STATE_READY;
-    /* battery gauge animation (13) accepted, 14 clamped */
-    uint8_t bat12[12] = {0x07, 80, 30, 90, 13, 13, 13, 14, 0, 0x01, 0x2C, 25};
+    /* battery gauge (13) and custom (14) accepted, 15 clamped */
+    uint8_t bat12[12] = {0x07, 80, 30, 90, 13, 14, 13, 15, 0, 0x01, 0x2C, 25};
     assert(lcm_vp_set(&lcm, bat12, 12) == true);
     lcm_poll_response(&lcm, &st, 0, &md, 0);
-    assert(sent[17]==13 && sent[18]==13 && sent[19]==13 && sent[20]==13);
+    assert(sent[17]==13 && sent[18]==14 && sent[19]==13 && sent[20]==14);
+    /* CUSTOM block: 20-byte command, sent only to an SLCM r19+ */
+    uint8_t cus[20] = {0x07, 80, 30, 90, 14, 14, 0, 11, 0, 0x01, 0x2C, 25, 0x13, 1, 10, 100, 20, 9, 40, 0};
+    assert(lcm_vp_set(&lcm, cus, 20) == true);
+    assert(lcm.vp.custom[0]==0x13 && lcm.vp.custom[6]==40);
+    lcm_poll_response(&lcm, &st, 0, &md, 0);
+    assert(sent_len == 25);                       /* r15: no custom block */
+    uint8_t n19[] = "VPBL-r19-abcdef0"; lcm_poll_request(&lcm, n19, sizeof n19 - 1);
+    assert(lcm_slcm_rev(&lcm) == 19);
+    lcm_poll_response(&lcm, &st, 0, &md, 0);
+    assert(sent_len == 33 && sent[25]==0x13 && sent[31]==40);  /* 34 at the LCM */
+    uint8_t n7[] = "VP-r7-abcdef0"; lcm_poll_request(&lcm, n7, sizeof n7 - 1);
+    assert(lcm_slcm_rev(&lcm) == 7);
+    /* an older app (12 bytes) keeps the custom block */
+    assert(lcm_vp_set(&lcm, in12, 12) == true && lcm.vp.custom[0]==0x13);
+    lcm_poll_request(&lcm, n19, sizeof n19 - 1);
     /* clamping: 150 %, anim 99, color 999, unknown flag bits */
     uint8_t bad[11] = {0xFF, 150, 150, 150, 99, 99, 99, 99, 99, 0x03, 0xE7};
     lcm_vp_set(&lcm, bad, 11);
-    assert(lcm.vp.flags==0x27 && lcm.vp.headlight_brightness==100 && lcm.vp.animations[0]==13 && lcm.vp.color==359);
+    assert(lcm.vp.flags==0x27 && lcm.vp.headlight_brightness==100 && lcm.vp.animations[0]==14 && lcm.vp.color==359);
     /* short command ignored */
     assert(lcm_vp_set(&lcm, in, 10) == false && lcm.vp.color==359);
     /* pack/unpack round trip */
@@ -85,7 +100,8 @@ int main(void){
     lcm_vp_unpack(&l2, w);
     assert(l2.vp.valid && memcmp(&l2.vp, &lcm.vp, sizeof lcm.vp)==0 && l2.vp.headlight_idle_brightness==25);
     /* settings saved before word 3 existed: idle = riding */
-    uint32_t old[LCM_VP_EEPROM_WORDS] = {w[0], w[1], w[2], 0};
+    assert(l2.vp.custom[0]==0x13 && l2.vp.custom[6]==40);  /* custom words 4, 5 */
+    uint32_t old[LCM_VP_EEPROM_WORDS] = {w[0], w[1], w[2], 0, 0, 0};
     LcmData l4; memset(&l4,0,sizeof l4); lcm_vp_unpack(&l4, old);
     assert(l4.vp.valid && l4.vp.headlight_idle_brightness==80);
     /* bad magic: not loaded */
@@ -124,6 +140,6 @@ int main(void){
         assert(battery_curve_update(&bc, 70, 0, 18) == 0xFF);
         printf("battery curve tests passed\n");
     }
-    printf("lcm VP tests passed (reply %u bytes + command byte = %u at ALCM, max 32)\n", sent_len, sent_len + 1);
+    printf("lcm VP tests passed (reply %u bytes + command byte = %u at ALCM, max 40 from SLCM r19)\n", sent_len, sent_len + 1);
     return 0;
 }

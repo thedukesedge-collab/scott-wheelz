@@ -49,9 +49,12 @@ typedef enum {
 #define LCM_VP_STORED_FLAGS                                                                        \
     (LCM_VP_FLAG_HEADLIGHTS | LCM_VP_FLAG_STATUS_BAR | LCM_VP_FLAG_BEEP | LCM_VP_FLAG_DOZE_DARK)
 #define LCM_VP_ANIMATIONS 5  // idle, riding, dozing (snooze), boot, shutdown
-#define LCM_VP_ANIMATION_COUNT 14  // 0 = standard/off .. 12, 13 = battery gauge (SLCM r16+)
+#define LCM_VP_ANIMATION_COUNT                                                                     \
+    15  // 0 = standard/off .. 12, 13 battery gauge, 14 custom (SLCM r19+)
 #define LCM_VP_SETTINGS_LENGTH 12  // bytes in COMMAND_LCM_VP_SETTINGS (11 accepted)
-#define LCM_VP_EEPROM_WORDS 4
+#define LCM_VP_CUSTOM_LENGTH 8  // + CUSTOM animation parameters (20 bytes, rf71+)
+#define LCM_SLCM_CUSTOM_REV 19  // SLCM builds from r19 take the CUSTOM block
+#define LCM_VP_EEPROM_WORDS 6  // 80-83 + 125-126 (CUSTOM animation)
 
 typedef struct {
     bool valid;  // set from the app at least once (otherwise nothing is sent)
@@ -62,6 +65,7 @@ typedef struct {
     uint8_t status_riding_brightness;  // %
     uint8_t animations[LCM_VP_ANIMATIONS];
     uint16_t color;  // degrees 0-359
+    uint8_t custom[LCM_VP_CUSTOM_LENGTH];  // CUSTOM animation (see SLCM status_leds.c)
 } LcmVpSettings;
 
 typedef struct {
@@ -94,6 +98,10 @@ void lcm_poll_request(LcmData *lcm, uint8_t *buffer, size_t len);
 // as SLCM ("VP-..." / "VPBL-...") or doesn't name itself (older SLCM):
 // only then is the VP block sent
 bool lcm_is_slcm(const LcmData *lcm);
+
+// The SLCM build number from the LCM's name ("VPBL-r19-..." -> 19), 0 if
+// unknown (no name / older builds)
+int lcm_slcm_rev(const LcmData *lcm);
 
 /**
  * Response to the LCM poll request to get data from the package.

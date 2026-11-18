@@ -792,3 +792,28 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   as framed cards (Package, Handtest, Backup / Restore with one row per
   backup; Dashboard, Tunes, Data & App), neon buttons, CLOSE pill.
 - lcm.yml: apt install retried with a timeout (a stuck mirror hung runs).
+
+### SLCM r19+: settings kept right away, CUSTOM animation (v1.2.3-rf71)
+- Plan agreed with the rider: the SLCM keeps all 13 animations and runs the
+  lights itself, so status bar and head / tail lights work with the package
+  off. What the app sets is written to the LCM's own EEPROM ~3 s after the
+  last change (never while riding; only if different), not only at a clean
+  shutdown - a power cut no longer loses it. Snooze breathing on/off is now
+  stored on the LCM too (settings_t.doze_dark).
+- New status bar animation CUSTOM (14): designed in the app (LEDS >
+  ANIMATIONS > DESIGN CUSTOM): FILL or SCANNER engine, colors (rainbow
+  either way, wave or flip between two colors, my color), pattern (solid /
+  gradient / mirror, or 7 scan directions), colors A / B, color speed,
+  motion speed, brightness steady / breathe / flash, lowest brightness.
+  The LCM runs it with its own fill / scan engines (smooth, no frames over
+  the link) and stores it, so it plays with the package off as well. New
+  looks come from package / app updates, no reflash.
+- Why not streamed frames (the first idea): the LCM polls every 250 ms, so
+  package-driven frames would be 4 fps.
+- Protocol: COMMAND_LCM_VP_SETTINGS takes 20 bytes (12 + 8 custom);
+  package EEPROM words 125-126; the poll reply carries the 8 custom bytes
+  (reply 34 bytes) only to an SLCM named r19 or newer (older builds drop
+  replies over 32 bytes). LCM MAX_PACKET_LENGTH 40.
+- LCM flash: the bootloader build no longer repeats the clock setup the
+  bootloader already did (SystemInit in system_hk32f030m.c, bootloader build
+  only), which pays for the above.

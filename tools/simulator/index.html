@@ -302,7 +302,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf70 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf71 · sim</span></div>
     </div>
   </div>
 
@@ -327,6 +327,16 @@
         <div id="ledColorSteps"></div>
         <div id="ledSwatch" style="height:8px;border-radius:4px;width:70%;margin:4px auto 0"></div>
         <p class="ledHint">OFF = nothing shown (riding still warns when the battery is low). STANDARD = battery level, footpad sensors when stepped on. BATTERY LEVEL shows the battery gauge anywhere (riding: live); it needs the SLCM build that comes with this package (CHECK LCM: up to date).</p>
+        <div class="pills"><div class="pill on" id="cuOpen">DESIGN CUSTOM &#8250;</div></div>
+      </div>
+      <div class="ledSec" data-s="custom">
+        <div class="stepVal animName" id="cuPreview" data-anim="14" style="width:100%;font-size:18px;text-align:center;margin:4px 0 8px"></div>
+        <div class="secTitle">Style</div><div class="pills" id="cuEngine"></div>
+        <div class="secTitle">Colors</div><div class="pills" id="cuColors"></div>
+        <div class="secTitle">Pattern</div><div class="pills" id="cuPattern"></div>
+        <div id="cuSteps"></div>
+        <div id="cuBrightBox"><div class="secTitle">Brightness</div><div class="pills" id="cuBright"></div><div id="cuLow"></div></div>
+        <p class="ledHint">Pick CUSTOM for any of IDLE / RIDING / SNOOZE / BOOT / SHUTDOWN in ANIMATIONS. The light module runs it and keeps it, so it also plays with the package off. MY COLOR uses the COLOR from ANIMATIONS. Needs SLCM r19 or newer (CHECK LCM).</p>
       </div>
       <div class="ledSec" data-s="battery">
         <div class="pills"><div class="pill" id="batPill"></div></div>
@@ -981,7 +991,36 @@ $('hornReset').onclick = () => { Object.assign(P, { hBeep: 2.5, hBeepHz: 495, hB
 
 // ---------- LEDS tab (light module, SLCM firmware; simulated) ----------
 const LED_ANIMS = ['STANDARD', 'RAINBOW SCAN', 'RAINBOW MIRROR', 'KNIGHT RIDER', 'RAINBOW BAR', 'THE FUZZ', 'FIRE',
-  'PULSE OUT', 'PULSE IN', '120 SCROLL', 'COMP. WAVE', 'CLASSIC', 'COLOR SCAN', 'BATTERY LEVEL'];
+  'PULSE OUT', 'PULSE IN', '120 SCROLL', 'COMP. WAVE', 'CLASSIC', 'COLOR SCAN', 'BATTERY LEVEL', 'CUSTOM'];
+// CUSTOM animation: same 8 bytes as the app / SLCM (see ui.qml.in ledSender.custom())
+const cuGet = () => (Array.isArray(P.ledCustom) && P.ledCustom.length === 8) ? P.ledCustom : [0x24, 1, 0, 150, 39, 29, 60, 0];
+function cuSet(i, v) { const c = cuGet().slice(); c[i] = Math.max(0, Math.min(255, Math.round(v))); P.ledCustom = c; P.ledCfg = true; save(); renderCustom(); }
+const cuField = f => { const c0 = cuGet()[0]; return f === 0 ? c0 & 1 : f === 1 ? (c0 >> 1) & 7 : (c0 >> 4) & 7; };
+function cuSetField(f, v) { let c0 = cuGet()[0]; if (f === 0) c0 = (c0 & ~0x71) | (v & 1); else if (f === 1) c0 = (c0 & ~0x0E) | ((v & 7) << 1); else c0 = (c0 & ~0x70) | ((v & 7) << 4); cuSet(0, c0); }
+function cuPills(box, labels, cur, fn) { $(box).innerHTML = ''; labels.forEach((l, i) => { const p = document.createElement('div'); p.className = 'pill' + (cur === i ? ' on' : ''); p.textContent = l; p.onclick = () => fn(i); $(box).appendChild(p); }); }
+function cuStep(box, label, get, mn, mx, stp, fmt, set) {
+  const row = document.createElement('div'); row.className = 'stepRow';
+  row.innerHTML = '<span class="lbl">' + label + '</span><span class="stepCtl"><span class="stepBtn" data-d="-1">&#9660;</span><span class="stepVal"></span><span class="stepBtn" data-d="1">&#9650;</span></span>';
+  row.querySelector('.stepVal').textContent = fmt(get());
+  row.querySelectorAll('.stepBtn').forEach(b => b.onclick = () => set(clamp(get() + +b.dataset.d * stp, mn, mx)));
+  $(box).appendChild(row);
+}
+function renderCustom() {
+  const c = cuGet(), scan = cuField(0) === 1;
+  cuPills('cuEngine', ['FILL', 'SCANNER'], cuField(0), i => cuSetField(0, i));
+  cuPills('cuColors', ['RAINBOW \u2192', 'RAINBOW \u2190', 'WAVE A\u2194B', 'FLIP A/B', 'MY COLOR'], cuField(1), i => cuSetField(1, i));
+  cuPills('cuPattern', scan ? ['LEFT \u2192 RIGHT', 'RIGHT \u2192 LEFT', 'MIRROR OUT', 'MIRROR IN', 'FILL \u2192', 'FILL \u2190', 'BOUNCE'] : ['SOLID', 'GRADIENT', 'MIRROR'], cuField(2), i => cuSetField(2, i));
+  $('cuSteps').innerHTML = '';
+  cuStep('cuSteps', 'COLOR A', () => cuGet()[2] * 2, 0, 358, 6, v => v + '\u00B0', v => cuSet(2, v / 2));
+  cuStep('cuSteps', 'COLOR B', () => cuGet()[3] * 2, 0, 358, 6, v => v + '\u00B0', v => cuSet(3, v / 2));
+  cuStep('cuSteps', 'COLOR SPEED', () => cuGet()[4], 0, 255, 1, v => ((v + 1) * 0.05).toFixed(2) + ' s', v => cuSet(4, v));
+  cuStep('cuSteps', scan ? 'SCAN SPEED' : 'PULSE SPEED', () => cuGet()[5], 0, 255, 1, v => ((v + 1) * 0.05).toFixed(2) + ' s', v => cuSet(5, v));
+  $('cuBrightBox').style.display = scan ? 'none' : '';
+  cuPills('cuBright', ['STEADY', 'BREATHE', 'FLASH'], c[1], i => cuSet(1, i));
+  $('cuLow').innerHTML = '';
+  if (c[1] > 0) cuStep('cuLow', 'LOWEST BRIGHTNESS', () => Math.round(cuGet()[6] / 2.55), 0, 100, 5, v => v + '%', v => cuSet(6, v * 2.55));
+  $('cuPreview').innerHTML = [...'CUSTOM PREVIEW'].map(ch => '<span>' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
+}
 // 0 means STANDARD (battery + footpads) at idle / boot / shutdown, OFF riding and in snooze
 const ANIM_ZERO = { ledAnimIdle: 'STANDARD', ledAnimRide: 'OFF', ledAnimDoze: 'OFF', ledAnimBoot: 'STANDARD', ledAnimShut: 'STANDARD' };
 const animLabel = (k, v) => v === 0 ? ANIM_ZERO[k] : LED_ANIMS[v];
@@ -1023,6 +1062,21 @@ function animCol(anim, i, n, t, hueDeg, el_text_off) {
     case 11: h = hu; a = x <= Math.min(1, frac(t / 6.5) * 6.5 / 5.5) ? 1 : 0.15; break;
     case 12: h = hu; a = spot(x, sweep(t, 2)); break;
     case 13: return x <= 0.8 ? 'rgba(244,240,255,1)' : 'rgba(255,255,255,0.22)';
+    case 14: {
+      const c = cuGet(), scan = (c[0] & 1) === 1, cm = (c[0] >> 1) & 7, pat = (c[0] >> 4) & 7;
+      const ha = c[2] * 2 / 360, hb = c[3] * 2 / 360, cs = (c[4] + 1) * 0.05, ms = (c[5] + 1) * 0.05;
+      const pos = scan ? 0.5 : (pat === 1 ? x : (pat === 2 ? m : 0));
+      const k = cm === 0 ? frac(pos + t / cs) : cm === 1 ? frac(pos - t / cs) : cm === 2 ? 0.5 - 0.5 * Math.cos(2 * Math.PI * (t / cs + pos * 0.5)) : (Math.floor(t / cs + pos) % 2);
+      h = cm === 4 ? hu : (cm === 3 ? (k ? hb : ha) : ha + (hb - ha) * k);
+      if (scan) {
+        const u = frac(t / ms);
+        const p = pat === 0 ? u : pat === 1 ? 1 - u : pat === 2 ? 0.5 + 0.5 * u : pat === 3 ? 1 - 0.5 * u : pat === 4 ? u : pat === 5 ? 1 - u : sweep(t, ms * 2);
+        const xx = pat === 2 || pat === 3 ? 0.5 + Math.abs(x - 0.5) : x;
+        a = pat === 4 ? (x <= p ? 1 : 0.15) : pat === 5 ? (x >= p ? 1 : 0.15) : spot(xx, p);
+      } else if (c[1] === 1) a = c[6] / 255 + (1 - c[6] / 255) * (0.5 - 0.5 * Math.cos(2 * Math.PI * t / ms));
+      else if (c[1] === 2) a = frac(t / ms) < 0.5 ? 1 : Math.max(0.12, c[6] / 255);
+      break;
+    }
     default: return el_text_off ? 'rgba(92,84,112,1)' : 'rgba(234,214,255,1)';
   }
   return 'hsla(' + (frac(h) * 360).toFixed(0) + ',100%,' + (l * 100).toFixed(0) + '%,' + a.toFixed(2) + ')';
@@ -1141,7 +1195,7 @@ $('batName').onchange = () => { batEdit(x => x.name = $('batName').value.trim() 
 $('batUseMine').onclick = () => { if (!P.batCustom) batEdit(() => {}); P.batSize = P.batCustom.size; P.batCell = 'MY CELL'; P.batStyle = 0; save(); renderBattery(); renderLedsSoft(); };
 $('batResAuto').onclick = () => { P.batResAuto = true; save(); renderBattery(); };
 $('batResMan').onclick = () => { P.batResAuto = false; save(); renderBattery(); };
-const LED_TITLES = { head: 'HEADLIGHTS', bar: 'STATUS BAR', anim: 'ANIMATIONS', sound: 'SOUND', battery: 'BATTERY GAUGE', fw: 'LCM FIRMWARE' };
+const LED_TITLES = { head: 'HEADLIGHTS', bar: 'STATUS BAR', anim: 'ANIMATIONS', sound: 'SOUND', battery: 'BATTERY GAUGE', fw: 'LCM FIRMWARE', custom: 'CUSTOM ANIMATION' };
 const ledWin = w => {
   $('ledWin').style.display = w ? 'flex' : 'none';
   $('ledWinDim').style.display = w ? 'block' : 'none';
@@ -1151,7 +1205,9 @@ const ledWin = w => {
   if (w === 'fw') { fwForget(); fwFitPaint(); }
 };
 document.querySelectorAll('.ledTile').forEach(t => t.onclick = () => ledWin(t.dataset.w));
-$('ledWinBack').onclick = $('ledWinDim').onclick = () => { fwForget(); ledWin(null); };
+$('ledWinBack').onclick = () => { if (document.querySelector('.ledSec.on[data-s="custom"]')) { ledWin('anim'); renderLeds(); return; } fwForget(); ledWin(null); };
+$('ledWinDim').onclick = () => { fwForget(); ledWin(null); };
+$('cuOpen').onclick = () => { ledWin('custom'); renderCustom(); };
 $('ledTestBeep').onclick = () => {
   P.ledCfg = true; save(); renderLedsSoft();
   if (!P.ledBeep) { toast('Test beep sent - turn the LCM beeper on to hear it'); return; }
