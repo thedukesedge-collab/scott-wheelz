@@ -1155,8 +1155,8 @@ static void write_cfg_to_eeprom(Data *d) {
     }
 }
 
-static void horn_settings_save_if_due(Data *d);
-static void lcm_vp_save_if_due(Data *d);
+static __attribute__((noinline)) void horn_settings_save_if_due(Data *d);
+static __attribute__((noinline)) void lcm_vp_save_if_due(Data *d);
 
 // rf75 safety: a flash write stalls the CPU for a moment, so the package's
 // own settings are only written with the board fully at rest - not running,
@@ -1165,7 +1165,7 @@ static bool can_save_settings(const Data *d) {
     return d->state.state != STATE_RUNNING && d->footpad.state == FS_NONE &&
         d->motor.abs_erpm < 100.0f;
 }
-static void battery_curve_save_if_due(Data *d);
+static __attribute__((noinline)) void battery_curve_save_if_due(Data *d);
 
 static void aux_thd(void *arg) {
     Data *d = (Data *) arg;
@@ -1253,66 +1253,67 @@ static uint32_t horn_pack0(float beep, float buzz, bool melody, bool custom, flo
         (uint32_t) (buzz * 10.0f + 0.5f);
 }
 
+// rf75: decoded from d->horn_saved (no 136-byte array on the init stack)
+static uint32_t horn_read(int addr, bool *ok) {
+    eeprom_var v;
+    if (!VESC_IF->read_eeprom_var(&v, addr)) {
+        *ok = false;
+        return 0;
+    }
+    *ok = true;
+    return v.as_u32;
+}
+
 static void horn_settings_load(Data *d) {
     d->boot_melody = true;
     d->boot_melody_volume = BOOT_MELODY_DEFAULT_V;
-    eeprom_var v[HORN_EEPROM_WORDS];
-    for (int i = 0; i < 2; ++i) {
-        if (!VESC_IF->read_eeprom_var(&v[i], HORN_EEPROM_ADDR + i)) {
-            return;
-        }
+    bool ok0, ok1, ok;
+    uint32_t w0 = horn_read(HORN_EEPROM_ADDR, &ok0), w1 = horn_read(HORN_EEPROM_ADDR + 1, &ok1);
+    if (!ok0 || !ok1) {
+        return;
     }
-    uint32_t magic = v[0].as_u32 >> 24;
+    uint32_t magic = w0 >> 24;
+    // melody words go into horn_saved[2..] first; melody words that were
+    // always 0 were never written, and reading an unwritten EEPROM variable
+    // fails: those are simply 0 (empty)
     if (magic == HORN_EEPROM_MAGIC) {
-        // melody words that were always 0 were never written, and reading an
-        // unwritten EEPROM variable fails: those are simply 0 (empty)
         for (int i = 2; i < HORN_EEPROM_WORDS; ++i) {
-            if (!VESC_IF->read_eeprom_var(&v[i], horn_eeprom_addr(i))) {
-                v[i].as_u32 = 0;
-            }
+            d->horn_saved[i] = horn_read(horn_eeprom_addr(i), &ok);
         }
-        for (int i = 0; i < HORN_EEPROM_WORDS; ++i) {
-            d->horn_saved[i] = v[i].as_u32;
-        }
+        d->horn_saved[0] = w0;
+        d->horn_saved[1] = w1;
     } else if (magic == HORN_EEPROM_MAGIC_B2) {
-        // rf45 save: 32-note melody in words 100-115; re-saved in the new layout
-        for (int i = 2; i < 18; ++i) {
-            if (!VESC_IF->read_eeprom_var(&v[i], 100 + i - 2)) {
-                v[i].as_u32 = 0;
-            }
-        }
-        for (int i = 18; i < HORN_EEPROM_WORDS; ++i) {
-            v[i].as_u32 = 0;
+        // rf45 save: 32-note melody in words 100-115; re-saved in the new
+        // layout (horn_saved stays 0 there, so the next save writes it all)
+        for (int i = 2; i < HORN_EEPROM_WORDS; ++i) {
+            d->horn_saved[i] = i < 18 ? horn_read(100 + i - 2, &ok) : 0;
         }
     } else if (magic == HORN_EEPROM_MAGIC_B1) {
         // older save: 6-note melody in words 122-124; re-saved in the new layout
-        for (int i = 2; i < 5; ++i) {
-            if (!VESC_IF->read_eeprom_var(&v[i], HORN_EEPROM_ADDR + i)) {
-                v[i].as_u32 = 0;
-            }
+        for (int i = 2; i < HORN_EEPROM_WORDS; ++i) {
+            d->horn_saved[i] = i < 5 ? horn_read(HORN_EEPROM_ADDR + i, &ok) : 0;
         }
-        for (int i = 5; i < HORN_EEPROM_WORDS; ++i) {
-            v[i].as_u32 = 0;
-        }
-        // horn_saved stays 0, so the next save writes everything
     } else {
         return;
     }
     // custom melody: 4 bytes per word from word 2
     for (uint32_t i = 0; i < sizeof(d->melody_custom); ++i) {
-        d->melody_custom[i] = (v[2 + i / 4].as_u32 >> (24 - 8 * (i % 4))) & 0xFF;
+        d->melody_custom[i] = (d->horn_saved[2 + i / 4] >> (24 - 8 * (i % 4))) & 0xFF;
     }
-    eeprom_var v0 = v[0], v1 = v[1];
-    d->boot_melody_custom = (v0.as_u32 >> 17) & 1;
-    float beep = ((v0.as_u32 >> 8) & 0xFF) * 0.1f;
-    float buzz = (v0.as_u32 & 0xFF) * 0.1f;
-    d->boot_melody = (v0.as_u32 >> 16) & 1;
-    uint32_t boot_v = (v0.as_u32 >> 18) & 0x1F;
+    if (magic != HORN_EEPROM_MAGIC) {
+        // migrated layouts: nothing saved in the new layout yet
+        for (int i = 2; i < HORN_EEPROM_WORDS; ++i) {
+            d->horn_saved[i] = 0;
+        }
+    }
+    d->boot_melody_custom = (w0 >> 17) & 1;
+    float beep = ((w0 >> 8) & 0xFF) * 0.1f;
+    float buzz = (w0 & 0xFF) * 0.1f;
+    d->boot_melody = (w0 >> 16) & 1;
+    uint32_t boot_v = (w0 >> 18) & 0x1F;
     // older saves had none: the horn beep volume, capped
     d->boot_melody_volume = boot_v ? boot_v * 0.1f : fminf(beep, BOOT_MELODY_MAX_V);
-    haptic_feedback_horn_settings(
-        &d->haptic_feedback, beep, v1.as_u32 >> 16, buzz, v1.as_u32 & 0xFFFF
-    );
+    haptic_feedback_horn_settings(&d->haptic_feedback, beep, w1 >> 16, buzz, w1 & 0xFFFF);
 }
 
 static void horn_settings_queue_save(Data *d, uint32_t w0, uint32_t w1) {
@@ -1364,7 +1365,7 @@ static void lcm_vp_load(Data *d) {
     lcm_vp_unpack(&d->lcm, w);
 }
 
-static void lcm_vp_save_if_due(Data *d) {
+static __attribute__((noinline)) void lcm_vp_save_if_due(Data *d) {
     if (!d->lcm_vp_save_pending || !can_save_settings(d) ||
         !timer_older(&d->time, d->lcm_vp_change_time, 2.0f)) {
         return;
@@ -1402,7 +1403,7 @@ static void battery_curve_load(Data *d) {
     battery_curve_unpack(&d->battery_curve, w);
 }
 
-static void battery_curve_save_if_due(Data *d) {
+static __attribute__((noinline)) void battery_curve_save_if_due(Data *d) {
     if (!d->battery_save_pending || !can_save_settings(d) ||
         !timer_older(&d->time, d->battery_change_time, 2.0f)) {
         return;
@@ -1449,7 +1450,7 @@ static void battery_curve_reply(Data *d) {
     VESC_IF->send_app_data(b, ind);
 }
 
-static void horn_settings_save_if_due(Data *d) {
+static __attribute__((noinline)) void horn_settings_save_if_due(Data *d) {
     if (!d->horn_save_pending || !can_save_settings(d) ||
         !timer_older(&d->time, d->horn_change_time, 2.0f)) {
         return;
@@ -2509,6 +2510,149 @@ static void cmd_info(const Data *d, unsigned char *buf, int len) {
 }
 
 // Handler for incoming app commands
+// Re-Float Rink-Mixed (rf75): the package's own commands (120-130), kept out
+// of on_command_received so its stack frame stays upstream's size (that
+// frame is live under data_recorder_request, the deepest call on this thread)
+static __attribute__((noinline)) bool rm_command(
+    Data *d, uint8_t command, unsigned char *buffer, unsigned int len
+) {
+    switch (command) {
+    case COMMAND_SW_HORN: {
+        // [2] = HornRequest (0 off, 1 keepalive, 2 start),
+        // optional [3] = HornMode (default: beep + buzz)
+        if (len == 3 || len == 4) {
+            uint8_t mode = len == 4 ? buffer[3] : HORN_MODE_BOTH;
+            haptic_feedback_horn(&d->haptic_feedback, &d->time, buffer[2], mode);
+        } else {
+            log_error("Command data length incorrect: %u", len);
+        }
+        return true;
+    }
+    case COMMAND_HORN_SETTINGS: {
+        // [8] boot melody flags, [9] boot melody volume (0.1 V, rf64)
+        if (len >= 8 && len <= 10) {
+            HapticFeedback *hf = &d->haptic_feedback;
+            haptic_feedback_horn_settings(
+                hf,
+                buffer[2] * 0.1f,
+                (buffer[3] << 8) | buffer[4],
+                buffer[5] * 0.1f,
+                (buffer[6] << 8) | buffer[7]
+            );
+            if (len >= 9) {
+                d->boot_melody = buffer[8] & 1;
+                d->boot_melody_custom = (buffer[8] >> 1) & 1;
+            }
+            d->boot_melody_volume =
+                len == 10 && buffer[9] > 0 ? buffer[9] * 0.1f : hf->horn_beep_strength;
+            d->boot_melody_volume = fminf(d->boot_melody_volume, BOOT_MELODY_MAX_V);
+            d->horn_last_w0 = horn_pack0(
+                hf->horn_beep_strength,
+                hf->horn_buzz_strength,
+                d->boot_melody,
+                d->boot_melody_custom,
+                d->boot_melody_volume
+            );
+            d->horn_last_w1 = ((uint32_t) hf->horn_beep_frequency << 16) | hf->horn_buzz_frequency;
+            // remember on the board (written later, only if it changed)
+            horn_settings_queue_save(d, d->horn_last_w0, d->horn_last_w1);
+        } else {
+            log_error("Command data length incorrect: %u", len);
+        }
+        return true;
+    }
+    case COMMAND_PLAY_MELODY: {
+        // optional byte: 0 = default melody, 1 = custom melody
+        bool custom = len >= 3 && buffer[2] == 1;
+        if (d->state.state == STATE_READY) {
+            haptic_feedback_play_melody(
+                &d->haptic_feedback,
+                &d->time,
+                d->boot_melody_volume,
+                d->melody_custom,
+                custom ? sizeof(d->melody_custom) / 2 : 0
+            );
+        }
+        return true;
+    }
+    case COMMAND_MELODY_SET: {
+        // up to 64 notes/rests x 2 bytes; missing ones end the melody
+        if (len >= 2 && len <= 2 + sizeof(d->melody_custom) && len % 2 == 0) {
+            for (uint32_t i = 0; i < sizeof(d->melody_custom); ++i) {
+                d->melody_custom[i] = i + 2 < len ? buffer[i + 2] : 0;
+            }
+            // only saved once the horn settings have been received too
+            if (d->horn_last_w0) {
+                horn_settings_queue_save(d, d->horn_last_w0, d->horn_last_w1);
+            }
+        } else {
+            log_error("Command data length incorrect: %u", len);
+        }
+        return true;
+    }
+    case COMMAND_LCM_VP_SETTINGS: {
+        if (lcm_vp_set(&d->lcm, &buffer[2], len - 2)) {
+            d->lcm_vp_change_time = d->time.now;
+            d->lcm_vp_save_pending = true;
+        } else if (len - 2 < LCM_VP_SETTINGS_LENGTH - 1) {
+            log_error("Command data length incorrect: %u", len);
+        }
+        return true;
+    }
+    case COMMAND_LCM_TEST_BEEP: {
+        lcm_vp_test_beep(&d->lcm);
+        return true;
+    }
+    case COMMAND_LCM_POWER_OFF: {
+        // reply: 1 = sent to the light module, 0 = refused (board running)
+        bool ok = lcm_vp_power_off(&d->lcm, d->state.state == STATE_RUNNING);
+        uint8_t reply[3] = {101, COMMAND_LCM_POWER_OFF, ok};
+        VESC_IF->send_app_data(reply, sizeof(reply));
+        return true;
+    }
+    case COMMAND_LCM_FW: {
+        lcm_fw_command(
+            &d->lcm_fw,
+            &d->state,
+            &d->time,
+            // VPBL, or an LCM that doesn't name itself (pre-r15 builds, some
+            // with the bootloader): a TRY is safe, without a bootloader the
+            // update flag is ignored and START times out
+            strncmp(d->lcm.name, "VPBL", 4) == 0 || d->lcm.name[0] == '\0',
+            &buffer[2],
+            len - 2
+        );
+        return true;
+    }
+    case COMMAND_LCM_BATTERY: {
+        if (len >= 3 && buffer[2] == 1 &&
+            battery_curve_set(&d->battery_curve, &buffer[3], len - 3)) {
+            d->battery_change_time = d->time.now;
+            d->battery_save_pending = true;
+        }
+        battery_curve_reply(d);
+        return true;
+    }
+    case COMMAND_LIVE_TONE: {
+        if (len == 3) {
+            haptic_feedback_live_tone(
+                &d->haptic_feedback, &d->time, buffer[2], d->boot_melody_volume
+            );
+        } else {
+            log_error("Command data length incorrect: %u", len);
+        }
+        return true;
+    }
+    case COMMAND_FREESPIN_LIMIT: {
+        // rf75: the free-spin limiter was removed; older apps may still send
+        // this, it's accepted and ignored
+        return true;
+    }
+    default:
+        return false;
+    }
+}
+
 static void on_command_received(unsigned char *buffer, unsigned int len) {
     Data *d = (Data *) ARG;
     uint8_t magicnr = buffer[0];
@@ -2520,6 +2664,9 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
     }
     if (magicnr != 101) {
         log_error("Invalid Package ID: %u", magicnr);
+        return;
+    }
+    if (command >= 120 && command <= 130 && rm_command(d, command, buffer, len)) {
         return;
     }
 
@@ -2668,137 +2815,6 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
     }
     case COMMAND_ALERTS_CONTROL: {
         cmd_alerts_control(&d->alert_tracker, &buffer[2], len - 2);
-        return;
-    }
-    case COMMAND_SW_HORN: {
-        // [2] = HornRequest (0 off, 1 keepalive, 2 start),
-        // optional [3] = HornMode (default: beep + buzz)
-        if (len == 3 || len == 4) {
-            uint8_t mode = len == 4 ? buffer[3] : HORN_MODE_BOTH;
-            haptic_feedback_horn(&d->haptic_feedback, &d->time, buffer[2], mode);
-        } else {
-            log_error("Command data length incorrect: %u", len);
-        }
-        return;
-    }
-    case COMMAND_HORN_SETTINGS: {
-        // [8] boot melody flags, [9] boot melody volume (0.1 V, rf64)
-        if (len >= 8 && len <= 10) {
-            HapticFeedback *hf = &d->haptic_feedback;
-            haptic_feedback_horn_settings(
-                hf,
-                buffer[2] * 0.1f,
-                (buffer[3] << 8) | buffer[4],
-                buffer[5] * 0.1f,
-                (buffer[6] << 8) | buffer[7]
-            );
-            if (len >= 9) {
-                d->boot_melody = buffer[8] & 1;
-                d->boot_melody_custom = (buffer[8] >> 1) & 1;
-            }
-            d->boot_melody_volume =
-                len == 10 && buffer[9] > 0 ? buffer[9] * 0.1f : hf->horn_beep_strength;
-            d->boot_melody_volume = fminf(d->boot_melody_volume, BOOT_MELODY_MAX_V);
-            d->horn_last_w0 = horn_pack0(
-                hf->horn_beep_strength,
-                hf->horn_buzz_strength,
-                d->boot_melody,
-                d->boot_melody_custom,
-                d->boot_melody_volume
-            );
-            d->horn_last_w1 = ((uint32_t) hf->horn_beep_frequency << 16) | hf->horn_buzz_frequency;
-            // remember on the board (written later, only if it changed)
-            horn_settings_queue_save(d, d->horn_last_w0, d->horn_last_w1);
-        } else {
-            log_error("Command data length incorrect: %u", len);
-        }
-        return;
-    }
-    case COMMAND_PLAY_MELODY: {
-        // optional byte: 0 = default melody, 1 = custom melody
-        bool custom = len >= 3 && buffer[2] == 1;
-        if (d->state.state == STATE_READY) {
-            haptic_feedback_play_melody(
-                &d->haptic_feedback,
-                &d->time,
-                d->boot_melody_volume,
-                d->melody_custom,
-                custom ? sizeof(d->melody_custom) / 2 : 0
-            );
-        }
-        return;
-    }
-    case COMMAND_MELODY_SET: {
-        // up to 64 notes/rests x 2 bytes; missing ones end the melody
-        if (len >= 2 && len <= 2 + sizeof(d->melody_custom) && len % 2 == 0) {
-            for (uint32_t i = 0; i < sizeof(d->melody_custom); ++i) {
-                d->melody_custom[i] = i + 2 < len ? buffer[i + 2] : 0;
-            }
-            // only saved once the horn settings have been received too
-            if (d->horn_last_w0) {
-                horn_settings_queue_save(d, d->horn_last_w0, d->horn_last_w1);
-            }
-        } else {
-            log_error("Command data length incorrect: %u", len);
-        }
-        return;
-    }
-    case COMMAND_LCM_VP_SETTINGS: {
-        if (lcm_vp_set(&d->lcm, &buffer[2], len - 2)) {
-            d->lcm_vp_change_time = d->time.now;
-            d->lcm_vp_save_pending = true;
-        } else if (len - 2 < LCM_VP_SETTINGS_LENGTH - 1) {
-            log_error("Command data length incorrect: %u", len);
-        }
-        return;
-    }
-    case COMMAND_LCM_TEST_BEEP: {
-        lcm_vp_test_beep(&d->lcm);
-        return;
-    }
-    case COMMAND_LCM_POWER_OFF: {
-        // reply: 1 = sent to the light module, 0 = refused (board running)
-        bool ok = lcm_vp_power_off(&d->lcm, d->state.state == STATE_RUNNING);
-        uint8_t reply[3] = {101, COMMAND_LCM_POWER_OFF, ok};
-        VESC_IF->send_app_data(reply, sizeof(reply));
-        return;
-    }
-    case COMMAND_LCM_FW: {
-        lcm_fw_command(
-            &d->lcm_fw,
-            &d->state,
-            &d->time,
-            // VPBL, or an LCM that doesn't name itself (pre-r15 builds, some
-            // with the bootloader): a TRY is safe, without a bootloader the
-            // update flag is ignored and START times out
-            strncmp(d->lcm.name, "VPBL", 4) == 0 || d->lcm.name[0] == '\0',
-            &buffer[2],
-            len - 2
-        );
-        return;
-    }
-    case COMMAND_LCM_BATTERY: {
-        if (len >= 3 && buffer[2] == 1 &&
-            battery_curve_set(&d->battery_curve, &buffer[3], len - 3)) {
-            d->battery_change_time = d->time.now;
-            d->battery_save_pending = true;
-        }
-        battery_curve_reply(d);
-        return;
-    }
-    case COMMAND_LIVE_TONE: {
-        if (len == 3) {
-            haptic_feedback_live_tone(
-                &d->haptic_feedback, &d->time, buffer[2], d->boot_melody_volume
-            );
-        } else {
-            log_error("Command data length incorrect: %u", len);
-        }
-        return;
-    }
-    case COMMAND_FREESPIN_LIMIT: {
-        // rf75: the free-spin limiter was removed; older apps may still send
-        // this, it's accepted and ignored
         return;
     }
     default: {
