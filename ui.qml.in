@@ -7435,7 +7435,7 @@ Item {
                         }
 
                         SwStepper {
-                            label: "RIDING LIGHTS"
+                            label: "IN MOTION"
                             value: swSettings.ledHeadlightPct
                             from: 0; to: 100; step: 5
                             valueText: value === 0 ? "OFF" : value + "%"
@@ -7443,7 +7443,7 @@ Item {
                         }
 
                         SwStepper {
-                            label: "RUNNING LIGHTS (IDLE)"
+                            label: "IDLE"
                             value: swSettings.ledHeadlightIdlePct
                             from: 0; to: 100; step: 5
                             valueText: value === 0 ? "OFF" : value + "%"
@@ -7463,8 +7463,8 @@ Item {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: "HEADLIGHTS OFF is fully off (riding and idle). RIDING LIGHTS apply while the board is engaged, RUNNING LIGHTS the rest of the time; 0% = off. "
-                                + "Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). "
+                            text: "IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEADLIGHTS OFF = always off. "
+                                + "Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). "
                                 + "SNOOZE BREATHING: the head and tail lights slowly breathe while the board snoozes (SLCM); off = dark in snooze."
                         }
                     }
@@ -7960,25 +7960,38 @@ Item {
                         property int sel: 0
                         readonly property var bar: ledSender.rgb[sel] || ({})
 
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 0.12 * unit
-                            Repeater {
-                                model: ledSender.rgbBarNames
-                                SwPill {
-                                    minWidth: 1.5 * unit
-                                    label: modelData
-                                    lit: rgbCol.sel === index
-                                    onClicked: rgbCol.sel = index
+                        // IN MOTION (engaged, headlights on) = Refloat's
+                        // headlights / taillights bars; IDLE = front / rear
+                        Repeater {
+                            model: [["IN MOTION", 0], ["IDLE", 2]]
+                            Item {
+                                id: rgbGroup
+                                width: rgbCol.width
+                                height: 0.8 * unit
+                                SwNeonLabel {
+                                    anchors.left: parent.left
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: parent.width - 4.6 * unit
+                                    font.pixelSize: 0.28 * unit
+                                    text: modelData[0]
                                 }
+                                Row {
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 0.15 * unit
+                                    Repeater {
+                                        model: ["HEAD", "TAIL"]
+                                        SwPill {
+                                            readonly property int bar: rgbGroup.base + (modelData === "HEAD" ? 0 : 1)
+                                            minWidth: 2.0 * unit
+                                            label: modelData
+                                            lit: rgbCol.sel === bar
+                                            onClicked: rgbCol.sel = bar
+                                        }
+                                    }
+                                }
+                                readonly property int base: modelData[1]
                             }
-                        }
-
-                        SwLText {
-                            width: parent.width
-                            horizontalAlignment: Text.AlignHCenter
-                            font.pixelSize: fontSizeSmall
-                            text: rgbCol.sel < 2 ? "Headlights on" : "Headlights off (running lights)"
                         }
 
                         // the animation preview is the selector
@@ -13972,7 +13985,7 @@ Item {
                                 glyph: "\u25C9"
                                 lit: swSettings.ledHeadlights
                                 summary: swSettings.ledHeadlights
-                                    ? "ON \u00B7 RIDE " + swSettings.ledHeadlightPct + "% \u00B7 IDLE " + swSettings.ledHeadlightIdlePct + "%"
+                                    ? "ON \u00B7 MOTION " + swSettings.ledHeadlightPct + "% \u00B7 IDLE " + swSettings.ledHeadlightIdlePct + "%"
                                     : "OFF"
                                 onClicked: ledWindow.show("head")
                             }

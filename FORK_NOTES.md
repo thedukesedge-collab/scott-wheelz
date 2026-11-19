@@ -804,6 +804,15 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### IN MOTION / IDLE light naming (v1.2.3-rf83)
+- HEADLIGHTS window: the two brightness rows are now IN MOTION (Refloat's
+  Headlight Brightness, board engaged) and IDLE (Front Brightness, the rest
+  of the time); tile reads "ON · MOTION x% · IDLE y%".
+- RGB LIGHTS: the HEAD / TAIL / FRONT / REAR pills are two rows, IN MOTION
+  [HEAD][TAIL] (Refloat headlights / taillights) and IDLE [HEAD][TAIL]
+  (Refloat front / rear). Same settings as before, only grouped and renamed.
+  Same in the simulator.
+
 ### Animation selector, tap-to-close sheet, neon number pad, 4 V horn (v1.2.3-rf81, rf82)
 - RGB LIGHTS and STATUS BAR > Idle animation: the separate ANIMATION row is
   gone; the animated name itself sits between the down / up arrows
