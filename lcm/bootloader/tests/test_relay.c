@@ -201,11 +201,11 @@ void bl_power_off(void)
 void bl_hw_init(void) {}
 int sim_led;
 long sim_led_flashes;
-void bl_led(uint32_t on)
+void bl_led_toggle(void)
 {
-    if (on && !sim_led)
+    sim_led = !sim_led;
+    if (sim_led)
         sim_led_flashes++;
-    sim_led = on != 0;
 }
 
 void bl_flash_erase(uint32_t addr)

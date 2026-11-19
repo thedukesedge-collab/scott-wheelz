@@ -180,11 +180,11 @@ void bl_power_off(void)
 void bl_hw_init(void) {}
 int sim_led;
 long sim_led_flashes;
-void bl_led(uint32_t on)
+void bl_led_toggle(void)
 {
-    if (on && !sim_led)
+    sim_led = !sim_led;
+    if (sim_led)
         sim_led_flashes++;
-    sim_led = on != 0;
 }
 
 static void flash_op(void)
@@ -363,9 +363,9 @@ static void test_update_from_app(void)
     assert(from_app() == SIM_APP_STARTED);
     assert(app_is(img_b, size_b) && pkg_done_status == 0 && sim_power == 1);
     check_protected_areas();
-    /* pages coming in: fast blink (4 Hz) */
-    assert(sim_led_flashes >= sim_ms / 256 - 2);
-    printf("ok  full-size update from the app (%u bytes, %ld ms simulated, headlights blinking)\n", size_b, sim_ms);
+    /* pages coming in: steady (at most the first wait shows a blink) */
+    assert(sim_led_flashes <= 3);
+    printf("ok  full-size update from the app (%u bytes, %ld ms simulated, headlights steady)\n", size_b, sim_ms);
 }
 
 static void test_cold_boot_no_app(void)
@@ -493,8 +493,8 @@ static void test_button_power_off_2(void)
         bl_updater(0);
     }
     assert(r == SIM_STILL_ON && sim_power && sim_ms >= SIM_STILL_ON_MS);
-    /* waiting: one short headlight flash every ~2 s */
-    assert(sim_led_flashes > SIM_STILL_ON_MS / 2048 - 5 && sim_led_flashes < SIM_STILL_ON_MS / 2048 + 10);
+    /* waiting: headlights blink (512 ms on, 512 ms off) */
+    assert(sim_led_flashes > SIM_STILL_ON_MS / 1024 - 30 && sim_led_flashes <= SIM_STILL_ON_MS / 1024 + 1);
 
     /* release, then hold for 2 s: power off */
     sim_reset_runtime();

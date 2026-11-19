@@ -80,14 +80,15 @@ static inline void bl_hw_init(void)
     /* PC3 button input with pull-up; PD1/PD6 USART1 TX/RX (AF1) */
     RCC->AHBENR |= RCC_AHBENR_GPIOBEN | RCC_AHBENR_GPIOCEN | RCC_AHBENR_GPIODEN;
     /* Headlights (bootloader indicator): PB4 is the brightness line (the
-     * app's TIM1 CH2 PWM, active LOW) - plain output here, high = off,
-     * level set before the mode; PC7 high / PC6 low = forward (white front) */
-    GPIOB->BSRR = 1u << 4;
-    GPIOB->MODER = (GPIOB->MODER & ~(3u << 8)) | (1u << 8);
+     * app's TIM1 CH2 PWM, active LOW), a plain output here (low = on; PB4
+     * is port B's only pin on the F4P6, so the whole MODER is written).
+     * PC7 high / PC6 low = forward (white front); PC6/PC7 are outputs
+     * already when coming from the app and inputs (00) after a reset, so
+     * OR-ing in "output" (01) is enough. */
+    GPIOB->MODER = 1u << 8;
     GPIOC->BSRR = (1u << 7) | (1u << (6 + 16));
-    GPIOC->MODER = (GPIOC->MODER & ~(0xFu << 12)) | (0x5u << 12);
     RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
-    GPIOC->MODER &= ~(3u << 6);
+    GPIOC->MODER = (GPIOC->MODER & ~(3u << 6)) | (0x5u << 12);
     GPIOC->PUPDR = (GPIOC->PUPDR & ~(3u << 6)) | (1u << 6);
     GPIOD->MODER = (GPIOD->MODER & ~((3u << 2) | (3u << 12))) | (2u << 2) | (2u << 12);
     GPIOD->AFR[0] = (GPIOD->AFR[0] & ~((0xFu << 4) | (0xFu << 24))) | (1u << 4) | (1u << 24);
@@ -104,10 +105,10 @@ static inline void bl_hw_init(void)
     FLASH->KEYR = FLASH_FKEY2;
 }
 
-/* headlights full on / off (PB4 active low) */
-static inline void bl_led(uint32_t on)
+/* headlights on <-> off (PB4, active low) */
+static inline void bl_led_toggle(void)
 {
-    *(on ? &GPIOB->BRR : &GPIOB->BSRR) = 1u << 4;
+    GPIOB->ODR ^= 1u << 4;
 }
 
 /* 1 once per elapsed millisecond (reading COUNTFLAG clears it) */
@@ -186,7 +187,6 @@ static inline void __attribute__((noreturn)) bl_start_app(void)
     {
     }
     USART1->CR1 = 0;
-    GPIOB->BSRR = 1u << 4; /* headlights off (the app takes PB4 back as PWM) */
     FLASH->CR = FLASH_CR_LOCK;
     SysTick->CTRL = 0;
     NVIC->ICER[0] = 0xFFFFFFFFu;
@@ -196,8 +196,6 @@ static inline void __attribute__((noreturn)) bl_start_app(void)
      * would fire at cpsie i through OUR 8-entry vector table (no SysTick
      * slot) and run code bytes as a handler. */
     SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk | SCB_ICSR_PENDSVCLR_Msk;
-    __DSB();
-    __ISB();
     uint32_t sp = *(volatile uint32_t *)0x08000600u;
     uint32_t pc = *(volatile uint32_t *)0x08000604u;
     __asm volatile("cpsie i\n msr msp, %0\n bx %1\n" : : "r"(sp), "r"(pc));
