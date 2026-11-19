@@ -1284,15 +1284,20 @@ static void aux_thd(void *arg) {
         // riding, braking a rolling wheel, Refloat's motor tones)
         d->leds.shutdown_timeout =
             shutdown_seconds(VESC_IF->get_cfg_int(CFG_PARAM_app_shutdown_mode));
-        // rf97: AUTO snooze = 3 min before VESC powers off (10 min without a
-        // power-off timer; none when it powers off within 4 min)
-        if (!d->lcm.vp.valid) {
-            d->leds.snooze_timeout = 0.0f;
-        } else if (d->lcm.vp.snooze_minutes == LCM_VP_SNOOZE_AUTO) {
+        // rf100: snooze_minutes = minutes BEFORE VESC's power-off (255 = the
+        // default 5, 0 = never); e.g. off after 30 min, 5 -> snooze at 25 min.
+        // Without a power-off timer: snooze after 10 min.
+        {
+            uint8_t m = d->lcm.vp.snooze_minutes;
+            float before = (m == LCM_VP_SNOOZE_AUTO ? 5 : m) * 60.0f;
             float off = d->leds.shutdown_timeout;
-            d->leds.snooze_timeout = off <= 0.0f ? 600.0f : off >= 240.0f ? off - 180.0f : 0.0f;
-        } else {
-            d->leds.snooze_timeout = d->lcm.vp.snooze_minutes * 60.0f;
+            if (!d->lcm.vp.valid || m == 0) {
+                d->leds.snooze_timeout = 0.0f;
+            } else if (off <= 0.0f) {
+                d->leds.snooze_timeout = 600.0f;
+            } else {
+                d->leds.snooze_timeout = off > before ? off - before : 0.0f;
+            }
         }
         if (d->state.state == STATE_RUNNING || d->motor.abs_erpm > ERPM_MOVING_THRESHOLD ||
             d->motor_control.tone_ticks > 0 || d->leds.motor_active_time == 0.0f) {

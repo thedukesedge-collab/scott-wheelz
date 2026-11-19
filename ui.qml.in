@@ -2469,7 +2469,7 @@ Item {
         property bool ledDozeBreath: true  // headlights breathe in snooze (SLCM; off = dark)
         property bool hideDisclaimer: false  // rf93: "don't show this again" on the start disclaimer
         property bool tourSeen: false  // rf90: the tips & tricks tour opens once on first start
-        property int ledSnoozeMin: 255  // rf97: 255 = AUTO (3 min before power-off), 0 = never
+        property int ledSnoozeMin: 5  // rf100: minutes BEFORE the board powers off (0 = never)
         property int ledRideMode: 0  // rf97: riding status bar: 0 battery / duty, else Refloat mode + 1
         property int ledSnoozeStyle: 0  // rf97: 0 breathe, 1 dim, 2 dark  // rf86: controller-driven LEDs snooze after this many idle minutes (0 = never)
         property string ledCustom: ""  // CUSTOM animation, 8 numbers (JSON), see ledSender.custom()
@@ -6939,6 +6939,7 @@ Item {
         // Rink-Mixed tour opens once instead (SKIP closes it)
         // rf93: the disclaimer opens every time (until "don't show again"),
         // the tour after it on first start
+        if (swSettings.ledSnoozeMin === 255) swSettings.ledSnoozeMin = 5;  // rf100: old AUTO
         // rf97: SNOOZE BREATHING OFF from before -> DARK snooze style
         if (!swSettings.ledDozeBreath && swSettings.ledSnoozeStyle === 0) swSettings.ledSnoozeStyle = 2;
         if (!swSettings.hideDisclaimer) disclaimerDialog.open();
@@ -7982,18 +7983,16 @@ Item {
                         // bar), kept by the package; an SLCM snoozes by itself
                         LedHeading { text: "Snooze" }
 
-                        // rf97: AUTO (default) = 3 min before the board powers off
+                        // rf100: how many minutes BEFORE the board powers off the
+                        // snooze starts (default 5; 0 = never), head/tail and status bar
                         SwStepper {
                             visible: ledSender.rgbAvail || ledSender.rfStatusAvail
-                            label: "SNOOZE AFTER"
-                            valueWidth: 2.8 * unit
-                            value: swSettings.ledSnoozeMin === 255 ? -1 : swSettings.ledSnoozeMin
-                            // rf88: snooze comes before the board powers off
-                            from: -1; to: vescAppConfig.offMinutes >= 2 ? Math.min(60, Math.ceil(vescAppConfig.offMinutes) - 1) : 60; step: 1
-                            valueText: value < 0 ? (vescAppConfig.offMinutes >= 4 ? "AUTO " + Math.round(vescAppConfig.offMinutes - 3) + " min"
-                                                    : vescAppConfig.offMinutes > 0 ? "AUTO (off)" : "AUTO 10 min")
-                                     : value === 0 ? "NEVER" : value + " min"
-                            onMoved: { swSettings.ledSnoozeMin = newValue < 0 ? 255 : newValue; ledSender.changed(); }
+                            label: "SNOOZE BEFORE OFF"
+                            valueWidth: 2.1 * unit
+                            value: swSettings.ledSnoozeMin === 255 ? 5 : swSettings.ledSnoozeMin
+                            from: 0; to: vescAppConfig.offMinutes >= 2 ? Math.min(60, Math.ceil(vescAppConfig.offMinutes) - 1) : 60; step: 1
+                            valueText: value === 0 ? "NEVER" : value + " min"
+                            onMoved: { swSettings.ledSnoozeMin = newValue; ledSender.changed(); }
                         }
 
                         // rf97: how the lights look while snoozing
@@ -8019,9 +8018,11 @@ Item {
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
                             color: swTheme.neonGreen
+                            readonly property real snzBefore: swSettings.ledSnoozeMin === 255 ? 5 : swSettings.ledSnoozeMin
                             text: "Board powers off after " + (vescAppConfig.offMinutes < 1 ? "10 s" : vescAppConfig.offMinutes >= 60 ? (vescAppConfig.offMinutes / 60) + " h" : vescAppConfig.offMinutes + " min")
-                                + " without riding (VESC Shutdown Mode). The lights blink twice every 15 s in the last minute."
-                                + (swSettings.ledSnoozeMin !== 255 && swSettings.ledSnoozeMin >= vescAppConfig.offMinutes && vescAppConfig.offMinutes >= 1 ? " SNOOZE AFTER is longer, so it won't show." : "")
+                                + " idling (VESC Shutdown Mode)"
+                                + (snzBefore > 0 && vescAppConfig.offMinutes > snzBefore ? ", so the lights snooze at " + (vescAppConfig.offMinutes - snzBefore) + " min." : ".")
+                                + " They blink twice every 15 s in the last minute."
                         }
 
                         SwLText {
@@ -8031,7 +8032,7 @@ Item {
                             text: "IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. "
                                 + "Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). "
                                 + "SNOOZE: after the set time sitting still (not engaged, no footpad, not lifted) all lights dim, head/tail and status bar; any of those wakes them. "
-                                + "AUTO = 3 min before the board powers off. BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes on its own timer; SNOOZE AFTER is for controller-driven LEDs (e.g. Thor)."
+                                + "SNOOZE sets how many minutes before the board powers off the head/tail lights and status bar start snoozing (default 5; without a power-off timer: after 10 min). BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes on its own timer; this is for controller-driven LEDs (e.g. Thor)."
                         }
                     }
                     Column {

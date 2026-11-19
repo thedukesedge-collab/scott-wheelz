@@ -804,6 +804,13 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Snooze = minutes before power-off (v1.2.3-rf100)
+- SNOOZE BEFORE OFF (default 5, 0 = never): the head/tail lights and status
+  bar snooze that many minutes before VESC's idle power-off (off after
+  30 min, 5 -> snooze at 25 min). Without a power-off timer: after 10 min.
+  The stored byte is now "minutes before" (255 from rf97 = 5). The window
+  says when snooze starts ("so the lights snooze at 25 min").
+
 ### Classic melodies (v1.2.3-rf99)
 - MIXER > MY MELODIES > CLASSICS: Ode to Joy, Twinkle Twinkle, Jingle Bells,
   Saints Go Marching, Charge! (public domain), written for the tiles

@@ -60,7 +60,7 @@ typedef enum {
 // changes in VESC Tool's Refloat Cfg reach the LCM too (rf72)
 #define LCM_VP_ANIM_REFLOAT 0x80
 #define LCM_VP_SNOOZE_MAX 60  // minutes (rf86 snooze for controller-driven LEDs)
-#define LCM_VP_SNOOZE_AUTO 255  // rf97: 3 min before VESC powers off
+#define LCM_VP_SNOOZE_AUTO 255  // rf97: default (rf100: 5 min before VESC powers off)
 #define LCM_VP_RIDE_MODES 10  // rf97: 0 battery / duty (Refloat), 1-9 Refloat mode + 1
 #define LCM_VP_SNOOZE_STYLES 3  // rf97: 0 breathe, 1 dim, 2 dark
 #define LCM_VP_EEPROM_WORDS 6  // 80-83 + 125-126 (CUSTOM animation)
