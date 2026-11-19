@@ -226,6 +226,12 @@ static void configure(Data *d) {
     }
 }
 
+// rf88: VESC's SHUTDOWN_MODE (datatypes.h) -> power-off timeout in s, 0 = none
+static float shutdown_seconds(int mode) {
+    static const float t[] = {10.0f, 60.0f, 300.0f, 600.0f, 1800.0f, 3600.0f, 18000.0f};
+    return mode >= 3 && mode <= 9 ? t[mode - 3] : 0.0f;
+}
+
 static void leds_headlights_switch(Leds *leds, LcmData *lcm, bool headlights_on) {
     leds_set_headlights_enabled(leds, headlights_on);
     lcm_configure(lcm, leds);
@@ -1272,6 +1278,13 @@ static void aux_thd(void *arg) {
         d->leds.status_disabled = d->lcm.vp.valid && !(d->lcm.vp.flags & LCM_VP_FLAG_STATUS_BAR);
         d->leds.snooze_timeout = d->lcm.vp.valid ? d->lcm.vp.snooze_minutes * 60.0f : 0.0f;
         d->leds.snooze_dark = d->lcm.vp.flags & LCM_VP_FLAG_DOZE_DARK;
+        // rf88: VESC's power-off timer (reset by motor commands with current:
+        // riding, braking a rolling wheel, Refloat's motor tones)
+        d->leds.shutdown_timeout = shutdown_seconds(VESC_IF->get_cfg_int(CFG_PARAM_app_shutdown_mode));
+        if (d->state.state == STATE_RUNNING || d->motor.abs_erpm > ERPM_MOVING_THRESHOLD ||
+            d->motor_control.tone_ticks > 0 || d->leds.motor_active_time == 0.0f) {
+            d->leds.motor_active_time = VESC_IF->system_time();
+        }
         leds_update(&d->leds, &d->state, d->footpad.state);
 
         // store odometer if we've gone more than 200m

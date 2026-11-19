@@ -98,6 +98,14 @@ typedef struct {
     float snooze_timeout;  // 0 = never
     bool snooze_dark;
     float snooze_activity_time;
+
+    // rf88: power-off warning. VESC powers off after shutdown_timeout s
+    // (App Settings > Shutdown Mode, 0 = no timer) without motor commands;
+    // motor_active_time is when the package last drove / braked the motor
+    // (what resets VESC's timer). In the last minute the lights blink twice
+    // every 15 s.
+    float shutdown_timeout;
+    float motor_active_time;
 } Leds;
 
 void leds_init(Leds *leds);

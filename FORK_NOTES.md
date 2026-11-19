@@ -804,6 +804,21 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Power-off warning, snooze before power-off (v1.2.3-rf88)
+- VESC's own power-off timer (App Settings > General > Shutdown Mode, OFF
+  AFTER 10 s .. 5 h; read with get_cfg_int(CFG_PARAM_app_shutdown_mode)) is
+  reset in the firmware only by motor commands with current
+  (mc_interface_set_current / brake / duty / pid; bldc hwconf/shutdown.c,
+  motor/mc_interface.c). The package mirrors that clock: riding, a rolling
+  wheel (Refloat brakes it) or a Refloat motor tone. Footpads, lifting the
+  board or the app do NOT keep the board on.
+- Refloat's own LEDs: in the last minute (last quarter for 1 min, none for
+  10 s) all strips blink twice every 15 s (to 10% of the set level, or up
+  to 70% while snoozing); stops 30 s past the timeout (hardware that
+  doesn't power off). Light code only, no motor or balance change.
+- LEDS > HEADLIGHTS shows "Board powers off after X" (VescIf.appConfig()
+  shutdown_mode) and SNOOZE AFTER stays below it.
+
 ### Neon tips & tricks tour, simpler colors (v1.2.3-rf87)
 - SETTINGS > Show tips & tricks opens a Neon Future tour (rinkTour) of the
   Rink-Mixed features: home screen, sheet, horn, the MIXER (play live, REC,

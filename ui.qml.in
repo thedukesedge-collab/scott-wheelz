@@ -1628,6 +1628,21 @@ Item {
         }
     }
 
+    // rf88: VESC's power-off timer (App Settings > General > Shutdown Mode),
+    // shown with SNOOZE AFTER; the package blinks the lights before it
+    Connections {
+        id: vescAppConfig
+        property ConfigParams appConfig: VescIf.appConfig()
+        target: appConfig
+        property int shutdownMode: appConfig.getParamEnum("shutdown_mode", 0)
+        // minutes, 0 = no power-off timer (SHUTDOWN_MODE in VESC's datatypes.h)
+        readonly property real offMinutes: [0, 0, 0, 10 / 60, 1, 5, 10, 30, 60, 300][shutdownMode] || 0
+        function onParamChangedEnum(src, name, newParam) {
+            if (name === "shutdown_mode") shutdownMode = newParam;
+        }
+        function onUpdated() { shutdownMode = appConfig.getParamEnum("shutdown_mode", 0); }
+    }
+
     Connections {
         id: motorConfig
         property ConfigParams mcConfig: VescIf.mcConfig()
@@ -7514,9 +7529,22 @@ Item {
                             visible: ledSender.rgbAvail || ledSender.rfStatusAvail
                             label: "SNOOZE AFTER"
                             value: swSettings.ledSnoozeMin
-                            from: 0; to: 60; step: 1
+                            // rf88: snooze comes before the board powers off
+                            from: 0; to: vescAppConfig.offMinutes >= 2 ? Math.min(60, Math.ceil(vescAppConfig.offMinutes) - 1) : 60; step: 1
                             valueText: value === 0 ? "NEVER" : value + " min"
                             onMoved: { swSettings.ledSnoozeMin = newValue; ledSender.changed(); }
+                        }
+
+                        SwLText {
+                            visible: (ledSender.rgbAvail || ledSender.rfStatusAvail) && vescAppConfig.offMinutes > 0
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            color: swTheme.neonGreen
+                            text: "Board powers off after " + (vescAppConfig.offMinutes < 1 ? "10 s" : vescAppConfig.offMinutes >= 60 ? (vescAppConfig.offMinutes / 60) + " h" : vescAppConfig.offMinutes + " min")
+                                + " without riding (VESC Shutdown Mode). The lights blink twice every 15 s in the last minute."
+                                + (swSettings.ledSnoozeMin >= vescAppConfig.offMinutes && vescAppConfig.offMinutes >= 1 ? " SNOOZE AFTER is longer, so it won't show." : "")
                         }
 
                         SwPill {

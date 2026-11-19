@@ -328,7 +328,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf87 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf88 · sim</span></div>
     </div>
   </div>
 
@@ -1293,7 +1293,14 @@ function renderLeds() {
   $('ledHeadSteps').innerHTML = ''; ledStep($('ledHeadSteps'), 'ledHeadPct', 'IN MOTION', 0, 100, 5, v => v ? v + '%' : 'OFF'); ledStep($('ledHeadSteps'), 'ledHeadIdlePct', 'IDLE', 0, 100, 5, v => v ? v + '%' : 'OFF');
   // rf86: snooze for Refloat's own LEDs (THOR pretend option)
   if (P.ledSnoozeMin === undefined) P.ledSnoozeMin = 0;
-  if ((P.simSetup || 'slcm') === 'refloat') ledStep($('ledHeadSteps'), 'ledSnoozeMin', 'SNOOZE AFTER', 0, 60, 1, v => v ? v + ' min' : 'NEVER');
+  // rf88: pretend VESC Shutdown Mode = off after 10 min: snooze stays below it
+  if ((P.simSetup || 'slcm') === 'refloat') {
+    P.ledSnoozeMin = Math.min(P.ledSnoozeMin, 9);
+    ledStep($('ledHeadSteps'), 'ledSnoozeMin', 'SNOOZE AFTER', 0, 9, 1, v => v ? v + ' min' : 'NEVER');
+    const n = document.createElement('p'); n.className = 'ledHint'; n.style.cssText = 'text-align:center;color:var(--green)';
+    n.textContent = 'Board powers off after 10 min without riding (VESC Shutdown Mode). The lights blink twice every 15 s in the last minute.';
+    $('ledHeadSteps').appendChild(n);
+  }
   $('ledBarSteps').innerHTML = ''; ledStep($('ledBarSteps'), 'ledIdlePct', 'IDLE BRIGHTNESS', 0, 100, 5, pct); ledStep($('ledBarSteps'), 'ledRidePct', 'RIDING BRIGHTNESS', 0, 100, 5, pct);
   $('ledAnimSteps').innerHTML = '';
   [['ledAnimIdle', 'IDLE'], ['ledAnimRide', 'RIDING'], ['ledAnimDoze', 'SNOOZE'], ['ledAnimBoot', 'BOOT'], ['ledAnimShut', 'SHUTDOWN']]
@@ -1448,7 +1455,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf87';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf88';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1748,7 +1755,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf88' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf89' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

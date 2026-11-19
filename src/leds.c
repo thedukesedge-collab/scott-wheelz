@@ -759,6 +759,8 @@ void leds_init(Leds *leds) {
     leds->snooze_timeout = 0.0f;
     leds->snooze_dark = false;
     leds->snooze_activity_time = 0.0f;
+    leds->shutdown_timeout = 0.0f;
+    leds->motor_active_time = 0.0f;
 
     leds->duty_threshold = 0.0f;
     leds->status_duty_blend = 0.0f;
@@ -992,6 +994,20 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
         snooze = leds->snooze_dark
             ? 0.0f
             : 0.03f + 0.27f * (0.5f - 0.5f * cosf(current_time * (2.0f * (float) M_PI / 6.0f)));
+    }
+
+    // rf88: power-off warning, a double blink every 15 s in the last minute
+    // (last quarter for 1 min; none for 10 s); stops 30 s past the timeout in
+    // case this hardware doesn't power off
+    if (leds->shutdown_timeout >= 60.0f && leds->motor_active_time > 0.0f) {
+        float window = fminf(60.0f, leds->shutdown_timeout * 0.25f);
+        float t = current_time - leds->motor_active_time - (leds->shutdown_timeout - window);
+        if (t >= 0.0f && t < window + 30.0f) {
+            float ph = fmodf(t, 15.0f);
+            if (ph < 0.35f || (ph >= 0.7f && ph < 1.05f)) {
+                snooze = snooze > 0.5f ? 0.1f : 0.7f;
+            }
+        }
     }
 
     // status brightness

@@ -95,6 +95,7 @@ QtObject {
     function commands() { return cmds }
     function customConfig(i) { return cfg }
     function mcConfig() { return cfg }
+    function appConfig() { return cfg }
     function customConfigsLoaded() { return true }
     function useImperialUnits() { return true }
     function emitStatusMessage(m, g) {}
