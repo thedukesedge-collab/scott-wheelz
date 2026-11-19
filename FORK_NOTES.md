@@ -804,6 +804,14 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Snooze on VESC's power-off clock (v1.2.3-rf103)
+- Snooze no longer tracks its own activity: it uses motor_active_time, the
+  same clock as VESC's idle power-off (bldc: mc_interface_set_current /
+  brake / duty with a non-zero value resets it; in Refloat that's riding,
+  braking a wheel that turned in the last second, and its motor tones).
+  Footpads, lifting or parking on the tail don't restart it, for snooze or
+  power-off. One clock, less code (Leds.snooze_activity_time removed).
+
 ### Once-over: one-color animations, snooze wake, clean-up (v1.2.3-rf102)
 - FADE, PULSE, STROBE, KNIGHT RIDER are one-color animations: color 2 is
   their background / "off" color (BACKGROUND row with ON / OFF for all four).

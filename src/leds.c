@@ -774,7 +774,6 @@ void leds_init(Leds *leds) {
     leds->snooze_dark = false;
     leds->snooze_dim = false;
     leds->ride_mode = 0;
-    leds->snooze_activity_time = 0.0f;
     leds->shutdown_timeout = 0.0f;
     leds->motor_active_time = 0.0f;
 
@@ -997,19 +996,12 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
         }
     }
 
-    // rf86: snooze - engaging or a footpad wakes it, and so does whatever
-    // restarts Refloat's own idle timer (a rolling wheel, lifting the board up
-    // or putting it down; rf102: a board parked standing on its tail snoozes)
-    if (leds->state.state != STATE_READY || fs_state != FS_NONE || leds->snooze_timeout <= 0.0f ||
-        leds->snooze_activity_time == 0.0f) {
-        leds->snooze_activity_time = current_time;
-    }
-    if (leds->status_idle_time > leds->snooze_activity_time) {
-        leds->snooze_activity_time = leds->status_idle_time;
-    }
+    // rf103: snooze runs on the same clock as VESC's idle power-off
+    // (motor_active_time: riding, a rolling wheel, a motor tone) - no
+    // separate activity tracking
     float snooze = 1.0f;
-    if (leds->snooze_timeout > 0.0f &&
-        current_time - leds->snooze_activity_time > leds->snooze_timeout) {
+    if (leds->snooze_timeout > 0.0f && leds->motor_active_time > 0.0f &&
+        current_time - leds->motor_active_time > leds->snooze_timeout) {
         // 6 s breath between 3% and 30% of the set brightness
         snooze = leds->snooze_dark ? 0.0f
             : leds->snooze_dim

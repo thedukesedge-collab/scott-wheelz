@@ -7961,7 +7961,7 @@ Item {
                             font.pixelSize: fontSizeSmall
                             text: "IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. "
                                 + "Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). "
-                                + "SNOOZE: after the set time sitting still (not engaged, no footpad, not lifted) all lights dim, head/tail and status bar; any of those wakes them. "
+                                + "SNOOZE uses the same idle clock as VESC's power-off: riding or rolling the wheel restarts it (footpads and lifting don't), and wakes the lights. "
                                 + "SNOOZE sets how many minutes before the board powers off the head/tail lights and status bar start snoozing (default 5; without a power-off timer: after 10 min). BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes on its own timer; this is for controller-driven LEDs (e.g. Thor)."
                         }
                     }

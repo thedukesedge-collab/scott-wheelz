@@ -102,7 +102,6 @@ typedef struct {
     // Status Idle colors / speed with Refloat animation ride_mode - 1 (the duty
     // bar still takes over above the duty threshold)
     uint8_t ride_mode;
-    float snooze_activity_time;
 
     // rf88: power-off warning. VESC powers off after shutdown_timeout s
     // (App Settings > Shutdown Mode, 0 = no timer) without motor commands;
