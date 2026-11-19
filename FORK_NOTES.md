@@ -804,6 +804,23 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### RGB LIGHTS, LED settings kept exactly (v1.2.3-rf79)
+- LEDS > RGB LIGHTS (tile, only when Refloat's own LEDs are set up:
+  hardware.leds.mode not off and a front or rear strip): Refloat's four light
+  bars - HEAD / TAIL (headlights on), FRONT / REAR (headlights off, running
+  lights) - with ANIMATION, COLOR 1/2, SPEED, BRIGHTNESS and OFF WHEN LIFTED,
+  plus a live preview (AnimName anim 15 with the bar's settings). Nothing new
+  in the package: it reads / writes leds.<bar>.* and
+  leds.lights_off_when_lifted, linked both ways with Refloat Cfg > LEDs.
+  HEAD / FRONT brightness are the HEADLIGHTS window's RIDING / RUNNING levels.
+  Hidden on XRV / GTV / Pint V (plain head/tail strips via the LCM).
+- SLCM ANIMATIONS tile renamed STATUS BAR ANIMATIONS (it only drives the
+  status bar), with a one-line note.
+- LED sync writes only what was changed in the app since it was last read
+  (ledSender.cfgSnap / rgbSnap): custom values set in VESC Tool are never
+  rounded to whole percent or overwritten, and the status brightness with
+  headlights on / off stay separate unless RIDING BRIGHTNESS is changed.
+
 ### Safety fixes from Robert's code review, tagged releases (v1.2.3-rf77)
 An independent review of rf74 against stock Refloat (v1.2.3 / v1.3.1) and
 stock ALCM v0.1.1 found these; each was checked against the code first.

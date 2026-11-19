@@ -499,6 +499,55 @@ Item {
             return !!packageConfig.pkgConfig && VescIf.customConfigsLoaded();
         }
 
+        // What each mirrored setting was when last read from / written to the
+        // Refloat config: only settings changed here since then are written,
+        // so custom values set in VESC Tool (e.g. different status brightness
+        // with headlights on / off, or 37.5%) are never rounded or overwritten.
+        property var cfgSnap: ({})
+
+        // ---- RGB LIGHTS (Refloat's own LED animations, for RGB strips such as
+        // Thor's): the four Refloat light bars. HEAD/TAIL play with the
+        // headlights on, FRONT/REAR (running lights) with them off; Refloat
+        // swaps front and rear when riding backwards. Only shown when Refloat's
+        // LEDs are set up (hardware.leds.mode not off, a front or rear strip).
+        readonly property var rgbBars: ["headlights", "taillights", "front", "rear"]
+        readonly property var rgbBarNames: ["HEAD", "TAIL", "FRONT", "REAR"]
+        property var rgb: [{}, {}, {}, {}]  // {mode, c1, c2, speed, bri}
+        property var rgbSnap: [{}, {}, {}, {}]
+        property bool rgbLifted: false  // leds.lights_off_when_lifted
+        property bool rgbLiftedSnap: false
+        property bool rgbAvail: false
+        property bool rgbLoaded: false
+        // brightness 0..100. HEAD and FRONT brightness are the HEADLIGHTS
+        // window's RIDING / RUNNING levels (same Refloat settings), so they go
+        // through those
+        function rgbBri(bar) {
+            return bar === 0 ? swSettings.ledHeadlightPct : bar === 2 ? swSettings.ledHeadlightIdlePct
+                : Math.round((rgb[bar].bri || 0) * 100);
+        }
+        function rgbSetBri(bar, pct) {
+            if (bar === 0 || bar === 2) {
+                swSettings[bar === 0 ? "ledHeadlightPct" : "ledHeadlightIdlePct"] = pct;
+                changed();
+            } else {
+                rgbSet(bar, "bri", pct / 100);
+            }
+        }
+        function rgbSet(bar, key, v) {
+            if (!rgbLoaded) return;
+            var r = rgb.slice();
+            var b = Object.assign({}, r[bar]);
+            b[key] = v;
+            r[bar] = b;
+            rgb = r;
+            ledCfgWriteTimer.restart();
+        }
+        function rgbSetLifted(on) {
+            if (!rgbLoaded) return;
+            rgbLifted = on;
+            ledCfgWriteTimer.restart();
+        }
+
         function toConfig() {
             if (!cfgReady()) return;
             // rf77 safety: never mirror into the Refloat config (a config
@@ -514,10 +563,32 @@ Item {
                 c.updateParamBool("leds.headlights_on", swSettings.ledHeadlights);
                 dirty = true;
             }
+            var snap = cfgSnap;
             for (var i = 0; i < cfgMap.length; i++) {
-                var v = swSettings[cfgMap[i][0]] / 100;
-                if (Math.round(c.getParamDouble(cfgMap[i][1]) * 100) !== swSettings[cfgMap[i][0]]) {
-                    c.updateParamDouble(cfgMap[i][1], v);
+                var k = cfgMap[i][0];
+                // unchanged here since it was read: leave the exact value alone
+                if (snap[k] !== undefined && snap[k] === swSettings[k]) continue;
+                if (Math.round(c.getParamDouble(cfgMap[i][1]) * 100) !== swSettings[k]) {
+                    c.updateParamDouble(cfgMap[i][1], swSettings[k] / 100);
+                    dirty = true;
+                }
+            }
+            for (var j = 0; j < cfgMap.length; j++) snap[cfgMap[j][0]] = swSettings[cfgMap[j][0]];
+            cfgSnap = snap;
+            if (rgbLoaded) {
+                for (var b = 0; b < 4; b++) {
+                    var n = "leds." + rgbBars[b] + ".", r = rgb[b], o = rgbSnap[b];
+                    if (r.mode !== o.mode) { c.updateParamEnum(n + "mode", r.mode); dirty = true; }
+                    if (r.c1 !== o.c1) { c.updateParamEnum(n + "color1", r.c1); dirty = true; }
+                    if (r.c2 !== o.c2) { c.updateParamEnum(n + "color2", r.c2); dirty = true; }
+                    if (Math.abs(r.speed - o.speed) > 0.0001) { c.updateParamDouble(n + "speed", r.speed); dirty = true; }
+                    // (HEAD / FRONT brightness: via cfgMap above)
+                    if (b % 2 === 1 && Math.abs(r.bri - o.bri) > 0.0001) { c.updateParamDouble(n + "brightness", r.bri); dirty = true; }
+                }
+                rgbSnap = rgb.slice();
+                if (rgbLifted !== rgbLiftedSnap) {
+                    c.updateParamBool("leds.lights_off_when_lifted", rgbLifted);
+                    rgbLiftedSnap = rgbLifted;
                     dirty = true;
                 }
             }
@@ -549,13 +620,28 @@ Item {
                 swSettings.ledHeadlights = on;
                 changedAny = true;
             }
-            for (var i = 0; i < cfgMap.length - 1; i++) {  // _off follows _on
+            var snap = cfgSnap;
+            for (var i = 0; i < cfgMap.length - 1; i++) {  // RIDING shows _on (_off is written only when RIDING is changed)
                 var pct = Math.max(0, Math.min(100, Math.round(c.getParamDouble(cfgMap[i][1]) * 100)));
                 if (pct !== swSettings[cfgMap[i][0]]) {
                     swSettings[cfgMap[i][0]] = pct;
                     changedAny = true;
                 }
+                snap[cfgMap[i][0]] = pct;
             }
+            cfgSnap = snap;
+            var r = [];
+            for (var b = 0; b < 4; b++) {
+                var n = "leds." + rgbBars[b] + ".";
+                r.push({mode: c.getParamEnum(n + "mode"), c1: c.getParamEnum(n + "color1"), c2: c.getParamEnum(n + "color2"),
+                        speed: c.getParamDouble(n + "speed"), bri: c.getParamDouble(n + "brightness")});
+            }
+            rgb = r;
+            rgbSnap = r.slice();
+            rgbLifted = rgbLiftedSnap = c.getParamBool("leds.lights_off_when_lifted");
+            rgbAvail = c.getParamEnum("hardware.leds.mode") !== 0
+                && (c.getParamInt("hardware.leds.front.count") > 0 || c.getParamInt("hardware.leds.rear.count") > 0);
+            rgbLoaded = true;
             rfMode = c.getParamEnum("leds.status_idle.mode");
             rfColor1 = c.getParamEnum("leds.status_idle.color1");
             rfColor2 = c.getParamEnum("leds.status_idle.color2");
@@ -3956,6 +4042,7 @@ Item {
         property int anim: 0
         property string text: ""
         property real hue: 0  // personal color (degrees)
+        property var rf: null  // anim 15: {mode, c1, c2, speed} of a Refloat light bar (else the Status Idle animation)
         property real basePixelSize: 0.32 * unit
         property real t: 0
         readonly property real pixelSize: Math.max(0.14 * unit,
@@ -4036,9 +4123,9 @@ Item {
                 break;
             }
             case 15: {  // Refloat's Status Idle animation (approximation)
-                if (!ledSender.rfOn) return "#ead6ff";  // battery display
-                var c1 = ledSender.rfQColor(ledSender.rfColor1), c2 = ledSender.rfQColor(ledSender.rfColor2);
-                var sp = Math.max(0.1, ledSender.rfSpeed), md = ledSender.rfMode;
+                if (!an.rf && !ledSender.rfOn) return "#ead6ff";  // battery display
+                var c1 = ledSender.rfQColor(an.rf ? an.rf.c1 : ledSender.rfColor1), c2 = ledSender.rfQColor(an.rf ? an.rf.c2 : ledSender.rfColor2);
+                var sp = Math.max(0.1, an.rf ? an.rf.speed : ledSender.rfSpeed), md = an.rf ? an.rf.mode : ledSender.rfMode;
                 var mix = function(p) { return Qt.rgba(c1.r + (c2.r - c1.r) * p, c1.g + (c2.g - c1.g) * p, c1.b + (c2.b - c1.b) * p, 1); };
                 var dim = function(cc, k) { return Qt.rgba(cc.r, cc.g, cc.b, Math.max(0.15, k)); };
                 if (md === 0) return c1;
@@ -7247,7 +7334,7 @@ Item {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         property string section: "head"
-        readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "ANIMATIONS", "sound": "SOUND", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "custom": "CUSTOM ANIMATION", "updates": "UPDATES"})
+        readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "STATUS BAR ANIMATIONS", "sound": "SOUND", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "custom": "CUSTOM ANIMATION", "updates": "UPDATES", "rgb": "RGB LIGHTS"})
 
         function show(which) {
             section = which;
@@ -7484,6 +7571,14 @@ Item {
                         width: parent.width
                         spacing: 0.14 * unit
                         visible: ledWindow.section === "anim"
+
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "Status bar only (SLCM). XRV / GTV / Pint V head and tail lights are plain strips."
+                        }
 
                         Repeater {
                             model: ledSender.animContexts
@@ -7821,6 +7916,103 @@ Item {
                             minWidth: 3.4 * unit
                             label: "ADVANCED \u203A"
                             onClicked: batteryAdvanced.open()
+                        }
+                    }
+
+                    // Re-Float Rink-Mixed: RGB LIGHTS - Refloat's own light bar
+                    // animations (Refloat Cfg > LEDs), for RGB strips (Thor...)
+                    Column {
+                        id: rgbCol
+                        width: parent.width
+                        spacing: 0.14 * unit
+                        visible: ledWindow.section === "rgb"
+                        property int sel: 0
+                        readonly property var bar: ledSender.rgb[sel] || ({})
+
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.12 * unit
+                            Repeater {
+                                model: ledSender.rgbBarNames
+                                SwPill {
+                                    minWidth: 1.5 * unit
+                                    label: modelData
+                                    lit: rgbCol.sel === index
+                                    onClicked: rgbCol.sel = index
+                                }
+                            }
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            font.pixelSize: fontSizeSmall
+                            text: rgbCol.sel < 2 ? "Headlights on" : "Headlights off (running lights)"
+                        }
+
+                        AnimName {
+                            width: parent.width
+                            height: 0.9 * unit
+                            anim: 15
+                            rf: rgbCol.bar
+                            text: ledSender.rfModes[rgbCol.bar.mode] || ""
+                            basePixelSize: 0.4 * unit
+                        }
+
+                        SwStepper {
+                            label: "ANIMATION"
+                            valueWidth: 3.6 * unit
+                            value: rgbCol.bar.mode || 0
+                            from: 0; to: ledSender.rfModes.length - 1; step: 1
+                            valueText: ledSender.rfModes[value]
+                            onMoved: ledSender.rgbSet(rgbCol.sel, "mode", newValue)
+                        }
+                        SwStepper {
+                            visible: (rgbCol.bar.mode || 0) < 6
+                            label: "COLOR 1"
+                            valueWidth: 3.2 * unit
+                            value: rgbCol.bar.c1 || 0
+                            from: 0; to: ledSender.rfColors.length - 1; step: 1
+                            valueText: ledSender.rfColors[value]
+                            onMoved: ledSender.rgbSet(rgbCol.sel, "c1", newValue)
+                        }
+                        SwStepper {
+                            visible: rgbCol.bar.mode === 1 || rgbCol.bar.mode === 5
+                            label: "COLOR 2"
+                            valueWidth: 3.2 * unit
+                            value: rgbCol.bar.c2 || 0
+                            from: 0; to: ledSender.rfColors.length - 1; step: 1
+                            valueText: ledSender.rfColors[value]
+                            onMoved: ledSender.rgbSet(rgbCol.sel, "c2", newValue)
+                        }
+                        SwStepper {
+                            visible: (rgbCol.bar.mode || 0) !== 0
+                            label: "SPEED"
+                            value: rgbCol.bar.speed || 1
+                            from: 0.1; to: 5; step: 0.1; decimals: 1; suffix: "/s"
+                            onMoved: ledSender.rgbSet(rgbCol.sel, "speed", newValue)
+                        }
+                        SwStepper {
+                            label: "BRIGHTNESS"
+                            value: ledSender.rgbLoaded ? ledSender.rgbBri(rgbCol.sel) : 0
+                            from: 0; to: 100; step: 5; suffix: "%"
+                            onMoved: ledSender.rgbSetBri(rgbCol.sel, newValue)
+                        }
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 4.4 * unit
+                            label: ledSender.rgbLifted ? "OFF WHEN LIFTED: ON" : "OFF WHEN LIFTED: OFF"
+                            lit: ledSender.rgbLifted
+                            onClicked: ledSender.rgbSetLifted(!ledSender.rgbLifted)
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "Refloat's LED settings (Refloat Cfg \u203A LEDs), linked both ways."
                         }
                     }
 
@@ -13644,6 +13836,24 @@ Item {
                             }
                         }
 
+                        // RGB LIGHTS: Refloat's own light animations, only when
+                        // Refloat's LEDs are set up (RGB strips, e.g. Thor)
+                        GridLayout {
+                            visible: ledSender.rgbAvail
+                            width: parent.width
+                            columns: 1
+                            LedTile {
+                                Layout.fillWidth: true
+                                title: "RGB LIGHTS"
+                                glyph: "\u25C8"
+                                lit: true
+                                summary: ledSender.rgbLoaded
+                                    ? "HEAD " + ledSender.rfModes[ledSender.rgb[0].mode] + " \u00B7 FRONT " + ledSender.rfModes[ledSender.rgb[2].mode]
+                                    : "HEAD / TAIL / FRONT / REAR"
+                                onClicked: ledWindow.show("rgb")
+                            }
+                        }
+
                         SwLText {
                             width: parent.width
                             horizontalAlignment: Text.AlignHCenter
@@ -13663,7 +13873,8 @@ Item {
                             columnSpacing: 0.18 * unit
 
                             LedTile {
-                                title: "ANIMATIONS"
+                                Layout.columnSpan: 2
+                                title: "STATUS BAR ANIMATIONS"
                                 glyph: "\u2726"
                                 lit: true
                                 swatch: Qt.hsla(swSettings.ledColor / 360, 1.0, 0.5, 1.0)
@@ -13679,7 +13890,6 @@ Item {
                                 onClicked: ledWindow.show("sound")
                             }
                             LedTile {
-                                Layout.columnSpan: 2
                                 title: "BATTERY GAUGE"
                                 glyph: "\u25AE"
                                 lit: swSettings.batCurveOn
