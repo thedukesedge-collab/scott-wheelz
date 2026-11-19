@@ -91,6 +91,13 @@ typedef struct {
     // rf80: STATUS BAR OFF from the app (LEDS tab) for Refloat's own LEDs
     // (Refloat has no status-only switch): the status strip is dimmed to 0
     bool status_disabled;
+
+    // rf86: snooze for Refloat's own LEDs (set each aux pass from the stored
+    // light settings): after snooze_timeout s without movement, footpad or
+    // engage, all strips dim to a slow breath (or dark with snooze_dark)
+    float snooze_timeout;  // 0 = never
+    bool snooze_dark;
+    float snooze_activity_time;
 } Leds;
 
 void leds_init(Leds *leds);

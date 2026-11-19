@@ -311,7 +311,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf85 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf86 · sim</span></div>
     </div>
   </div>
 
@@ -337,7 +337,7 @@
         <div class="pills"><div class="pill" id="ledHeadPill"></div></div>
         <div id="ledHeadSteps"></div>
         <div class="pills" id="ledBreathBox"><div class="pill" id="ledBreathPill"></div></div>
-        <p class="ledHint">IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEADLIGHTS OFF = always off. Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). SNOOZE BREATHING: the head and tail lights slowly breathe while the board snoozes (SLCM); off = dark in snooze.</p>
+        <p class="ledHint">IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEADLIGHTS OFF = always off. Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). SNOOZE: after the set time sitting still (not engaged, no footpad, not lifted) all lights dim, head/tail and status bar; any of those wakes them. SNOOZE BREATHING: they slowly breathe while snoozing; off = dark. An SLCM light module snoozes by itself; SNOOZE AFTER is for Refloat's own LEDs (e.g. Thor).</p>
       </div>
       <div class="ledSec" data-s="bar">
         <div class="pills"><div class="pill" id="ledBarPill"></div></div>
@@ -1202,7 +1202,7 @@ function renderLedsSoft() {
   $('slcmBanner').className = 'fwFit' + (slcm ? ' ok' : '');
   $('slcmBanner').innerHTML = slcm ? '<b>&#10004; SLCM DETECTED</b> · ' + FW_BUILD + '<br>Same light settings as any controller, plus the SLCM EXTRAS below.'
     : "<b>REFLOAT LIGHTS</b><br>These are Refloat's own LED settings, the same on any controller (Thor, Floatwheel, ...).";
-  $('slcmExtras').style.display = slcm ? '' : 'none'; $('ledBreathBox').style.display = slcm ? '' : 'none';
+  $('slcmExtras').style.display = slcm ? '' : 'none'; $('ledBreathBox').style.display = slcm || (setup === 'refloat' && P.ledSnoozeMin > 0) ? '' : 'none';
   $('lightsBox').style.display = lightsOk ? '' : 'none';
   const pl = (id, on, txt) => { $(id).textContent = txt + (on ? ' ON' : ' OFF'); $(id).classList.toggle('on', on); };
   const allOn = P.ledHead && P.ledBar && P.lightsOn !== false;
@@ -1241,6 +1241,9 @@ function renderLedsSoft() {
 function renderLeds() {
   const pct = v => v + '%';
   $('ledHeadSteps').innerHTML = ''; ledStep($('ledHeadSteps'), 'ledHeadPct', 'IN MOTION', 0, 100, 5, v => v ? v + '%' : 'OFF'); ledStep($('ledHeadSteps'), 'ledHeadIdlePct', 'IDLE', 0, 100, 5, v => v ? v + '%' : 'OFF');
+  // rf86: snooze for Refloat's own LEDs (THOR pretend option)
+  if (P.ledSnoozeMin === undefined) P.ledSnoozeMin = 0;
+  if ((P.simSetup || 'slcm') === 'refloat') ledStep($('ledHeadSteps'), 'ledSnoozeMin', 'SNOOZE AFTER', 0, 60, 1, v => v ? v + ' min' : 'NEVER');
   $('ledBarSteps').innerHTML = ''; ledStep($('ledBarSteps'), 'ledIdlePct', 'IDLE BRIGHTNESS', 0, 100, 5, pct); ledStep($('ledBarSteps'), 'ledRidePct', 'RIDING BRIGHTNESS', 0, 100, 5, pct);
   $('ledAnimSteps').innerHTML = '';
   [['ledAnimIdle', 'IDLE'], ['ledAnimRide', 'RIDING'], ['ledAnimDoze', 'SNOOZE'], ['ledAnimBoot', 'BOOT'], ['ledAnimShut', 'SHUTDOWN']]
@@ -1395,7 +1398,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf85';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf86';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1609,7 +1612,7 @@ function fwStart() {
   }, 80);
 }
 $('fwCancel').onclick = () => { clearInterval(FW.t); FW.active = false; fwPaint('Cancelled. If the LCM had already started, power the board off and on, then press FLASH LCM again.'); };
-document.querySelectorAll('#simSetup .pill').forEach(x => x.onclick = () => { P.simSetup = x.dataset.k; save(); renderLedsSoft(); renderRf(); });
+document.querySelectorAll('#simSetup .pill').forEach(x => x.onclick = () => { P.simSetup = x.dataset.k; save(); renderLeds(); renderLedsSoft(); renderRf(); });
 // ---------- UPDATES tab (the real one: updater in ui.qml.in) ----------
 // CHECK FOR UPDATES asks GitHub for the latest rider (tagged) release; the
 // simulator pretends unless LIVE is picked (then it really asks GitHub).
@@ -1695,7 +1698,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf86' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf87' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

@@ -756,6 +756,9 @@ void leds_init(Leds *leds) {
 
     leds->on_off_fade = 0.0f;
     leds->status_disabled = false;
+    leds->snooze_timeout = 0.0f;
+    leds->snooze_dark = false;
+    leds->snooze_activity_time = 0.0f;
 
     leds->duty_threshold = 0.0f;
     leds->status_duty_blend = 0.0f;
@@ -976,6 +979,21 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
         }
     }
 
+    // rf86: snooze - any movement, footpad, engage or lift wakes it
+    if (leds->state.state != STATE_READY || fs_state != FS_NONE ||
+        fabsf(VESC_IF->mc_get_rpm()) > ERPM_MOVING_THRESHOLD || leds->board_is_upright ||
+        leds->snooze_timeout <= 0.0f || leds->snooze_activity_time == 0.0f) {
+        leds->snooze_activity_time = current_time;
+    }
+    float snooze = 1.0f;
+    if (leds->snooze_timeout > 0.0f &&
+        current_time - leds->snooze_activity_time > leds->snooze_timeout) {
+        // 6 s breath between 3% and 30% of the set brightness
+        snooze = leds->snooze_dark
+            ? 0.0f
+            : 0.03f + 0.27f * (0.5f - 0.5f * cosf(current_time * (2.0f * (float) M_PI / 6.0f)));
+    }
+
     // status brightness
     float status_brightness = leds->cfg->status.brightness_headlights_off;
     if (leds->runtime_status.headlights_enabled) {
@@ -987,6 +1005,7 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
     if (leds->status_disabled) {
         status_brightness = 0.0f;  // rf80: STATUS BAR OFF from the app
     }
+    status_brightness *= snooze;
     rate_limitf(&leds->status_strip.brightness, status_brightness, BR_RATE);
 
     // front brightness
@@ -996,7 +1015,9 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
         if (leds->board_is_upright && leds->cfg->lights_off_when_lifted) {
             rate_limitf(&leds->front_strip.brightness, 0.0f, BR_RATE);
         } else {
-            rate_limitf(&leds->front_strip.brightness, leds->front_bar->brightness, BR_RATE);
+            rate_limitf(
+                &leds->front_strip.brightness, leds->front_bar->brightness * snooze, BR_RATE
+            );
         }
     }
 
@@ -1004,7 +1025,7 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
     if (leds->board_is_upright && leds->cfg->lights_off_when_lifted) {
         rate_limitf(&leds->rear_strip.brightness, 0.0f, BR_RATE);
     } else {
-        rate_limitf(&leds->rear_strip.brightness, leds->rear_bar->brightness, BR_RATE);
+        rate_limitf(&leds->rear_strip.brightness, leds->rear_bar->brightness * snooze, BR_RATE);
     }
 
     rate_limitf(&leds->status_on_front_blend, status_on_front ? 1.0f : 0.0f, BR_RATE);

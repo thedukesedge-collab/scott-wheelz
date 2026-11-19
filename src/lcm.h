@@ -59,6 +59,7 @@ typedef enum {
 // colors, speed, timeout) - translated for the SLCM in each poll reply, so
 // changes in VESC Tool's Refloat Cfg reach the LCM too (rf72)
 #define LCM_VP_ANIM_REFLOAT 0x80
+#define LCM_VP_SNOOZE_MAX 60  // minutes (rf86 snooze for Refloat's own LEDs)
 #define LCM_VP_EEPROM_WORDS 6  // 80-83 + 125-126 (CUSTOM animation)
 
 typedef struct {
@@ -71,6 +72,9 @@ typedef struct {
     uint8_t animations[LCM_VP_ANIMATIONS];
     uint16_t color;  // degrees 0-359
     uint8_t custom[LCM_VP_CUSTOM_LENGTH];  // CUSTOM animation (see SLCM status_leds.c)
+    // rf86: minutes idle before Refloat's own LEDs snooze (0 = never), byte
+    // 20 of COMMAND_LCM_VP_SETTINGS; the SLCM keeps its own snooze
+    uint8_t snooze_minutes;
 } LcmVpSettings;
 
 typedef struct {

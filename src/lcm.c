@@ -437,6 +437,10 @@ bool lcm_vp_set(LcmData *lcm, const uint8_t *buffer, int len) {
         memcpy(vp.custom, lcm->vp.custom, LCM_VP_CUSTOM_LENGTH);
     }
 
+    vp.snooze_minutes = len >= LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH + 1
+        ? clamp_u8(buffer[LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH], LCM_VP_SNOOZE_MAX)
+        : lcm->vp.snooze_minutes;
+
     bool changed = memcmp(&vp, &lcm->vp, sizeof(vp)) != 0;
     lcm->vp = vp;
     return changed;
@@ -454,8 +458,8 @@ void lcm_vp_pack(const LcmData *lcm, uint32_t words[LCM_VP_EEPROM_WORDS]) {
     // word 2: boot, shutdown animations, color
     words[2] =
         ((uint32_t) vp->animations[3] << 24) | ((uint32_t) vp->animations[4] << 16) | vp->color;
-    // word 3: magic 0x49 ('I'), headlight idle %
-    words[3] = (0x49u << 24) | vp->headlight_idle_brightness;
+    // word 3: magic 0x49 ('I'), -, snooze minutes (rf86), headlight idle %
+    words[3] = (0x49u << 24) | ((uint32_t) vp->snooze_minutes << 8) | vp->headlight_idle_brightness;
     // words 4, 5: CUSTOM animation
     for (int i = 0; i < 2; ++i) {
         words[4 + i] = ((uint32_t) vp->custom[4 * i] << 24) |
@@ -468,16 +472,17 @@ void lcm_vp_unpack(LcmData *lcm, const uint32_t words[LCM_VP_EEPROM_WORDS]) {
     if ((words[0] >> 24) != 0x4C) {
         return;
     }
-    uint8_t buffer[LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH] = {
+    uint8_t buffer[LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH + 1] = {
         (words[0] >> 16) & 0xFF, (words[0] >> 8) & 0xFF,  words[0] & 0xFF,        words[1] >> 24,
         (words[1] >> 16) & 0xFF, (words[1] >> 8) & 0xFF,  words[1] & 0xFF,        words[2] >> 24,
         (words[2] >> 16) & 0xFF, (words[2] >> 8) & 0xFF,  words[2] & 0xFF,        words[3] & 0xFF,
         words[4] >> 24,          (words[4] >> 16) & 0xFF, (words[4] >> 8) & 0xFF, words[4] & 0xFF,
         words[5] >> 24,          (words[5] >> 16) & 0xFF, (words[5] >> 8) & 0xFF, words[5] & 0xFF,
+        (words[3] >> 8) & 0xFF,
     };
     // saved before the idle headlight level existed: idle = riding (and no
     // CUSTOM animation yet either)
-    int len = (words[3] >> 24) == 0x49 ? LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH
+    int len = (words[3] >> 24) == 0x49 ? LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH + 1
                                        : LCM_VP_SETTINGS_LENGTH - 1;
     lcm_vp_set(lcm, buffer, len);
 }

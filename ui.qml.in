@@ -432,7 +432,7 @@ Item {
 
         function send() {
             if (!swSettings.ledConfigured) return;
-            var data = commands.createData(22, commands.c_LCM_VP_SETTINGS);
+            var data = commands.createData(23, commands.c_LCM_VP_SETTINGS);
             data.setUint8(2, (swSettings.ledHeadlights ? 1 : 0) | (swSettings.ledStatusBar ? 2 : 0) | (swSettings.ledBeep ? 4 : 0)
                 | (swSettings.ledDozeBreath ? 0 : 0x20));
             data.setUint8(3, swSettings.ledHeadlightPct);
@@ -447,6 +447,7 @@ Item {
             data.setUint8(13, swSettings.ledHeadlightIdlePct);
             var cu = custom();
             for (var ci = 0; ci < 8; ci++) data.setUint8(14 + ci, cu[ci]);
+            data.setUint8(22, swSettings.ledSnoozeMin);  // rf86: Refloat LEDs snooze
             vescCommands.sendCustomAppData(data.buffer);
         }
 
@@ -2415,6 +2416,7 @@ Item {
         property int ledAnimRide: 0
         property int ledAnimDoze: 0
         property bool ledDozeBreath: true  // headlights breathe in snooze (SLCM; off = dark)
+        property int ledSnoozeMin: 0  // rf86: Refloat's own LEDs snooze after this many idle minutes (0 = never)
         property string ledCustom: ""  // CUSTOM animation, 8 numbers (JSON), see ledSender.custom()
         property int ledAnimBoot: 11
         property int ledAnimShutdown: 0
@@ -7494,8 +7496,19 @@ Item {
                             onMoved: { swSettings.ledHeadlightIdlePct = newValue; ledSender.changed(); }
                         }
 
+                        // rf86: snooze for Refloat's own LEDs (head/tail and status
+                        // bar), kept by the package; an SLCM snoozes by itself
+                        SwStepper {
+                            visible: ledSender.rgbAvail || ledSender.rfStatusAvail
+                            label: "SNOOZE AFTER"
+                            value: swSettings.ledSnoozeMin
+                            from: 0; to: 60; step: 1
+                            valueText: value === 0 ? "NEVER" : value + " min"
+                            onMoved: { swSettings.ledSnoozeMin = newValue; ledSender.changed(); }
+                        }
+
                         SwPill {
-                            visible: slcmDetect.present
+                            visible: slcmDetect.present || ((ledSender.rgbAvail || ledSender.rfStatusAvail) && swSettings.ledSnoozeMin > 0)
                             anchors.horizontalCenter: parent.horizontalCenter
                             minWidth: 3.4 * unit
                             label: swSettings.ledDozeBreath ? "SNOOZE BREATHING ON" : "SNOOZE BREATHING OFF"
@@ -7509,7 +7522,8 @@ Item {
                             font.pixelSize: fontSizeSmall
                             text: "IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEADLIGHTS OFF = always off. "
                                 + "Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). "
-                                + "SNOOZE BREATHING: the head and tail lights slowly breathe while the board snoozes (SLCM); off = dark in snooze."
+                                + "SNOOZE: after the set time sitting still (not engaged, no footpad, not lifted) all lights dim, head/tail and status bar; any of those wakes them. "
+                                + "SNOOZE BREATHING: they slowly breathe while snoozing; off = dark. An SLCM light module snoozes by itself; SNOOZE AFTER is for Refloat's own LEDs (e.g. Thor)."
                         }
                     }
                     Column {

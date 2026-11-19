@@ -1270,6 +1270,8 @@ static void aux_thd(void *arg) {
         // settings, LCM_VP_FLAG_STATUS_BAR) also switches Refloat's own
         // status strip - Refloat's lights control only has all / headlights
         d->leds.status_disabled = d->lcm.vp.valid && !(d->lcm.vp.flags & LCM_VP_FLAG_STATUS_BAR);
+        d->leds.snooze_timeout = d->lcm.vp.valid ? d->lcm.vp.snooze_minutes * 60.0f : 0.0f;
+        d->leds.snooze_dark = d->lcm.vp.flags & LCM_VP_FLAG_DOZE_DARK;
         leds_update(&d->leds, &d->state, d->footpad.state);
 
         // store odometer if we've gone more than 200m

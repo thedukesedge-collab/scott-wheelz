@@ -804,6 +804,18 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Snooze for Refloat's own LEDs (v1.2.3-rf86)
+- LEDS > HEADLIGHTS > SNOOZE AFTER (NEVER, 1-60 min; shown with Refloat's
+  own LEDs, e.g. Thor): after that long in READY with no movement, footpad
+  or lift, leds_update dims the front, rear and status strips to a 6 s
+  breath (3-30% of their set brightness), or dark with SNOOZE BREATHING off
+  (LCM_VP_FLAG_DOZE_DARK). Anything of those wakes them (normal fade).
+- Stored with the light settings, not in Refloat's config: byte 20 of
+  COMMAND_LCM_VP_SETTINGS (older apps keep the stored value), EEPROM word 83
+  bits 8-15 (0 in older saves = never). Survives power cycles; works with
+  the app closed. An SLCM keeps its own snooze (not sent to it).
+- tools/lcm_vp_test: clamp / keep / pack-unpack of the snooze minutes.
+
 ### LCM tools only with a light module, blank melody tiles (v1.2.3-rf85)
 - "LCM firmware tools" is hidden when Refloat's LED Mode has no external
   light module (e.g. a Thor on Refloat's own LEDs) and no SLCM answers; the
