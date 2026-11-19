@@ -34,6 +34,11 @@ jobs:
 
       # rf75 safety: stack usage of every function (no LTO), compared with
       # upstream Refloat v1.2.3; fails if any single frame is over 512 bytes
+      # host unit tests of the light module protocol (src/lcm.c) and battery
+      # curve; rf78: run on every build (rf77 broke them unnoticed)
+      - name: Light module unit tests
+        run: sh tools/lcm_vp_test/run.sh
+
       - name: Stack usage report
         if: steps.build.outcome == 'success'
         run: |

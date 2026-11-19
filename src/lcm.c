@@ -173,16 +173,10 @@ void lcm_poll_response(
             buffer[ind++] = riding ? vp->status_riding_brightness : vp->status_idle_brightness;
             buffer[ind++] = 0x56;  // 'V'
             buffer[ind++] = 1;  // version
-            // power off: never while riding (the SLCM also only takes it idle)
-            if (riding) {
-                lcm->vp_power_off = 0;
-            }
+            // rf77: bit 6 (power off, SLCM r22) is never set - the package
+            // can't power the board off
             buffer[ind++] = vp->flags | (lcm->vp_test_beep ? LCM_VP_FLAG_TEST_BEEP : 0) |
-                (lcm->vp_update ? LCM_VP_FLAG_UPDATE : 0) |
-                (lcm->vp_power_off ? LCM_VP_FLAG_POWER_OFF : 0);
-            if (lcm->vp_power_off) {
-                --lcm->vp_power_off;
-            }
+                (lcm->vp_update ? LCM_VP_FLAG_UPDATE : 0);
             // idle following Refloat: its animation, translated (the
             // fill / scan ones need SLCM r19+, older builds get STANDARD)
             uint8_t custom[LCM_VP_CUSTOM_LENGTH];
@@ -490,13 +484,4 @@ void lcm_vp_unpack(LcmData *lcm, const uint32_t words[LCM_VP_EEPROM_WORDS]) {
 
 void lcm_vp_test_beep(LcmData *lcm) {
     lcm->vp_test_beep = !lcm->vp_test_beep;
-}
-
-bool lcm_vp_power_off(LcmData *lcm, bool running) {
-    if (running) {
-        lcm->vp_power_off = 0;
-        return false;
-    }
-    lcm->vp_power_off = LCM_VP_POWER_OFF_POLLS;
-    return true;
 }

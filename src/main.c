@@ -1680,7 +1680,7 @@ enum {
     COMMAND_LCM_TEST_BEEP = 127,  // light module (ALCM VP) test beep, no data
     COMMAND_LCM_FW = 128,  // LCM firmware update relay, see lcm_fw.h
     COMMAND_LCM_BATTERY = 129,  // battery curve: 0 = get, 1 = set (13 bytes), see battery_curve.h
-    COMMAND_LCM_POWER_OFF = 130,  // SLCM r22+: shut the board down (not while running)
+    COMMAND_LCM_POWER_OFF = 130,  // rf74-rf76 power off from the app: removed, ignored
     COMMAND_LIVE_TONE = 125,  // melody tiles: u8 pitch level (0 = stop), resent every 100 ms
 
     // commands above 200 are unstable and can change protocol at any time
@@ -2724,10 +2724,8 @@ static __attribute__((noinline)) bool rm_command(
         return true;
     }
     case COMMAND_LCM_POWER_OFF: {
-        // reply: 1 = sent to the light module, 0 = refused (board running)
-        bool ok = lcm_vp_power_off(&d->lcm, d->state.state == STATE_RUNNING);
-        uint8_t reply[3] = {101, COMMAND_LCM_POWER_OFF, ok};
-        VESC_IF->send_app_data(reply, sizeof(reply));
+        // rf77: removed (only the physical button powers the board off);
+        // an older app's request is ignored
         return true;
     }
     case COMMAND_LCM_FW: {

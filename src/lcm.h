@@ -46,8 +46,7 @@ typedef enum {
 #define LCM_VP_FLAG_TEST_BEEP 0x08  // toggled on each test-beep request (not stored)
 #define LCM_VP_FLAG_UPDATE 0x10  // firmware update staged: start the LCM bootloader (not stored)
 #define LCM_VP_FLAG_DOZE_DARK 0x20  // headlights off in snooze (no breathing)
-#define LCM_VP_FLAG_POWER_OFF 0x40  // app asks the SLCM (r22+) to shut down (not stored)
-#define LCM_VP_POWER_OFF_POLLS 8  // sent in this many poll replies (~2 s)
+// 0x40: reserved (rf74-rf76 power off from the app; removed in rf77, never sent)
 #define LCM_VP_STORED_FLAGS                                                                        \
     (LCM_VP_FLAG_HEADLIGHTS | LCM_VP_FLAG_STATUS_BAR | LCM_VP_FLAG_BEEP | LCM_VP_FLAG_DOZE_DARK)
 #define LCM_VP_ANIMATIONS 5  // idle, riding, dozing (snooze), boot, shutdown
@@ -89,7 +88,6 @@ typedef struct {
     LcmVpSettings vp;
     bool vp_test_beep;  // toggled by COMMAND_LCM_TEST_BEEP, sent as LCM_VP_FLAG_TEST_BEEP
     bool vp_update;  // set from lcm_fw_update_flag() before each poll reply
-    uint8_t vp_power_off;  // poll replies left carrying LCM_VP_FLAG_POWER_OFF
     uint8_t vp_battery;  // battery % from the curve (battery_curve.h), 0xFF = VESC's own
 } LcmData;
 
@@ -162,7 +160,3 @@ void lcm_vp_unpack(LcmData *lcm, const uint32_t words[LCM_VP_EEPROM_WORDS]);
  * Asks the light module for a test beep (VP firmware; needs VP settings).
  */
 void lcm_vp_test_beep(LcmData *lcm);
-
-// Power off from the app (COMMAND_LCM_POWER_OFF): the SLCM runs its normal
-// shutdown, as when holding the button. Refused while running.
-bool lcm_vp_power_off(LcmData *lcm, bool running);

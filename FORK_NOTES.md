@@ -793,6 +793,17 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   backup; Dashboard, Tunes, Data & App), neon buttons, CLOSE pill.
 - lcm.yml: apt install retried with a timeout (a stuck mirror hung runs).
 
+### Power off from the app removed (v1.2.3-rf78)
+- The package is for a working light module, where the button powers the
+  board off, so the app POWER OFF (rf74, kept in rf77 as S5) is gone: it was
+  the only way software could release the board's power. The LEDS tab has no
+  POWER OFF control; COMMAND_LCM_POWER_OFF (130) is accepted and ignored
+  (older apps); the package never sets VP flag bit 6 (lcm_vp_test checks it,
+  idle and riding). SLCM r22's handler stays until the next SLCM build (it
+  only acts on that bit, which nothing sends now).
+- tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
+  min(); added).
+
 ### Safety fixes from Robert's code review, tagged releases (v1.2.3-rf77)
 An independent review of rf74 against stock Refloat (v1.2.3 / v1.3.1) and
 stock ALCM v0.1.1 found these; each was checked against the code first.
