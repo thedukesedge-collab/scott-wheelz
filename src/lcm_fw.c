@@ -9,6 +9,7 @@
 
 #define COMMAND_LCM_FW 128
 #define STAGED_TIMEOUT_S 15.0f  // the LCM must start its bootloader by then
+#define SENDING_TIMEOUT_S 10.0f  // SENDING but no page request for this long: gone
 
 static void put_u32(uint8_t *p, uint32_t v) {
     p[0] = v >> 24;
@@ -188,7 +189,22 @@ void lcm_fw_poll_seen(LcmFw *fw, const Time *time) {
     fw->poll_time = time->now;
 }
 
+bool lcm_fw_blocks_engage(const LcmFw *fw, const Time *time) {
+    if (fw->state == LCM_FW_STAGED && !timer_older(time, fw->staged_time, STAGED_TIMEOUT_S)) {
+        return true;
+    }
+    return bl_active(fw, time);
+}
+
 bool lcm_fw_update_flag(LcmFw *fw, const State *state, const Time *time) {
+    // rf77: SENDING ends with DONE from the bootloader; if that never comes
+    // and the bootloader stopped asking (it went back to the app, or the
+    // board was switched off), don't report SENDING forever
+    if (fw->state == LCM_FW_SENDING && fw->bl_seen &&
+        timer_older(time, fw->bl_seen_time, SENDING_TIMEOUT_S)) {
+        fw->state = LCM_FW_FAILED;
+        fw->error = LCM_FW_ERR_LCM_GAVE_UP;
+    }
     if (fw->state != LCM_FW_STAGED) {
         return false;
     }

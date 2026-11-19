@@ -113,6 +113,13 @@ typedef struct {
     volatile time_t lcm_vp_change_time;
     uint32_t lcm_vp_saved[LCM_VP_EEPROM_WORDS];  // failed saves retried at most 3 times
     bool boot_melody;
+    // rf77 safety: Refloat config changes made while not at rest (e.g. the
+    // app mirroring a light switch mid-ride) are applied in RAM at once and
+    // written to flash once the board is at rest
+    volatile bool cfg_save_pending;
+    // rf77 safety: a flash write is in progress - starting is refused
+    volatile bool flash_busy;
+    time_t start_blocked_beep_timer;
     bool boot_melody_custom;  // play the custom melody at boot
     float boot_melody_volume;
     uint8_t melody_custom[128];  // 64 x (pitch level 0 = rest, length in 20 ms), 0 length = end

@@ -49,6 +49,7 @@ static timer_id_t board_mode_idle_timer_id = INVALID_TIMER_ID;
 // Set while in internal fault because the VESC stopped answering mid-ride;
 // cleared (back to idle) as soon as it answers again
 static bool_t board_mode_comm_lost = false;
+static bool_t board_mode_comm_lost_quiet = false; // comm loss began while not riding
 #endif
 
 // Hysteresis values for RPM and duty cycle
@@ -73,6 +74,7 @@ lcm_status_t board_mode_init(void)
     board_submode = BOARD_SUBMODE_UNDEFINED;
 #ifdef VP_LIGHT_CONTROL
     board_mode_comm_lost = false;
+    board_mode_comm_lost_quiet = false;
 #endif
 
     // Subscribe to events
@@ -144,6 +146,17 @@ board_submode_t board_submode_get(void)
 {
     return board_submode;
 }
+
+#ifdef VP_LIGHT_CONTROL
+/**
+ * @brief true while in the (self-clearing) VESC comm-loss fault that began
+ * while not riding: the buzzer stays silent for it
+ */
+bool_t board_mode_fault_is_quiet(void)
+{
+    return board_mode == BOARD_MODE_FAULT && board_mode_comm_lost && board_mode_comm_lost_quiet;
+}
+#endif
 
 /**
  * @brief Sets the current board mode and submode
@@ -256,11 +269,12 @@ EVENT_HANDLER(board_mode, vesc_alive)
         set_board_mode(BOARD_MODE_IDLE, BOARD_SUBMODE_IDLE_ACTIVE);
     }
 #ifdef VP_LIGHT_CONTROL
-    // VESC answering again after a mid-ride comm loss: clear the fault
+    // VESC answering again after a comm loss: clear the fault
     else if (event == EVENT_VESC_ALIVE && board_mode == BOARD_MODE_FAULT &&
              board_submode == BOARD_SUBMODE_FAULT_INTERNAL && board_mode_comm_lost)
     {
         board_mode_comm_lost = false;
+        board_mode_comm_lost_quiet = false;
         set_board_mode(BOARD_MODE_IDLE, BOARD_SUBMODE_IDLE_ACTIVE);
     }
 #endif
@@ -543,20 +557,19 @@ EVENT_HANDLER(board_mode, fault)
         case EVENT_EMERGENCY_FAULT:
 #ifdef VP_LIGHT_CONTROL
             /*
-             * The VESC stops answering for a few seconds when a package is
-             * installed (flash write, package restart) or the VESC reboots.
-             * That is not an LCM fault: unless riding, keep the current mode
-             * (power stays on) and carry on when it answers again. Mid-ride
-             * it is still a fault (warning), but it clears itself on the
-             * next answer instead of latching until the button kills power.
+             * Lost VESC link. Like stock ALCM this is always a fault, so the
+             * idle shutdown timer is cancelled and the power stays on: with
+             * no data we can't know whether someone steps on and rides.
+             * Unlike stock it is not latched: it clears itself on the next
+             * answer (the VESC goes quiet for a few seconds when a package
+             * is installed or it reboots). When it starts while not riding
+             * it is silent (no fault beeping after every package install);
+             * mid-ride it beeps as a warning.
              */
             if (data->emergency_fault == EMERGENCY_FAULT_VESC_COMM_TIMEOUT)
             {
-                if (board_mode != BOARD_MODE_RIDING)
-                {
-                    break;
-                }
                 board_mode_comm_lost = true;
+                board_mode_comm_lost_quiet = (board_mode != BOARD_MODE_RIDING);
             }
 #endif
             // Intentional fallthrough

@@ -75,5 +75,8 @@ lcm_status_t board_mode_init(void);
  */
 board_mode_t board_mode_get(void);
 board_submode_t board_submode_get(void);
+#ifdef VP_LIGHT_CONTROL
+bool_t board_mode_fault_is_quiet(void);
+#endif
 
 #endif

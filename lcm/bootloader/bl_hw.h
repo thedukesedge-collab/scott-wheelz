@@ -177,6 +177,13 @@ static inline void __attribute__((noreturn)) bl_start_app(void)
     SysTick->CTRL = 0;
     NVIC->ICER[0] = 0xFFFFFFFFu;
     NVIC->ICPR[0] = 0xFFFFFFFFu;
+    /* SysTick / PendSV are system exceptions: NVIC->ICPR doesn't clear them.
+     * A tick left pending by the app's (armed) SysTick when it jumped here
+     * would fire at cpsie i through OUR 8-entry vector table (no SysTick
+     * slot) and run code bytes as a handler. */
+    SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk | SCB_ICSR_PENDSVCLR_Msk;
+    __DSB();
+    __ISB();
     uint32_t sp = *(volatile uint32_t *)0x08000600u;
     uint32_t pc = *(volatile uint32_t *)0x08000604u;
     __asm volatile("cpsie i\n msr msp, %0\n bx %1\n" : : "r"(sp), "r"(pc));

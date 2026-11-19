@@ -39,6 +39,14 @@ void state_engage(State *state) {
     state->stop_condition = STOP_NONE;
 }
 
+// rf77, from upstream v1.3: leaving flywheel mode stops the board first
+void state_flywheel_off(State *state) {
+    if (state->mode == MODE_FLYWHEEL) {
+        state->state = STATE_READY;
+        state->wheelslip = false;
+    }
+}
+
 void state_set_disabled(State *state, bool disabled) {
     if (state->state != STATE_RUNNING && disabled) {
         state->state = STATE_DISABLED;
@@ -73,6 +81,8 @@ uint8_t state_compat(const State *state) {
             return 12;  // FAULT_REVERSE
         case STOP_QUICKSTOP:
             return 13;  // FAULT_QUICKSTOP
+        case STOP_IMU_TIMEOUT:
+            return 11;  // FAULT_STARTUP (no Float equivalent)
         }
         return 11;  // FAULT_STARTUP
     case STATE_RUNNING:

@@ -52,8 +52,11 @@ cut the power to the whole board. So:
   (stock ALCM switches it off and on again a moment later at boot - harmless
   with a finger on the button, not after an update when nobody is);
 - the button still works: **hold 2 s** (after the power-up press is
-  released) to power off, and after **5 minutes** with nothing to do the
-  bootloader releases the power by itself.
+  released) to power off. There is **no timed power-off**: the VESC balances
+  without the LCM, so the bootloader can't know nobody is riding, and power
+  is only ever released by the button. The VP package refuses to engage
+  while the bootloader is asking for pages (lights dark + board won't start =
+  finish the update from the app, or hold the button to power off).
 
 ## Fail-safe
 

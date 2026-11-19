@@ -16,7 +16,10 @@
 
 extern uint8_t sim_flash[SIM_FLASH_SIZE];
 extern jmp_buf sim_exit;
-enum { SIM_RUNNING = 0, SIM_POWER_CUT, SIM_POWER_OFF, SIM_APP_STARTED };
+enum { SIM_RUNNING = 0, SIM_POWER_CUT, SIM_POWER_OFF, SIM_APP_STARTED, SIM_STILL_ON };
+/* the tests stop a bootloader that is (correctly) still waiting with the
+ * power held after this much simulated time: there is no timed power-off */
+#define SIM_STILL_ON_MS (30L * 60L * 1000L)
 
 extern int sim_power;  /* PA2 latch */
 extern long sim_flash_ops, sim_cut_at; /* power cut when ops reach cut_at (-1 = never) */

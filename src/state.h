@@ -40,7 +40,8 @@ typedef enum {
     STOP_SWITCH_HALF = 3,
     STOP_SWITCH_FULL = 4,
     STOP_REVERSE_STOP = 5,
-    STOP_QUICKSTOP = 6
+    STOP_QUICKSTOP = 6,
+    STOP_IMU_TIMEOUT = 7  // rf77: ported from upstream v1.3
 } StopCondition;
 
 // leaving gaps for more states inbetween the different "classes" of the types
@@ -72,6 +73,8 @@ void state_init(State *state);
 void state_stop(State *state, StopCondition stop_condition);
 
 void state_engage(State *state);
+
+void state_flywheel_off(State *state);
 
 void state_set_disabled(State *state, bool disabled);
 

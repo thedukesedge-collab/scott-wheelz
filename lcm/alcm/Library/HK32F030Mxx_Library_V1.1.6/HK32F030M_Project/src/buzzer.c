@@ -260,6 +260,15 @@ EVENT_HANDLER(buzzer, board_mode)
         }
         break;
     case BOARD_MODE_FAULT:
+#ifdef VP_LIGHT_CONTROL
+        if (board_mode_fault_is_quiet())
+        {
+            // Lost VESC link while not riding (package install, VESC
+            // reboot): a fault, but a silent one - it clears itself
+            buzzer_reset_sequence();
+        }
+        else
+#endif
         if (data->board_mode.submode == BOARD_SUBMODE_FAULT_INTERNAL)
         {
             // Play the fault sequence on internal fault

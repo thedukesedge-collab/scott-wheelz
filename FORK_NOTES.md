@@ -793,6 +793,50 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   backup; Dashboard, Tunes, Data & App), neon buttons, CLOSE pill.
 - lcm.yml: apt install retried with a timeout (a stuck mirror hung runs).
 
+### Safety fixes from Robert's code review, tagged releases (v1.2.3-rf77)
+An independent review of rf74 against stock Refloat (v1.2.3 / v1.3.1) and
+stock ALCM v0.1.1 found these; each was checked against the code first.
+- S1 (critical) LCM bootloader: the 5-minute idle power-off is GONE. The
+  LCM holds the board's power latch and the VESC balances without it, so the
+  bootloader can't know nobody is riding; an update interrupted after the
+  erase would boot into it every time and cut power 5 min later, mid-ride.
+  Power is now only released by a 2 s button hold.
+- S2: the package refuses to START (pads, push-start) while an LCM update is
+  staged or a bootloader asked for a page in the last 5 s (update running,
+  or an LCM stuck in its bootloader), and beeps 3x every 2 s if you try.
+  SENDING times out after 10 s of silence instead of staying forever. These
+  checks are start-only (not in can_engage, which also runs mid-ride).
+- S3 SLCM: a lost VESC link is a fault again in every mode, as in stock ALCM
+  (idle shutdown cancelled, power stays on), but it clears itself on the
+  next answer and is silent when it began while not riding - no beeping
+  after package installs, no idle countdown on stale data.
+- S4: SysTick stopped and its pending bit cleared (ICSR.PENDSTCLR) on the
+  way into the bootloader and back - NVIC->ICPR doesn't clear system
+  exceptions, a stale tick could vector through the bootloader's 8-entry
+  table into code bytes and hang the LCM with power latched.
+- P1/P7: every flash write (Refloat config, horn, lights, battery curve,
+  odometer) goes through flash_begin(): only at rest (not running, footpads
+  off, wheel still), and starting is blocked while it runs (flash_busy). A
+  config write that arrives while riding (the LEDS tab mirrors lights into
+  the Refloat config 1.5 s after a change) is applied in RAM at once and
+  saved after you step off (cfg_save_if_due; not in flywheel mode). Aux
+  thread stack 1024 -> 1536 bytes, as upstream v1.3.
+- P3: light-control packet clamped as upstream v1.3 (brightness <= 100,
+  payload <= 64 bytes - payload_size sits right after the array).
+- P4: IMU timeout watchdog ported from upstream v1.3: the IMU read callback
+  stamps each sample; no data for 0.1 s while riding stops the board
+  (STOP_IMU_TIMEOUT, "IMU Timeout" in the UI, 3 long beeps); starting waits
+  0.2 s after the data resumes.
+- P5: flywheel off stops the board before the mode change
+  (state_flywheel_off, upstream v1.3); lisp/bms.lisp is upstream v1.3.1's
+  (errors trapped and printed, temp sensor count checked).
+- E1: riders only get tagged releases (see RELEASING.md). Main pushes
+  publish "dev-build" / "lcm-dev" pre-releases (bench testing only); the old
+  "latest-build" is retired. A tag v<version> publishes the rider release
+  (kept, marked Latest) and refreshes lcm-latest.
+- Not changed: S5 (power off from the app) - kept on purpose, idle-only on
+  both ends.
+
 ### SLCM.hex (v1.2.3-rf76)
 - The ST-Link file on the lcm-latest release is now SLCM.hex (built as
   ALCM_VP_BL_full.hex, bootloader + app; the old asset name is removed from

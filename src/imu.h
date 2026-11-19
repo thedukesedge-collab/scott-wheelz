@@ -19,6 +19,7 @@
 
 #include "balance_filter.h"
 #include "state.h"
+#include "time.h"
 
 typedef struct {
     float pitch;
@@ -29,9 +30,30 @@ typedef struct {
 
     float flywheel_pitch_offset;
     float flywheel_roll_offset;
+
+    // rf77: IMU data timeout (ported from upstream v1.3). data_timer is
+    // refreshed by the firmware's IMU read callback (imu_data_received).
+    volatile time_t data_timer;  // written by the IMU thread, read by the main loop
+    time_t timeout_timer;
+    bool timeout;
 } IMU;
 
-void imu_init(IMU *imu);
+void imu_init(IMU *imu, const Time *time);
+
+// Called from the firmware's IMU read callback: fresh data arrived.
+void imu_data_received(IMU *imu, const Time *time);
+
+/**
+ * Checks for an IMU data timeout, storing the state on the IMU object. To be
+ * called periodically from the main loop. Returns true while timed out.
+ */
+bool imu_check_timeout(IMU *imu, const Time *time);
+
+/**
+ * True when the IMU data is flowing and has been for long enough for the
+ * filter to reconverge from its stale pre-timeout state.
+ */
+bool imu_data_settled(const IMU *imu, const Time *time);
 
 void imu_update(IMU *imu, const BalanceFilterData *bf, const State *state);
 

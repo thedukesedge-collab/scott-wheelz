@@ -758,6 +758,11 @@ static void vp_enter_bootloader(void)
     __disable_irq();
     headlights_hw_set_brightness(0U);
     buzzer_off();
+    // Stop our 1 ms tick and drop a tick that may already be pending: the
+    // bootloader's vector table has no SysTick slot (it also clears the
+    // pending bit before handing back, this is the first line of defence)
+    SysTick->CTRL = 0U;
+    SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk;
     ((void (*)(void))entry)();
 }
 #endif

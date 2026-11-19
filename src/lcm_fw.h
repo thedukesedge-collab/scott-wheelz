@@ -91,6 +91,12 @@ void lcm_fw_command(
 // running). Also times out a staged update the LCM never picks up.
 bool lcm_fw_update_flag(LcmFw *fw, const State *state, const Time *time);
 
+// rf77 safety: true while the board must not start - an update is staged
+// (the LCM is about to hand over to its bootloader) or a bootloader asked
+// for a page in the last few seconds (update running, or an LCM stuck in its
+// bootloader after an interrupted update). Read-only, for the balance thread.
+bool lcm_fw_blocks_engage(const LcmFw *fw, const Time *time);
+
 // An LCM poll arrived (for the STATUS "polling" flag: tells "no LCM talking"
 // apart from "an LCM without a name").
 void lcm_fw_poll_seen(LcmFw *fw, const Time *time);

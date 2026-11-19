@@ -501,6 +501,13 @@ Item {
 
         function toConfig() {
             if (!cfgReady()) return;
+            // rf77 safety: never mirror into the Refloat config (a config
+            // write) while riding - try again once the board is stopped (the
+            // package also defers the flash write until it's at rest)
+            if (mainItem.boardRunning) {
+                ledCfgWriteTimer.restart();
+                return;
+            }
             var c = packageConfig.pkgConfig;
             var dirty = false;
             if (c.getParamBool("leds.headlights_on") !== swSettings.ledHeadlights) {
@@ -2975,6 +2982,7 @@ Item {
         readonly property int sc_SensorFull: 4
         readonly property int sc_ReverseStop: 5
         readonly property int sc_Quickstop: 6
+        readonly property int sc_ImuTimeout: 7
 
         readonly property var stopConditionToString: new Map([
             [sc_None, ""],
@@ -2984,6 +2992,7 @@ Item {
             [sc_SensorFull, "Sensor Full"],
             [sc_ReverseStop, "Reverse Stop"],
             [sc_Quickstop, "Quickstop"],
+            [sc_ImuTimeout, "IMU Timeout"],
         ])
 
         property int stopCondition: sc_None

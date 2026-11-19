@@ -152,10 +152,9 @@ int bl_tick_ms(void)
     sim_ms++;
     sim_button = sim_button_from >= 0 && sim_ms >= sim_button_from &&
                  (sim_button_to < 0 || sim_ms < sim_button_to);
-    if (sim_ms > 3600000)
+    if (sim_ms >= SIM_STILL_ON_MS)
     {
-        printf("FAIL: bootloader ran for an hour of simulated time\n");
-        exit(1);
+        longjmp(sim_exit, sim_power ? SIM_STILL_ON : SIM_POWER_OFF);
     }
     return 1;
 }
@@ -439,14 +438,15 @@ static void test_corrupt_page(void)
     check_protected_areas();
 
     /* a page that is always bad: never a valid app; after 3 bad images no
-     * more writing, and the board powers off after 5 idle minutes */
+     * more writing, and the power stays on (no timed power-off: the
+     * package refuses to engage while the bootloader is asking for pages) */
     flash_reset();
     install(img_a, size_a);
     pkg_corrupt_offset = 3 * PAGE;
     pkg_corrupt_times = -1;
     sim_flash_ops = 0;
     int r = from_app();
-    assert(r == SIM_POWER_OFF && !bl_app_valid());
+    assert(r == SIM_STILL_ON && sim_power && !bl_app_valid());
     assert(sim_flash_ops < 4 * (1 + 120 * 65)); /* about 3 images' worth of writes */
     pkg_corrupt_offset = -1;
     printf("ok  corrupted page: CRC caught, no app until a good image arrives\n");
@@ -458,7 +458,7 @@ static void test_wrong_address_image(void)
     install(img_a, size_a);
     stage(img_bad, size_bad); /* linked for 0x08000000: reset vector below the app */
     int r = from_app();
-    assert(r == SIM_POWER_OFF && !bl_app_valid());
+    assert(r == SIM_STILL_ON && sim_power && !bl_app_valid());
     check_protected_areas();
     printf("ok  image linked for the wrong address is never started\n");
 }
@@ -476,10 +476,11 @@ static void test_button_power_off_2(void)
     pkg_present = 1;
     if ((r = setjmp(sim_exit)) == 0)
     {
-        /* after the release at 10 s, nothing else: idle power-off at 5 min */
+        /* after the release at 10 s, nothing else: the power stays on
+         * (never a timed power-off - someone may be riding) */
         bl_updater(0);
     }
-    assert(r == SIM_POWER_OFF && sim_ms >= 300000);
+    assert(r == SIM_STILL_ON && sim_power && sim_ms >= SIM_STILL_ON_MS);
 
     /* release, then hold for 2 s: power off */
     sim_reset_runtime();
@@ -490,8 +491,8 @@ static void test_button_power_off_2(void)
     {
         bl_updater(0);
     }
-    /* first press released at 300 ms, never pressed again: idle off */
-    assert(r == SIM_POWER_OFF);
+    /* first press released at 300 ms, never pressed again: still on */
+    assert(r == SIM_STILL_ON && sim_power);
 
     sim_reset_runtime();
     sim_button = 0;
@@ -503,7 +504,7 @@ static void test_button_power_off_2(void)
     }
     if (!(r == SIM_POWER_OFF && sim_ms >= 6990 && sim_ms < 7100)) printf("r=%d ms=%ld\n", r, sim_ms);
     assert(r == SIM_POWER_OFF && sim_ms >= 6990 && sim_ms < 7100);
-    printf("ok  button: power-up press ignored, 2 s hold powers off; idle off at 5 min\n");
+    printf("ok  button: power-up press ignored, 2 s hold powers off; no timed power-off\n");
 }
 
 int main(void)

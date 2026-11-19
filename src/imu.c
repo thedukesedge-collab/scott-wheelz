@@ -21,7 +21,16 @@
 
 #include "vesc_c_if.h"
 
-void imu_init(IMU *imu) {
+// rf77, ported from upstream v1.3: if no IMU data arrives for this long [s],
+// the IMU is considered dead. Reconfiguring the IMU can cause data gaps
+// longer than this, so the timeout is also expected on an App config write.
+#define IMU_TIMEOUT 0.1f
+// After the data resumes, the attitude filter needs time to reconverge from
+// its stale pre-timeout state: only consider the data settled after this
+// long [s] out of the timeout.
+#define IMU_RECOVERY_GRACE 0.2f
+
+void imu_init(IMU *imu, const Time *time) {
     imu->pitch = 0.0f;
     imu->balance_pitch = 0.0f;
     imu->roll = 0.0f;
@@ -30,6 +39,26 @@ void imu_init(IMU *imu) {
 
     imu->flywheel_pitch_offset = 0.0f;
     imu->flywheel_roll_offset = 0.0f;
+
+    imu->data_timer = time->now;
+    timer_refresh(time, &imu->timeout_timer);
+    imu->timeout = false;
+}
+
+void imu_data_received(IMU *imu, const Time *time) {
+    imu->data_timer = time->now;
+}
+
+bool imu_check_timeout(IMU *imu, const Time *time) {
+    imu->timeout = timer_older(time, imu->data_timer, IMU_TIMEOUT);
+    if (imu->timeout) {
+        timer_refresh(time, &imu->timeout_timer);
+    }
+    return imu->timeout;
+}
+
+bool imu_data_settled(const IMU *imu, const Time *time) {
+    return !imu->timeout && timer_older(time, imu->timeout_timer, IMU_RECOVERY_GRACE);
 }
 
 void imu_update(IMU *imu, const BalanceFilterData *bf, const State *state) {

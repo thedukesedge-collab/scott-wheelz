@@ -1,12 +1,16 @@
 # LCM firmware (lcm/alcm): build the .hex with arm-none-eabi-gcc (VP and
 # stock), check it fits below the battery LUT block, run ALCM's unit tests
-# (stock + VP builds), and publish ALCM_VP.hex to the "lcm-latest" release.
+# (stock + VP builds). Main builds go to the "lcm-dev" release (bench
+# testing only); a version tag (v1.2.3-rfNN) publishes the rider files to
+# that release AND to "lcm-latest", which the app points riders to.
 name: LCM firmware
 
 on:
   push:
     branches: [main, 'lcm-*']
     paths: ['lcm/**', '.github/workflows/lcm.yml']
+    # rider releases (E1): tags aren't filtered by paths
+    tags: ['v*']
   workflow_dispatch:
 
 jobs:
@@ -78,17 +82,44 @@ jobs:
             lcm/bootloader/build/*
           if-no-files-found: ignore
 
-      - name: Publish ALCM_VP.hex
+      - name: Publish LCM dev build (main, bench testing only)
         if: success() && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           F=lcm/alcm/gcc/build
-          gh release view lcm-latest >/dev/null 2>&1 || gh release create lcm-latest --prerelease \
-            --title "LCM firmware (ALCM VP)" --notes "ALCM with VP light control." --target "$GITHUB_SHA"
-          # the rider-facing file is SLCM.hex (= ALCM_VP_BL_full.hex, bootloader + app)
           cp $F/ALCM_VP_BL_full.hex $F/SLCM.hex
-          gh release edit lcm-latest --notes "SLCM (ALCM v0.1.1 + VP light control), built from ${GITHUB_SHA::7}. SLCM.hex = bootloader + light firmware: flash ONCE with the ST-Link (battery disconnected), after that update from the app (LEDS > LCM firmware tools). ALCM_VP.hex = the same light firmware without the bootloader (ST-Link only, not recommended). ALCM_VP_app.bin = the update image. See lcm/bootloader/README.md."
+          gh release delete lcm-dev --yes --cleanup-tag || true
+          gh release create lcm-dev $F/SLCM.hex $F/ALCM_VP.hex $F/ALCM_VP_app.bin \
+            --prerelease --latest=false --target "$GITHUB_SHA" \
+            --title "DEV LCM firmware (${GITHUB_SHA::7}) - bench testing only, NOT for riding" \
+            --notes "Untested SLCM build from ${GITHUB_SHA::7}. Riders: use SLCM.hex from the lcm-latest release."
+
+      - name: Publish LCM rider release (tag v<version>)
+        if: success() && startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VER="$(cat version)"
+          if [ "$TAG" != "v$VER" ]; then
+            echo "Tag $TAG doesn't match the version file (v$VER): not publishing."
+            exit 1
+          fi
+          F=lcm/alcm/gcc/build
+          cp $F/ALCM_VP_BL_full.hex $F/SLCM.hex
+          # the version release (ci.yml adds the .vescpkg; whichever comes first creates it)
+          for i in 1 2 3 4 5; do
+            gh release view "$TAG" >/dev/null 2>&1 || \
+              gh release create "$TAG" --verify-tag \
+                --title "Re-Float Rink-Mixed $VER" \
+                --notes-file tools/release_notes.md && break
+            sleep 15
+          done
+          gh release upload "$TAG" $F/SLCM.hex $F/ALCM_VP_app.bin --clobber
+          # lcm-latest (linked from the app) = the SLCM of the latest rider release
+          gh release view lcm-latest >/dev/null 2>&1 || gh release create lcm-latest --prerelease --latest=false \
+            --title "LCM firmware (SLCM)" --notes "SLCM" --target "$GITHUB_SHA"
+          gh release edit lcm-latest --notes "SLCM (ALCM v0.1.1 + VP light control) from Re-Float Rink-Mixed $VER (${GITHUB_SHA::7}). SLCM.hex = bootloader + light firmware: flash ONCE with the ST-Link (battery disconnected), after that update from the app (LEDS > LCM firmware tools). ALCM_VP.hex = the same light firmware without the bootloader (ST-Link only, not recommended). ALCM_VP_app.bin = the update image. See lcm/bootloader/README.md."
           gh release upload lcm-latest $F/ALCM_VP.hex $F/SLCM.hex $F/ALCM_VP_app.bin --clobber
-          # retire the old name so there's one file to pick
           gh release delete-asset lcm-latest ALCM_VP_BL_full.hex -y 2>/dev/null || true

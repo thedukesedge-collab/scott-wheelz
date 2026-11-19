@@ -185,10 +185,9 @@ int bl_tick_ms(void)
     sim_ms++;
     tm.now += SYSTEM_TICK_RATE_HZ / 1000;
     phone_tick();
-    if (sim_ms > 3600000)
+    if (sim_ms >= SIM_STILL_ON_MS)
     {
-        printf("FAIL: an hour of simulated time\n");
-        exit(1);
+        longjmp(sim_exit, sim_power ? SIM_STILL_ON : SIM_POWER_OFF);
     }
     return 1;
 }
@@ -293,13 +292,18 @@ int main(void)
     lcm_fw_init(&fw);
     st.state = STATE_READY;
     img = img_b, img_size = size_b;
+    assert(!lcm_fw_blocks_engage(&fw, &tm)); /* nothing going on: may start */
     phone_start();
     assert(fw.state == LCM_FW_STAGED && lcm_fw_update_flag(&fw, &st, &tm));
+    assert(lcm_fw_blocks_engage(&fw, &tm)); /* staged: no starting */
     st.state = STATE_RUNNING;
     assert(!lcm_fw_update_flag(&fw, &st, &tm)); /* never while running */
     st.state = STATE_READY;
     assert(app_sees_flag_and_updates() == SIM_APP_STARTED);
     assert(app_is(img_b, size_b) && fw.state == LCM_FW_OK && !lcm_fw_update_flag(&fw, &st, &tm));
+    assert(lcm_fw_blocks_engage(&fw, &tm)); /* bootloader asked moments ago */
+    tm.now += 6 * SYSTEM_TICK_RATE_HZ;
+    assert(!lcm_fw_blocks_engage(&fw, &tm)); /* a few seconds later: free again */
     printf("ok  phone -> package -> bootloader: %u bytes in %ld ms simulated, %d pages sent\n", size_b,
            sim_ms, pages_sent);
 
@@ -314,6 +318,7 @@ int main(void)
     lcm_fw_init(&fw);
     phone_start();
     tm.now += 16 * SYSTEM_TICK_RATE_HZ;
+    assert(!lcm_fw_blocks_engage(&fw, &tm)); /* staged timed out: may start */
     assert(!lcm_fw_update_flag(&fw, &st, &tm) && fw.state == LCM_FW_FAILED &&
            fw.error == LCM_FW_ERR_NO_BOOTLOADER);
     printf("ok  LCM named VPBL but never asks: NO_BOOTLOADER after 15 s\n");
@@ -349,7 +354,16 @@ int main(void)
             bl_updater(1);
             bl_start_app();
         }
-        assert(r == SIM_POWER_OFF); /* nothing for 5 min: power released */
+        assert(r == SIM_STILL_ON && sim_power); /* power held, waiting */
+        /* the bootloader keeps asking: the board refuses to start */
+        assert(fw.state == LCM_FW_SENDING && lcm_fw_blocks_engage(&fw, &tm));
+        /* (bootloader gone silent, e.g. switched off: SENDING times out) */
+        LcmFw saved = fw;
+        tm.now += 11 * SYSTEM_TICK_RATE_HZ;
+        assert(!lcm_fw_blocks_engage(&fw, &tm));
+        lcm_fw_update_flag(&fw, &st, &tm);
+        assert(fw.state == LCM_FW_FAILED && fw.error == LCM_FW_ERR_LCM_GAVE_UP);
+        fw = saved;
     }
     assert(!bl_app_valid());
     /* power-up: package restarted too (fresh state, and no app on the LCM to

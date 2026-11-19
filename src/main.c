@@ -323,6 +323,14 @@ static float get_setpoint_adjustment_step_size(Data *d) {
     }
 }
 
+// rf77 safety: extra conditions for STARTING only. Not part of can_engage(),
+// which is also checked while riding (half-switch fault): these must never
+// stop a running board.
+static bool start_is_blocked(const Data *d) {
+    return d->flash_busy || lcm_fw_blocks_engage(&d->lcm_fw, &d->time) ||
+        !imu_data_settled(&d->imu, &d->time);  // rf77, as upstream v1.3
+}
+
 bool can_engage(const Data *d) {
     if (d->state.charging) {
         return false;
@@ -760,6 +768,7 @@ static void imu_ref_callback(float *acc, float *gyro, float *mag, float dt) {
 
     Data *d = (Data *) ARG;
     balance_filter_update(&d->balance_filter, gyro, acc, dt);
+    imu_data_received(&d->imu, &d->time);  // rf77: IMU timeout watchdog
 }
 
 static void refloat_thd(void *arg) {
@@ -835,6 +844,28 @@ static void refloat_thd(void *arg) {
         bms_update(&d->bms, &d->float_conf.bms, &d->time);
 
         motor_data_evaluate_alerts(&d->motor, &d->alert_tracker, &d->time);
+
+        // rf77, ported from upstream v1.3: IMU timeout watchdog. If the IMU
+        // data stops (sensor or bus hung), pitch and pitch rate freeze at
+        // their last values and the loop would keep commanding the same
+        // current (which also keeps feeding the firmware's own timeout).
+        // Stop instead, and tell the rider.
+        // (Short gaps while not riding are normal - e.g. an App config write
+        // reconfigures the IMU - so it only beeps when it stops a ride;
+        // starting waits until the data has settled, see start_is_blocked.)
+        bool imu_was_timed_out = d->imu.timeout;
+        if (imu_check_timeout(&d->imu, &d->time)) {
+            if (d->state.state == STATE_RUNNING) {
+                state_stop(&d->state, STOP_IMU_TIMEOUT);
+                data_recorder_trigger(&d->data_record, false);
+                d->beep_reason = BEEP_ERROR;
+                beep_alert(d, 3, 1);
+            }
+            if (!imu_was_timed_out && d->state.state != STATE_STARTUP) {
+                log_error("IMU data timeout.");
+            }
+        }
+
         alert_tracker_finalize(&d->alert_tracker, &d->time);
         if (alert_tracker_is_alert_active(&d->alert_tracker, ALERT_FW_FAULT)) {
             d->beep_reason = BEEP_FW_FAULT;
@@ -1057,9 +1088,20 @@ static void refloat_thd(void *arg) {
                 d->startup_pitch_tolerance = d->float_conf.startup_pitch_tolerance;
             }
 
+            // rf77 safety: no starting during a flash write or while the
+            // light module is updating / in its bootloader (it holds the
+            // board's power latch); beep if someone tries
+            bool start_blocked = start_is_blocked(d);
+            if (start_blocked && d->footpad.state == FS_BOTH &&
+                timer_older(&d->time, d->start_blocked_beep_timer, 2)) {
+                timer_refresh(&d->time, &d->start_blocked_beep_timer);
+                beep_alert(d, 3, 0);
+            }
+
             // Check for valid startup position and switch state
             if (fabsf(d->imu.balance_pitch) < d->startup_pitch_tolerance &&
-                fabsf(d->imu.roll) < d->float_conf.startup_roll_tolerance && can_engage(d)) {
+                fabsf(d->imu.roll) < d->float_conf.startup_roll_tolerance && can_engage(d) &&
+                !start_blocked) {
                 engage(d);
                 break;
             }
@@ -1082,7 +1124,7 @@ static void refloat_thd(void *arg) {
             }
             // Push-start aka dirty landing Part II
             if (d->float_conf.startup_pushstart_enabled && d->motor.abs_erpm > 1000 &&
-                can_engage(d)) {
+                can_engage(d) && !start_blocked) {
                 if ((fabsf(d->imu.balance_pitch) < 45) && (fabsf(d->imu.roll) < 45)) {
                     // 45 to prevent board engaging when upright or laying sideways
                     // 45 degree tolerance is more than plenty for tricks / extreme mounts
@@ -1118,11 +1160,53 @@ static void refloat_thd(void *arg) {
 #define SERIALIZED_CONFIG_LENGTH 320
 #endif
 
+// rf75/rf77 safety: a flash write can stall the CPU (an EEPROM page
+// transfer erases a flash sector), so the package writes flash only with
+// the board fully at rest - not running, nobody on the footpads, wheel
+// still - and blocks starting while a write is in progress (flash_busy,
+// checked by start_is_blocked). Every flash write goes through
+// flash_begin(), and all of them run on the aux thread (one writer).
+static bool can_save_settings(const Data *d) {
+    return d->state.state != STATE_RUNNING && d->footpad.state == FS_NONE &&
+        d->motor.abs_erpm < 100.0f;
+}
+
+static bool flash_begin(Data *d) {
+    if (!can_save_settings(d)) {
+        return false;
+    }
+    d->flash_busy = true;
+    // re-check after raising the flag: the balance thread may have engaged
+    // between the first check and the flag (it can't from here on)
+    if (!can_save_settings(d)) {
+        d->flash_busy = false;
+        return false;
+    }
+    return true;
+}
+
+static void flash_end(Data *d) {
+    d->flash_busy = false;
+}
+
+// rf77: called by the command handlers (Refloat Cfg write, CFG_SAVE, lock).
+// The config is already live in RAM; the aux thread writes it to flash as
+// soon as the board is at rest (cfg_save_if_due) - right away when it is.
 static void write_cfg_to_eeprom(Data *d) {
+    d->cfg_save_pending = true;
+}
+
+// Aux thread only (cfg_save_if_due).
+static void cfg_write_now(Data *d) {
+    if (!flash_begin(d)) {
+        return;  // still pending, tried again on the next aux pass
+    }
+    d->cfg_save_pending = false;
     const size_t words = (SERIALIZED_CONFIG_LENGTH - 1) / 4 + 1;
     const size_t bufsize = words * 4;
     uint32_t *buffer = VESC_IF->malloc(bufsize);
     if (!buffer) {
+        flash_end(d);
         log_error("Failed to write config: Out of memory.");
         return;
     }
@@ -1130,6 +1214,7 @@ static void write_cfg_to_eeprom(Data *d) {
 
     uint32_t written_bytes = confparser_serialize_refloatconfig((uint8_t *) buffer, &d->float_conf);
     if (written_bytes > bufsize) {
+        flash_end(d);
         log_error("Config write buffer overflow, terminating.");
         fatal_error_terminate();
     }
@@ -1145,6 +1230,7 @@ static void write_cfg_to_eeprom(Data *d) {
     }
 
     VESC_IF->free(buffer);
+    flash_end(d);
 
     if (write_ok) {
         log_msg("Config written: %uB", written_bytes);
@@ -1158,14 +1244,17 @@ static void write_cfg_to_eeprom(Data *d) {
 static __attribute__((noinline)) void horn_settings_save_if_due(Data *d);
 static __attribute__((noinline)) void lcm_vp_save_if_due(Data *d);
 
-// rf75 safety: a flash write stalls the CPU for a moment, so the package's
-// own settings are only written with the board fully at rest - not running,
-// nobody on the footpads, wheel still (stricter than upstream's config save)
-static bool can_save_settings(const Data *d) {
-    return d->state.state != STATE_RUNNING && d->footpad.state == FS_NONE &&
-        d->motor.abs_erpm < 100.0f;
-}
 static __attribute__((noinline)) void battery_curve_save_if_due(Data *d);
+
+// rf77: a requested Refloat config write (see write_cfg_to_eeprom), done
+// once the board is at rest. Not in flywheel mode: that runs on a temporary
+// config (leaving it reloads the config from flash, which drops the request's
+// RAM changes - the same as upstream's flywheel_stop).
+static __attribute__((noinline)) void cfg_save_if_due(Data *d) {
+    if (d->cfg_save_pending && d->state.mode == MODE_NORMAL) {
+        cfg_write_now(d);
+    }
+}
 
 static void aux_thd(void *arg) {
     Data *d = (Data *) arg;
@@ -1180,11 +1269,14 @@ static void aux_thd(void *arg) {
         leds_update(&d->leds, &d->state, d->footpad.state);
 
         // store odometer if we've gone more than 200m
-        if (d->state.state != STATE_RUNNING && VESC_IF->mc_get_odometer() > d->odometer + 200) {
+        if (d->state.state != STATE_RUNNING && VESC_IF->mc_get_odometer() > d->odometer + 200 &&
+            flash_begin(d)) {
             VESC_IF->store_backup_data();
             d->odometer = VESC_IF->mc_get_odometer();
+            flash_end(d);
         }
 
+        cfg_save_if_due(d);
         horn_settings_save_if_due(d);
         lcm_vp_save_if_due(d);
         battery_curve_save_if_due(d);
@@ -1366,8 +1458,8 @@ static void lcm_vp_load(Data *d) {
 }
 
 static __attribute__((noinline)) void lcm_vp_save_if_due(Data *d) {
-    if (!d->lcm_vp_save_pending || !can_save_settings(d) ||
-        !timer_older(&d->time, d->lcm_vp_change_time, 2.0f)) {
+    if (!d->lcm_vp_save_pending || !timer_older(&d->time, d->lcm_vp_change_time, 2.0f) ||
+        !flash_begin(d)) {
         return;
     }
     d->lcm_vp_save_pending = false;
@@ -1378,11 +1470,12 @@ static __attribute__((noinline)) void lcm_vp_save_if_due(Data *d) {
             eeprom_var v = {.as_u32 = w[i]};
             if (!VESC_IF->store_eeprom_var(&v, lcm_vp_eeprom_addr(i))) {
                 log_error("Failed to save light module settings.");
-                return;
+                break;
             }
             d->lcm_vp_saved[i] = w[i];
         }
     }
+    flash_end(d);
 }
 
 // Re-Float Rink-Mixed: battery curve in 4 custom EEPROM words (84-87),
@@ -1404,8 +1497,8 @@ static void battery_curve_load(Data *d) {
 }
 
 static __attribute__((noinline)) void battery_curve_save_if_due(Data *d) {
-    if (!d->battery_save_pending || !can_save_settings(d) ||
-        !timer_older(&d->time, d->battery_change_time, 2.0f)) {
+    if (!d->battery_save_pending || !timer_older(&d->time, d->battery_change_time, 2.0f) ||
+        !flash_begin(d)) {
         return;
     }
     d->battery_save_pending = false;
@@ -1418,11 +1511,12 @@ static __attribute__((noinline)) void battery_curve_save_if_due(Data *d) {
             eeprom_var v = {.as_u32 = w[i]};
             if (!VESC_IF->store_eeprom_var(&v, BATTERY_EEPROM_ADDR + i)) {
                 log_error("Failed to save the battery curve.");
-                return;
+                break;
             }
             d->battery_saved[i] = w[i];
         }
     }
+    flash_end(d);
 }
 
 static int battery_cells(void) {
@@ -1451,8 +1545,8 @@ static void battery_curve_reply(Data *d) {
 }
 
 static __attribute__((noinline)) void horn_settings_save_if_due(Data *d) {
-    if (!d->horn_save_pending || !can_save_settings(d) ||
-        !timer_older(&d->time, d->horn_change_time, 2.0f)) {
+    if (!d->horn_save_pending || !timer_older(&d->time, d->horn_change_time, 2.0f) ||
+        !flash_begin(d)) {
         return;
     }
     // rf75: written straight from horn_pending (no 136-byte copy on the aux
@@ -1473,6 +1567,7 @@ static __attribute__((noinline)) void horn_settings_save_if_due(Data *d) {
             }
         }
     }
+    flash_end(d);
     if (ok) {
         d->horn_save_retries = 0;
     } else {
@@ -1496,7 +1591,7 @@ static void data_init(Data *d) {
 
     time_init(&d->time);
     motor_data_init(&d->motor);
-    imu_init(&d->imu);
+    imu_init(&d->imu, &d->time);
     pid_init(&d->pid);
     motor_control_init(&d->motor_control);
 
@@ -2155,7 +2250,15 @@ static void cmd_flywheel_toggle(Data *d, unsigned char *cfg, int len) {
     // Optional:
     // cfg[6]: Duty TB Speed in deg/sec
     int command = cfg[0] & 0x7F;
-    d->state.mode = command == 0 ? MODE_NORMAL : MODE_FLYWHEEL;
+    if (command == 0) {
+        // rf77, as upstream v1.3: stop BEFORE the mode change, so the PID
+        // never runs with the flywheel pitch offset gone (board RUNNING in
+        // normal mode at a wrong pitch)
+        state_flywheel_off(&d->state);
+        flywheel_stop(d);
+        return;
+    }
+    d->state.mode = MODE_FLYWHEEL;
     if (d->state.mode == MODE_FLYWHEEL) {
         if (d->imu.flywheel_pitch_offset == 0 || command == 2) {
             // accidental button press?? board isn't evn close to being upright
@@ -2973,7 +3076,8 @@ INIT_FUN(lib_info *info) {
         return false;
     }
 
-    d->aux_thread = VESC_IF->spawn(aux_thd, 1024, PACKAGE_NAME " Aux", d);
+    d->aux_thread =
+        VESC_IF->spawn(aux_thd, 1536, PACKAGE_NAME " Aux", d);  // rf77: 1536 as upstream v1.3
     if (!d->aux_thread) {
         log_error("Failed to spawn " PACKAGE_NAME " Auxiliary thread.");
         VESC_IF->request_terminate(d->main_thread);

@@ -15,8 +15,10 @@
  * POWER: the LCM only stays powered while it drives PA2 (PWR_EN) high - the
  * button press powers it up, PA2 latches it. A chip reset would let go of
  * PA2, so nothing here ever resets the chip: we only jump. PA2 is driven
- * high before anything else in update mode and only released on purpose
- * (button held 2 s, or 5 minutes with nothing to do).
+ * high before anything else in update mode and only released on purpose:
+ * the button held 2 s. There is no timed power-off: we can't tell whether
+ * someone is riding (the VESC balances without us), so power is never
+ * dropped on a timer. The VP package refuses to engage while it hears us.
  *
  * Normal power-up: if the application looks valid, jump to it at once with
  * nothing touched, so the app starts exactly as it did without us.
@@ -70,7 +72,6 @@
 #define REQUEST_TIMEOUT_MS 300u
 #define RETRY_MS 20u           /* page not there yet: ask again this much later */
 #define GIVE_UP_MS 20000u      /* from the app, nothing staged: back to the app */
-#define POWER_OFF_MS 300000u   /* nothing to do for 5 min: release the power */
 #define BUTTON_OFF_MS 2000u    /* button held 2 s (after a release): power off */
 #define MAX_FAILS 3u           /* whole-image CRC failures before we stop writing */
 
@@ -172,13 +173,13 @@ static int write_page(uint32_t addr, const uint8_t *data)
 
 /* Returns (back to the app) only when an update finished and verified, or
  * when coming from the app and nothing was staged. Otherwise it stays here
- * (power held) until an image arrives, or powers the board off. */
+ * (power held) until an image arrives, or the button is held 2 s. */
 void bl_updater(int from_app)
 {
     uint8_t rx[RX_MAX + 3];
     uint32_t rx_n = 0, rx_len = 0;
     uint32_t offset = PAGE_SIZE, size = 0, crc = 0;
-    uint32_t wait_ms = 0, idle_ms = 0, button_ms = 0, fails = 0;
+    uint32_t wait_ms = 0, idle_ms = 0, button_ms = 0, fails = 0; /* idle_ms: give-up only */
     int erased = 0, request = 1;
     int armed = !bl_button_pressed(); /* a hold only counts after a release */
 
@@ -199,7 +200,7 @@ void bl_updater(int from_app)
             send_fw(LCM_FW_REQ, offset, 8);
         }
 
-        /* ---- 1 ms housekeeping: request timeout, idle power-off, button */
+        /* ---- 1 ms housekeeping: request timeout, give-up, button */
         if (bl_tick_ms())
         {
             if (++wait_ms >= REQUEST_TIMEOUT_MS)
@@ -224,11 +225,6 @@ void bl_updater(int from_app)
             {
                 armed = 1;
                 button_ms = 0;
-            }
-            if (idle_ms >= POWER_OFF_MS)
-            {
-                bl_power_off();
-                return;
             }
         }
 
@@ -288,7 +284,7 @@ void bl_updater(int from_app)
         }
         if (get_u32(&rx[4]) != offset || rx_len != RX_MAX || fails >= MAX_FAILS)
         {
-            continue; /* (after 3 bad images: no more writing, idle power-off) */
+            continue; /* (after 3 bad images: no more writing until power-up) */
         }
 
         idle_ms = 0;

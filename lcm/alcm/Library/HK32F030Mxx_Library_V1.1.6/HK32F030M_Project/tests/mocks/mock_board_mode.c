@@ -54,3 +54,14 @@ board_submode_t board_submode_get(void)
 {
     return (board_submode_t)mock();
 }
+
+#ifdef VP_LIGHT_CONTROL
+/**
+ * @brief Mock of board_mode_fault_is_quiet (Re-Float Rink-Mixed): never
+ * quiet here, so the buzzer tests see the stock fault sequences.
+ */
+bool_t board_mode_fault_is_quiet(void)
+{
+    return (bool_t)0;
+}
+#endif
