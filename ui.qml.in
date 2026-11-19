@@ -7310,6 +7310,134 @@ Item {
         }
     }
 
+    // rf89: MAX SPEED - VESC's own Max ERPM (motor config), worked out from
+    // the wheel diameter, motor poles and gear ratio set in VESC Tool. Near
+    // the cap the motor's forward push fades to zero (ERPM Limit Start ->
+    // Max ERPM) so a free-spinning tire coasts at about the cap; braking is
+    // not limited. No package (C) change. Writes go read-modify-write: the
+    // motor config is read fresh from the board first.
+    Connections {
+        id: maxSpeed
+        property ConfigParams mc: VescIf.mcConfig()
+        target: mc
+
+        readonly property real erpmDefault: 100000  // VESC's default Max ERPM (no limit)
+        readonly property real minKmh: 48.3  // 30 mph: lowest cap offered
+        readonly property real maxKmh: 120.7  // 75 mph
+        property real wheelD: 0
+        property int poles: 0
+        property real gear: 1
+        property real maxErpm: 0
+        property real erpmStart: 0.8
+        property int pending: 0  // 1 set, 2 remove (waiting for a fresh motor config)
+        property real targetKmh: 72.4
+        // ERPM per km/h: wheel turns per km/h x pole pairs x gear ratio
+        readonly property real erpmPerKmh: wheelD > 0.05 && poles >= 2 ? (1000 / 60) / (Math.PI * wheelD) * (poles / 2) * gear : 0
+        readonly property bool ready: erpmPerKmh > 0
+        readonly property bool limited: ready && maxErpm > 0 && maxErpm < erpmDefault * 0.99
+        readonly property real capKmh: limited ? maxErpm / erpmPerKmh : 0
+
+        function load() {
+            wheelD = mc.getParamDouble("si_wheel_diameter");
+            poles = mc.getParamInt("si_motor_poles");
+            gear = Math.max(0.01, mc.getParamDouble("si_gear_ratio"));
+            maxErpm = mc.getParamDouble("l_max_erpm");
+            erpmStart = mc.getParamDouble("l_erpm_start");
+            if (!targetTouched && limited) targetKmh = Math.min(maxKmh, Math.max(minKmh, capKmh));
+        }
+        property bool targetTouched: false
+        function onUpdated() {
+            load();
+            if (pending) apply();
+        }
+        function onParamChangedDouble(src, name, v) { if (name.indexOf("l_") === 0 || name.indexOf("si_") === 0) load(); }
+        function onParamChangedInt(src, name, v) { if (name === "si_motor_poles") load(); }
+        Component.onCompleted: load()
+
+        function request(kind) {
+            // writing the motor config resets the motor: never while riding
+            if (boardRunning) {
+                VescIf.emitStatusMessage("Stop riding first: the motor settings can't be changed while the board is engaged", false);
+                return;
+            }
+            pending = kind;
+            maxSpeedTimer.restart();
+            vescCommands.getMcconf();  // apply() runs when it arrives
+        }
+        function apply() {
+            var kind = pending;
+            pending = 0;
+            maxSpeedTimer.stop();
+            if (boardRunning) return;
+            if (!ready) {
+                VescIf.emitStatusMessage("Set the wheel diameter and motor poles in VESC Tool first", false);
+                return;
+            }
+            // VESC's optional overspeed fault would STOP the motor past Max ERPM
+            var faults = mc.getParamInt("l_additional_faults");
+            if (kind === 1 && faults > 0 && (faults & 2)) {
+                VescIf.emitStatusMessage("Turn off the Overspeed fault (Motor Settings > General > Additional Faults) first: it stops the motor at the limit", false);
+                return;
+            }
+            var e = kind === 1 ? Math.round(targetKmh * erpmPerKmh) : erpmDefault;
+            mc.updateParamDouble("l_max_erpm", e);
+            mc.updateParamDouble("l_min_erpm", -e);
+            if (kind === 1 && mc.getParamDouble("l_erpm_start") < 0.95) {
+                mc.updateParamDouble("l_erpm_start", 0.95);  // push fades only in the last 5%
+            }
+            vescCommands.setMcconf(false);
+            load();
+            VescIf.emitStatusMessage(kind === 1 ? "Max speed set: " + Math.round(targetKmh * vescConfig.imperialFactor) + " " + vescConfig.speedUnit + " (" + e + " ERPM)"
+                                                : "Max speed limit removed", true);
+        }
+        property Timer timer: Timer {
+            id: maxSpeedTimer
+            interval: 4000
+            onTriggered: {
+                if (maxSpeed.pending) {
+                    maxSpeed.pending = 0;
+                    VescIf.emitStatusMessage("Couldn't read the motor settings from the board - nothing changed", false);
+                }
+            }
+        }
+    }
+
+    BaseDialog {
+        id: maxSpeedDialog
+        parent: ApplicationWindow.overlay
+        title: "\u26A0 Max speed - at your own risk"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+
+        onOpened: {
+            maxSpeedAck.checked = false;
+            standardButton(Dialog.Ok).text = "Set limit";
+            standardButton(Dialog.Ok).enabled = false;
+        }
+        onAccepted: if (maxSpeedAck.checked) maxSpeed.request(1)
+
+        Column {
+            width: maxSpeedDialog.availableWidth
+            spacing: 0.25 * unit
+
+            NText {
+                width: parent.width
+                font.pointSize: 12
+                wrapMode: Text.WordWrap
+                text: "This sets VESC's Max ERPM to %1 %2 (%3 ERPM, from your wheel diameter %4 mm, %5 motor poles).\n\n".arg(Math.round(maxSpeed.targetKmh * vescConfig.imperialFactor)).arg(vescConfig.speedUnit).arg(Math.round(maxSpeed.targetKmh * maxSpeed.erpmPerKmh)).arg(Math.round(maxSpeed.wheelD * 1000)).arg(maxSpeed.poles)
+                    + "In the air the tire spins up to about this speed and coasts there: the motor stops pushing harder but doesn't brake or cut out, so you land and ride off like now, with the tire closer to ground speed.\n\n"
+                    + "WARNING: the limit also applies on the ground. If you ever reach it while riding (downhill, a tailwind, a wrong wheel diameter), the motor can no longer push the nose back up and the board WILL NOSEDIVE.\n\n"
+                    + "Set it well above the fastest you ride. ERPM Limit Start is raised to 95% so the push only fades in the last 5%. Check your real top speed after changing the wheel or tire."
+            }
+
+            CheckBox {
+                id: maxSpeedAck
+                width: parent.width
+                text: "I understand the risk and accept it"
+                onCheckedChanged: maxSpeedDialog.standardButton(Dialog.Ok).enabled = checked
+            }
+        }
+    }
+
     // Re-RinkFloat: safety warning before the free-spin limiter is turned on
     BaseDialog {
         id: freespinWarningDialog
@@ -13036,6 +13164,65 @@ Item {
                             to: 1
                             value: 0
                         }
+
+                        // rf89: MAX SPEED (VESC's Max ERPM from the wheel diameter)
+                        SwNeonLabel {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            font.pixelSize: 0.45 * unit
+                            font.letterSpacing: 0.06 * unit
+                            text: "MAX SPEED"
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            color: maxSpeed.limited ? swTheme.neonGreen : "#ead6ff"
+                            text: !maxSpeed.ready ? "Set the wheel diameter and motor poles in VESC Tool (Motor Settings \u203A Additional Info) first."
+                                : (maxSpeed.limited ? "Now: %1 %2 (Max ERPM %3)".arg(Math.round(maxSpeed.capKmh * vescConfig.imperialFactor)).arg(vescConfig.speedUnit).arg(Math.round(maxSpeed.maxErpm))
+                                                    : "Now: no limit")
+                                  + " \u00B7 wheel %1 mm, %2 poles".arg(Math.round(maxSpeed.wheelD * 1000)).arg(maxSpeed.poles)
+                        }
+
+                        SwStepper {
+                            visible: maxSpeed.ready
+                            label: "LIMIT"
+                            value: Math.round(maxSpeed.targetKmh * vescConfig.imperialFactor)
+                            from: Math.ceil(maxSpeed.minKmh * vescConfig.imperialFactor)
+                            to: Math.floor(maxSpeed.maxKmh * vescConfig.imperialFactor)
+                            step: 1
+                            suffix: " " + vescConfig.speedUnit
+                            onMoved: { maxSpeed.targetTouched = true; maxSpeed.targetKmh = newValue / vescConfig.imperialFactor; }
+                        }
+
+                        Row {
+                            visible: maxSpeed.ready
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.2 * unit
+                            SwPill {
+                                minWidth: 2.8 * unit
+                                label: "SET LIMIT"
+                                lit: true
+                                onClicked: maxSpeedDialog.open()
+                            }
+                            SwPill {
+                                visible: maxSpeed.limited
+                                minWidth: 2.8 * unit
+                                label: "REMOVE"
+                                onClicked: maxSpeed.request(2)
+                            }
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "Caps how fast the tire can spin up in the air off a jump: it coasts at about this speed instead of 50+. "
+                                + "Uses VESC's own Max ERPM and your wheel diameter, so it follows your setup. It also caps riding speed: set it well above your top speed."
+                        }
+
+                        Item { width: parent.width; height: 0.3 * unit }
 
                         // Re-RinkFloat: free-spin limiter - rf75: removed from the
                         // package (it was the only change to the balance current);

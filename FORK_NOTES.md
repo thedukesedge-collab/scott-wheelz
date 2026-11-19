@@ -804,6 +804,23 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### MAX SPEED from VESC's Max ERPM (v1.2.3-rf89)
+- CONTROL > MAX SPEED (30-75 mph): sets VESC's own Max ERPM / Min ERPM
+  (motor config) from the wheel diameter, motor poles and gear ratio set in
+  VESC Tool: ERPM = km/h x 1000/60 / (pi x diameter) x poles/2 x gear
+  (280 mm, 30 poles: 45 mph = 20,582 ERPM). ERPM Limit Start raised to 0.95
+  if lower. bldc motor/mc_interface.c: between start and max the forward
+  current limit fades to 0, braking unaffected -> a free-spinning tire
+  coasts at about the cap; on the ground the cap means a nosedive, hence the
+  pop-up with an "I understand the risk" box (SET LIMIT disabled until
+  ticked). REMOVE puts back 100,000 ERPM.
+- Refused if VESC's Overspeed fault (l_additional_faults bit 1) is on (it
+  would stop the motor at the cap), while the board is engaged (writing the
+  motor config resets the motor), or without wheel diameter / poles.
+- Read-modify-write: the motor config is read fresh from the board
+  (getMcconf), then changed and written (setMcconf); 4 s timeout = nothing
+  changed. No package (C) change.
+
 ### Power-off warning, snooze before power-off (v1.2.3-rf88)
 - VESC's own power-off timer (App Settings > General > Shutdown Mode, OFF
   AFTER 10 s .. 5 h; read with get_cfg_int(CFG_PARAM_app_shutdown_mode)) is

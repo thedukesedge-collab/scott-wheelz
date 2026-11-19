@@ -21,6 +21,8 @@ QtObject {
     function getValuesSetup() {}
     function getValuesSetupSelective(m) {}
     function sendCustomAppData(d) {}
+    function getMcconf() {}
+    function setMcconf(c) {}
     function lispSendReplCmd(c) {}
     function getImuData(m) {}
     function emitEmptySetupValues() {}
