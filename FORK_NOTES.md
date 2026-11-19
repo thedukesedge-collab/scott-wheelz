@@ -858,6 +858,10 @@ stock ALCM v0.1.1 found these; each was checked against the code first.
   file picked and runs CHECK LCM - the normal CONTINUE / FLASH LCM / confirm
   steps follow. A newer package is offered as a download link (VESC Tool
   installs packages). Uses QML's XMLHttpRequest, like upstream's tune archive.
+  CHECK LCM compares a downloaded SLCM with its release's build (lcmFw.relTag
+  / refVer), not with this package's built-in one. Simulator: UPDATES tab
+  too (pretend newer / same / none / offline release, or LIVE = real GitHub
+  check), versions updated to rf78 / SLCM r23.
 - Note: the SLCM version (r<N>) counts lcm/alcm commits only. A bootloader
   change (lcm/bootloader) never reaches a board through the app - the app
   update only rewrites the light firmware. Boards flashed with an rf76-era

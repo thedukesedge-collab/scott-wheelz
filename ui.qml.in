@@ -713,16 +713,26 @@ Item {
         function verText(v) { return v.rev > 0 ? "r" + v.rev + " (" + v.hash + ")" : (v.rev === 0 ? v.hash : v.hash + ", pre-rf65"); }
         readonly property var lcmVer: parseVer(hasBootloader ? lcmName.substr(5) : (lcmName.indexOf("VP-") === 0 ? lcmName.substr(3) : ""))
         readonly property var pkgVer: builtin ? parseVer(builtin.version) : null
+        // UPDATES tab: an SLCM.hex downloaded from a release is compared with
+        // that release's build, not with this package's built-in one
+        readonly property string relTag: usePicked && picked && picked.fromRelease ? picked.fromRelease : ""
+        readonly property var refVer: relTag !== "" && picked.slcm ? parseVer(picked.slcm) : pkgVer
         // "same", "older", "newer", "other" (same revision, different build), "" (can't tell)
-        readonly property string fit: !hasBootloader || !pkgVer ? ""
-            : lcmVer.hash === pkgVer.hash ? "same"
-            : (lcmVer.rev > 0 && pkgVer.rev > 0) ? (lcmVer.rev < pkgVer.rev ? "older" : (lcmVer.rev > pkgVer.rev ? "newer" : "other"))
-            : (lcmVer.rev < 0 && pkgVer.rev !== -1 ? "older" : "other")
+        readonly property string fit: !hasBootloader || !refVer ? ""
+            : lcmVer.hash === refVer.hash ? "same"
+            : (lcmVer.rev > 0 && refVer.rev > 0) ? (lcmVer.rev < refVer.rev ? "older" : (lcmVer.rev > refVer.rev ? "newer" : "other"))
+            : (lcmVer.rev < 0 && refVer.rev !== -1 ? "older" : "other")
         readonly property bool upToDate: fit === "same"
-        readonly property string fitTitle: fit === "same" ? "UP TO DATE \u00B7 BEST FIT"
-            : fit === "older" ? "UPDATE AVAILABLE" : fit === "newer" ? "LCM NEWER THAN THIS PACKAGE"
+        readonly property string fitTitle: fit === "same" ? (relTag !== "" ? "UP TO DATE \u00B7 SAME AS RELEASE" : "UP TO DATE \u00B7 BEST FIT")
+            : fit === "older" ? "UPDATE AVAILABLE" : fit === "newer" ? (relTag !== "" ? "LCM NEWER THAN THE RELEASE" : "LCM NEWER THAN THIS PACKAGE")
             : fit === "other" ? "DIFFERENT BUILD" : ""
-        readonly property string fitText: !pkgVer ? "This package has no built-in LCM firmware to compare with."
+        readonly property string fitText: !refVer ? "This package has no built-in LCM firmware to compare with."
+            : relTag !== "" ? (
+                fit === "same" ? "Your LCM runs SLCM " + verText(lcmVer) + ", the same build as the downloaded release (" + relTag + "). Nothing to update. You can still reflash it if you want."
+                : fit === "older" ? "Your LCM runs SLCM " + verText(lcmVer) + ". The downloaded release (" + relTag + ") has SLCM " + verText(refVer) + ", built and tested with that release's package. Updating is recommended."
+                : fit === "newer" ? "Your LCM runs SLCM " + verText(lcmVer) + ", newer than the " + verText(refVer) + " in the downloaded release (" + relTag + "). Flashing it would downgrade the LCM."
+                : fit === "other" ? "Your LCM runs a different SLCM build (" + verText(lcmVer) + ") from the downloaded release's (" + verText(refVer) + ", " + relTag + "), for example a custom build."
+                : "")
             : fit === "same" ? "Your LCM runs SLCM " + verText(lcmVer) + ", the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed " + pkgVersion + "). Nothing to update. You can still reflash it if you want."
             : fit === "older" ? "Your LCM runs SLCM " + verText(lcmVer) + ". This package (" + pkgVersion + ") carries " + verText(pkgVer) + ", the LCM firmware built and tested with it. Updating is recommended so the LCM and package stay matched."
             : fit === "newer" ? "Your LCM runs SLCM " + verText(lcmVer) + ", newer than the " + verText(pkgVer) + " this package (" + pkgVersion + ") carries. Best fit: update the VESC package to the latest build so they match. Flashing from this package would downgrade the LCM."
@@ -731,7 +741,7 @@ Item {
         readonly property string continueLabel: fitted === "recovery" ? "CONTINUE TO FLASH"
             : fitted === "legacy" ? "TRY UPDATE"
             : fit === "same" ? "REFLASH ANYWAY" : fit === "older" ? "UPDATE LCM"
-            : fit === "newer" ? "DOWNGRADE ANYWAY" : fit === "other" ? "FLASH PACKAGE BUILD" : "CONTINUE TO FLASH"
+            : fit === "newer" ? "DOWNGRADE ANYWAY" : fit === "other" ? (relTag !== "" ? "FLASH RELEASE BUILD" : "FLASH PACKAGE BUILD") : "CONTINUE TO FLASH"
         readonly property string fitted: blActive && !hasBootloader ? "recovery"
             : (hasBootloader ? "vpbl" : (lcmName.indexOf("VP-") === 0 ? "vp" : (lcmName !== "" ? "other" : (legacy ? "legacy" : "none"))))
         readonly property string fittedText: checkState === 0 ? "Press CHECK LCM to see whether this light module can be updated from the app."
@@ -741,7 +751,7 @@ Item {
             : fitted === "legacy" ? "Older SLCM / ALCM VP light module (before r15: it doesn't report its version). Your LED settings work. TRY UPDATE works if it was installed with the bootloader."
             : fitted === "vpbl" ? "SLCM with bootloader \u00B7 " + verText(lcmVer)
                 + (fitTitle ? " \u00B7 " + fitTitle.toLowerCase() : "")
-                + (pkgVer && !upToDate ? " (this package: " + verText(pkgVer) + ")" : "")
+                + (refVer && !upToDate ? (relTag !== "" ? " (release " + relTag + ": " : " (this package: ") + verText(refVer) + ")" : "")
             : fitted === "vp" ? "SLCM " + verText(lcmVer) + " WITHOUT the bootloader. It can't be flashed from the app: install SLCM.hex once with an ST-Link, after that updates work from here."
             : fitted === "other" ? "Light module firmware \u201C" + lcmName + "\u201D can't be flashed from the app. It needs SLCM with the bootloader, installed once with an ST-Link (SLCM.hex)."
             : "No SLCM light module answered (stock or other LCM firmware, or none). Flashing from the app needs SLCM with the bootloader, installed once with an ST-Link (SLCM.hex)."
@@ -1131,6 +1141,7 @@ Item {
         // hand the downloaded image to the normal flash flow
         function flash() {
             if (!hex || lcmFw.active) return;
+            hex.fromRelease = rel.tag;
             lcmFw.picked = hex;
             lcmFw.usePicked = true;
             lcmFw.progress = 0;

@@ -230,7 +230,7 @@
     <div id="sheetInner">
       <div id="handle"><div class="grip"></div></div>
       <div id="tabs">
-        <div class="tab on" data-i="0">TUNES</div><div class="tab" data-i="1">CONTROL</div><div class="tab" data-i="2">MIXER</div><div class="tab" data-i="3">DATA</div><div class="tab" data-i="4">BOARD STYLE</div><div class="tab" data-i="5">LEDS</div>
+        <div class="tab on" data-i="0">TUNES</div><div class="tab" data-i="1">CONTROL</div><div class="tab" data-i="2">MIXER</div><div class="tab" data-i="3">DATA</div><div class="tab" data-i="4">BOARD STYLE</div><div class="tab" data-i="5">LEDS</div><div class="tab" data-i="6">UPDATES</div>
       </div>
       <div id="pages">
         <div class="page on" id="pgTunes"><div class="tunes" id="tunes"></div></div>
@@ -304,12 +304,31 @@
           <div id="lcmTools"><span id="lcmToolsText">LCM firmware tools</span><i id="lcmToolsFill"></i></div>
           <div style="height:16px"></div>
         </div>
+        <div class="page" id="pgUpdates">
+          <div class="secTitle neonL" style="font-size:16px;margin-top:6px">CHECK FOR UPDATES</div>
+          <div class="fwFit idle" id="updInstalled" style="margin:4px 6px;font-size:12px"></div>
+          <p class="ledHint" style="text-align:center;opacity:.7;margin:2px 0">Simulator only - pretend GitHub has:</p>
+          <div class="pills" id="updSim"><div class="pill" data-k="newer">NEWER RELEASE</div><div class="pill" data-k="same">THIS RELEASE</div><div class="pill" data-k="none">NO RELEASE YET</div><div class="pill" data-k="offline">OFFLINE</div><div class="pill" data-k="live">LIVE (REAL GITHUB)</div></div>
+          <div id="updCheckBtn" class="bigBeep">&#8635;&nbsp; CHECK FOR UPDATES</div>
+          <p id="updMsg" style="text-align:center;font-size:12px;color:var(--green);margin:6px 8px"></p>
+          <div class="fwFit" id="updPkg" style="margin:6px;display:none"><div id="updPkgTitle" class="nf" style="font-size:13px;margin-bottom:4px"></div><div id="updPkgText" style="color:#ead6ff"></div><div class="pills" style="margin-top:6px"><div class="pill on" id="updPkgDl">DOWNLOAD PACKAGE</div></div></div>
+          <div class="fwFit" id="updLcm" style="margin:6px;display:none"><div id="updLcmTitle" class="nf" style="font-size:13px;margin-bottom:4px"></div><div id="updLcmText" style="color:#ead6ff"></div><div class="pills" style="margin-top:6px"><div class="pill" id="updDl">DOWNLOAD UPDATE</div><div class="pill on" id="updFlash" style="display:none">FLASH UPDATE</div></div><div id="updDlMsg" style="margin-top:4px"></div></div>
+          <p id="updNotes" style="font-size:11px;color:var(--text);margin:6px 8px;white-space:pre-wrap;display:none"></p>
+          <div class="pills"><div class="pill" id="updPage">OPEN RELEASE PAGE</div></div>
+          <div style="height:16px"></div>
+        </div>
       </div>
       <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf78 · sim</span></div>
     </div>
   </div>
 
   <div id="ledWinDim" style="position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:45;display:none"></div>
+  <div id="updPrompt" style="position:absolute;left:4%;right:4%;top:28%;z-index:60;display:none;background:#06180b;border:3px solid var(--green);border-radius:16px;padding:14px;color:#c9ffd8;font-size:13px">
+    <div class="nf" style="text-align:center;color:var(--green);font-size:16px;margin-bottom:8px">&#10004; LCM UPDATE DOWNLOADED</div>
+    <div id="updPromptText" style="white-space:pre-wrap"></div>
+    <div class="pills" style="margin-top:12px"><div class="pill" id="updLater">LATER</div><div class="pill on" id="updGo">FLASH UPDATE</div></div>
+  </div>
+  <div id="updPromptDim" style="position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:59;display:none"></div>
   <div id="ledWin" style="position:absolute;left:0;right:0;bottom:0;height:50%;z-index:46;display:none;flex-direction:column;gap:8px;background:#0b0718;border:2px solid var(--purple);border-radius:14px 14px 0 0;padding:10px 12px">
     <div style="display:flex;align-items:center;gap:6px"><div class="pill" id="ledWinBack" style="min-width:64px;text-align:center">&#8249; BACK</div><span class="neonL" id="ledWinTitle" style="flex:1;text-align:center;font-size:16px"></span><div style="min-width:64px"></div></div>
     <div style="height:2px;background:var(--purple);opacity:.6"></div>
@@ -615,7 +634,7 @@ function setSheet(f) { sheetF = f; P.sheet = f; save(); $('sheet').classList.add
   const end = () => { if (!dragging) return; dragging = false; hd.classList.remove('drag'); if (!moved) setSheet(sheetF < 0.5 ? 1 : 0); else setSheet(sheetF < 0.5 ? 0 : 1); };
   hd.addEventListener('pointerup', end); hd.addEventListener('pointercancel', end);
 })();
-function setTab(i) { const was = P.tab; P.tab = i; save(); if (i !== 2 && typeof padRelease === 'function') padRelease(); if ((was === 2) !== (i === 2)) layout(); document.querySelectorAll('.tab').forEach((t, k) => t.classList.toggle('on', k === i)); document.querySelectorAll('.page').forEach((p, k) => p.classList.toggle('on', k === i)); if (i === 2) renderPad(); if (i === 1 && typeof renderMelody === 'function') renderMelody(); }
+function setTab(i) { const was = P.tab; P.tab = i; save(); if (i !== 2 && typeof padRelease === 'function') padRelease(); if ((was === 2) !== (i === 2)) layout(); document.querySelectorAll('.tab').forEach((t, k) => t.classList.toggle('on', k === i)); document.querySelectorAll('.page').forEach((p, k) => p.classList.toggle('on', k === i)); if (i === 2) renderPad(); if (i === 1 && typeof renderMelody === 'function') renderMelody(); if (i === 6 && typeof updPaint === 'function') updPaint(); }
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setTab(+t.dataset.i)));
 
 // ---------- long press helper ----------
@@ -1273,19 +1292,34 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r15 (79f773f)', FW_OLD = 'r13 (0c01814)', FW_NEW = 'r17 (a7d40e3)', PKG_VER = '1.2.3-rf68';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf78';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
   vpbl_old: ['UPDATE AVAILABLE', 'Your LCM runs SLCM ' + FW_OLD + '. This package (' + PKG_VER + ') carries ' + FW_BUILD + ', the LCM firmware built and tested with it. Updating is recommended so the LCM and package stay matched.', 'UPDATE LCM', 'update available (this package: ' + FW_BUILD + ')', FW_OLD],
   vpbl_new: ['LCM NEWER THAN THIS PACKAGE', 'Your LCM runs SLCM ' + FW_NEW + ', newer than the ' + FW_BUILD + ' this package (' + PKG_VER + ') carries. Best fit: update the VESC package to the latest build so they match. Flashing from this package would downgrade the LCM.', 'DOWNGRADE ANYWAY', 'lcm newer than this package (this package: ' + FW_BUILD + ')', FW_NEW],
 };
+// UPDATES tab: an SLCM.hex downloaded from a release is compared with that
+// release's build (the real one: lcmFw.refVer / relTag in ui.qml.in)
+function fwFitFor(k) {
+  const pk = FW.usePicked && FW.picked && FW.picked.fromRelease;
+  if (!pk || !FW_FIT[k]) return FW_FIT[k];
+  const l = ({ vpbl: 'r23-4db43fd', vpbl_old: 'r21-3b9e0a2', vpbl_new: 'r25-c1f07d9' })[k], r = FW.picked.slcm, tag = FW.picked.fromRelease;
+  const lt = verTxt(l), rt = verTxt(r), lr = verRev(l), rr = verRev(r);
+  const f = l.split('-')[1] === r.split('-')[1] ? 'same' : rr > lr ? 'older' : rr < lr ? 'newer' : 'other';
+  return {
+    same: ['UP TO DATE · SAME AS RELEASE', 'Your LCM runs SLCM ' + lt + ', the same build as the downloaded release (' + tag + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · same as release', lt],
+    older: ['UPDATE AVAILABLE', 'Your LCM runs SLCM ' + lt + '. The downloaded release (' + tag + ') has SLCM ' + rt + ', built and tested with that release’s package. Updating is recommended.', 'UPDATE LCM', 'update available (release ' + tag + ': ' + rt + ')', lt],
+    newer: ['LCM NEWER THAN THE RELEASE', 'Your LCM runs SLCM ' + lt + ', newer than the ' + rt + ' in the downloaded release (' + tag + '). Flashing it would downgrade the LCM.', 'DOWNGRADE ANYWAY', 'lcm newer than the release (' + rt + ')', lt],
+    other: ['DIFFERENT BUILD', 'Your LCM runs a different SLCM build (' + lt + ') from the downloaded release’s (' + rt + ', ' + tag + ').', 'FLASH RELEASE BUILD', 'different build (release: ' + rt + ')', lt]
+  }[f];
+}
 // fail-safe: the LCM names itself ("VPBL-<hash>" = with the bootloader);
 // FLASH LCM only exists for those, or while a bootloader is asking (recovery)
 const fwCapable = () => !!FW_FIT[FW.kind] || FW.kind === 'recovery' || FW.kind === 'noname';
 const fwCan = () => FW.active || (FW.unlocked && fwCapable());
 function fwFitPaint() {
-  const k = FW.kind, f = FW_FIT[k], t = f ? 'SLCM with bootloader · ' + f[4] + ' · ' + f[3] : {
+  const k = FW.kind, f = fwFitFor(k), t = f ? 'SLCM with bootloader · ' + f[4] + ' · ' + f[3] : {
     recovery: "LCM bootloader is waiting for firmware (an earlier update didn't finish). Flash it now to recover the light module.",
     vp: "SLCM " + FW_BUILD + " WITHOUT the bootloader. It can't be flashed from the app: install SLCM.hex once with an ST-Link, after that updates work from here.",
     noname: "Older SLCM / ALCM VP light module (before r15: it doesn't report its version). Your LED settings work. TRY UPDATE works if it was installed with the bootloader.",
@@ -1316,14 +1350,14 @@ $('fwCheckBtn').onclick = () => {
     $('fwChkText').textContent = ok
       ? (FW.kind === 'noname' ? "Your light module is talking to the package (your LED settings work), but it's an older SLCM / ALCM VP build from before r15 that doesn't report its version, so the package can't tell whether it has the bootloader.\n\nTRY UPDATE is safe: if it was installed with the bootloader (SLCM.hex, rf58 or later) it updates; if not, nothing happens and after 15 s the app says so - then flash SLCM.hex once with an ST-Link.\n\nThis package goes with SLCM " + FW_BUILD + "."
         : FW.kind === 'recovery' ? "The LCM bootloader is waiting for firmware (an earlier update didn't finish). Continue to flash it and recover the light module."
-        : 'Found SLCM light module firmware with the bootloader, so the package can update it over Bluetooth.\n\n' + FW_FIT[FW.kind][1])
+        : 'Found SLCM light module firmware with the bootloader, so the package can update it over Bluetooth.\n\n' + fwFitFor(FW.kind)[1])
       : "This is most likely because your board is running a version of LCM firmware that doesn't contain a bootloader for flashing over BLE.\n\nTo resolve this, first flash the LCM with an ST-Link using the correct firmware: SLCM.hex (lcm-latest release). After that, CHECK LCM passes and future updates work from the app.\n\nWhat the package saw: "
         + (FW.kind === 'noname' ? "a light module is talking to the package but doesn't name itself, so it isn't running SLCM r15 or newer (older SLCM / ALCM VP builds from before rf63, original ALCM, or other LCM firmware)." : FW.kind === 'vp' ? 'SLCM ' + FW_BUILD + ' without the bootloader.' : "no light module is talking to the package. Stock Floatwheel LCM firmware never does (it only reads the VESC's basic data); or the LCM isn't connected.")
         + '\n\nThis package carries SLCM ' + FW_BUILD + ': the SLCM.hex for the ST-Link must be that build or newer.';
-    const f = FW_FIT[FW.kind];
+    const f = fwFitFor(FW.kind);
     $('fwChkFit').style.display = f ? '' : 'none';
-    if (f) { $('fwChkFit').textContent = f[0]; const c = FW.kind === 'vpbl' ? 'var(--green)' : '#FFB300'; $('fwChkFit').style.color = $('fwChkFit').style.borderColor = c; }
-    $('fwChkYes').textContent = f ? f[2] : FW.kind === 'noname' ? 'TRY UPDATE' : 'CONTINUE TO FLASH'; $('fwChkYes').classList.toggle('on', FW.kind !== 'vpbl_new');
+    if (f) { $('fwChkFit').textContent = f[0]; const c = /^UP TO DATE/.test(f[0]) ? 'var(--green)' : '#FFB300'; $('fwChkFit').style.color = $('fwChkFit').style.borderColor = c; }
+    $('fwChkYes').textContent = f ? f[2] : FW.kind === 'noname' ? 'TRY UPDATE' : 'CONTINUE TO FLASH'; $('fwChkYes').classList.toggle('on', !f || !/DOWNGRADE/.test(f[2]));
     $('fwChkNo').textContent = ok ? 'CANCEL' : 'OK'; $('fwChkYes').style.display = ok ? '' : 'none';
     fwChk(true);
   }, 1800);
@@ -1457,7 +1491,7 @@ $('fwAckBox').onchange = () => { const c = $('fwAckBox').checked; $('fwAckYes').
 $('fwAckNo').onclick = () => fwAck(false);
 $('fwAckBack').onclick = () => { fwAck(false); fwChk(false); };
 $('fwAckYes').onclick = () => { if (!$('fwAckBox').checked) return; fwAck(false); fwStart(); };
-$('fwBtn').onclick = () => { if (FW.active || !fwCan()) return; if (!FW.picked) { toast('Pick SLCM.hex first (lcm-latest release)'); return; } fwAck(true); };
+$('fwBtn').onclick = () => { if (FW.active || !fwCan()) return; if (!FW.picked) { toast('Pick SLCM.hex first (lcm-latest release), or use UPDATES'); return; } fwAck(true); };
 function fwStart() {
   if (FW.active || !fwCan()) return;
   if (running()) { fwPaint("The board is running. Stop riding and try again."); return; }
@@ -1467,12 +1501,132 @@ function fwStart() {
   FW.t = setInterval(() => {
     if (++k < 15) return;
     FW.p = Math.min(1, FW.p + 1 / 115);
-    if (FW.p >= 1) { clearInterval(FW.t); FW.active = false; FW.kind = 'vpbl'; fwPaint('Done: the LCM firmware is updated and running.'); return; }
+    if (FW.p >= 1) { clearInterval(FW.t); FW.active = false; FW.kind = (FW.usePicked && FW.picked && ({ 'r21-3b9e0a2': 'vpbl_old', 'r25-c1f07d9': 'vpbl_new' })[FW.picked.slcm]) || 'vpbl'; if (typeof updPaint === 'function') updPaint(); fwPaint('Done: the LCM firmware is updated and running.'); return; }
     fwPaint('Updating the LCM: ' + Math.round(FW.p * 100) + "%. Keep the app connected, don't ride.");
   }, 80);
 }
 $('fwCancel').onclick = () => { clearInterval(FW.t); FW.active = false; fwPaint('Cancelled. If the LCM had already started, power the board off and on, then press FLASH LCM again.'); };
 document.querySelectorAll('#simSetup .pill').forEach(x => x.onclick = () => { P.simSetup = x.dataset.k; save(); renderLedsSoft(); renderRf(); });
+// ---------- UPDATES tab (the real one: updater in ui.qml.in) ----------
+// CHECK FOR UPDATES asks GitHub for the latest rider (tagged) release; the
+// simulator pretends unless LIVE is picked (then it really asks GitHub).
+const UPD = { phase: 0, rel: null, msg: '', dl: 0, dlMsg: '', hex: null };
+const UPD_REPO = 'thedukesedge-collab/scott-wheelz';
+const verRev = v => { const m = /^r(\d+)/.exec(v || ''); return m ? +m[1] : 0; };
+const verTxt = v => { const m = /^(r\d+)-([0-9a-f]+)$/.exec(v || ''); return m ? m[1] + ' (' + m[2] + ')' : (v || '?'); };
+// the simulated light module's SLCM, from LEDS > LCM firmware tools > pretend
+const updLcmVer = () => (P.simSetup || 'slcm') !== 'slcm' ? '' : ({ vpbl: 'r23-4db43fd', vpbl_old: 'r21-3b9e0a2', vpbl_new: 'r25-c1f07d9' })[FW.kind] || '';
+const pkgParse = v => { const m = /^v?(\d+)\.(\d+)\.(\d+)(?:-rf(\d+))?$/.exec(v || ''); return m ? [+m[1], +m[2], +m[3], +(m[4] || 0)] : null; };
+function updPkgFit() {
+  if (!UPD.rel) return '';
+  const a = pkgParse(UPD.rel.version), b = pkgParse(PKG_VER); if (!a || !b) return '';
+  for (let i = 0; i < 4; i++) if (a[i] !== b[i]) return a[i] > b[i] ? 'newer' : 'older';
+  return 'same';
+}
+function updLcmFit() {
+  const r = UPD.rel; if (!r) return '';
+  if (!r.hexUrl) return 'missing';
+  if (!r.slcm) return 'unknown';
+  const l = updLcmVer(); if (!l) return 'nolcm';
+  if (l.split('-')[1] === r.slcm.split('-')[1]) return 'same';
+  return verRev(r.slcm) > verRev(l) ? 'newer' : verRev(r.slcm) < verRev(l) ? 'older' : 'other';
+}
+function updPaint() {
+  const l = updLcmVer();
+  $('updInstalled').textContent = 'This package: Re-Float Rink-Mixed ' + PKG_VER + '\nLight module: ' + (l ? 'SLCM ' + verTxt(l) : 'no SLCM with the bootloader');
+  $('updInstalled').style.whiteSpace = 'pre-wrap';
+  document.querySelectorAll('#updSim .pill').forEach(x => x.classList.toggle('on', x.dataset.k === (P.updSim || 'newer')));
+  $('updCheckBtn').innerHTML = UPD.phase === 1 ? 'CHECKING...' : '&#8635;&nbsp; CHECK FOR UPDATES';
+  $('updCheckBtn').style.opacity = UPD.phase === 1 || UPD.dl === 1 ? 0.5 : 1;
+  $('updMsg').textContent = UPD.msg || 'Checks GitHub for the latest rider release. Only tagged, bench-tested releases are offered, never development builds. Needs the phone’s internet connection.';
+  $('updMsg').style.color = UPD.phase === 3 ? '#FFB300' : 'var(--green)';
+  const r = UPD.rel, pf = updPkgFit(), lf = updLcmFit();
+  $('updPkg').style.display = $('updLcm').style.display = r ? '' : 'none';
+  $('updNotes').style.display = r && r.notes ? '' : 'none';
+  if (!r) return;
+  $('updPkg').className = 'fwFit' + (pf === 'newer' ? '' : ' ok');
+  $('updPkgTitle').textContent = pf === 'newer' ? 'PACKAGE UPDATE AVAILABLE' : pf === 'same' ? 'PACKAGE UP TO DATE' : pf === 'older' ? 'PACKAGE NEWER THAN THE RELEASE' : 'PACKAGE';
+  $('updPkgText').textContent = pf === 'newer' ? r.version + ' is out (you have ' + PKG_VER + '). Download it, then install it in VESC Tool › VESC Packages. Update the package first, then the light module.'
+    : pf === 'same' ? 'You have the latest release, ' + PKG_VER + '.' : pf === 'older' ? 'You have ' + PKG_VER + ', newer than the latest release (' + r.version + '): a development build.' : 'Latest release: ' + r.version + '.';
+  $('updPkgDl').parentNode.style.display = pf === 'newer' && r.pkgUrl ? '' : 'none';
+  const att = lf === 'newer' || lf === 'other' || lf === 'unknown';
+  $('updLcm').className = 'fwFit' + (att ? '' : lf === 'same' ? ' ok' : ' idle');
+  $('updLcmTitle').textContent = { newer: 'LCM UPDATE AVAILABLE', same: 'LCM UP TO DATE', older: 'LCM NEWER THAN THE RELEASE', other: 'DIFFERENT LCM BUILD' }[lf] || 'LIGHT MODULE (SLCM)';
+  const rt = 'SLCM ' + verTxt(r.slcm), lt = 'SLCM ' + verTxt(l);
+  $('updLcmText').textContent = {
+    newer: 'The release has ' + rt + ', your light module runs ' + lt + '.',
+    same: 'Your light module runs ' + lt + ', the release’s build. You can still reflash it.',
+    older: 'Your light module runs ' + lt + ', newer than the release’s ' + rt + '. Flashing would downgrade it.',
+    other: 'Your light module runs ' + lt + ', a different build from the release’s ' + rt + '.',
+    unknown: 'This release doesn’t list its SLCM version: download it to see which build it is.',
+    missing: 'This release has no SLCM.hex.',
+    nolcm: (r.slcm ? 'The release has ' + rt + '. ' : '') + 'No SLCM with the bootloader answered. A light module needs SLCM.hex flashed once with an ST-Link before it can update from the app.'
+  }[lf] || '';
+  $('updDl').style.display = r.hexUrl && lf !== 'nolcm' && UPD.dl !== 2 ? '' : 'none';
+  $('updDl').textContent = UPD.dl === 1 ? 'DOWNLOADING...' : lf === 'same' ? 'DOWNLOAD TO REFLASH' : lf === 'older' ? 'DOWNLOAD (DOWNGRADE)' : 'DOWNLOAD UPDATE';
+  $('updDl').classList.toggle('on', lf === 'newer');
+  $('updFlash').style.display = UPD.dl === 2 ? '' : 'none';
+  $('updDlMsg').textContent = UPD.dlMsg; $('updDlMsg').style.color = UPD.dl === 3 ? '#FFB300' : 'var(--green)';
+  $('updNotes').textContent = 'Release notes (' + r.tag + '):\n' + (r.notes || '').slice(0, 1200);
+}
+function updCheck() {
+  if (UPD.phase === 1 || UPD.dl === 1) return;
+  UPD.phase = 1; UPD.rel = null; UPD.dl = 0; UPD.dlMsg = ''; UPD.hex = null; UPD.msg = 'Checking GitHub for the latest release...'; updPaint();
+  const done = (rel, err) => { UPD.rel = rel; UPD.phase = rel ? 2 : 3; UPD.msg = rel ? 'Latest release: ' + rel.name + '.' : err; updPaint(); };
+  const k = P.updSim || 'newer';
+  if (k === 'live') {
+    fetch('https://api.github.com/repos/' + UPD_REPO + '/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
+      .then(res => res.status === 404 ? done(null, 'No rider release has been published yet.')
+        : res.status !== 200 ? done(null, 'GitHub answered ' + res.status + '. Try again later.')
+        : res.json().then(j => {
+          const r = { tag: j.tag_name, version: j.tag_name.replace(/^v/, ''), name: j.name || j.tag_name, notes: j.body || '', page: j.html_url, pkgUrl: '', hexUrl: '', slcm: '' };
+          (j.assets || []).forEach(a => { if (a.name === 'refloatrm.vescpkg') r.pkgUrl = a.browser_download_url; else if (a.name === 'SLCM.hex') r.hexUrl = a.browser_download_url; else { const m = /^slcm-(r\d+-[0-9a-f]+)\.txt$/.exec(a.name); if (m) r.slcm = m[1]; } });
+          done(r);
+        }))
+      .catch(() => done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.'));
+    return;
+  }
+  setTimeout(() => {
+    if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
+    if (k === 'none') return done(null, 'No rider release has been published yet.');
+    const v = k === 'newer' ? '1.2.3-rf79' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v, page: 'https://github.com/' + UPD_REPO + '/releases',
+      pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
+      notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });
+  }, 1200);
+}
+function updDownload() {
+  const r = UPD.rel; if (!r || UPD.dl === 1 || FW.active) return;
+  UPD.dl = 1; UPD.dlMsg = 'Downloading SLCM.hex...'; updPaint();
+  setTimeout(() => {
+    if (r.hexUrl !== 'sim') {  // LIVE: a browser can't fetch release files across sites; the app can
+      UPD.dl = 3; UPD.dlMsg = 'The simulator can’t download release files from GitHub (the VESC Tool app can). Use OPEN RELEASE PAGE.'; updPaint(); return;
+    }
+    UPD.hex = { file: 'SLCM.hex (' + r.tag + ')', slcm: r.slcm, size: 14720, version: 'SLCM ' + r.slcm, fromRelease: r.tag };
+    UPD.dl = 2; UPD.dlMsg = 'Downloaded and checked: SLCM ' + verTxt(r.slcm) + ' (14720 bytes).'; updPaint(); updPrompt(true);
+  }, 1400);
+}
+function updPrompt(on) {
+  $('updPrompt').style.display = $('updPromptDim').style.display = on ? 'block' : 'none';
+  if (!on) return;
+  const l = updLcmVer();
+  $('updPromptText').textContent = UPD.dlMsg + '\n\n' + (l ? 'Your light module runs SLCM ' + verTxt(l) + '.\n\n' : '')
+    + 'FLASH UPDATE opens the LCM firmware tools with this file selected and runs CHECK LCM. Then CONTINUE and FLASH LCM, as always.\n\nBoard powered on and idle, app connected. The board won’t start while it updates (about a minute).';
+}
+$('updCheckBtn').onclick = updCheck;
+$('updDl').onclick = updDownload;
+$('updFlash').onclick = () => updPrompt(true);
+$('updLater').onclick = $('updPromptDim').onclick = () => updPrompt(false);
+$('updGo').onclick = () => {
+  updPrompt(false); if (!UPD.hex || FW.active) return;
+  FW.picked = UPD.hex; FW.usePicked = true; FW.p = 0;
+  ledWin('fw'); fwSrcPaint(); fwPaint('Downloaded ' + UPD.hex.file + ': checked and ready.');
+  $('fwCheckBtn').onclick();  // CHECK LCM, then CONTINUE / FLASH LCM as always
+};
+$('updPkgDl').onclick = () => UPD.rel && UPD.rel.pkgUrl && window.open(UPD.rel.pkgUrl, '_blank');
+$('updPage').onclick = () => window.open(UPD.rel && UPD.rel.page || 'https://github.com/' + UPD_REPO + '/releases/latest', '_blank');
+document.querySelectorAll('#updSim .pill').forEach(x => x.onclick = () => { P.updSim = x.dataset.k; save(); UPD.rel = null; UPD.phase = 0; UPD.msg = ''; UPD.dl = 0; UPD.dlMsg = ''; updPaint(); });
+updPaint();
 $('lightsPill').onclick = () => { const on = !(P.ledHead && P.ledBar && P.lightsOn !== false); P.ledHead = P.ledBar = on; P.lightsOn = on; P.ledCfg = true; save(); renderLedsSoft(); };
 $('headPill2').onclick = () => { P.ledHead = !P.ledHead; if (P.ledHead) P.lightsOn = true; P.ledCfg = true; save(); renderLedsSoft(); };
 $('statusPill2').onclick = () => { P.ledBar = !P.ledBar; if (P.ledBar) P.lightsOn = true; P.ledCfg = true; save(); renderLedsSoft(); };
@@ -2054,7 +2208,7 @@ function frame(now) {
 }
 
 // ---------- start ----------
-layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); renderHorn(); renderMelody(); renderLeds(); setTab(Math.min(P.tab || 0, 5));
+layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); renderHorn(); renderMelody(); renderLeds(); setTab(Math.min(P.tab || 0, 6));
 window.addEventListener('resize', () => { layout(); renderTunes(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { layout(); renderTunes(); });
 requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
