@@ -311,7 +311,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf84 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf85 · sim</span></div>
     </div>
   </div>
 
@@ -405,6 +405,7 @@
       </div>
       <div class="ledSec" data-s="fw">
         <div class="secTitle">Light module</div>
+        <p class="ledHint" id="fwOnlySlcm" style="text-align:center;color:#FFB300">This only applies to Floatwheel, XRV, Pint V and GTV light modules with the SLCM firmware installed.</p>
         <div class="fwFit" id="fwFit"></div>
         <div id="fwCheckBtn" class="bigBeep" style="border-color:#FFB300;color:#FFB300">&#10004;&nbsp; CHECK LCM</div>
         <p class="ledHint" id="fwCheckHint" style="text-align:center">Board powered on and connected. The check asks the package which light module firmware is fitted; FLASH LCM only appears when it has the bootloader.</p>
@@ -1021,7 +1022,7 @@ function takeFinish() {
   renderPad();
 }
 for (let l = 1; l <= 10; l++) {
-  const t = document.createElement('div'); t.className = 'tile'; t.dataset.l = l; t.innerHTML = NOTE_NAMES[l - 1][0] + '<small style="font-size:11px">' + NOTE_NAMES[l - 1][1] + '</small>';
+  const t = document.createElement('div'); t.className = 'tile'; t.dataset.l = l; t.innerHTML = '';  // rf85: blank tiles
   t.style.cssText = 'border:3px solid ' + tileCol(l) + ';border-radius:12px;display:flex;align-items:center;justify-content:center;font:700 22px Orbitron,monospace;touch-action:none;user-select:none;cursor:pointer';
   t.addEventListener('pointerdown', e => {
     e.preventDefault(); padRelease();
@@ -1229,6 +1230,9 @@ function renderLedsSoft() {
   $('ltBat').textContent = P.batOn ? (P.batCell === 'MY CELL' && P.batCustom ? P.batCustom.name : P.batCell) + ' · ' + P.batPar + 'P · ' + STYLES[P.batStyle + 1] : 'VESC BATTERY %';
   $('batPill').textContent = 'BATTERY CURVE ' + (P.batOn ? 'ON' : 'OFF'); $('batPill').classList.toggle('on', P.batOn);
   $('batLive').textContent = batLive(); $('batAdvLive').textContent = batLive();
+  // rf85: no light module set up (Thor on Refloat's own LEDs / no LEDs): tools hidden
+  $('lcmTools').style.display = (P.simSetup || 'slcm') === 'slcm' || FW.active ? '' : 'none';
+  $('fwOnlySlcm').style.display = (P.simSetup || 'slcm') === 'slcm' ? 'none' : '';
   if (!lcmHold.t) { $('lcmToolsText').textContent = FW.active ? 'LCM FIRMWARE · FLASHING ' + Math.round(FW.p * 100) + '%' : (lcmHold.hint ? 'HOLD 2 s TO OPEN' : 'LCM firmware tools'); $('lcmToolsText').style.color = FW.active ? 'var(--green)' : ''; }
   document.querySelectorAll('.ledTile').forEach(t => t.classList.toggle('lit', t.dataset.w === 'head' ? P.ledHead : t.dataset.w === 'bar' ? P.ledBar : t.dataset.w === 'sound' ? P.ledBeep : true));
   $('ledBeepHint').textContent = P.ledBeep ? "The light module plays one short beep. No beep = the module isn't running the SLCM firmware or isn't connected."
@@ -1391,7 +1395,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf84';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf85';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1691,7 +1695,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf85' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf86' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

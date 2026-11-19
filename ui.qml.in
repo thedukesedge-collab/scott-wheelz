@@ -412,6 +412,9 @@ Item {
         property real rfDutyTh: 0.5
         property bool rfSensors: true
         property bool rfStatusAvail: false  // Refloat's own status strip is set up
+        // rf85: LED Mode includes an external light module (LCM). Without one
+        // (e.g. a Thor on Refloat's own LEDs) the LCM firmware tools are hidden.
+        property bool lcmModule: true
         property bool ctrlBeep: true  // is_beeper_enabled (Refloat's beeper on Servo/PPM, also the write beep)
         // readable text color for a Refloat LED color (black shown dim grey)
         function rfTextColor(i) {
@@ -686,6 +689,7 @@ Item {
             rfSensors = c.getParamBool("leds.status.show_sensors_while_running");
             ctrlBeep = c.getParamBool("is_beeper_enabled");
             rfStatusAvail = c.getParamEnum("hardware.leds.mode") !== 0 && c.getParamInt("hardware.leds.status.count") > 0;
+            lcmModule = (c.getParamEnum("hardware.leds.mode") & 2) !== 0;
             rfLoaded = true;
             if (changedAny) send();  // only goes out once the LEDS tab has been used
         }
@@ -8366,6 +8370,16 @@ Item {
 
                         LedHeading { text: "Light module" }
 
+                        SwLText {
+                            visible: !slcmDetect.present && !lcmFw.active
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            color: "#FFB300"
+                            text: "This only applies to Floatwheel, XRV, Pint V and GTV light modules with the SLCM firmware installed."
+                        }
+
                         Rectangle {
                             width: parent.width
                             height: lcmFittedText.implicitHeight + 0.24 * unit
@@ -13512,15 +13526,7 @@ Item {
                                     color: held ? melodyPad.tileColor(level) : "#140a26"
                                     border.color: melodyPad.tileColor(level)
                                     border.width: 3
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: melodyPad.noteNames[parent.level - 1].charAt(0) + "<font size=\"2\">" + melodyPad.noteNames[parent.level - 1].charAt(1) + "</font>"
-                                        textFormat: Text.StyledText
-                                        color: parent.held ? swTheme.background : melodyPad.tileColor(parent.level)
-                                        font.family: "Exan"
-                                        font.pixelSize: 0.5 * unit
-                                    }
+                                    // rf85: blank tiles (same notes and colors, no note names)
 
                                     MouseArea {
                                         anchors.fill: parent
@@ -14190,6 +14196,7 @@ Item {
                         // on purpose - a 2 s press and hold opens them
                         Item {
                             id: lcmToolsLink
+                            visible: ledSender.lcmModule || slcmDetect.present || lcmFw.active
                             anchors.horizontalCenter: parent.horizontalCenter
                             width: lcmToolsText.implicitWidth + 0.4 * unit
                             height: 0.62 * unit

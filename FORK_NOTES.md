@@ -804,6 +804,13 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### LCM tools only with a light module, blank melody tiles (v1.2.3-rf85)
+- "LCM firmware tools" is hidden when Refloat's LED Mode has no external
+  light module (e.g. a Thor on Refloat's own LEDs) and no SLCM answers; the
+  LCM FIRMWARE window says it only applies to Floatwheel / XRV / Pint V / GTV
+  light modules with SLCM firmware while no SLCM is detected.
+- Melody tiles are blank: same notes and outline colors, no note names.
+
 ### Riding animation, BATTERY idle choice, controller beeper, colored color names (v1.2.3-rf84)
 - STATUS BAR > Idle animation: BATTERY is the first choice of the selector
   (Refloat Status Idle Timeout 0) instead of a separate ON/OFF pill; picking
