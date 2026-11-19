@@ -4204,9 +4204,11 @@ Item {
                 var dim = function(cc, k) { return Qt.rgba(cc.r, cc.g, cc.b, Math.max(0.15, k)); };
                 if (md === 0) return c1;
                 if (md === 1) return mix(0.5 - 0.5 * Math.cos(2 * Math.PI * t * sp));
-                if (md === 2) return dim(c1, spot(m, frac(t * sp)));
-                if (md === 3) return dim(c1, frac(t * sp * 2) < 0.5 ? 1 : 0);
-                if (md === 4) return dim(c1, spot(x, sweep(t, 2 / sp)));
+                // rf91: PULSE / STROBE / KNIGHT RIDER show color 2 (background) unless it's black
+                var has2 = (an.rf ? an.rf.c2 : ledSender.rfColor2) !== 0;
+                if (md === 2) { var kp = spot(m, frac(t * sp)); return has2 ? mix(1 - kp) : dim(c1, kp); }
+                if (md === 3) return frac(t * sp * 2) < 0.5 ? c1 : (has2 ? c2 : dim(c1, 0));
+                if (md === 4) { var kk = spot(x, sweep(t, 2 / sp)); return has2 ? mix(1 - kk) : dim(c1, kk); }
                 if (md === 5) {
                     var fp = Math.floor(t * sp * 2) % 2;
                     return dim((x < 0.5) === (fp === 0) ? c1 : c2, Math.floor(t * 16) % 2 === 0 ? 1 : 0.2);
@@ -7769,8 +7771,10 @@ Item {
                                 onMoved: ledSender.setRf("rfColor1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                             }
                             SwStepper {
-                                visible: ledSender.rfMode === 1 || ledSender.rfMode === 5
-                                label: "COLOR 2"
+                                // rf91: Refloat uses color 2 in FADE, STROBE, FELONY and as the
+                                // background of PULSE and KNIGHT RIDER (BLACK = one color)
+                                visible: ledSender.rfMode >= 1 && ledSender.rfMode <= 5
+                                label: ledSender.rfMode === 2 || ledSender.rfMode === 4 ? "BACKGROUND" : "COLOR 2"
                                 valueWidth: 3.2 * unit
                                 value: ledSender.rfColor2
                                 from: 0; to: 29; step: 1
@@ -7787,7 +7791,7 @@ Item {
                                     GradientStop { position: 0; color: ledSender.rfQColor(ledSender.rfColor1) }
                                     GradientStop {
                                         position: 1
-                                        color: ledSender.rfQColor(ledSender.rfMode === 1 || ledSender.rfMode === 5 ? ledSender.rfColor2 : ledSender.rfColor1)
+                                        color: ledSender.rfQColor(ledSender.rfMode >= 1 && ledSender.rfMode <= 5 ? ledSender.rfColor2 : ledSender.rfColor1)
                                     }
                                 }
                             }
@@ -8297,8 +8301,8 @@ Item {
                             onMoved: ledSender.rgbSet(rgbCol.sel, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                         }
                         SwStepper {
-                            visible: rgbCol.bar.mode === 1 || rgbCol.bar.mode === 5
-                            label: "COLOR 2"
+                            visible: rgbCol.bar.mode >= 1 && rgbCol.bar.mode <= 5  // rf91, see Status Idle
+                            label: rgbCol.bar.mode === 2 || rgbCol.bar.mode === 4 ? "BACKGROUND" : "COLOR 2"
                             valueWidth: 3.2 * unit
                             value: rgbCol.bar.c2 || 0
                             from: 0; to: 29; step: 1
@@ -9709,7 +9713,17 @@ Item {
         clip: true
 
         title: "Tune Archive"
-        standardButtons: Dialog.Reset | Dialog.Close
+        // rf91: Neon Future look - neon cards, neon pill buttons
+        standardButtons: Dialog.NoButton
+        footer: Item {
+            implicitHeight: 1.3 * unit
+            Row {
+                anchors.centerIn: parent
+                spacing: 0.3 * unit
+                NeonButton { text: "Refresh"; onClicked: tuneArchiveDialog.download() }
+                NeonButton { text: "Close"; lit: true; onClicked: tuneArchiveDialog.close() }
+            }
+        }
 
         function download() {
             tuneArchiveDownloadStatus.text = "Downloading tunes...";
@@ -9749,14 +9763,6 @@ Item {
             }
         }
 
-        onReset: {
-            download();
-        }
-
-        Component.onCompleted: {
-            standardButton(Dialog.Reset).text = "Refresh"
-        }
-
         ColumnLayout {
             anchors.centerIn: parent
             width: parent.width * 0.95
@@ -9764,12 +9770,15 @@ Item {
             spacing: 15
             clip: true
 
-            LText {
+            Text {
                 id: tuneArchiveDownloadStatus
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
 
-                font.pointSize: 11
+                color: swTheme.neonPurple
+                font.family: "Exan"
+                font.pixelSize: 0.2 * unit
+                font.letterSpacing: 0.02 * unit
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
             }
@@ -9793,11 +9802,75 @@ Item {
                     }
                 }
 
-                delegate: Button {
+                // rf91: neon card per tune - title in neon, rider below, date tag;
+                // "RIDER - TITLE (DATE)" names are split for that
+                delegate: Rectangle {
+                    id: tuneCard
                     width: tuneArchiveTunesList.width
-                    text: tune.name
-                    onClicked: {
-                        applyConfigDialog.show(tune, false, true);
+                    height: tuneCardCol.implicitHeight + 0.36 * unit
+                    radius: 0.2 * unit
+                    readonly property color neon: swTheme.neonColors[index % swTheme.neonColors.length]
+                    readonly property var parts: {
+                        var n = String(tune.name), date = "", m = n.match(/\s*\(([^)]*)\)\s*$/);
+                        if (m) { date = m[1]; n = n.substring(0, m.index); }
+                        var i = n.indexOf(" - ");
+                        return i > 0 ? [n.substring(i + 3), n.substring(0, i), date] : [n, "", date];
+                    }
+                    color: tuneCardArea.pressed ? Qt.rgba(neon.r, neon.g, neon.b, 0.25) : "#140a26"
+                    border.color: neon
+                    border.width: 2
+
+                    Column {
+                        id: tuneCardCol
+                        anchors.left: parent.left
+                        anchors.right: tuneCardDate.left
+                        anchors.leftMargin: 0.3 * unit
+                        anchors.rightMargin: 0.15 * unit
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 0.04 * unit
+                        Text {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            text: tuneCard.parts[0].toUpperCase()
+                            color: tuneCard.neon
+                            font.family: "Exan"
+                            font.pixelSize: 0.28 * unit
+                            font.letterSpacing: 0.02 * unit
+                        }
+                        Text {
+                            visible: text !== ""
+                            width: parent.width
+                            elide: Text.ElideRight
+                            text: tuneCard.parts[1]
+                            color: "#ead6ff"
+                            font.pixelSize: 0.22 * unit
+                        }
+                    }
+                    Rectangle {
+                        id: tuneCardDate
+                        visible: tuneCard.parts[2] !== ""
+                        anchors.right: parent.right
+                        anchors.rightMargin: 0.25 * unit
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: visible ? tuneCardDateText.implicitWidth + 0.3 * unit : 0
+                        height: 0.42 * unit
+                        radius: height / 2
+                        color: "transparent"
+                        border.color: swTheme.neonPurple
+                        border.width: 1
+                        Text {
+                            id: tuneCardDateText
+                            anchors.centerIn: parent
+                            text: tuneCard.parts[2].toUpperCase()
+                            color: swTheme.neonPurple
+                            font.family: "Exan"
+                            font.pixelSize: 0.17 * unit
+                        }
+                    }
+                    MouseArea {
+                        id: tuneCardArea
+                        anchors.fill: parent
+                        onClicked: applyConfigDialog.show(tune, false, true)
                     }
                 }
             }

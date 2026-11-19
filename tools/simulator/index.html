@@ -185,6 +185,10 @@
   .sl b { color: #d6ffe4; font-weight: 500; text-align: right; font-family: ui-monospace, monospace; }
   .sl.locked { opacity: .45; }
 .rgbGrp{display:flex;align-items:center;gap:6px;margin:3px 0}.rgbGrp span{flex:1;color:var(--green);font-size:13px;letter-spacing:1px;text-shadow:0 0 6px var(--green)}.rgbGrp .pill{min-width:64px;text-align:center}
+  .taCard { display: flex; align-items: center; gap: 8px; background: #140a26; border: 2px solid; border-radius: 10px; padding: 9px 12px; margin: 0 0 8px; cursor: pointer; }
+  .taCard b { display: block; font: 700 13px Orbitron, monospace; letter-spacing: .5px; }
+  .taCard small { color: #ead6ff; font-size: 11px; }
+  .taCard i { font: normal 9px Orbitron, monospace; color: var(--purple); border: 1px solid var(--purple); border-radius: 10px; padding: 2px 7px; white-space: nowrap; }
   #tour { position: absolute; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(5,2,16,.9); }
   #tour.on { display: flex; }
   #tourCard { width: calc(100% - 24px); max-width: 360px; height: min(560px, calc(100% - 40px)); background: #0b0718; border: 2px solid var(--purple); border-radius: 14px; display: flex; flex-direction: column; align-items: center; padding: 14px 14px 16px; box-sizing: border-box; }
@@ -254,7 +258,7 @@
         <div class="tab on" data-i="0">TUNES</div><div class="tab" data-i="1">CONTROL</div><div class="tab" data-i="2">MIXER</div><div class="tab" data-i="3">DATA</div><div class="tab" data-i="4">BOARD STYLE</div><div class="tab" data-i="5">LEDS</div>
       </div>
       <div id="pages">
-        <div class="page on" id="pgTunes"><div class="tunes" id="tunes"></div></div>
+        <div class="page on" id="pgTunes"><div class="pills" style="justify-content:flex-end;margin:0 0 6px"><div class="pill" id="taOpen">TUNE ARCHIVE &#8615;</div></div><div class="tunes" id="tunes"></div></div>
         <div class="page" id="pgControl">
           <div class="secTitle">Move</div>
           <div id="moveBox"><div class="neonL" id="fwdL">FWD</div><div id="moveTrack"><div class="bar"></div><div id="moveKnob"></div></div><div class="neonL" id="revL">REV</div></div>
@@ -333,7 +337,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf90 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf91 · sim</span></div>
     </div>
   </div>
 
@@ -773,6 +777,17 @@ $('msSet').onclick = () => {
 renderMs();
 // rf90: the tour opens once on first start (SKIP closes it)
 if (!P.tourSeen) setTimeout(tourOpen, 600);
+// rf91: TUNE ARCHIVE in the Neon Future look (tuneArchiveDialog in ui.qml.in)
+const TA = ['Default Tune', 'GTV / PintV / XRV - Default Tune', 'Funwheel X7 - Default Tune', 'Bowl Tune', 'Les Carroll - Dirtsurferz Tune (May \'24)',
+  'Les Carroll - Mission Clone', 'Luke Austin - Full Send (Feb \'25)', 'Mitch\'s Chill Street Vibes', 'Nico - Fast Flow (Oct \'23)', 'Nico - Street Growler (June \'24)', 'Riley Johnson - Big Tire Float (May \'24)'];
+const NEONS = ['#39ff7a', '#b14cff', '#00f0ff', '#ff2bd6', '#ff8a1f', '#f5ff3b', '#ff2b4f', '#3b7bff'];
+$('taOpen').onclick = () => {
+  const card = (n, i) => { let d = ''; const m = n.match(/\s*\(([^)]*)\)\s*$/); if (m) { d = m[1]; n = n.slice(0, m.index); } const k = n.indexOf(' - '); const [t, r] = k > 0 ? [n.slice(k + 3), n.slice(0, k)] : [n, ''];
+    return '<div class="taCard" style="border-color:' + NEONS[i % 8] + '"><div style="flex:1"><b style="color:' + NEONS[i % 8] + '">' + t.toUpperCase() + '</b>' + (r ? '<small>' + r + '</small>' : '') + '</div>' + (d ? '<i>' + d.toUpperCase() + '</i>' : '') + '</div>'; };
+  const close = modal('<h3>TUNE ARCHIVE</h3><div style="text-align:center;font:10px Orbitron,monospace;color:var(--purple);margin-bottom:8px">TUNES DOWNLOADED ON 2/21/26 4:24 PM</div><div style="max-height:56vh;overflow:auto">' + TA.map(card).join('') + '</div><div class="btns"><button id="taRefresh">REFRESH</button><button class="pri" data-close>CLOSE</button></div>');
+  $('taRefresh').onclick = () => toast('Tunes refreshed (simulated)');
+  document.querySelectorAll('.taCard').forEach(c => c.onclick = () => { close(); toast('Apply tune (simulated)'); });
+};
 $('btnSettings').onclick = () => {
   const sw = (id, on, l) => '<div class="row"><div class="l">' + l + '</div><div class="sw' + (on ? ' on' : '') + '" data-sw="' + id + '"></div></div>';
   modal('<h3>SETTINGS</h3><div class="tabs"><div class="pill on" data-tab="0">SETUP</div><div class="pill" data-tab="1">PREFERENCES</div></div>'
@@ -1224,24 +1239,24 @@ function animCol(anim, i, n, t, hueDeg, el_text_off) {
     case 13: return x <= 0.8 ? 'rgba(244,240,255,1)' : 'rgba(255,255,255,0.22)';
     case 15: {  // Refloat's Status Idle animation (approximation)
       if (!P.rfTimeout) return 'rgba(234,214,255,1)';
-      const c1 = rfRgb(P.rfColor1), c2 = rfRgb(P.rfColor2), sp = Math.max(0.1, P.rfSpeed), md = P.rfMode;
+      const c1 = rfRgb(P.rfColor1), c2 = rfRgb(P.rfColor2), sp = Math.max(0.1, P.rfSpeed), md = P.rfMode, has2 = P.rfColor2 !== 0;  // rf91
       const mix = q => [0, 1, 2].map(j => Math.round(c1[j] + (c2[j] - c1[j]) * q));
       if (md === 0) return rfCss(c1);
       if (md === 1) return rfCss(mix(0.5 - 0.5 * Math.cos(2 * Math.PI * t * sp)));
-      if (md === 2) return rfCss(c1, Math.max(0.15, spot(m, frac(t * sp))));
-      if (md === 3) return rfCss(c1, frac(t * sp * 2) < 0.5 ? 1 : 0.15);
-      if (md === 4) return rfCss(c1, Math.max(0.15, spot(x, sweep(t, 2 / sp))));
+      if (md === 2) { const k = spot(m, frac(t * sp)); return has2 ? rfCss(mix(1 - k)) : rfCss(c1, Math.max(0.15, k)); }
+      if (md === 3) return frac(t * sp * 2) < 0.5 ? rfCss(c1) : has2 ? rfCss(c2) : rfCss(c1, 0.15);
+      if (md === 4) { const k = spot(x, sweep(t, 2 / sp)); return has2 ? rfCss(mix(1 - k)) : rfCss(c1, Math.max(0.15, k)); }
       if (md === 5) { const fp = Math.floor(t * sp * 2) % 2; return rfCss((x < 0.5) === (fp === 0) ? c1 : c2, Math.floor(t * 16) % 2 === 0 ? 1 : 0.2); }
       h = md === 8 ? frac(x - t * sp) : frac(t * sp / 3); break;
     }
     case 16: {  // RGB LIGHTS: the selected Refloat light bar (same maths as 15)
-      const b = P.rgb[P.rgbSel || 0], c1 = rfRgb(b.c1), c2 = rfRgb(b.c2), sp = Math.max(0.1, b.speed), md = b.mode;
+      const b = P.rgb[P.rgbSel || 0], c1 = rfRgb(b.c1), c2 = rfRgb(b.c2), sp = Math.max(0.1, b.speed), md = b.mode, has2 = b.c2 !== 0;  // rf91
       const mix = q => [0, 1, 2].map(j => Math.round(c1[j] + (c2[j] - c1[j]) * q));
       if (md === 0) return rfCss(c1);
       if (md === 1) return rfCss(mix(0.5 - 0.5 * Math.cos(2 * Math.PI * t * sp)));
-      if (md === 2) return rfCss(c1, Math.max(0.15, spot(m, frac(t * sp))));
-      if (md === 3) return rfCss(c1, frac(t * sp * 2) < 0.5 ? 1 : 0.15);
-      if (md === 4) return rfCss(c1, Math.max(0.15, spot(x, sweep(t, 2 / sp))));
+      if (md === 2) { const k = spot(m, frac(t * sp)); return has2 ? rfCss(mix(1 - k)) : rfCss(c1, Math.max(0.15, k)); }
+      if (md === 3) return frac(t * sp * 2) < 0.5 ? rfCss(c1) : has2 ? rfCss(c2) : rfCss(c1, 0.15);
+      if (md === 4) { const k = spot(x, sweep(t, 2 / sp)); return has2 ? rfCss(mix(1 - k)) : rfCss(c1, Math.max(0.15, k)); }
       if (md === 5) { const fp = Math.floor(t * sp * 2) % 2; return rfCss((x < 0.5) === (fp === 0) ? c1 : c2, Math.floor(t * 16) % 2 === 0 ? 1 : 0.2); }
       h = md === 8 ? frac(x - t * sp) : frac(t * sp / 3); break;
     }
@@ -1350,7 +1365,7 @@ function renderRgb() {
   box.innerHTML = '';
   const st = (k, l, mn, mx, stp, fmt) => cuStep('rgbSteps', l, () => b[k], mn, mx, stp, fmt, v => { b[k] = k[0] === 'c' ? rfNext(b[k], v) : Math.round(v * 100) / 100; P.ledCfg = true; save(); renderRgb(); renderLedsSoft(); }, k[0] === 'c' ? rfTxt : null);
   if (b.mode < 6) st('c1', 'COLOR 1', 0, 29, 1, v => RF_COLORS[v]);
-  if (b.mode === 1 || b.mode === 5) st('c2', 'COLOR 2', 0, 29, 1, v => RF_COLORS[v]);
+  if (b.mode >= 1 && b.mode <= 5) st('c2', b.mode === 2 || b.mode === 4 ? 'BACKGROUND' : 'COLOR 2', 0, 29, 1, v => RF_COLORS[v]);  // rf91
   if (b.mode !== 0) st('speed', 'SPEED', 0.1, 5, 0.1, v => v.toFixed(1) + '/s');
   // HEAD / FRONT brightness = the HEADLIGHTS window's RIDING / RUNNING levels
   const bk = i === 0 ? 'ledHeadPct' : i === 2 ? 'ledHeadIdlePct' : null;
@@ -1375,10 +1390,10 @@ function renderRf() {
   if (on) {
     const st = (k, l, mn, mx, stp, fmt) => cuStep('rfSteps', l, () => P[k], mn, mx, stp, fmt, v => { P[k] = k.startsWith('rfColor') ? rfNext(P[k], v) : Math.round(v * 10) / 10; P.ledAnimIdle = 15; P.ledCfg = true; save(); renderRf(); renderLedsSoft(); }, k.startsWith('rfColor') ? rfTxt : null);
     if (P.rfMode < 6) st('rfColor1', 'COLOR 1', 0, 29, 1, v => RF_COLORS[v]);
-    if (P.rfMode === 1 || P.rfMode === 5) st('rfColor2', 'COLOR 2', 0, 29, 1, v => RF_COLORS[v]);
+    if (P.rfMode >= 1 && P.rfMode <= 5) st('rfColor2', P.rfMode === 2 || P.rfMode === 4 ? 'BACKGROUND' : 'COLOR 2', 0, 29, 1, v => RF_COLORS[v]);  // rf91
     if (P.rfMode !== 0) st('rfSpeed', 'SPEED', 0.1, 5, 0.1, v => v.toFixed(1) + '/s');
     st('rfTimeout', 'START AFTER', 1, 300, 1, v => v + ' s');
-    $('rfSwatch').style.background = 'linear-gradient(90deg,' + rfCss(rfRgb(P.rfColor1)) + ',' + rfCss(rfRgb(P.rfMode === 1 || P.rfMode === 5 ? P.rfColor2 : P.rfColor1)) + ')';
+    $('rfSwatch').style.background = 'linear-gradient(90deg,' + rfCss(rfRgb(P.rfColor1)) + ',' + rfCss(rfRgb(P.rfMode >= 1 && P.rfMode <= 5 ? P.rfColor2 : P.rfColor1)) + ')';
   }
   const slcm = (P.simSetup || 'slcm') === 'slcm';
   $('rfHint').textContent = "Refloat's own Status Idle animation, so it's the same on every controller (Thor, Floatwheel, ...): Refloat's LEDs play it themselves, and for an SLCM light module the package turns it into the closest SLCM animation (from SLCM r19; older builds show the battery). BATTERY = the battery level. START AFTER only applies to Refloat's LEDs, an SLCM starts right away."
@@ -1484,7 +1499,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf90';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf91';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1784,7 +1799,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf91' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf92' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

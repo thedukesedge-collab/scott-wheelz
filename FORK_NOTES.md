@@ -804,6 +804,17 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Knight Rider background color, neon Tune Archive (v1.2.3-rf91)
+- Refloat (leds.c) uses color 2 in FADE, STROBE, FELONY and as the
+  background of PULSE and KNIGHT RIDER (color_blend(color2, color1, k)); the
+  app only showed COLOR 2 for FADE / FELONY, so a leftover color 2 lit the
+  Knight Rider background with no way to change it here. COLOR 2 now shows
+  for modes 1-5, called BACKGROUND for PULSE / KNIGHT RIDER (BLACK = one
+  color). Previews blend to it. Refloat's code unchanged.
+- TUNE ARCHIVE: neon cards (title in a neon color, rider below, date tag),
+  purple status line, REFRESH / CLOSE neon buttons. Same in the simulator
+  (TUNES > TUNE ARCHIVE).
+
 ### Tour on first start, BEEPER, credits page (v1.2.3-rf90)
 - The tips & tricks tour opens by itself the first time the package is
   opened (swSettings.tourSeen; SKIP or DONE closes it for good; SETTINGS >
