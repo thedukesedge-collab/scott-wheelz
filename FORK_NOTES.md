@@ -804,6 +804,21 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Tilt only while riding, HAPTIC FEEDBACK window, BEEPER in CONTROL (v1.2.3-rf108)
+- TILT (main screen and CONTROL): only usable while engaged and moving
+  (> 0.9 m/s); the CONTROL "enable" box is gone. Remote tilt input = UART is
+  set once when the board is READY (only if not already; never mid-ride).
+  The app sends the tilt only while usable, plus one final 0.
+- CONTROL > HAPTIC FEEDBACK > (window): ON / OFF (haptic.duty.strength 0 vs
+  the last strength), STRENGTH 0.5-12 V, AT DUTY (tiltback_duty, 50-100%,
+  100 = off), AT SPEED (tiltback_speed km/h, shown in mph, 0 = off) - all
+  Refloat's own settings; the text says the duty / speed are Refloat's
+  pushback thresholds (nose lifts there too). Written 1.5 s after a change,
+  never while riding.
+- CONTROL also has BEEPER ON / OFF (is_beeper_enabled, same as LEDS >
+  BEEPER).
+- Tabs: less side padding so CONTROL keeps a bigger font.
+
 ### MAX SPEED: read-back check, limited mode refused, red warning (v1.2.3-rf107)
 - Rider report: SET at 41 mph, the first hand test topped out at 16 mph, the
   second (after OFF / ON) at exactly 41. Cause not pinned down from here.

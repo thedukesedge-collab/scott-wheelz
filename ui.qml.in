@@ -187,12 +187,18 @@ Item {
 
             // Re-RinkFloat: main-screen TILT slider wins while it's in use; one
             // final 0 is sent after it springs back
-            var swTiltActive = swTiltSlider.pressed || swTiltSlider.value != 0;
-            if (swTiltActive || swTiltSlider.sentNonZero) {
+            // rf108: tilt only while engaged and moving (mainItem.tiltUsable)
+            var swTiltActive = mainItem.tiltUsable && (swTiltSlider.pressed || swTiltSlider.value != 0);
+            var ctlTiltActive = mainItem.tiltUsable && !swTiltActive && (tiltSlider.pressed || tiltSlider.value != 0);
+            if (swTiltActive) {
                 vescCommands.lispSendReplCmd("(set-remote-state " + swTiltSlider.input().toFixed(3) + " 0 0 0 0)");
-                swTiltSlider.sentNonZero = swTiltActive;
-            } else if (tiltEnabled.checked) {
-                vescCommands.lispSendReplCmd("(set-remote-state " + tiltSlider.value + " 0 0 0 0)");
+                swTiltSlider.sentNonZero = true;
+            } else if (ctlTiltActive) {
+                vescCommands.lispSendReplCmd("(set-remote-state " + tiltSlider.value.toFixed(3) + " 0 0 0 0)");
+                swTiltSlider.sentNonZero = true;
+            } else if (swTiltSlider.sentNonZero) {
+                vescCommands.lispSendReplCmd("(set-remote-state 0 0 0 0 0)");  // one final 0
+                swTiltSlider.sentNonZero = false;
             }
         }
     }
@@ -2471,6 +2477,7 @@ Item {
         property int ledSnoozeMin: 5  // rf100: minutes BEFORE the board powers off (0 = never)
         property int ledRideMode: 0  // rf97: riding status bar: 0 battery / duty, else Refloat mode + 1
         property int ledSnoozeStyle: 0  // rf97: 0 breathe, 1 dim, 2 dark
+        property real hapticLast: 3  // rf108: strength brought back by HAPTIC FEEDBACK ON
         property int rfBgLast: 1  // rf101: background color brought back by BACKGROUND ON (WHITE)  // rf86: controller-driven LEDs snooze after this many idle minutes (0 = never)
         property string ledCustom: ""  // CUSTOM animation, 8 numbers (JSON), see ledSender.custom()
         property int ledAnimBoot: 11
@@ -3207,6 +3214,14 @@ Item {
 
     // for components (inside one, "state" is the item's own state property)
     readonly property bool boardRunning: state.pkgState === state.s_Running
+    // rf108: the TILT sliders only work while the board is engaged and moving (> ~2 mph)
+    readonly property bool tiltUsable: boardRunning && Math.abs(state.rtData["motor.speed"] || 0) > 0.9
+    // remote tilt input must be UART: set once while the board is idle (READY),
+    // never mid-ride (only writes the config if it isn't already)
+    Connections {
+        target: state
+        function onPkgStateChanged() { if (state.pkgState === state.s_Ready) packageConfig.setInputTiltRemoteType(1); }
+    }
 
     property var state: QtObject {
         id: state
@@ -7658,6 +7673,105 @@ Item {
                 id: disclaimerHide
                 width: parent.width
                 text: "Don't show this again (until the next update)"
+            }
+        }
+    }
+
+    // rf108: HAPTIC FEEDBACK - Refloat's own settings: Warning Audible Strength
+    // (haptic.duty.strength, 0 = off) and the Duty Cycle / Speed Pushback
+    // thresholds the tone plays at (tiltback_duty, tiltback_speed km/h)
+    QtObject {
+        id: hapticCfg
+        property bool loaded: false
+        property real strength: 3
+        property real duty: 0.8
+        property int speedKmh: 0
+        readonly property bool on: strength > 0
+        function cfg() { return packageConfig.pkgConfig; }
+        function load() {
+            if (!packageConfig.checkConfig()) return false;
+            var c = cfg();
+            strength = c.getParamDouble("haptic.duty.strength");
+            duty = c.getParamDouble("tiltback_duty");
+            speedKmh = c.getParamInt("tiltback_speed");
+            loaded = true;
+            return true;
+        }
+        function openWindow() {
+            if (!load()) { VescIf.emitStatusMessage("Refloat's settings aren't loaded yet", false); return; }
+            hapticWindow.open();
+        }
+        function set(key, v) {
+            if (!loaded) return;
+            hapticCfg[key] = v;
+            hapticWriteTimer.restart();
+        }
+        function write() {
+            if (!packageConfig.checkConfig() || !loaded) return;
+            if (mainItem.boardRunning) { hapticWriteTimer.restart(); return; }  // never mid-ride
+            var c = cfg(), dirty = false;
+            if (Math.abs(c.getParamDouble("haptic.duty.strength") - strength) > 0.001) { c.updateParamDouble("haptic.duty.strength", strength); dirty = true; }
+            if (Math.abs(c.getParamDouble("tiltback_duty") - duty) > 0.0005) { c.updateParamDouble("tiltback_duty", duty); dirty = true; }
+            if (c.getParamInt("tiltback_speed") !== speedKmh) { c.updateParamInt("tiltback_speed", speedKmh); dirty = true; }
+            if (dirty) packageConfig.writeConfig();
+        }
+        property Timer writeTimer: Timer { id: hapticWriteTimer; interval: 1500; onTriggered: hapticCfg.write() }
+    }
+
+    BaseDialog {
+        id: hapticWindow
+        parent: ApplicationWindow.overlay
+        title: "Haptic feedback"
+        standardButtons: Dialog.Close
+
+        Column {
+            width: hapticWindow.availableWidth
+            spacing: 0.2 * unit
+
+            SwPill {
+                anchors.horizontalCenter: parent.horizontalCenter
+                minWidth: 3.6 * unit
+                label: hapticCfg.on ? "HAPTIC FEEDBACK ON" : "HAPTIC FEEDBACK OFF"
+                lit: hapticCfg.on
+                onClicked: {
+                    if (hapticCfg.on) { swSettings.hapticLast = hapticCfg.strength; hapticCfg.set("strength", 0); }
+                    else hapticCfg.set("strength", swSettings.hapticLast > 0 ? swSettings.hapticLast : 3);
+                }
+            }
+            SwStepper {
+                visible: hapticCfg.on
+                label: "STRENGTH"
+                value: hapticCfg.strength
+                from: 0.5; to: 12; step: 0.5; decimals: 1; suffix: " V"
+                onMoved: hapticCfg.set("strength", newValue)
+            }
+            SwStepper {
+                label: "AT DUTY"
+                value: Math.round(hapticCfg.duty * 100)
+                from: 50; to: 100; step: 1
+                valueText: value >= 100 ? "OFF" : value + "%"
+                onMoved: hapticCfg.set("duty", newValue / 100)
+            }
+            SwStepper {
+                label: "AT SPEED"
+                value: hapticCfg.speedKmh
+                from: 0; to: 100; step: 5
+                valueText: value === 0 ? "OFF" : Math.round(value * vescConfig.imperialFactor) + " " + vescConfig.speedUnit
+                onMoved: hapticCfg.set("speedKmh", newValue)
+            }
+            SwLText {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                font.pixelSize: fontSizeSmall
+                text: "The motor plays a warning tone you feel and hear when you reach the duty or speed set here (a solid tone a little above it). "
+                    + "These are Refloat's own settings: STRENGTH = Warning Audible Strength (stronger at speed), AT DUTY / AT SPEED = Refloat's Duty Cycle and Speed Pushback thresholds, so the nose also lifts there (Pushback Angle). Saved when the board is idle."
+            }
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                font.pixelSize: fontSizeSmall
+                color: "#ff2b4f"
+                text: "Duty above about 85% leaves little margin before the motor runs out of power: keep AT DUTY where your pushback was if you're not sure."
             }
         }
     }
@@ -12973,7 +13087,7 @@ Item {
                     from: -1
                     to: 1
                     value: 0
-                    enabled: hornFrame.available
+                    enabled: mainItem.tiltUsable  // rf108: engaged and moving
                     opacity: enabled ? 1 : 0.4
 
                     readonly property real maxDeg: 4
@@ -12992,12 +13106,7 @@ Item {
                         if (lim > 0) {
                             angleLimit = lim;
                         }
-                        // Remote tilt input must be UART (one-time config write,
-                        // same as the Control tab's enable box). Only while not
-                        // riding, so the config is never rewritten mid-ride.
-                        if (state.pkgState !== state.s_Running) {
-                            packageConfig.setInputTiltRemoteType(1);
-                        }
+                        // (remote tilt input UART: set while idle, see tiltUsable)
                     }
 
                     background: Rectangle {
@@ -13408,6 +13517,9 @@ Item {
                     // tabs share the bar's width equally; a fixed implicit width keeps
                     // the wrapping label from feeding back into the TabBar's size
                     implicitWidth: 2 * unit
+                    // rf108: less side padding so CONTROL keeps a bigger font
+                    leftPadding: 0.05 * unit
+                    rightPadding: 0.05 * unit
 
                     contentItem: Text {
                         text: swTab.text
@@ -13732,7 +13844,7 @@ Item {
 
                         Item {
                             width: parent.width
-                            implicitHeight: tiltEnabled.implicitHeight
+                            implicitHeight: tiltControlsHeader.implicitHeight + 0.2 * unit
                             anchors.horizontalCenter: parent.horizontalCenter
 
                             SwLText {
@@ -13747,21 +13859,6 @@ Item {
                                 text: "Tilt"
                             }
 
-                            CheckBox {
-                                id: tiltEnabled
-                                anchors.left: tiltControlsHeader.right
-                                anchors.leftMargin: 0.2 * unit
-
-                                checked: false
-                                font.pixelSize: fontSizeNormal
-                                text: "enable"
-
-                                onClicked: {
-                                    if (checked) {
-                                        packageConfig.setInputTiltRemoteType(1);
-                                    }
-                                }
-                            }
                         }
 
                         Slider {
@@ -13769,10 +13866,44 @@ Item {
                             width: parent.width * 0.9
                             anchors.horizontalCenter: parent.horizontalCenter
 
-                            enabled: tiltEnabled.checked
+                            enabled: mainItem.tiltUsable  // rf108: engaged and moving
+                            opacity: enabled ? 1 : 0.4
                             from: -1
                             to: 1
                             value: 0
+                        }
+
+                        SwLText {
+                            visible: !mainItem.tiltUsable
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            font.pixelSize: fontSizeSmall
+                            text: "Tilt works while riding (engaged and moving)."
+                        }
+
+                        // rf108: HAPTIC FEEDBACK (Refloat's settings) + controller BEEPER
+                        Item { width: parent.width; height: 0.2 * unit }
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.2 * unit
+                            SwPill {
+                                minWidth: 3.6 * unit
+                                label: "HAPTIC FEEDBACK \u203A"
+                                lit: hapticCfg.on
+                                onClicked: hapticCfg.openWindow()
+                            }
+                            SwPill {
+                                minWidth: 2.8 * unit
+                                label: ledSender.ctrlBeep ? "BEEPER ON" : "BEEPER OFF"
+                                lit: ledSender.ctrlBeep
+                                onClicked: ledSender.setCtrlBeep(!ledSender.ctrlBeep)
+                            }
+                        }
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "BEEPER OFF mutes the controller's beeper: the beep when settings are written, at power on / off, and its warning beeps (Refloat's Enable Beeper on Servo/PPM)."
                         }
 
                         Item {

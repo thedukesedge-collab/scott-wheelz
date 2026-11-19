@@ -289,6 +289,8 @@
         <div class="page on" id="pgTunes"><div class="pills" style="justify-content:flex-end;margin:0 0 6px"><div class="pill" id="taOpen">TUNE ARCHIVE &#8615;</div></div><div class="tunes" id="tunes"></div></div>
         <div class="page" id="pgControl">
           <div class="secTitle">Move</div>
+          <div class="pills" style="margin-top:6px"><div class="pill" id="hapOpen">HAPTIC FEEDBACK &#8250;</div><div class="pill" id="ctlBeep"></div></div>
+          <p class="ledHint" style="text-align:center">BEEPER OFF mutes the controller's beeper: the beep when settings are written, at power on / off, and its warning beeps (Refloat's Enable Beeper on Servo/PPM).</p>
           <div id="moveBox"><div class="neonL" id="fwdL">FWD</div><div id="moveTrack"><div class="bar"></div><div id="moveKnob"></div></div><div class="neonL" id="revL">REV</div></div>
           <div style="display:none"><div class="secTitle neonL" style="font-size:16px;margin-top:14px">FREE-SPIN LIMITER</div>
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Holds the tire at this speed while wheelslip is detected (e.g. in the air off a jump): the motor eases off so the tire keeps spinning just under the limit. Normal riding is not limited. Minimum 40 mph.</p>
@@ -361,7 +363,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf107 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf108 · sim</span></div>
     </div>
   </div>
 
@@ -916,6 +918,31 @@ function drawBoardArt(c, w, h, t, lit) {
   }
   requestAnimationFrame(boardArtLoop);
 })();
+// rf108: HAPTIC FEEDBACK window (hapticCfg in ui.qml.in) and the controller BEEPER in CONTROL
+if (P.hap === undefined) P.hap = { str: 3, duty: 80, spd: 0, last: 3 };
+function renderCtl() {
+  $('hapOpen').classList.toggle('on', P.hap.str > 0);
+  $('ctlBeep').textContent = 'BEEPER ' + (P.ctrlBeep !== false ? 'ON' : 'OFF'); $('ctlBeep').classList.toggle('on', P.ctrlBeep !== false);
+}
+$('ctlBeep').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); renderCtl(); renderLedsSoft(); };
+function hapticWin() {
+  modal('<h3>HAPTIC FEEDBACK</h3><div class="pills"><div class="pill" id="hapOn"></div></div><div id="hapSteps"></div>'
+    + '<p class="ledHint">The motor plays a warning tone you feel and hear when you reach the duty or speed set here (a solid tone a little above it). These are Refloat\'s own settings: STRENGTH = Warning Audible Strength (stronger at speed), AT DUTY / AT SPEED = Refloat\'s Duty Cycle and Speed Pushback thresholds, so the nose also lifts there (Pushback Angle). Saved when the board is idle.</p>'
+    + '<p class="ledHint" style="color:#ff2b4f">Duty above about 85% leaves little margin before the motor runs out of power: keep AT DUTY where your pushback was if you\'re not sure.</p>'
+    + '<div class="btns"><button class="pri" data-close>CLOSE</button></div>');
+  const r = () => {
+    const h = P.hap; $('hapOn').textContent = 'HAPTIC FEEDBACK ' + (h.str > 0 ? 'ON' : 'OFF'); $('hapOn').classList.toggle('on', h.str > 0);
+    $('hapSteps').innerHTML = '';
+    if (h.str > 0) cuStep('hapSteps', 'STRENGTH', () => h.str, 0.5, 12, 0.5, v => v.toFixed(1) + ' V', v => { h.str = Math.round(v * 2) / 2; save(); r(); });
+    cuStep('hapSteps', 'AT DUTY', () => h.duty, 50, 100, 1, v => v >= 100 ? 'OFF' : v + '%', v => { h.duty = v; save(); r(); });
+    cuStep('hapSteps', 'AT SPEED', () => h.spd, 0, 100, 5, v => v ? Math.round(v * 0.621371) + ' mph' : 'OFF', v => { h.spd = v; save(); r(); });
+    renderCtl();
+  };
+  $('hapOn').onclick = () => { const h = P.hap; if (h.str > 0) { h.last = h.str; h.str = 0; } else h.str = h.last || 3; save(); r(); };
+  r();
+}
+$('hapOpen').onclick = hapticWin;
+renderCtl();
 $('btnSettings').onclick = () => {
   const sw = (id, on, l) => '<div class="row"><div class="l">' + l + '</div><div class="sw' + (on ? ' on' : '') + '" data-sw="' + id + '"></div></div>';
   modal('<h3>SETTINGS</h3><div class="tabs"><div class="pill on" data-tab="0">SETUP</div><div class="pill" data-tab="1">PREFERENCES</div></div>'
@@ -1646,7 +1673,7 @@ document.querySelectorAll('.ledTile').forEach(t => t.onclick = () => ledWin(t.da
 $('ledWinBack').onclick = () => { if (document.querySelector('.ledSec.on[data-s="custom"]')) { ledWin('anim'); renderLeds(); return; } fwForget(); ledWin(null); };
 $('ledWinDim').onclick = () => { fwForget(); ledWin(null); };
 $('cuOpen').onclick = () => { ledWin('custom'); renderCustom(); };
-$('ctrlBeepPill').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); renderLedsSoft(); };
+$('ctrlBeepPill').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); renderLedsSoft(); renderCtl(); };
 $('ctrlTestBeep').onclick = () => {
   if (P.ctrlBeep === false) { toast('Controller beeper is off - turn it on to hear the test beep'); return; }
   toast('Test beep sent to the controller');
@@ -1672,7 +1699,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf107';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf108';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1972,7 +1999,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf108' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf109' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });
@@ -2582,7 +2609,10 @@ function updateDom() {
   const tf = $('tiltFill'); tf.style.left = Math.min(50, (tv + 1) * 50) + '%'; tf.style.width = Math.abs(tv) * 50 + '%';
   $('tiltL').style.color = tOn ? GREEN : '#c98bff';
   $('tiltV').textContent = (tv * 4 > 0 ? '+' : '') + (tv * 4).toFixed(1) + '°'; $('tiltV').style.color = tOn ? GREEN : '#ead6ff';
-  $('tiltTrack').dataset.disabled = hornAvail() ? '0' : '1'; $('tiltTrack').style.opacity = hornAvail() ? 1 : 0.4;
+  // rf108: tilt only while engaged and moving
+  const tiltOk = running() && Math.abs(S.speed) > 2;
+  $('tiltTrack').dataset.disabled = tiltOk ? '0' : '1'; $('tiltTrack').style.opacity = tiltOk ? 1 : 0.4;
+  if (!tiltOk && S.tilt !== 0 && !tiltActive()) S.tilt = 0;
   // horn
   const honking = S.horn;
   $('horn').classList.toggle('honk', honking);
