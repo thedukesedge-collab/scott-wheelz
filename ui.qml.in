@@ -2444,6 +2444,7 @@ Item {
         property int ledAnimRide: 0
         property int ledAnimDoze: 0
         property bool ledDozeBreath: true  // headlights breathe in snooze (SLCM; off = dark)
+        property bool hideDisclaimer: false  // rf93: "don't show this again" on the start disclaimer
         property bool tourSeen: false  // rf90: the tips & tricks tour opens once on first start
         property int ledSnoozeMin: 0  // rf86: Refloat's own LEDs snooze after this many idle minutes (0 = never)
         property string ledCustom: ""  // CUSTOM animation, 8 numbers (JSON), see ledSender.custom()
@@ -6830,7 +6831,10 @@ Item {
 
         // rf90: no welcome dialog / upstream hint pages on start; the
         // Rink-Mixed tour opens once instead (SKIP closes it)
-        if (!swSettings.tourSeen) rinkTour.open();
+        // rf93: the disclaimer opens every time (until "don't show again"),
+        // the tour after it on first start
+        if (!swSettings.hideDisclaimer) disclaimerDialog.open();
+        else if (!swSettings.tourSeen) rinkTour.open();
 
         onStartupTimer.start();
     }
@@ -7509,6 +7513,41 @@ Item {
                     maxSpeed.pending = 0;
                     VescIf.emitStatusMessage("Couldn't read the motor settings from the board - nothing changed", false);
                 }
+            }
+        }
+    }
+
+    // rf93: shown each time the package UI opens, until "don't show again"
+    BaseDialog {
+        id: disclaimerDialog
+        parent: ApplicationWindow.overlay
+        title: "Before you start"
+        standardButtons: Dialog.Ok
+        closePolicy: Popup.NoAutoClose
+
+        onOpened: { disclaimerHide.checked = false; standardButton(Dialog.Ok).text = "Got it"; }
+        onAccepted: {
+            if (disclaimerHide.checked) swSettings.hideDisclaimer = true;
+            if (!swSettings.tourSeen) rinkTour.open();
+        }
+
+        Column {
+            width: disclaimerDialog.availableWidth
+            spacing: 0.25 * unit
+
+            NText {
+                width: parent.width
+                font.pointSize: 12
+                wrapMode: Text.WordWrap
+                text: "Everything in Re-Float Rink-Mixed works off your current Refloat settings: tunes, lights, sounds and the rest read and write Refloat's own configuration.\n\n"
+                    + "To use its features properly you need a working board that is set up and rides correctly on Refloat, and working LEDs (Refloat's own LEDs or a light module) for the light features.\n\n"
+                    + "If something doesn't work, check the board and its Refloat settings in VESC Tool first."
+            }
+
+            CheckBox {
+                id: disclaimerHide
+                width: parent.width
+                text: "Don't show this again"
             }
         }
     }

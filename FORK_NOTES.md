@@ -804,6 +804,13 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Start disclaimer (v1.2.3-rf93)
+- Each time the package UI opens, a BEFORE YOU START dialog says everything
+  works off the current Refloat settings and needs a working board (rides
+  correctly on Refloat) with working LEDs for the light features. "Don't
+  show this again" (swSettings.hideDisclaimer) turns it off. On first start
+  the tour opens after it. Same in the simulator.
+
 ### Animated HEADLIGHTS / STATUS BAR tiles, readable previews (v1.2.3-rf92)
 - LEDS: the HEADLIGHTS tile shows a little board whose beam and taillight
   breathe, the STATUS BAR tile ten LEDs filling up like the battery bar

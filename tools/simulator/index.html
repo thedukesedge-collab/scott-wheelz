@@ -355,7 +355,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf92 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf93 · sim</span></div>
     </div>
   </div>
 
@@ -794,7 +794,13 @@ $('msSet').onclick = () => {
 };
 renderMs();
 // rf90: the tour opens once on first start (SKIP closes it)
-if (!P.tourSeen) setTimeout(tourOpen, 600);
+// rf93: disclaimer each time the UI opens (until "don't show again"), then the tour on first start
+function disclaimerOpen() {
+  modal('<h3>BEFORE YOU START</h3><div style="font-size:13px;line-height:1.45;color:#d6ffe4">Everything in Re-Float Rink-Mixed works off your current Refloat settings: tunes, lights, sounds and the rest read and write Refloat\'s own configuration.<br><br>To use its features properly you need a working board that is set up and rides correctly on Refloat, and working LEDs (Refloat\'s own LEDs or a light module) for the light features.<br><br>If something doesn\'t work, check the board and its Refloat settings in VESC Tool first.</div>'
+    + '<label style="display:flex;gap:8px;align-items:center;margin-top:10px;color:#ead6ff;font-size:13px"><input type="checkbox" id="dcHide"> Don\'t show this again</label>'
+    + '<div class="btns"><button class="pri" data-ok>GOT IT</button></div>', () => { if ($('dcHide').checked) { P.hideDisclaimer = true; save(); } if (!P.tourSeen) setTimeout(tourOpen, 200); });
+}
+setTimeout(() => P.hideDisclaimer ? (!P.tourSeen && tourOpen()) : disclaimerOpen(), 600);
 // rf91: TUNE ARCHIVE in the Neon Future look (tuneArchiveDialog in ui.qml.in)
 const TA = ['Default Tune', 'GTV / PintV / XRV - Default Tune', 'Funwheel X7 - Default Tune', 'Bowl Tune', 'Les Carroll - Dirtsurferz Tune (May \'24)',
   'Les Carroll - Mission Clone', 'Luke Austin - Full Send (Feb \'25)', 'Mitch\'s Chill Street Vibes', 'Nico - Fast Flow (Oct \'23)', 'Nico - Street Growler (June \'24)', 'Riley Johnson - Big Tire Float (May \'24)'];
@@ -1521,7 +1527,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf92';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf93';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1821,7 +1827,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf93' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf94' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });
