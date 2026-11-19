@@ -352,7 +352,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf98 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf99 · sim</span></div>
     </div>
   </div>
 
@@ -519,6 +519,7 @@
     <div style="font-size:11px;color:var(--text)">Tap a melody to play it at bootup. &#9998; re-records it, &#10005; (tap twice) deletes it.</div>
     <div id="melSaved" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:6px"></div>
     <div class="pills"><div class="pill" id="myMelDefault">DEFAULT MELODY</div><div class="pill on" id="myMelNew">+ RECORD NEW</div></div>
+    <div class="secTitle neonL" style="font-size:12px;text-align:center">CLASSICS</div><div class="pills" id="melPresets"></div>
   </div>
   <div class="modalBack" id="modal"><div class="modal" id="modalBox"></div></div>
   <div id="toast"></div>
@@ -1130,7 +1131,26 @@ function renderMelody() {
   });
 }
 let melDel = '';
-function myMel(on) { $('myMel').style.display = on ? 'flex' : 'none'; $('myMelBack').style.display = on ? 'block' : 'none'; melDel = ''; renderMelody(); }
+// rf99: classic tunes (public domain), as melodyLib.presets in ui.qml.in
+const MEL_PRESETS = [
+  ['Ode to Joy', 220, [[8,1],[8,1],[9,1],[10,1],[10,1],[9,1],[8,1],[7,1],[6,1],[6,1],[7,1],[8,1],[8,1.5],[7,0.5],[7,2]]],
+  ['Twinkle Twinkle', 200, [[3,1],[3,1],[7,1],[7,1],[8,1],[8,1],[7,2],[6,1],[6,1],[5,1],[5,1],[4,1],[4,1],[3,2]]],
+  ['Jingle Bells', 220, [[8,1],[8,1],[8,2],[8,1],[8,1],[8,2],[8,1],[10,1],[6,1.5],[7,0.5],[8,4]]],
+  ['Saints Go Marching', 220, [[6,1],[8,1],[9,1],[10,3],[6,1],[8,1],[9,1],[10,3]]],
+  ['Charge!', 160, [[3,1],[6,1],[8,1],[10,2],[8,1],[10,4]]]];
+function renderPresets() {
+  $('melPresets').innerHTML = '';
+  MEL_PRESETS.forEach(([name, beat, seq]) => {
+    const d = document.createElement('div'); d.className = 'pill' + (P.saved.some(x => x.name === name) ? ' on' : ''); d.textContent = name.toUpperCase();
+    d.onclick = () => {
+      const n = []; seq.forEach(([l, b]) => { n.push([l, Math.min(2000, Math.round(b * beat / 20) * 20 - 40)]); n.push([0, 40]); }); n.pop();
+      const i = P.saved.findIndex(x => x.name === name); const m = { name, notes: n }; if (i < 0) P.saved.push(m); else P.saved[i] = m;
+      P.rec = n.slice(); P.hMelody = true; P.hBootCustom = true; save(); renderMelody(); renderPresets(); playMelody(n); toast('Boot melody: ' + name);
+    };
+    $('melPresets').appendChild(d);
+  });
+}
+function myMel(on) { renderPresets(); $('myMel').style.display = on ? 'flex' : 'none'; $('myMelBack').style.display = on ? 'block' : 'none'; melDel = ''; renderMelody(); }
 $('myMelOpen').onclick = () => myMel(true);
 $('myMelClose').onclick = () => myMel(false);
 $('myMelBack').onclick = () => myMel(false);
@@ -1616,7 +1636,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf98';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf99';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1916,7 +1936,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf99' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf100' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

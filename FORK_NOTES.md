@@ -804,6 +804,12 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Classic melodies (v1.2.3-rf99)
+- MIXER > MY MELODIES > CLASSICS: Ode to Joy, Twinkle Twinkle, Jingle Bells,
+  Saints Go Marching, Charge! (public domain), written for the tiles
+  E4 F4 G4 A4 B4 C5 D5 E5 F5 G5 within the 4 s / 32-note limits. A tap saves
+  it to MY MELODIES and makes it the boot melody (editable on the tiles).
+
 ### HEAD/TAIL LIGHTS tile with the neon board (v1.2.3-rf98)
 - LEDS: HEADLIGHTS is now HEAD/TAIL LIGHTS (tile, window, switch). The tile
   is full width with a Canvas drawing of the rider's neon board picture

@@ -1507,6 +1507,27 @@ Item {
             return true;
         }
 
+        // rf99: classic tunes (public domain) for the tiles E4 F4 G4 A4 B4 C5 D5
+        // E5 F5 G5 = levels 1-10: [name, beat ms, [[level, beats], ...]]; each
+        // note gets a short gap so repeated notes are heard as two
+        readonly property var presets: [
+            ["Ode to Joy", 220, [[8,1],[8,1],[9,1],[10,1],[10,1],[9,1],[8,1],[7,1],[6,1],[6,1],[7,1],[8,1],[8,1.5],[7,0.5],[7,2]]],
+            ["Twinkle Twinkle", 200, [[3,1],[3,1],[7,1],[7,1],[8,1],[8,1],[7,2],[6,1],[6,1],[5,1],[5,1],[4,1],[4,1],[3,2]]],
+            ["Jingle Bells", 220, [[8,1],[8,1],[8,2],[8,1],[8,1],[8,2],[8,1],[10,1],[6,1.5],[7,0.5],[8,4]]],
+            ["Saints Go Marching", 220, [[6,1],[8,1],[9,1],[10,3],[6,1],[8,1],[9,1],[10,3]]],
+            ["Charge!", 160, [[3,1],[6,1],[8,1],[10,2],[8,1],[10,4]]]
+        ]
+        function addPreset(i) {
+            var p = presets[i], n = [];
+            for (var k = 0; k < p[2].length; k++) {
+                var ms = Math.round(p[2][k][1] * p[1] / 20) * 20;
+                n.push([p[2][k][0], Math.min(2000, ms - 40)]);
+                n.push([0, 40]);
+            }
+            n.pop();  // no gap at the end
+            if (save(p[0], n)) select(p[0]);
+        }
+
         function remove(name) {
             var a = items.slice();
             var i = find(name);
@@ -9832,6 +9853,25 @@ Item {
                     label: "+ RECORD NEW"
                     lit: true
                     onClicked: { myMelodiesPopup.close(); melodyPad.startRecording(); }
+                }
+            }
+
+            // rf99: classics - tap to add one to MY MELODIES (and use it at boot)
+            SwNeonLabel {
+                Layout.alignment: Qt.AlignHCenter
+                font.pixelSize: 0.26 * unit
+                text: "CLASSICS"
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 0.15 * unit
+                Repeater {
+                    model: melodyLib.presets
+                    SwPill {
+                        label: modelData[0].toUpperCase()
+                        lit: melodyLib.find(modelData[0]) >= 0
+                        onClicked: melodyLib.addPreset(index)
+                    }
                 }
             }
         }
