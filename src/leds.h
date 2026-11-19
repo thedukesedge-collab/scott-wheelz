@@ -87,6 +87,10 @@ typedef struct {
 
     uint32_t *led_data;
     LedDriver led_driver;
+
+    // rf80: STATUS BAR OFF from the app (LEDS tab) for Refloat's own LEDs
+    // (Refloat has no status-only switch): the status strip is dimmed to 0
+    bool status_disabled;
 } Leds;
 
 void leds_init(Leds *leds);

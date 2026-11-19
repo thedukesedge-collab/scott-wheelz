@@ -1266,6 +1266,10 @@ static void aux_thd(void *arg) {
     time_t motor_config_refresh_timer = 0;
 
     while (!VESC_IF->should_terminate()) {
+        // rf80: the LEDS tab's STATUS BAR ON/OFF (stored with the light
+        // settings, LCM_VP_FLAG_STATUS_BAR) also switches Refloat's own
+        // status strip - Refloat's lights control only has all / headlights
+        d->leds.status_disabled = d->lcm.vp.valid && !(d->lcm.vp.flags & LCM_VP_FLAG_STATUS_BAR);
         leds_update(&d->leds, &d->state, d->footpad.state);
 
         // store odometer if we've gone more than 200m

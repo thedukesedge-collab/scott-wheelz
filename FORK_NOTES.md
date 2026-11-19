@@ -804,6 +804,14 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### STATUS BAR ON/OFF works with Refloat's own LEDs (v1.2.3-rf80)
+- Refloat's lights control only switches all LEDs or the headlights, so the
+  LEDS tab's STATUS BAR ON/OFF only reached an SLCM. Now the package also
+  dims Refloat's own status strip to 0 when it's off (Leds.status_disabled,
+  set each aux pass from the stored light settings' STATUS_BAR flag), e.g.
+  on a Thor. Kept across power cycles with the other light settings; no
+  Refloat config value is changed.
+
 ### RGB LIGHTS, LED settings kept exactly (v1.2.3-rf79)
 - LEDS > RGB LIGHTS (tile, only when Refloat's own LEDs are set up:
   hardware.leds.mode not off and a front or rear strip): Refloat's four light

@@ -755,6 +755,7 @@ void leds_init(Leds *leds) {
     leds->right_sensor = 0.0f;
 
     leds->on_off_fade = 0.0f;
+    leds->status_disabled = false;
 
     leds->duty_threshold = 0.0f;
     leds->status_duty_blend = 0.0f;
@@ -982,6 +983,9 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
     }
     if (leds->status_idle_blend > 0.0f) {
         status_brightness = fminf(status_brightness, leds->cfg->status_idle.brightness);
+    }
+    if (leds->status_disabled) {
+        status_brightness = 0.0f;  // rf80: STATUS BAR OFF from the app
     }
     rate_limitf(&leds->status_strip.brightness, status_brightness, BR_RATE);
 
