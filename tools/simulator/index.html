@@ -77,6 +77,8 @@
   .secTitle { text-align: center; color: #d6ffe4; font-size: 18px; margin: 8px 0 6px; }
   .secTitle:not(.neonL) { color: var(--green); font-family: Orbitron, monospace; font-size: 15px; letter-spacing: .04em; text-shadow: 0 0 6px rgba(57,255,122,.45); }
   .pills { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+  .animSel { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px; }
+  .animSel .stepVal { width: auto; }
   .pill { border: 2px solid var(--purple); color: var(--purple); border-radius: 999px; padding: 6px 14px; font-family: Orbitron, monospace; font-size: 11px; cursor: pointer; }
   #lcmTools { position: relative; width: max-content; margin: 0 auto; padding: 6px 10px; font-size: 10px; letter-spacing: .5px; color: #5c5470; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; }
   #lcmTools i { position: absolute; left: 10px; bottom: 2px; height: 2px; width: 0; background: var(--green); }
@@ -307,7 +309,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf80 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf81 · sim</span></div>
     </div>
   </div>
 
@@ -333,7 +335,7 @@
         <div id="ledBarSteps"></div>
         <p class="ledHint">Same as Refloat's Status Idle Brightness (idle) and Status Brightness (riding).</p>
         <div class="secTitle">Idle animation</div>
-        <div class="stepVal animName" id="rfPreview" data-anim="15" style="width:100%;font-size:18px;text-align:center;margin:4px 0 8px"></div>
+        <div class="animSel" id="rfSel"><span class="stepBtn" data-d="-1">&#9660;</span><div class="stepVal animName" id="rfPreview" data-anim="15" style="flex:1;font-size:18px;text-align:center"></div><span class="stepBtn" data-d="1">&#9650;</span></div>
         <div class="pills"><div class="pill" id="rfPill"></div></div>
         <div id="rfSteps"></div>
         <div id="rfSwatch" style="height:8px;border-radius:4px;width:70%;margin:4px auto 0"></div>
@@ -369,7 +371,7 @@
       <div class="ledSec" data-s="rgb">
         <div class="pills" id="rgbSel"><div class="pill" data-i="0">HEAD</div><div class="pill" data-i="1">TAIL</div><div class="pill" data-i="2">FRONT</div><div class="pill" data-i="3">REAR</div></div>
         <p class="ledHint" id="rgbHint" style="text-align:center;margin:2px 0"></p>
-        <div class="stepVal animName" id="rgbPreview" data-anim="16" style="width:100%;font-size:18px;text-align:center;margin:4px 0 8px"></div>
+        <div class="animSel"><span class="stepBtn" data-d="-1">&#9660;</span><div class="stepVal animName" id="rgbPreview" data-anim="16" style="flex:1;font-size:18px;text-align:center"></div><span class="stepBtn" data-d="1">&#9650;</span></div>
         <div id="rgbSteps"></div>
         <div class="pills"><div class="pill" id="rgbLifted"></div></div>
         <p class="ledHint" style="text-align:center">Refloat's LED settings (Refloat Cfg &#8250; LEDs), linked both ways.</p>
@@ -1221,9 +1223,9 @@ function renderRgb() {
   document.querySelectorAll('#rgbSel .pill').forEach(x => x.classList.toggle('on', +x.dataset.i === i));
   $('rgbHint').textContent = i < 2 ? 'Headlights on' : 'Headlights off (running lights)';
   $('rgbPreview').innerHTML = [...RF_MODES[b.mode]].map(ch => '<span>' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
+  document.querySelectorAll('#rgbPreview ~ .stepBtn, .animSel:not(#rfSel) .stepBtn').forEach(x => x.classList.toggle('lim', +x.dataset.d < 0 ? b.mode <= 0 : b.mode >= 8));
   box.innerHTML = '';
   const st = (k, l, mn, mx, stp, fmt) => cuStep('rgbSteps', l, () => b[k], mn, mx, stp, fmt, v => { b[k] = Math.round(v * 100) / 100; P.ledCfg = true; save(); renderRgb(); renderLedsSoft(); });
-  st('mode', 'ANIMATION', 0, 8, 1, v => RF_MODES[v]);
   if (b.mode < 6) st('c1', 'COLOR 1', 0, 31, 1, v => RF_COLORS[v]);
   if (b.mode === 1 || b.mode === 5) st('c2', 'COLOR 2', 0, 31, 1, v => RF_COLORS[v]);
   if (b.mode !== 0) st('speed', 'SPEED', 0.1, 5, 0.1, v => v.toFixed(1) + '/s');
@@ -1233,15 +1235,17 @@ function renderRgb() {
   $('rgbLifted').textContent = 'OFF WHEN LIFTED: ' + (P.rgbLifted ? 'ON' : 'OFF'); $('rgbLifted').classList.toggle('on', P.rgbLifted);
 }
 document.querySelectorAll('#rgbSel .pill').forEach(x => x.onclick = () => { P.rgbSel = +x.dataset.i; save(); renderRgb(); });
+document.querySelectorAll('.animSel:not(#rfSel) .stepBtn').forEach(x => x.onclick = () => { const b = P.rgb[P.rgbSel || 0], v = clamp(b.mode + +x.dataset.d, 0, 8); if (v !== b.mode) { b.mode = v; P.ledCfg = true; save(); renderRgb(); renderLedsSoft(); } });
+document.querySelectorAll('#rfSel .stepBtn').forEach(x => x.onclick = () => { if (!(P.rfTimeout > 0)) return; const v = clamp(P.rfMode + +x.dataset.d, 0, 8); if (v !== P.rfMode) { P.rfMode = v; P.ledAnimIdle = 15; P.ledCfg = true; save(); renderRf(); renderLedsSoft(); } });
 $('rgbLifted').onclick = () => { P.rgbLifted = !P.rgbLifted; save(); renderRgb(); };
 function renderRf() {
   const on = P.rfTimeout > 0, box = $('rfSteps');
   $('rfPill').textContent = 'IDLE ANIMATION ' + (on ? 'ON' : 'OFF'); $('rfPill').classList.toggle('on', on);
   $('rfPreview').innerHTML = [...(on ? RF_MODES[P.rfMode] : 'BATTERY LEVEL')].map(ch => '<span>' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
+  document.querySelectorAll('#rfSel .stepBtn').forEach(b => { b.style.visibility = on ? '' : 'hidden'; b.classList.toggle('lim', +b.dataset.d < 0 ? P.rfMode <= 0 : P.rfMode >= 8); });
   box.innerHTML = ''; $('rfSwatch').style.display = on && P.rfMode < 6 ? '' : 'none';
   if (on) {
     const st = (k, l, mn, mx, stp, fmt) => cuStep('rfSteps', l, () => P[k], mn, mx, stp, fmt, v => { P[k] = Math.round(v * 10) / 10; P.ledAnimIdle = 15; P.ledCfg = true; save(); renderRf(); renderLedsSoft(); });
-    st('rfMode', 'ANIMATION', 0, 8, 1, v => RF_MODES[v]);
     if (P.rfMode < 6) st('rfColor1', 'COLOR 1', 0, 31, 1, v => RF_COLORS[v]);
     if (P.rfMode === 1 || P.rfMode === 5) st('rfColor2', 'COLOR 2', 0, 31, 1, v => RF_COLORS[v]);
     if (P.rfMode !== 0) st('rfSpeed', 'SPEED', 0.1, 5, 0.1, v => v.toFixed(1) + '/s');
@@ -1340,7 +1344,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf80';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf81';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1640,7 +1644,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf81' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf82' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

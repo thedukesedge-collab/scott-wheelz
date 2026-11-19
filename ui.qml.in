@@ -4191,6 +4191,13 @@ Item {
         property string valueText: ""  // overrides the number if set
         property real valueWidth: 2.1 * unit  // wider for names (animations)
         property bool animName: false  // draw valueText as an LED animation (AnimName)
+        // Refloat animation as the value (AnimName anim 15): rfAnim for the
+        // Status Idle animation, rf = {mode, c1, c2, speed} for a light bar
+        property bool rfAnim: false
+        property var rf: null
+        // the animation itself is the selector: no label, [down] NAME [up]
+        // across the full width
+        property bool bigName: false
         signal moved(real newValue)
 
         function nudge(dir) {
@@ -4200,6 +4207,7 @@ Item {
         }
 
         SwNeonLabel {
+            visible: !stepper.bigName
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width - stepper.valueWidth - 2.5 * unit
@@ -4208,7 +4216,8 @@ Item {
         }
 
         Row {
-            anchors.right: parent.right
+            anchors.right: stepper.bigName ? undefined : parent.right
+            anchors.horizontalCenter: stepper.bigName ? parent.horizontalCenter : undefined
             anchors.verticalCenter: parent.verticalCenter
             spacing: 0.1 * unit
 
@@ -4216,19 +4225,22 @@ Item {
                 model: [-1, 0, 1]
 
                 Item {
-                    width: modelData === 0 ? stepper.valueWidth : 1.1 * unit
+                    width: modelData !== 0 ? 1.1 * unit
+                        : stepper.bigName ? stepper.width - 2.4 * unit : stepper.valueWidth
                     height: 0.8 * unit
 
                     AnimName {
-                        visible: modelData === 0 && stepper.animName
+                        visible: modelData === 0 && (stepper.animName || stepper.rfAnim || !!stepper.rf)
                         anchors.fill: parent
-                        anim: stepper.value
+                        anim: stepper.rfAnim || stepper.rf ? 15 : stepper.value
+                        rf: stepper.rf
                         text: stepper.valueText
                         hue: swSettings.ledColor
+                        basePixelSize: stepper.bigName ? 0.4 * unit : 0.32 * unit
                     }
 
                     Text {
-                        visible: modelData === 0 && !stepper.animName
+                        visible: modelData === 0 && !stepper.animName && !stepper.rfAnim && !stepper.rf
                         anchors.centerIn: parent
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
@@ -7481,11 +7493,23 @@ Item {
                         LedHeading { text: "Idle animation" }
 
                         AnimName {
+                            visible: !ledSender.rfOn
                             width: parent.width
                             height: 0.9 * unit
                             anim: 15
-                            text: ledSender.rfOn ? ledSender.rfModes[ledSender.rfMode] : "BATTERY LEVEL"
+                            text: "BATTERY LEVEL"
                             basePixelSize: 0.4 * unit
+                        }
+
+                        // the animation preview is the selector
+                        SwStepper {
+                            visible: ledSender.rfOn
+                            bigName: true
+                            rfAnim: true
+                            value: ledSender.rfMode
+                            from: 0; to: ledSender.rfModes.length - 1; step: 1
+                            valueText: ledSender.rfModes[value]
+                            onMoved: ledSender.setRf("rfMode", newValue)
                         }
 
                         SwPill {
@@ -7501,14 +7525,6 @@ Item {
                             spacing: 0.14 * unit
                             visible: ledSender.rfOn
 
-                            SwStepper {
-                                label: "ANIMATION"
-                                valueWidth: 3.6 * unit
-                                value: ledSender.rfMode
-                                from: 0; to: ledSender.rfModes.length - 1; step: 1
-                                valueText: ledSender.rfModes[value]
-                                onMoved: ledSender.setRf("rfMode", newValue)
-                            }
                             SwStepper {
                                 visible: ledSender.rfMode < 6
                                 label: "COLOR 1"
@@ -7950,21 +7966,13 @@ Item {
                             text: rgbCol.sel < 2 ? "Headlights on" : "Headlights off (running lights)"
                         }
 
-                        AnimName {
-                            width: parent.width
-                            height: 0.9 * unit
-                            anim: 15
-                            rf: rgbCol.bar
-                            text: ledSender.rfModes[rgbCol.bar.mode] || ""
-                            basePixelSize: 0.4 * unit
-                        }
-
+                        // the animation preview is the selector
                         SwStepper {
-                            label: "ANIMATION"
-                            valueWidth: 3.6 * unit
+                            bigName: true
+                            rf: rgbCol.bar
                             value: rgbCol.bar.mode || 0
                             from: 0; to: ledSender.rfModes.length - 1; step: 1
-                            valueText: ledSender.rfModes[value]
+                            valueText: ledSender.rfModes[value] || ""
                             onMoved: ledSender.rgbSet(rgbCol.sel, "mode", newValue)
                         }
                         SwStepper {
