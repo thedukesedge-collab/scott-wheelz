@@ -804,6 +804,14 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### BACKGROUND ON / OFF, white background preview (v1.2.3-rf101)
+- BACKGROUND rows (PULSE / KNIGHT RIDER; STATUS BAR and RGB LIGHTS) have an
+  ON / OFF switch between the name and the arrows (SwStepper.toggle): OFF
+  sets Refloat's color 2 to BLACK, ON brings back the last background
+  (swSettings.rfBgLast, WHITE at first).
+- ledSender.rfQColor returned strings for BLACK / WHITE, so blending to a
+  WHITE background gave NaN and the preview name vanished; now Qt.rgba.
+
 ### Snooze = minutes before power-off (v1.2.3-rf100)
 - SNOOZE BEFORE OFF (default 5, 0 = never): the head/tail lights and status
   bar snooze that many minutes before VESC's idle power-off (off after

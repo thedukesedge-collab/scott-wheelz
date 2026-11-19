@@ -397,7 +397,8 @@ Item {
         readonly property var rfHue: [-1, -1, -1, -1, 0, 7, 9, 5, 10, 13, 13, 14, 19, 18, 30, 41, 46, 60, 69, 83, 90,
             107, 100, 101, 107, 120, 135, 132, 150, 157, 167, 170]
         function rfQColor(i) {
-            return i === 0 ? "#202020" : rfHue[i] < 0 ? "#ffffff" : Qt.hsla(rfHue[i] * 2 / 360, 1, 0.5, 1);
+            // rf101: real color objects (strings broke the preview's blending: WHITE background = invisible)
+            return i === 0 ? Qt.rgba(0.125, 0.125, 0.125, 1) : rfHue[i] < 0 ? Qt.rgba(1, 1, 1, 1) : Qt.hsla(rfHue[i] * 2 / 360, 1, 0.5, 1);
         }
         property int rfMode: 4
         property int rfColor1: 4
@@ -2471,7 +2472,8 @@ Item {
         property bool tourSeen: false  // rf90: the tips & tricks tour opens once on first start
         property int ledSnoozeMin: 5  // rf100: minutes BEFORE the board powers off (0 = never)
         property int ledRideMode: 0  // rf97: riding status bar: 0 battery / duty, else Refloat mode + 1
-        property int ledSnoozeStyle: 0  // rf97: 0 breathe, 1 dim, 2 dark  // rf86: controller-driven LEDs snooze after this many idle minutes (0 = never)
+        property int ledSnoozeStyle: 0  // rf97: 0 breathe, 1 dim, 2 dark
+        property int rfBgLast: 1  // rf101: background color brought back by BACKGROUND ON (WHITE)  // rf86: controller-driven LEDs snooze after this many idle minutes (0 = never)
         property string ledCustom: ""  // CUSTOM animation, 8 numbers (JSON), see ledSender.custom()
         property int ledAnimBoot: 11
         property int ledAnimShutdown: 0
@@ -4489,6 +4491,10 @@ Item {
         // across the full width
         property bool bigName: false
         signal moved(real newValue)
+        // rf101: optional ON / OFF switch between the label and the arrows
+        // (-1 = none, 0 off, 1 on), e.g. the background color
+        property int toggle: -1
+        signal toggleClicked()
 
         function nudge(dir) {
             var v = Math.round((value + dir * step) / step) * step;
@@ -4500,9 +4506,30 @@ Item {
             visible: !stepper.bigName
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            width: parent.width - stepper.valueWidth - 2.5 * unit
+            width: parent.width - stepper.valueWidth - 2.5 * unit - (stepper.toggle >= 0 ? 1.3 * unit : 0)
             font.pixelSize: 0.28 * unit
             text: stepper.label
+        }
+
+        Rectangle {
+            visible: stepper.toggle >= 0 && !stepper.bigName
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.right: parent.right
+            anchors.rightMargin: stepper.valueWidth + 2.55 * unit
+            width: 1.1 * unit
+            height: 0.5 * unit
+            radius: height / 2
+            color: stepper.toggle === 1 ? swTheme.neonGreen : "transparent"
+            border.color: stepper.toggle === 1 ? swTheme.neonGreen : swTheme.neonPurple
+            border.width: 2
+            Text {
+                anchors.centerIn: parent
+                text: stepper.toggle === 1 ? "ON" : "OFF"
+                color: stepper.toggle === 1 ? swTheme.background : swTheme.neonPurple
+                font.family: "Exan"
+                font.pixelSize: 0.2 * unit
+            }
+            MouseArea { anchors.fill: parent; anchors.margins: -0.1 * unit; onClicked: stepper.toggleClicked() }
         }
 
         Row {
@@ -8112,6 +8139,12 @@ Item {
                                 // background of PULSE and KNIGHT RIDER (BLACK = one color)
                                 visible: ledSender.rfMode >= 1 && ledSender.rfMode <= 5
                                 label: ledSender.rfMode === 2 || ledSender.rfMode === 4 ? "BACKGROUND" : "COLOR 2"
+                                // rf101: BACKGROUND ON / OFF (off = BLACK)
+                                toggle: ledSender.rfMode === 2 || ledSender.rfMode === 4 ? (ledSender.rfColor2 !== 0 ? 1 : 0) : -1
+                                onToggleClicked: {
+                                    if (ledSender.rfColor2 !== 0) { swSettings.rfBgLast = ledSender.rfColor2; ledSender.setRf("rfColor2", 0); }
+                                    else ledSender.setRf("rfColor2", swSettings.rfBgLast || 1);
+                                }
                                 valueWidth: 3.2 * unit
                                 value: ledSender.rfColor2
                                 from: 0; to: 29; step: 1
@@ -8652,6 +8685,11 @@ Item {
                         SwStepper {
                             visible: rgbCol.bar.mode >= 1 && rgbCol.bar.mode <= 5  // rf91, see Status Idle
                             label: rgbCol.bar.mode === 2 || rgbCol.bar.mode === 4 ? "BACKGROUND" : "COLOR 2"
+                            toggle: rgbCol.bar.mode === 2 || rgbCol.bar.mode === 4 ? ((rgbCol.bar.c2 || 0) !== 0 ? 1 : 0) : -1  // rf101
+                            onToggleClicked: {
+                                if ((rgbCol.bar.c2 || 0) !== 0) { swSettings.rfBgLast = rgbCol.bar.c2; ledSender.rgbSet(rgbCol.sel, "c2", 0); }
+                                else ledSender.rgbSet(rgbCol.sel, "c2", swSettings.rfBgLast || 1);
+                            }
                             valueWidth: 3.2 * unit
                             value: rgbCol.bar.c2 || 0
                             from: 0; to: 29; step: 1
