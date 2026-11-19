@@ -804,6 +804,10 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Tour welcome wording (v1.2.3-rf110)
+- "Refloat 1.2.3 under the hood, reimagined with a Neon Future style theme
+  and a bunch of extra features."
+
 ### Status bar snooze, bigger tune buttons, neon tab box (v1.2.3-rf109)
 - STATUS BAR > Snooze (controller-driven status strip): BREATHE / DIM /
   DARK / NORMAL (keeps its idle look) while snoozing; same timing as the

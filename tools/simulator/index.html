@@ -365,7 +365,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf109 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf110 · sim</span></div>
     </div>
   </div>
 
@@ -773,7 +773,7 @@ $('btnEdit').onclick = () => {
 };
 // rf87: Neon Future tour (SETTINGS > PREFERENCES > SHOW TIPS & TRICKS), same pages as rinkTour in ui.qml.in
 const TOUR = [
-  ["✦", "RE:FLOAT RINK-MIXED", "WELCOME", "Refloat 1.2.3 under the hood, Neon Future on top. Swipe through what's new; it takes a minute."],
+  ["✦", "RE:FLOAT RINK-MIXED", "WELCOME", "Refloat 1.2.3 under the hood, reimagined with a Neon Future style theme and a bunch of extra features. Swipe through what's new; it takes a minute."],
   ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and MAX SPEED / DUTY right there."],
   ["≡", "PULL-UP SHEET", "SWIPE UP", "Drag the sheet up for TUNES, CONTROL, MIXER, DATA, BOARD STYLE and LEDS. Tap anywhere on the main view to put it away."],
   ["♫", "HORN", "HOME + CONTROL", "Hold HORN to beep through the motor, no extra hardware. Sound and volume (10/10 = 4 V) in CONTROL › HORN SETTINGS. It stays well within safe, low motor current."],
@@ -1709,7 +1709,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf109';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf110';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -2009,7 +2009,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf110' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf111' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

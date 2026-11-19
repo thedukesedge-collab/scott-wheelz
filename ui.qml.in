@@ -11201,7 +11201,7 @@ Item {
 
         // [glyph, title, where, text]
         readonly property var pages: [
-            ["✦", "RE:FLOAT RINK-MIXED", "WELCOME", "Refloat 1.2.3 under the hood, Neon Future on top. Swipe through what's new; it takes a minute."],
+            ["✦", "RE:FLOAT RINK-MIXED", "WELCOME", "Refloat 1.2.3 under the hood, reimagined with a Neon Future style theme and a bunch of extra features. Swipe through what's new; it takes a minute."],
             ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and MAX SPEED / DUTY right there."],
             ["≡", "PULL-UP SHEET", "SWIPE UP", "Drag the sheet up for TUNES, CONTROL, MIXER, DATA, BOARD STYLE and LEDS. Tap anywhere on the main view to put it away."],
             ["♫", "HORN", "HOME + CONTROL", "Hold HORN to beep through the motor, no extra hardware. Sound and volume (10/10 = 4 V) in CONTROL › HORN SETTINGS. It stays well within safe, low motor current."],
