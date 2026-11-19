@@ -446,6 +446,8 @@ bool lcm_vp_set(LcmData *lcm, const uint8_t *buffer, int len) {
         len >= x + 2 ? clamp_u8(buffer[x + 1], LCM_VP_RIDE_MODES - 1) : lcm->vp.ride_mode;
     vp.snooze_style =
         len >= x + 3 ? clamp_u8(buffer[x + 2], LCM_VP_SNOOZE_STYLES - 1) : lcm->vp.snooze_style;
+    vp.status_snooze =
+        len >= x + 4 ? clamp_u8(buffer[x + 3], LCM_VP_STATUS_SNOOZE - 1) : lcm->vp.status_snooze;
 
     bool changed = memcmp(&vp, &lcm->vp, sizeof(vp)) != 0;
     lcm->vp = vp;
@@ -463,7 +465,8 @@ void lcm_vp_pack(const LcmData *lcm, uint32_t words[LCM_VP_EEPROM_WORDS]) {
         vp->animations[2];
     // word 2: boot, shutdown animations, snooze style (rf97, bits 12-15), color
     words[2] = ((uint32_t) vp->animations[3] << 24) | ((uint32_t) vp->animations[4] << 16) |
-        ((uint32_t) (vp->snooze_style & 0x0F) << 12) | vp->color;
+        ((uint32_t) (vp->snooze_style & 0x0F) << 12) |
+        ((uint32_t) (vp->status_snooze & 0x07) << 9) | vp->color;
     // word 3: magic 0x49 ('I'), -, snooze minutes (rf86), headlight idle %
     words[3] = (0x49u << 24) | ((uint32_t) vp->ride_mode << 16) |
         ((uint32_t) vp->snooze_minutes << 8) | vp->headlight_idle_brightness;
@@ -479,17 +482,19 @@ void lcm_vp_unpack(LcmData *lcm, const uint32_t words[LCM_VP_EEPROM_WORDS]) {
     if ((words[0] >> 24) != 0x4C) {
         return;
     }
-    uint8_t buffer[LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH + 3] = {
-        (words[0] >> 16) & 0xFF, (words[0] >> 8) & 0xFF,  words[0] & 0xFF,         words[1] >> 24,
-        (words[1] >> 16) & 0xFF, (words[1] >> 8) & 0xFF,  words[1] & 0xFF,         words[2] >> 24,
-        (words[2] >> 16) & 0xFF, (words[2] >> 8) & 0x01,  words[2] & 0xFF,         words[3] & 0xFF,
-        words[4] >> 24,          (words[4] >> 16) & 0xFF, (words[4] >> 8) & 0xFF,  words[4] & 0xFF,
-        words[5] >> 24,          (words[5] >> 16) & 0xFF, (words[5] >> 8) & 0xFF,  words[5] & 0xFF,
-        (words[3] >> 8) & 0xFF,  (words[3] >> 16) & 0xFF, (words[2] >> 12) & 0x0F,
+    uint8_t buffer[LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH + 4] = {
+        (words[0] >> 16) & 0xFF, (words[0] >> 8) & 0xFF,  words[0] & 0xFF,
+        words[1] >> 24,          (words[1] >> 16) & 0xFF, (words[1] >> 8) & 0xFF,
+        words[1] & 0xFF,         words[2] >> 24,          (words[2] >> 16) & 0xFF,
+        (words[2] >> 8) & 0x01,  words[2] & 0xFF,         words[3] & 0xFF,
+        words[4] >> 24,          (words[4] >> 16) & 0xFF, (words[4] >> 8) & 0xFF,
+        words[4] & 0xFF,         words[5] >> 24,          (words[5] >> 16) & 0xFF,
+        (words[5] >> 8) & 0xFF,  words[5] & 0xFF,         (words[3] >> 8) & 0xFF,
+        (words[3] >> 16) & 0xFF, (words[2] >> 12) & 0x0F, (words[2] >> 9) & 0x07,
     };
     // saved before the idle headlight level existed: idle = riding (and no
     // CUSTOM animation yet either)
-    int len = (words[3] >> 24) == 0x49 ? LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH + 3
+    int len = (words[3] >> 24) == 0x49 ? LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH + 4
                                        : LCM_VP_SETTINGS_LENGTH - 1;
     lcm_vp_set(lcm, buffer, len);
 }

@@ -98,6 +98,7 @@ typedef struct {
     float snooze_timeout;  // 0 = never
     bool snooze_dark;
     bool snooze_dim;  // rf97: steady low glow instead of the breath
+    uint8_t status_snooze;  // rf109: status bar while snoozing: 0 breathe, 1 dim, 2 dark, 3 normal
     // rf97: riding status bar: 0 = Refloat's battery / duty bar, else the
     // Status Idle colors / speed with Refloat animation ride_mode - 1 (the duty
     // bar still takes over above the duty threshold)

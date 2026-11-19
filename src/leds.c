@@ -773,6 +773,7 @@ void leds_init(Leds *leds) {
     leds->snooze_timeout = 0.0f;
     leds->snooze_dark = false;
     leds->snooze_dim = false;
+    leds->status_snooze = 0;
     leds->ride_mode = 0;
     leds->shutdown_timeout = 0.0f;
     leds->motor_active_time = 0.0f;
@@ -999,14 +1000,18 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
     // rf103: snooze runs on the same clock as VESC's idle power-off
     // (motor_active_time: riding, a rolling wheel, a motor tone) - no
     // separate activity tracking
-    float snooze = 1.0f;
+    float snooze = 1.0f, status_snooze = 1.0f;
+    float breath =
+        0.03f + 0.27f * (0.5f - 0.5f * cosf(current_time * (2.0f * (float) M_PI / 6.0f)));
     if (leds->snooze_timeout > 0.0f && leds->motor_active_time > 0.0f &&
         current_time - leds->motor_active_time > leds->snooze_timeout) {
+        // rf109: the status bar has its own look, same timing
+        status_snooze = leds->status_snooze == 3 ? 1.0f
+            : leds->status_snooze == 2           ? 0.0f
+            : leds->status_snooze == 1           ? 0.1f
+                                                 : breath;
         // 6 s breath between 3% and 30% of the set brightness
-        snooze = leds->snooze_dark ? 0.0f
-            : leds->snooze_dim
-            ? 0.1f
-            : 0.03f + 0.27f * (0.5f - 0.5f * cosf(current_time * (2.0f * (float) M_PI / 6.0f)));
+        snooze = leds->snooze_dark ? 0.0f : leds->snooze_dim ? 0.1f : breath;
     }
 
     // rf88: power-off warning, a double blink every 15 s in the last minute
@@ -1019,6 +1024,7 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
             float ph = fmodf(t, 15.0f);
             if (ph < 0.35f || (ph >= 0.7f && ph < 1.05f)) {
                 snooze = snooze > 0.5f ? 0.1f : 0.7f;
+                status_snooze = status_snooze > 0.5f ? 0.1f : 0.7f;
             }
         }
     }
@@ -1034,7 +1040,7 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
     if (leds->status_disabled) {
         status_brightness = 0.0f;  // rf80: STATUS BAR OFF from the app
     }
-    status_brightness *= snooze;
+    status_brightness *= status_snooze;
     rate_limitf(&leds->status_strip.brightness, status_brightness, BR_RATE);
 
     // front brightness

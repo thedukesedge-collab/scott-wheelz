@@ -804,6 +804,17 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Status bar snooze, bigger tune buttons, neon tab box (v1.2.3-rf109)
+- STATUS BAR > Snooze (controller-driven status strip): BREATHE / DIM /
+  DARK / NORMAL (keeps its idle look) while snoozing; same timing as the
+  head / tail lights. Byte 23 of COMMAND_LCM_VP_SETTINGS
+  (LcmVpSettings.status_snooze), EEPROM word 82 bits 9-11; leds.c applies
+  it to the status strip only (the power-off blink still shows on it).
+- TUNES: buttons bigger (grid spacing 0.35 instead of 0.6 unit, min height
+  1.5 unit) with a 4 px outline.
+- Sheet tabs: the active tab is a rounded neon-green box with a soft glow
+  (no underline).
+
 ### Tilt only while riding, HAPTIC FEEDBACK window, BEEPER in CONTROL (v1.2.3-rf108)
 - TILT (main screen and CONTROL): only usable while engaged and moving
   (> 0.9 m/s); the CONTROL "enable" box is gone. Remote tilt input = UART is

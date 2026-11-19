@@ -70,14 +70,16 @@
   #tabs { display: flex; flex: none; background: #0b0718; border-top: 1px solid rgba(177,76,255,.6); border-bottom: 1px solid rgba(177,76,255,.6); }
   .tab { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; color: var(--lav); font-family: Orbitron, monospace; text-shadow: 0 0 1px #4a1784; cursor: pointer; white-space: normal; text-align: center; line-height: 1; overflow: hidden; }
   .tab:not(:last-child)::after { content: ""; position: absolute; right: 0; top: 25%; height: 50%; width: 1px; background: rgba(177,76,255,.5); }
-  .tab.on { color: var(--green); background: #0e2a1a; text-shadow: 0 0 1px #0f5a2c; }
-  .tab.on::before { content: ""; position: absolute; bottom: 0; left: 10%; width: 80%; height: 3px; border-radius: 2px; background: var(--green); box-shadow: 0 0 6px var(--green); }
+  /* rf109: the active tab is a rounded neon box with a soft glow */
+  .tab.on { color: var(--green); text-shadow: 0 0 1px #0f5a2c; overflow: visible; }
+  .tab.on::before { content: ""; position: absolute; inset: 3px; border: 2px solid var(--green); border-radius: 7px; background: #0e2a1a; box-shadow: 0 0 8px rgba(57,255,122,.55), inset 0 0 6px rgba(57,255,122,.25); z-index: -1; }
+  .tab { z-index: 0; }
   #pages { flex: 1; position: relative; overflow: hidden; }
   .page { position: absolute; inset: 0; overflow-y: auto; display: none; padding: 10px; }
   .page.on { display: block; }
   #ver { flex: none; text-align: center; color: var(--text); }
-  .tunes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; height: 100%; }
-  .tune { border: 3px solid; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: Orbitron, monospace; letter-spacing: .08em; cursor: pointer; background: #0b0718; transition: background .15s; touch-action: manipulation; text-align: center; padding: 4px; }
+  .tunes { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; height: 100%; }
+  .tune { border: 4px solid; min-height: 56px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: Orbitron, monospace; letter-spacing: .08em; cursor: pointer; background: #0b0718; transition: background .15s; touch-action: manipulation; text-align: center; padding: 4px; }
   .tune small { font-family: system-ui, sans-serif; letter-spacing: 0; color: var(--dim); font-size: 11px; }
   .tune .act { font-size: 9px; letter-spacing: .15em; margin-top: 3px; }
   .secTitle { text-align: center; color: #d6ffe4; font-size: 18px; margin: 8px 0 6px; }
@@ -363,7 +365,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf108 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf109 · sim</span></div>
     </div>
   </div>
 
@@ -401,6 +403,11 @@
         <div id="rfSteps"></div>
         <div id="rfSwatch" style="height:8px;border-radius:4px;width:70%;margin:4px auto 0"></div>
         <p class="ledHint" id="rfHint"></p>
+        <div id="rfStSnz">
+          <div class="secTitle">Snooze</div>
+          <div class="pills" id="stSnz"><div class="pill" data-v="0">BREATHE</div><div class="pill" data-v="1">DIM</div><div class="pill" data-v="2">DARK</div><div class="pill" data-v="3">NORMAL</div></div>
+          <p class="ledHint">How the status bar looks while the board snoozes; it snoozes together with the head / tail lights (HEAD/TAIL LIGHTS &#8250; SNOOZE BEFORE OFF). NORMAL: it keeps its idle look.</p>
+        </div>
         <div id="rfRide">
           <div class="secTitle">Riding animation</div>
           <div class="animSel" id="rideSel"><span class="stepBtn" data-d="-1">&#9660;</span><div class="stepVal animName" id="ridePreview" data-anim="17" style="flex:1;font-size:16px;text-align:center"></div><span class="stepBtn" data-d="1">&#9650;</span></div>
@@ -1574,6 +1581,9 @@ function renderRf() {
   document.querySelectorAll('#rfSel .stepBtn').forEach(b => b.classList.toggle('lim', +b.dataset.d < 0 ? !on : on && P.rfMode >= 8));
   // riding: Refloat's own status strip only (THOR pretend option)
   $('rfRide').style.display = P.simSetup === 'refloat' ? '' : 'none'; $('rfRideSteps').innerHTML = '';
+  // rf109: status bar snooze look
+  $('rfStSnz').style.display = P.simSetup === 'refloat' ? '' : 'none';
+  document.querySelectorAll('#stSnz .pill').forEach(x => { x.classList.toggle('on', +x.dataset.v === (P.stSnz || 0)); x.onclick = () => { P.stSnz = +x.dataset.v; save(); renderRf(); }; });
   // rf97: riding animation (0 = BATTERY / DUTY, else Refloat mode + 1 in the idle colors)
   if (P.rideMode === undefined) P.rideMode = 0;
   $('ridePreview').innerHTML = [...(P.rideMode ? RF_MODES[P.rideMode - 1] : 'BATTERY / DUTY')].map(ch => '<span>' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
@@ -1699,7 +1709,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf108';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf109';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1999,7 +2009,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf109' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf110' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

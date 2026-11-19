@@ -444,7 +444,7 @@ Item {
 
         function send() {
             if (!swSettings.ledConfigured) return;
-            var data = commands.createData(25, commands.c_LCM_VP_SETTINGS);
+            var data = commands.createData(26, commands.c_LCM_VP_SETTINGS);
             data.setUint8(2, (swSettings.ledHeadlights ? 1 : 0) | (swSettings.ledStatusBar ? 2 : 0) | (swSettings.ledBeep ? 4 : 0)
                 | (swSettings.ledSnoozeStyle === 2 ? 0x20 : 0));  // rf97: DARK snooze
             data.setUint8(3, swSettings.ledHeadlightPct);
@@ -462,6 +462,7 @@ Item {
             data.setUint8(22, swSettings.ledSnoozeMin);  // rf86: controller LEDs snooze (255 AUTO)
             data.setUint8(23, swSettings.ledRideMode);  // rf97
             data.setUint8(24, swSettings.ledSnoozeStyle);
+            data.setUint8(25, swSettings.ledStatusSnooze);  // rf109
             vescCommands.sendCustomAppData(data.buffer);
         }
 
@@ -2477,6 +2478,7 @@ Item {
         property int ledSnoozeMin: 5  // rf100: minutes BEFORE the board powers off (0 = never)
         property int ledRideMode: 0  // rf97: riding status bar: 0 battery / duty, else Refloat mode + 1
         property int ledSnoozeStyle: 0  // rf97: 0 breathe, 1 dim, 2 dark
+        property int ledStatusSnooze: 0  // rf109: status bar while snoozing: 0 breathe, 1 dim, 2 dark, 3 normal
         property real hapticLast: 3  // rf108: strength brought back by HAPTIC FEEDBACK ON
         property int rfBgLast: 1  // rf101: background color brought back by BACKGROUND ON (WHITE)  // rf86: controller-driven LEDs snooze after this many idle minutes (0 = never)
         property string ledCustom: ""  // CUSTOM animation, 8 numbers (JSON), see ledSender.custom()
@@ -8290,6 +8292,33 @@ Item {
                                     : "")
                         }
 
+                        // rf109: the status bar's own snooze look (same timing as the
+                        // head / tail lights: HEAD/TAIL LIGHTS > SNOOZE BEFORE OFF)
+                        LedHeading { visible: ledSender.rfStatusAvail; text: "Snooze" }
+                        Row {
+                            visible: ledSender.rfStatusAvail
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.12 * unit
+                            Repeater {
+                                model: [["BREATHE", 0], ["DIM", 1], ["DARK", 2], ["NORMAL", 3]]
+                                SwPill {
+                                    minWidth: 1.9 * unit
+                                    label: modelData[0]
+                                    lit: swSettings.ledStatusSnooze === modelData[1]
+                                    onClicked: { swSettings.ledStatusSnooze = modelData[1]; ledSender.changed(); }
+                                }
+                            }
+                        }
+                        SwLText {
+                            visible: ledSender.rfStatusAvail
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "How the status bar looks while the board snoozes; it snoozes together with the head / tail lights (HEAD/TAIL LIGHTS \u203A SNOOZE BEFORE OFF"
+                                + (swSettings.ledSnoozeMin > 0 && vescAppConfig.offMinutes > swSettings.ledSnoozeMin ? ": at " + (vescAppConfig.offMinutes - swSettings.ledSnoozeMin) + " min idle" : "")
+                                + "). NORMAL: it keeps its idle look."
+                        }
+
                         // rf84: Refloat's riding status bar (Thor etc.; an SLCM
                         // uses SLCM EXTRAS > ANIMATIONS > RIDING)
                         LedHeading { visible: ledSender.rfStatusAvail; text: "Riding animation" }
@@ -13536,8 +13565,29 @@ Item {
                         elide: Text.ElideRight
                     }
 
+                    // rf109: the active tab is a rounded neon box with a soft glow
                     background: Rectangle {
-                        color: swTab.checked ? "#0e2a1a" : swTab.pressed ? "#24123f" : "#0b0718"
+                        color: swTab.pressed && !swTab.checked ? "#24123f" : "#0b0718"
+
+                        RectangularGlow {
+                            anchors.fill: activeBox
+                            visible: swTab.checked
+                            glowRadius: 0.12 * unit
+                            spread: 0.15
+                            cornerRadius: activeBox.radius + glowRadius
+                            color: swTheme.neonGreen
+                            opacity: 0.55
+                        }
+                        Rectangle {
+                            id: activeBox
+                            visible: swTab.checked
+                            anchors.fill: parent
+                            anchors.margins: 0.07 * unit
+                            radius: 0.18 * unit
+                            color: "#0e2a1a"
+                            border.color: swTheme.neonGreen
+                            border.width: 2
+                        }
 
                         // divider between tabs
                         Rectangle {
@@ -13549,16 +13599,7 @@ Item {
                             opacity: 0.5
                         }
 
-                        // glowing underline on the active tab
-                        Rectangle {
-                            anchors.bottom: parent.bottom
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            width: parent.width * 0.8
-                            height: 0.07 * unit
-                            radius: height / 2
-                            color: swTheme.neonGreen
-                            visible: swTab.checked
-                        }
+
                     }
                 }
 
@@ -13625,7 +13666,7 @@ Item {
                     }
 
                     GridLayout {
-                        property int spacing: 0.6 * unit
+                        property int spacing: 0.35 * unit  // rf109: bigger tune buttons (was 0.6)
                         anchors.fill: parent
                         anchors.topMargin: spacing
                         anchors.leftMargin: spacing
@@ -13642,7 +13683,7 @@ Item {
                                 id: button
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
-                                Layout.minimumHeight: buttonItemHeight + 2 * buttonItemMargin
+                                Layout.minimumHeight: Math.max(1.5 * unit, buttonItemHeight + 2 * buttonItemMargin)
                                 Layout.columnSpan: (slot === preferences.tuneSlotCount && (slot % 2) === 1) ? 2 : 1
 
                                 property int slot: index + 1
@@ -13745,7 +13786,7 @@ Item {
                                     z: 1
 
                                     radius: 0.3 * unit
-                                    border.width: 3
+                                    border.width: 4  // rf109: bolder outline
                                     border.color: tuneName ? button.neon : swTheme.color("disabledText")
                                     // always opaque, so the glow behind never shows through
                                     // and washes out the name (like the simulator)

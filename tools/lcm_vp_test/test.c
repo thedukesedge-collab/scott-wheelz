@@ -170,6 +170,17 @@ int main(void){
         assert(memcmp(&l6.vp, &lcm.vp, sizeof lcm.vp) == 0 && l6.vp.color == lcm.vp.color);
         in23[20] = 0; in23[21] = 0; in23[22] = 0; lcm_vp_set(&lcm, in23, 23);
     }
+    /* rf109: status bar snooze (byte 23, max 3), word 82 bits 9-11 */
+    {
+        uint8_t in24[24]; memcpy(in24, in12, 12); memcpy(in24 + 12, lcm.vp.custom, 8);
+        in24[20] = 5; in24[21] = 2; in24[22] = 1; in24[23] = 9;
+        lcm_vp_set(&lcm, in24, 24); assert(lcm.vp.status_snooze == 3);
+        in24[23] = 2; lcm_vp_set(&lcm, in24, 24);
+        lcm_vp_set(&lcm, in24, 23); assert(lcm.vp.status_snooze == 2);
+        uint32_t ws[LCM_VP_EEPROM_WORDS]; lcm_vp_pack(&lcm, ws);
+        LcmData l7; memset(&l7,0,sizeof l7); lcm_init(&l7, &hw); lcm_vp_unpack(&l7, ws);
+        assert(memcmp(&l7.vp, &lcm.vp, sizeof lcm.vp) == 0);
+    }
     /* bad magic: not loaded */
     w[0] &= 0x00FFFFFF; LcmData l3; memset(&l3,0,sizeof l3); lcm_vp_unpack(&l3, w); assert(!l3.vp.valid);
     /* battery curve: p42a points (cell mV at 100..0 %) */

@@ -63,6 +63,7 @@ typedef enum {
 #define LCM_VP_SNOOZE_AUTO 255  // rf97: default (rf100: 5 min before VESC powers off)
 #define LCM_VP_RIDE_MODES 10  // rf97: 0 battery / duty (Refloat), 1-9 Refloat mode + 1
 #define LCM_VP_SNOOZE_STYLES 3  // rf97: 0 breathe, 1 dim, 2 dark
+#define LCM_VP_STATUS_SNOOZE 4  // rf109: + 3 = the status bar doesn't snooze
 #define LCM_VP_EEPROM_WORDS 6  // 80-83 + 125-126 (CUSTOM animation)
 
 typedef struct {
@@ -83,6 +84,9 @@ typedef struct {
     // Status Idle colors), snooze style (0 breathe, 1 dim, 2 dark)
     uint8_t ride_mode;
     uint8_t snooze_style;
+    // rf109: byte 23: status bar while snoozing (0 breathe, 1 dim, 2 dark,
+    // 3 keep its normal idle look); same timing as the head / tail lights
+    uint8_t status_snooze;
 } LcmVpSettings;
 
 typedef struct {
