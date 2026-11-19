@@ -78,7 +78,14 @@ static inline void bl_hw_init(void)
     FLASH->INT_VEC_OFFSET = 0;
 
     /* PC3 button input with pull-up; PD1/PD6 USART1 TX/RX (AF1) */
-    RCC->AHBENR |= RCC_AHBENR_GPIOCEN | RCC_AHBENR_GPIODEN;
+    RCC->AHBENR |= RCC_AHBENR_GPIOBEN | RCC_AHBENR_GPIOCEN | RCC_AHBENR_GPIODEN;
+    /* Headlights (bootloader indicator): PB4 is the brightness line (the
+     * app's TIM1 CH2 PWM, active LOW) - plain output here, high = off,
+     * level set before the mode; PC7 high / PC6 low = forward (white front) */
+    GPIOB->BSRR = 1u << 4;
+    GPIOB->MODER = (GPIOB->MODER & ~(3u << 8)) | (1u << 8);
+    GPIOC->BSRR = (1u << 7) | (1u << (6 + 16));
+    GPIOC->MODER = (GPIOC->MODER & ~(0xFu << 12)) | (0x5u << 12);
     RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
     GPIOC->MODER &= ~(3u << 6);
     GPIOC->PUPDR = (GPIOC->PUPDR & ~(3u << 6)) | (1u << 6);
@@ -95,6 +102,12 @@ static inline void bl_hw_init(void)
 
     FLASH->KEYR = FLASH_FKEY1;
     FLASH->KEYR = FLASH_FKEY2;
+}
+
+/* headlights full on / off (PB4 active low) */
+static inline void bl_led(uint32_t on)
+{
+    *(on ? &GPIOB->BRR : &GPIOB->BSRR) = 1u << 4;
 }
 
 /* 1 once per elapsed millisecond (reading COUNTFLAG clears it) */
@@ -173,6 +186,7 @@ static inline void __attribute__((noreturn)) bl_start_app(void)
     {
     }
     USART1->CR1 = 0;
+    GPIOB->BSRR = 1u << 4; /* headlights off (the app takes PB4 back as PWM) */
     FLASH->CR = FLASH_CR_LOCK;
     SysTick->CTRL = 0;
     NVIC->ICER[0] = 0xFFFFFFFFu;

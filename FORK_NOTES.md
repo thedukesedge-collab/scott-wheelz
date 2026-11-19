@@ -800,7 +800,9 @@ stock ALCM v0.1.1 found these; each was checked against the code first.
   LCM holds the board's power latch and the VESC balances without it, so the
   bootloader can't know nobody is riding; an update interrupted after the
   erase would boot into it every time and cut power 5 min later, mid-ride.
-  Power is now only released by a 2 s button hold.
+  Power is now only released by a 2 s button hold. While in the bootloader the
+  headlights (white front) blink fast while pages arrive and flash briefly
+  every 2 s while waiting, so a stuck LCM is obvious.
 - S2: the package refuses to START (pads, push-start) while an LCM update is
   staged or a bootloader asked for a page in the last 5 s (update running,
   or an LCM stuck in its bootloader), and beeps 3x every 2 s if you try.

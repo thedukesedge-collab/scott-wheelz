@@ -20,6 +20,10 @@
  * someone is riding (the VESC balances without us), so power is never
  * dropped on a timer. The VP package refuses to engage while it hears us.
  *
+ * HEADLIGHTS: while in update mode the headlights (white front) blink fast
+ * while pages arrive and give a short flash every 2 s while waiting, so a
+ * rider can tell the LCM is in its bootloader (the board won't start then).
+ *
  * Normal power-up: if the application looks valid, jump to it at once with
  * nothing touched, so the app starts exactly as it did without us.
  *
@@ -179,7 +183,7 @@ void bl_updater(int from_app)
     uint8_t rx[RX_MAX + 3];
     uint32_t rx_n = 0, rx_len = 0;
     uint32_t offset = PAGE_SIZE, size = 0, crc = 0;
-    uint32_t wait_ms = 0, idle_ms = 0, button_ms = 0, fails = 0; /* idle_ms: give-up only */
+    uint32_t wait_ms = 0, idle_ms = 0, button_ms = 0, fails = 0, ms = 0;
     int erased = 0, request = 1;
     int armed = !bl_button_pressed(); /* a hold only counts after a release */
 
@@ -208,6 +212,11 @@ void bl_updater(int from_app)
                 request = 1;
             }
             ++idle_ms;
+            /* headlights tell the rider we're here: fast blink (4 Hz) while
+             * pages are coming in, a short flash every 2 s while waiting
+             * (lights flashing + board won't start = bootloader) */
+            ++ms;
+            bl_led(idle_ms < 1000u ? (ms & 0x80u) : (ms & 0x7C0u) == 0u);
             if (from_app && !erased && idle_ms >= GIVE_UP_MS)
             {
                 send_fw(LCM_FW_DONE, 2u << 24, 5); /* app untouched: back to it */

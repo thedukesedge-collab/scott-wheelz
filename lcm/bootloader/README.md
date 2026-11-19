@@ -54,7 +54,11 @@ cut the power to the whole board. So:
 - the button still works: **hold 2 s** (after the power-up press is
   released) to power off. There is **no timed power-off**: the VESC balances
   without the LCM, so the bootloader can't know nobody is riding, and power
-  is only ever released by the button. The VP package refuses to engage
+  is only ever released by the button.
+- **headlights show the bootloader:** fast blink (4 Hz) while an update is
+  coming in, one short flash every 2 s while it waits for one (e.g. after an
+  interrupted update). Normal power-ups never show this - a valid app is
+  started at once, untouched. The VP package refuses to engage
   while the bootloader is asking for pages (lights dark + board won't start =
   finish the update from the app, or hold the button to power off).
 

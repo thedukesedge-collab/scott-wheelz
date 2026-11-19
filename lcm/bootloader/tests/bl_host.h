@@ -33,6 +33,9 @@ void bl_power_off(void) __attribute__((noreturn));
 int bl_button_pressed(void);
 void bl_hw_init(void);
 int bl_tick_ms(void);
+void bl_led(uint32_t on);
+extern int sim_led;
+extern long sim_led_flashes; /* off -> on transitions */
 void bl_uart_put(uint32_t b);
 int bl_uart_get(void);
 void bl_flash_erase(uint32_t addr);
