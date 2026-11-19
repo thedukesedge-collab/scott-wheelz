@@ -366,7 +366,7 @@
       </div>
       <div class="ledSec" data-s="updates">
           <div class="fwFit idle" id="updInstalled" style="margin:4px 6px;font-size:12px"></div>
-          <p class="ledHint" style="text-align:center;opacity:.7;margin:2px 0">Simulator only - pretend GitHub has:</p>
+          <p class="ledHint" style="text-align:center;color:#FFB300;margin:2px 0">Simulator only - pretend GitHub has (not real releases):</p>
           <div class="pills" id="updSim"><div class="pill" data-k="newer">NEWER RELEASE</div><div class="pill" data-k="same">THIS RELEASE</div><div class="pill" data-k="none">NO RELEASE YET</div><div class="pill" data-k="offline">OFFLINE</div><div class="pill" data-k="live">LIVE (REAL GITHUB)</div></div>
           <div id="updCheckBtn" class="bigBeep">&#8635;&nbsp; CHECK FOR UPDATES</div>
           <p id="updMsg" style="text-align:center;font-size:12px;color:var(--green);margin:6px 8px"></p>
@@ -1575,8 +1575,8 @@ function updPaint() {
 function updCheck() {
   if (UPD.phase === 1 || UPD.dl === 1) return;
   UPD.phase = 1; UPD.rel = null; UPD.dl = 0; UPD.dlMsg = ''; UPD.hex = null; UPD.msg = 'Checking GitHub for the latest release...'; updPaint();
-  const done = (rel, err) => { UPD.rel = rel; UPD.phase = rel ? 2 : 3; UPD.msg = rel ? 'Latest release: ' + rel.name + '.' : err; updPaint(); };
   const k = P.updSim || 'newer';
+  const done = (rel, err) => { UPD.rel = rel; UPD.phase = rel ? 2 : 3; UPD.msg = rel ? 'Latest release: ' + rel.name + '.' : (k !== 'live' ? 'PRETEND (simulator only): ' : '') + err; updPaint(); };
   if (k === 'live') {
     fetch('https://api.github.com/repos/' + UPD_REPO + '/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
       .then(res => res.status === 404 ? done(null, 'No rider release has been published yet.')
@@ -1593,7 +1593,7 @@ function updCheck() {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
     const v = k === 'newer' ? '1.2.3-rf79' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
-    done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v, page: 'https://github.com/' + UPD_REPO + '/releases',
+    done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });
   }, 1200);
