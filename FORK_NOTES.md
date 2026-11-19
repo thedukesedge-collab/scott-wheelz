@@ -804,6 +804,23 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Once-over: one-color animations, snooze wake, clean-up (v1.2.3-rf102)
+- FADE, PULSE, STROBE, KNIGHT RIDER are one-color animations: color 2 is
+  their background / "off" color (BACKGROUND row with ON / OFF for all four).
+  Picking one of them from another kind of animation starts it with a BLACK
+  background (Status Idle and RGB LIGHTS). FELONY keeps COLOR 2.
+- Snooze wake: engaging, a footpad, or anything that restarts Refloat's
+  own idle timer (rolling wheel, lifting / setting down). A board parked
+  standing on its tail now snoozes (it never did: "upright" counted as
+  activity).
+- Controller TEST BEEP is ignored while riding (never over riding alerts).
+- Removed: the hidden free-spin limiter UI / dialog and its once-a-second
+  COMMAND_FREESPIN_LIMIT packet (ignored by the package since rf75), and the
+  unused rf92 headlight tile art.
+- Sizes: QML ~85 KB compressed of VESC's 128 KB QML area; lisp + native
+  library 89 KB of 128 KB; largest new stack frame status_animate 96 B
+  (aux thread 1536 B).
+
 ### BACKGROUND ON / OFF, white background preview (v1.2.3-rf101)
 - BACKGROUND rows (PULSE / KNIGHT RIDER; STATUS BAR and RGB LIGHTS) have an
   ON / OFF switch between the name and the arrows (SwStepper.toggle): OFF

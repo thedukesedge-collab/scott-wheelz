@@ -1713,7 +1713,7 @@ enum {
     COMMAND_HORN_SETTINGS = 122,
     COMMAND_PLAY_MELODY = 123,  // play a melody now (READY only): u8 0 = default, 1 = custom
     COMMAND_MELODY_SET = 124,  // custom melody: up to 6 x (pitch level, length in 20 ms)
-    COMMAND_LCM_VP_SETTINGS = 126,  // light module (ALCM VP) settings, 12 bytes, see lcm.h
+    COMMAND_LCM_VP_SETTINGS = 126,  // light settings, 11-23 bytes, see lcm.h / lcm/README.md
     COMMAND_LCM_TEST_BEEP = 127,  // light module (ALCM VP) test beep; [2] = 1: controller beeper
     COMMAND_LCM_FW = 128,  // LCM firmware update relay, see lcm_fw.h
     COMMAND_LCM_BATTERY = 129,  // battery curve: 0 = get, 1 = set (13 bytes), see battery_curve.h
@@ -2760,7 +2760,9 @@ static __attribute__((noinline)) bool rm_command(
         // rf84: [2] = 1 -> the controller's own beeper (Refloat's beeper on
         // Servo/PPM; silent when that's off) instead of the light module
         if (len >= 3 && buffer[2] == 1) {
-            beep_alert(d, 1, false);
+            if (d->state.state != STATE_RUNNING) {  // rf102: never over riding alerts
+                beep_alert(d, 1, false);
+            }
         } else {
             lcm_vp_test_beep(&d->lcm);
         }

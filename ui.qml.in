@@ -197,25 +197,17 @@ Item {
         }
     }
 
-    // Re-RinkFloat: free-spin limiter. Minimum 40 mph / 64.4 km/h, enforced
-    // here and in the package.
+    // Re-RinkFloat: once-a-second sender (light / horn settings). rf102: no
+    // longer sends the removed free-spin limit (COMMAND_FREESPIN_LIMIT, ignored
+    // by the package since rf75) - one less BLE packet every second.
     QtObject {
         id: freespinSender
 
-        readonly property real minKmh: 64.4
         property int count: 0
-
-        function send() {
-            var data = commands.createData(4, commands.c_FREESPIN_LIMIT);
-            var v = 0;  // rf75: the limiter was removed from the package
-            data.setUint16(2, v);
-            vescCommands.sendCustomAppData(data.buffer);
-        }
 
         function tick() {
             if (++count >= 10) {
                 count = 0;
-                send();
                 ledSender.tick();
                 // horn settings every second; the melody only when it changed, or every 10 s
                 hornSettingsSender.send(++hornSettingsSender.melodyTick % 10 === 0);
@@ -223,8 +215,8 @@ Item {
         }
     }
 
-    // Re-RinkFloat: horn-only sound settings, resent every second with the
-    // free-spin limit (the board forgets both on power cycle)
+    // Re-RinkFloat: horn-only sound settings, resent every second (kept on
+    // the board too since rf49)
     QtObject {
         id: hornSettingsSender
 
@@ -576,10 +568,15 @@ Item {
                 rgbSet(bar, "bri", pct / 100);
             }
         }
+        // rf102: FADE, PULSE, STROBE, KNIGHT RIDER are one-color animations
+        // (color 2 = the background / "off" color): picking one from another
+        // kind of animation starts it with a BLACK background (BACKGROUND OFF)
+        function oneColor(m) { return m >= 1 && m <= 4; }
         function rgbSet(bar, key, v) {
             if (!rgbLoaded) return;
             var r = rgb.slice();
             var b = Object.assign({}, r[bar]);
+            if (key === "mode" && oneColor(v) && !oneColor(b.mode)) b.c2 = 0;
             b[key] = v;
             r[bar] = b;
             rgb = r;
@@ -4048,8 +4045,8 @@ Item {
         property bool lit: false
         property color swatch: "transparent"
         property bool slcmOnly: false  // needs the SLCM light module firmware
-        // rf92: small animated picture instead of the glyph: 1 headlights
-        // (board with a breathing beam), 2 status bar (LEDs filling up)
+        // rf92: small animated picture instead of the glyph: 2 status bar
+        // (LEDs filling up), 3 the neon board (HEAD/TAIL LIGHTS, rf98)
         property int art: 0
         signal clicked()
         Layout.fillWidth: true
@@ -4148,73 +4145,6 @@ Item {
                 }
 
             onPaint: drawBoardArt(getContext("2d"), width, height, t, tile.lit)
-        }
-
-        // ---- rf92 art: headlights - a little board, its beam breathing
-        Item {
-            id: headArt
-            visible: tile.art === 1
-            anchors.left: parent.left
-            anchors.top: parent.top
-            anchors.leftMargin: 0.2 * unit
-            anchors.topMargin: 0.2 * unit
-            width: 2.2 * unit
-            height: 0.75 * unit
-            property real glow: 0.5
-            readonly property color line: tile.lit ? swTheme.neonGreen : swTheme.neonPurple
-            SequentialAnimation on glow {
-                running: headArt.visible && tile.lit && Qt.application.state === Qt.ApplicationActive
-                loops: Animation.Infinite
-                NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 0.35; duration: 900; easing.type: Easing.InOutSine }
-            }
-            // beam (cone ahead of the nose)
-            Canvas {
-                id: headBeam
-                visible: tile.lit
-                x: 1.1 * unit; y: 0
-                width: 1.1 * unit; height: parent.height
-                opacity: headArt.glow
-                onWidthChanged: requestPaint()
-                onPaint: {
-                    var c = getContext("2d");
-                    c.reset();
-                    var g = c.createLinearGradient(0, 0, width, 0);
-                    g.addColorStop(0, "rgba(234,255,240,0.9)");
-                    g.addColorStop(1, "rgba(57,255,122,0)");
-                    c.fillStyle = g;
-                    c.beginPath();
-                    c.moveTo(0, height * 0.52); c.lineTo(width, height * 0.1); c.lineTo(width, height * 0.95); c.closePath();
-                    c.fill();
-                }
-            }
-            // deck
-            Rectangle {
-                x: 0.05 * unit; y: parent.height * 0.48
-                width: 1.05 * unit; height: 0.1 * unit
-                radius: height / 2
-                color: "transparent"
-                border.color: headArt.line; border.width: 2
-            }
-            // wheel
-            Rectangle {
-                x: 0.4 * unit; y: parent.height * 0.48 - 0.1 * unit
-                width: 0.32 * unit; height: width; radius: width / 2
-                color: "#0b0718"
-                border.color: headArt.line; border.width: 2
-            }
-            // headlight / taillight
-            Rectangle {
-                x: 1.02 * unit; y: parent.height * 0.48 - 0.01 * unit
-                width: 0.1 * unit; height: 0.12 * unit; radius: 0.03 * unit
-                color: tile.lit ? "#eaffef" : "#3a2a55"
-            }
-            Rectangle {
-                x: 0.0; y: parent.height * 0.48 - 0.01 * unit
-                width: 0.08 * unit; height: 0.12 * unit; radius: 0.03 * unit
-                color: tile.lit ? "#ff2b4f" : "#3a2a55"
-                opacity: tile.lit ? 0.5 + 0.5 * headArt.glow : 1
-            }
         }
 
         // ---- rf92 art: status bar - ten LEDs filling up like the battery bar
@@ -7793,33 +7723,6 @@ Item {
         }
     }
 
-    // Re-RinkFloat: safety warning before the free-spin limiter is turned on
-    BaseDialog {
-        id: freespinWarningDialog
-        parent: ApplicationWindow.overlay
-
-        title: "\u26A0 Free-spin limiter"
-        standardButtons: Dialog.Ok | Dialog.Cancel
-
-        property real limitDisplay: 45
-
-        onOpened: standardButton(Dialog.Ok).text = "I understand, turn on"
-
-        onAccepted: {
-            swSettings.freespinLimitKmh = Math.max(freespinSender.minKmh, limitDisplay / vescConfig.imperialFactor);
-            swSettings.freespinOn = true;
-            freespinSender.send();
-            VescIf.emitStatusMessage("Free-spin limiter on", true);
-        }
-
-        NText {
-            width: freespinWarningDialog.availableWidth
-            font.pointSize: 12
-            wrapMode: Text.WordWrap
-            text: "While the board detects wheelslip (for example the tire in the air after a jump), the motor eases off so the tire keeps spinning at about %1 %2 instead of spinning up further. It does not stop the tire.\n\nWARNING: if wheelslip is detected while you are riding near or above this speed (a hard bump, a moment of lost traction), the motor eases off and the nose can drop. This can cause a NOSEDIVE at high speed.\n\nLandings can also be rougher, because the tire will be turning slower than the ground.\n\nThe board forgets this setting when it is powered off; this app turns it back on while it is connected.\n\nOnly turn it on if you understand and accept this risk.".arg(Math.round(limitDisplay)).arg(vescConfig.speedUnit)
-        }
-    }
-
     BaseDialog {
         id: editBoardNameDialog
 
@@ -8113,6 +8016,8 @@ Item {
                                 if (newValue < 0) {
                                     ledSender.setRf("rfTimeout", 0);
                                 } else {
+                                    // rf102: one-color animations start with a BLACK background
+                                    if (ledSender.oneColor(newValue) && !(ledSender.rfOn && ledSender.oneColor(ledSender.rfMode))) ledSender.rfColor2 = 0;
                                     ledSender.rfMode = newValue;
                                     ledSender.setRf("rfTimeout", ledSender.rfOn ? ledSender.rfTimeout : 10);
                                 }
@@ -8138,9 +8043,9 @@ Item {
                                 // rf91: Refloat uses color 2 in FADE, STROBE, FELONY and as the
                                 // background of PULSE and KNIGHT RIDER (BLACK = one color)
                                 visible: ledSender.rfMode >= 1 && ledSender.rfMode <= 5
-                                label: ledSender.rfMode === 2 || ledSender.rfMode === 4 ? "BACKGROUND" : "COLOR 2"
+                                label: ledSender.oneColor(ledSender.rfMode) ? "BACKGROUND" : "COLOR 2"
                                 // rf101: BACKGROUND ON / OFF (off = BLACK)
-                                toggle: ledSender.rfMode === 2 || ledSender.rfMode === 4 ? (ledSender.rfColor2 !== 0 ? 1 : 0) : -1
+                                toggle: ledSender.oneColor(ledSender.rfMode) ? (ledSender.rfColor2 !== 0 ? 1 : 0) : -1
                                 onToggleClicked: {
                                     if (ledSender.rfColor2 !== 0) { swSettings.rfBgLast = ledSender.rfColor2; ledSender.setRf("rfColor2", 0); }
                                     else ledSender.setRf("rfColor2", swSettings.rfBgLast || 1);
@@ -8684,8 +8589,8 @@ Item {
                         }
                         SwStepper {
                             visible: rgbCol.bar.mode >= 1 && rgbCol.bar.mode <= 5  // rf91, see Status Idle
-                            label: rgbCol.bar.mode === 2 || rgbCol.bar.mode === 4 ? "BACKGROUND" : "COLOR 2"
-                            toggle: rgbCol.bar.mode === 2 || rgbCol.bar.mode === 4 ? ((rgbCol.bar.c2 || 0) !== 0 ? 1 : 0) : -1  // rf101
+                            label: ledSender.oneColor(rgbCol.bar.mode) ? "BACKGROUND" : "COLOR 2"
+                            toggle: ledSender.oneColor(rgbCol.bar.mode) ? ((rgbCol.bar.c2 || 0) !== 0 ? 1 : 0) : -1  // rf101
                             onToggleClicked: {
                                 if ((rgbCol.bar.c2 || 0) !== 0) { swSettings.rfBgLast = rgbCol.bar.c2; ledSender.rgbSet(rgbCol.sel, "c2", 0); }
                                 else ledSender.rgbSet(rgbCol.sel, "c2", swSettings.rfBgLast || 1);
@@ -11053,7 +10958,7 @@ Item {
             ["▶", "PLAY & SAVE", "MIXER › PLAY / SAVE", "PLAY to hear it back, SAVE to keep it, DONE to make it the melody your board plays when it boots."],
             ["♥", "MY MELODIES", "MIXER › MY MELODIES", "All your saved tunes in one place. Tap one to make it your boot melody, ✎ to edit it on the tiles, ⧉ to copy, ✕ to delete. DEFAULT MELODY brings the original back; MELODY VOLUME sets how loud."],
             ["◢", "BOARD STYLE", "BOARD STYLE TAB", "Pick rails, tire and colors so the board on screen looks like yours."],
-            ["◉", "LIGHTS", "LEDS TAB", "HEADLIGHTS: IN MOTION and IDLE levels, SNOOZE after sitting still. STATUS BAR: idle and riding animations. RGB LIGHTS for controller-driven LEDs (Thor), linked with Refloat's settings."],
+            ["◉", "LIGHTS", "LEDS TAB", "HEAD/TAIL LIGHTS: IN MOTION and IDLE levels, SNOOZE before the board powers off. STATUS BAR: idle and riding animations. RGB LIGHTS for controller-driven LEDs (Thor), linked with Refloat's settings."],
             ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
             ["♬", "BEEPER", "LEDS › BEEPER", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
             ["↻", "UPDATES", "LEDS › UPDATES", "Check for new package and SLCM releases from GitHub, download and flash in a few taps. Floatwheel, XRV, Pint V and GTV light modules with SLCM update over Bluetooth."],
@@ -13662,105 +13567,6 @@ Item {
                             from: -1
                             to: 1
                             value: 0
-                        }
-
-                        // Re-RinkFloat: free-spin limiter - rf75: removed from the
-                        // package (it was the only change to the balance current);
-                        // the controls stay hidden
-                        SwNeonLabel {
-                            visible: false
-                            anchors.horizontalCenter: parent.horizontalCenter
-
-                            font.pixelSize: 0.45 * unit
-                            font.letterSpacing: 0.06 * unit
-                            text: "FREE-SPIN LIMITER"
-                        }
-
-                        SwLText {
-                            visible: false
-                            width: parent.width
-                            font.pixelSize: fontSizeNormal
-                            wrapMode: Text.WordWrap
-                            text: "Holds the tire at this speed while wheelslip is detected (e.g. in the air off a jump): the motor eases off so the tire keeps spinning just under the limit instead of spinning up further. Normal riding is not limited. Minimum %1.".arg(freespinUi.minText)
-                        }
-
-                        Row {
-                            id: freespinUi
-                            visible: false
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 0.2 * unit
-
-                            readonly property real factor: vescConfig.imperialFactor
-                            readonly property real minDisplay: Math.ceil(freespinSender.minKmh * factor)
-                            readonly property string unitText: vescConfig.speedUnit
-                            readonly property string minText: "%1 %2".arg(minDisplay).arg(unitText)
-
-                            TextField {
-                                id: freespinInput
-                                width: 2.0 * unit
-                                anchors.verticalCenter: parent.verticalCenter
-                                horizontalAlignment: Text.AlignHCenter
-                                font.family: "Exan"
-                                font.pixelSize: 0.36 * unit
-                                color: swTheme.neonGreen
-                                inputMethodHints: Qt.ImhFormattedNumbersOnly
-                                validator: IntValidator {bottom: 0; top: 150}
-                                text: Math.round(swSettings.freespinLimitKmh * freespinUi.factor)
-                            }
-
-                            SwNeonLabel {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: freespinUi.unitText
-                            }
-
-                            // ON / OFF switch in the neon style
-                            Rectangle {
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: 2.4 * unit
-                                height: 0.75 * unit
-                                radius: height / 2
-                                color: swSettings.freespinOn ? swTheme.neonGreen : "transparent"
-                                border.color: swSettings.freespinOn ? swTheme.neonGreen : swTheme.neonPurple
-                                border.width: 2
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: swSettings.freespinOn ? "ON" : "OFF"
-                                    color: swSettings.freespinOn ? swTheme.background : swTheme.neonPurple
-                                    font.family: "Exan"
-                                    font.pixelSize: 0.3 * unit
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    onClicked: freespinUi.request(!swSettings.freespinOn)
-                                }
-                            }
-
-                            function request(on) {
-                                if (!on) {
-                                    swSettings.freespinOn = false;
-                                    freespinSender.send();
-                                    VescIf.emitStatusMessage("Free-spin limiter off", true);
-                                    return;
-                                }
-                                var v = parseFloat(freespinInput.text);
-                                if (!(v >= minDisplay)) {
-                                    freespinInput.text = minDisplay;
-                                    VescIf.emitStatusMessage("Minimum is " + minText, false);
-                                    return;
-                                }
-                                freespinWarningDialog.limitDisplay = v;
-                                freespinWarningDialog.open();
-                            }
-                        }
-
-                        SwLText {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            visible: false
-                            font.pixelSize: fontSizeSmall
-                            color: swTheme.neonGreen
-                            text: "Active: limit %1 %2 (press OFF/ON to change)".arg(Math.round(swSettings.freespinLimitKmh * freespinUi.factor)).arg(freespinUi.unitText)
                         }
 
                         Item {

@@ -997,11 +997,15 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
         }
     }
 
-    // rf86: snooze - any movement, footpad, engage or lift wakes it
-    if (leds->state.state != STATE_READY || fs_state != FS_NONE ||
-        fabsf(VESC_IF->mc_get_rpm()) > ERPM_MOVING_THRESHOLD || leds->board_is_upright ||
-        leds->snooze_timeout <= 0.0f || leds->snooze_activity_time == 0.0f) {
+    // rf86: snooze - engaging or a footpad wakes it, and so does whatever
+    // restarts Refloat's own idle timer (a rolling wheel, lifting the board up
+    // or putting it down; rf102: a board parked standing on its tail snoozes)
+    if (leds->state.state != STATE_READY || fs_state != FS_NONE || leds->snooze_timeout <= 0.0f ||
+        leds->snooze_activity_time == 0.0f) {
         leds->snooze_activity_time = current_time;
+    }
+    if (leds->status_idle_time > leds->snooze_activity_time) {
+        leds->snooze_activity_time = leds->status_idle_time;
     }
     float snooze = 1.0f;
     if (leds->snooze_timeout > 0.0f &&
