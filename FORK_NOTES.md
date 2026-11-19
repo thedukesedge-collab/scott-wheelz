@@ -804,6 +804,13 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Disclaimer: credits, ride at your own risk, back after every update (v1.2.3-rf104)
+- BEFORE YOU START also credits Lukáš Hrázký (lukash) and the Float authors
+  (no credit taken) and ends with "ride at your own risk". "Don't show this
+  again" now only hides it for the installed version
+  (swSettings.hideDisclaimerVer = {{VERSION}}): every package update shows
+  it once more.
+
 ### Snooze on VESC's power-off clock (v1.2.3-rf103)
 - Snooze no longer tracks its own activity: it uses motor_active_time, the
   same clock as VESC's idle power-off (bldc: mc_interface_set_current /

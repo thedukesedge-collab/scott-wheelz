@@ -2465,7 +2465,8 @@ Item {
         property int ledAnimRide: 0
         property int ledAnimDoze: 0
         property bool ledDozeBreath: true  // headlights breathe in snooze (SLCM; off = dark)
-        property bool hideDisclaimer: false  // rf93: "don't show this again" on the start disclaimer
+        property bool hideDisclaimer: false  // rf93 (unused since rf104)
+        property string hideDisclaimerVer: ""  // rf104: "don't show again" for this package version only
         property bool tourSeen: false  // rf90: the tips & tricks tour opens once on first start
         property int ledSnoozeMin: 5  // rf100: minutes BEFORE the board powers off (0 = never)
         property int ledRideMode: 0  // rf97: riding status bar: 0 battery / duty, else Refloat mode + 1
@@ -6899,7 +6900,7 @@ Item {
         if (swSettings.ledSnoozeMin === 255) swSettings.ledSnoozeMin = 5;  // rf100: old AUTO
         // rf97: SNOOZE BREATHING OFF from before -> DARK snooze style
         if (!swSettings.ledDozeBreath && swSettings.ledSnoozeStyle === 0) swSettings.ledSnoozeStyle = 2;
-        if (!swSettings.hideDisclaimer) disclaimerDialog.open();
+        if (swSettings.hideDisclaimerVer !== "{{VERSION}}") disclaimerDialog.open();  // rf104: again after every update
         else if (!swSettings.tourSeen) rinkTour.open();
 
         onStartupTimer.start();
@@ -7595,7 +7596,7 @@ Item {
 
         onOpened: { disclaimerHide.checked = false; standardButton(Dialog.Ok).text = "Got it"; }
         onAccepted: {
-            if (disclaimerHide.checked) swSettings.hideDisclaimer = true;
+            if (disclaimerHide.checked) swSettings.hideDisclaimerVer = "{{VERSION}}";
             if (!swSettings.tourSeen) rinkTour.open();
         }
 
@@ -7610,13 +7611,14 @@ Item {
                 text: "Everything in Re-Float Rink-Mixed works off your current Refloat settings: tunes, lights, sounds and the rest read and write Refloat's own configuration.\n\n"
                     + "To use its features properly you need a working board that is set up and rides correctly on Refloat, and working LEDs for the light features.\n\n"
                     + "Based on Refloat 1.2.3. Later Refloat versions are known to ride quite differently, so if you're coming back from a newer version your board will likely feel noticeably different.\n\n"
-                    + "If something doesn't work, check the board and its Refloat settings in VESC Tool first."
+                    + "All credit goes to Lukáš Hrázký (lukash), the author of Refloat, and to the original Float package authors (Mitch Lustig, Dado Mista, Nico Aleman). I take zero credit for any of it.\n\n"
+                    + "If something doesn't work, check the board and its Refloat settings in VESC Tool first. As always, ride at your own risk."
             }
 
             CheckBox {
                 id: disclaimerHide
                 width: parent.width
-                text: "Don't show this again"
+                text: "Don't show this again (until the next update)"
             }
         }
     }
