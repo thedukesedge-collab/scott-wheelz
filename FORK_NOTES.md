@@ -804,6 +804,10 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Tour wording (v1.2.3-rf95)
+- Home screen page: "TILT slider and MAX SPEED / DUTY"; horn page: "stays
+  well within safe, low motor current".
+
 ### Disclaimer wording (v1.2.3-rf94)
 - Disclaimer: no "(Refloat's own LEDs or a light module)"; adds that the
   package is based on Refloat 1.2.3, later Refloat versions ride quite
