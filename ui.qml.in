@@ -5128,7 +5128,7 @@ Item {
         // place dialog at the top part of the screen, so that the phone
         // keyboard doesn't just exactly cover the buttons
         property bool placeAtTop: false
-
+        property color titleColor: swTheme.neonGreen  // rf107: red for warnings
         // Re-Float Rink-Mixed: every dialog in the Neon Future look - dark
         // panel, purple neon frame, title in the digital font, green accents
         Material.theme: Material.Dark
@@ -5148,12 +5148,12 @@ Item {
             implicitHeight: baseDialog.title !== "" ? dialogTitle.implicitHeight + 0.5 * unit : 0
             Text {
                 id: dialogTitle
+                color: baseDialog.titleColor
                 anchors.centerIn: parent
                 width: parent.width - 0.6 * unit
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
                 text: baseDialog.title.toUpperCase()
-                color: swTheme.neonGreen
                 font.family: "Exan"
                 font.pixelSize: 0.36 * unit
                 font.letterSpacing: 0.03 * unit
@@ -7532,13 +7532,35 @@ Item {
         property bool targetTouched: false
         function onUpdated() {
             load();
-            if (pending) apply();
+            if (pending === 3) verify();
+            else if (pending) apply();
+        }
+        // rf107: after a write the board's motor config is read back and checked
+        property real expectErpm: 0
+        property int verified: 0  // 0 not checked, 1 confirmed on the board, -1 mismatch / no answer
+        property string verifyText: ""
+        function verify() {
+            pending = 0;
+            maxSpeedTimer.stop();
+            var got = mc.getParamDouble("l_max_erpm");
+            var ok = Math.abs(got - expectErpm) <= 1 && Math.abs(mc.getParamDouble("l_min_erpm") + expectErpm) <= 1;
+            verified = ok ? 1 : -1;
+            verifyText = ok ? ("\u2714 Confirmed on the board: Max ERPM %1".arg(Math.round(got))
+                               + (limited ? " = %1 %2".arg(Math.round(capKmh * vescConfig.imperialFactor)).arg(vescConfig.speedUnit) : " (no limit)"))
+                            : "\u26A0 The board reports Max ERPM %1, not %2. Check Motor Settings \u203A General \u203A RPM in VESC Tool before riding.".arg(Math.round(got)).arg(Math.round(expectErpm));
+            VescIf.emitStatusMessage(verifyText, ok);
         }
         function onParamChangedDouble(src, name, v) { if (name.indexOf("l_") === 0 || name.indexOf("si_") === 0) load(); }
         function onParamChangedInt(src, name, v) { if (name === "si_motor_poles") load(); }
         Component.onCompleted: load()
 
         function request(kind) {
+            // rf107: VESC Tool in limited mode (firmware / app version mismatch)
+            // can't read or write the motor config reliably: refuse
+            if (typeof VescIf.getFwSupportsConfiguration === "function" && !VescIf.getFwSupportsConfiguration()) {
+                VescIf.emitStatusMessage("VESC Tool is in limited mode (firmware / app versions differ): motor settings can't be changed safely. Update VESC Tool or the firmware first.", false);
+                return;
+            }
             // writing the motor config resets the motor: never while riding
             if (boardRunning) {
                 VescIf.emitStatusMessage("Stop riding first: the motor settings can't be changed while the board is engaged", false);
@@ -7571,14 +7593,31 @@ Item {
             }
             vescCommands.setMcconf(false);
             load();
-            VescIf.emitStatusMessage(kind === 1 ? "Max speed set: " + Math.round(targetKmh * vescConfig.imperialFactor) + " " + vescConfig.speedUnit + " (" + e + " ERPM)"
-                                                : "Max speed limit removed", true);
+            // rf107: read it back from the board and check it took
+            expectErpm = e;
+            verified = 0;
+            verifyText = "Checking the board\u2026";
+            maxSpeedVerifyTimer.restart();
+        }
+        property Timer verifyTimer: Timer {
+            id: maxSpeedVerifyTimer
+            interval: 1500
+            onTriggered: {
+                maxSpeed.pending = 3;
+                maxSpeedTimer.restart();
+                vescCommands.getMcconf();  // verify() runs when it arrives
+            }
         }
         property Timer timer: Timer {
             id: maxSpeedTimer
             interval: 4000
             onTriggered: {
-                if (maxSpeed.pending) {
+                if (maxSpeed.pending === 3) {
+                    maxSpeed.pending = 0;
+                    maxSpeed.verified = -1;
+                    maxSpeed.verifyText = "\u26A0 Couldn't read the motor settings back to confirm the limit. Check Motor Settings \u203A General \u203A RPM in VESC Tool before riding.";
+                    VescIf.emitStatusMessage(maxSpeed.verifyText, false);
+                } else if (maxSpeed.pending) {
                     maxSpeed.pending = 0;
                     VescIf.emitStatusMessage("Couldn't read the motor settings from the board - nothing changed", false);
                 }
@@ -7628,6 +7667,7 @@ Item {
         id: maxSpeedTerms
         parent: ApplicationWindow.overlay
         title: "\u26A0 Max speed limiter"
+        titleColor: "#ff2b4f"
         standardButtons: Dialog.Ok | Dialog.Cancel
 
         onOpened: {
@@ -7645,9 +7685,24 @@ Item {
                 width: parent.width
                 font.pointSize: 12
                 wrapMode: Text.WordWrap
-                text: "This is meant for riders who want to limit how fast the tire free-spins in the air (off a jump). It sets VESC's own Max ERPM from your wheel diameter; it is off unless you set it.\n\n"
-                    + "WARNING: the limit also applies while riding. If you ever reach this speed on the ground, the motor can no longer push the nose back up and the board WILL NOSEDIVE.\n\n"
-                    + "Set it well above the fastest you ride, and check your real top speed after changing the wheel or tire. You ride at your own risk."
+                text: "This is meant for riders who want to limit how fast the tire free-spins in the air (off a jump). It sets VESC's own Max ERPM from your wheel diameter; it is off unless you set it."
+            }
+
+            // rf107: the warning in red
+            Text {
+                width: parent.width
+                font.pointSize: 12
+                font.bold: true
+                wrapMode: Text.WordWrap
+                color: "#ff2b4f"
+                text: "WARNING: the limit also applies while riding. If you ever reach this speed on the ground, the motor can no longer push the nose back up and the board WILL NOSEDIVE."
+            }
+
+            NText {
+                width: parent.width
+                font.pointSize: 12
+                wrapMode: Text.WordWrap
+                text: "Set it well above the fastest you ride. After setting it, check it with the board lifted (it's confirmed on the board automatically) and after changing the wheel or tire. You ride at your own risk."
             }
 
             CheckBox {
@@ -7664,6 +7719,7 @@ Item {
         id: maxSpeedPanel
         parent: ApplicationWindow.overlay
         title: "Max speed"
+        onOpened: if (maxSpeed.pending === 0) maxSpeed.verifyText = ""
         standardButtons: Dialog.Close
 
         Column {
@@ -7686,12 +7742,33 @@ Item {
             SwStepper {
                 visible: maxSpeed.ready
                 label: "LIMIT"
+                // rf107: the maths shown, so it can be checked
                 value: Math.round(maxSpeed.targetKmh * vescConfig.imperialFactor)
                 from: Math.ceil(maxSpeed.minKmh * vescConfig.imperialFactor)
                 to: Math.floor(maxSpeed.maxKmh * vescConfig.imperialFactor)
                 step: 1
                 suffix: " " + vescConfig.speedUnit
                 onMoved: { maxSpeed.targetTouched = true; maxSpeed.targetKmh = newValue / vescConfig.imperialFactor; }
+            }
+
+            SwLText {
+                visible: maxSpeed.ready
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                font.pixelSize: fontSizeSmall
+                text: "= %1 ERPM (wheel %2 mm, %3 motor poles, gear %4). Check these match your board in VESC Tool: the speed on screen uses the same numbers."
+                    .arg(Math.round(maxSpeed.targetKmh * maxSpeed.erpmPerKmh)).arg(Math.round(maxSpeed.wheelD * 1000)).arg(maxSpeed.poles).arg(maxSpeed.gear)
+            }
+
+            SwLText {
+                visible: maxSpeed.verifyText !== ""
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                font.pixelSize: fontSizeSmall
+                color: maxSpeed.verified === 1 ? swTheme.neonGreen : maxSpeed.verified === -1 ? "#ff2b4f" : "#FFB300"
+                text: maxSpeed.verifyText
             }
 
             Row {

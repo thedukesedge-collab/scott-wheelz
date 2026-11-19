@@ -804,6 +804,22 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### MAX SPEED: read-back check, limited mode refused, red warning (v1.2.3-rf107)
+- Rider report: SET at 41 mph, the first hand test topped out at 16 mph, the
+  second (after OFF / ON) at exactly 41. Cause not pinned down from here.
+  Safety changes:
+  - After every SET / REMOVE the app reads the motor config back from the
+    board 1.5 s later and checks Max / Min ERPM: "Confirmed on the board:
+    Max ERPM x = y mph" (green) or a red warning to check VESC Tool's Motor
+    Settings > General > RPM before riding (mismatch or no answer).
+  - Refused while VESC Tool is in limited mode
+    (VescIf.getFwSupportsConfiguration() false: firmware / app versions
+    differ, motor config can't be read / written reliably).
+  - The window shows the maths (ERPM, wheel diameter, poles, gear) so it
+    can be checked against VESC Tool.
+- Terms window: red title (BaseDialog.titleColor) and the WARNING in bold
+  red.
+
 ### MY MELODIES TEST, Jingle Bells default (v1.2.3-rf106)
 - MY MELODIES has a big neon TEST button above DEFAULT MELODY / RECORD NEW:
   plays the current boot melody (board READY), like MIXER > TEST.
