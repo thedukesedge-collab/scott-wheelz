@@ -13063,6 +13063,101 @@ Item {
         onClicked: bottomSheet.setFraction(0)
     }
 
+    // rf105: "TAP OR SWIPE UP HERE" - a neon hand pointing at the sheet handle
+    // when the UI opens (after the disclaimer / tour); gone once the sheet is
+    // opened or after 10 s
+    Item {
+        id: sheetHint
+        property bool done: false
+        readonly property bool show: !done && bottomSheet.fraction < 0.1 && !disclaimerDialog.visible && !rinkTour.visible
+        visible: opacity > 0
+        opacity: show ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 300 } }
+        z: 6
+        anchors.horizontalCenter: root.horizontalCenter
+        anchors.bottom: bottomSheet.top
+        anchors.bottomMargin: 0.05 * unit
+        width: 5 * unit
+        height: 2.6 * unit
+        property real bob: 0
+        SequentialAnimation on bob {
+            running: sheetHint.visible
+            loops: Animation.Infinite
+            NumberAnimation { to: 0.35 * unit; duration: 650; easing.type: Easing.InOutSine }
+            NumberAnimation { to: 0; duration: 650; easing.type: Easing.InOutSine }
+        }
+        Timer { running: sheetHint.show; interval: 10000; onTriggered: sheetHint.done = true }
+
+        Rectangle {
+            id: sheetHintLabel
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            width: sheetHintText.implicitWidth + 0.6 * unit
+            height: sheetHintText.implicitHeight + 0.3 * unit
+            radius: height / 2
+            color: "#E60b0718"
+            border.color: swTheme.neonGreen
+            border.width: 2
+            Text {
+                id: sheetHintText
+                anchors.centerIn: parent
+                text: "TAP OR SWIPE UP HERE"
+                color: swTheme.neonGreen
+                font.family: "Exan"
+                font.pixelSize: 0.28 * unit
+                font.letterSpacing: 0.03 * unit
+            }
+        }
+        // the hand: neon outline, pointing down at the handle, bobbing
+        Canvas {
+            id: sheetHintHand
+            width: 1.0 * unit
+            height: 1.3 * unit
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: sheetHintLabel.height + 0.1 * unit + sheetHint.bob
+            onWidthChanged: requestPaint()
+            onPaint: {
+                var c = getContext("2d"), w = width, h = height;
+                c.reset();
+                c.strokeStyle = "#39ff7a"; c.lineWidth = Math.max(2, w * 0.07);
+                c.lineJoin = "round"; c.lineCap = "round";
+                c.shadowColor = "#39ff7a"; c.shadowBlur = w * 0.25;
+                // finger (pointing down)
+                c.beginPath();
+                c.moveTo(w * 0.40, h * 0.45); c.lineTo(w * 0.40, h * 0.92);
+                c.arc(w * 0.50, h * 0.92, w * 0.10, Math.PI, 0, true);
+                c.lineTo(w * 0.60, h * 0.45);
+                c.stroke();
+                // fist with knuckles
+                c.beginPath();
+                c.moveTo(w * 0.40, h * 0.45); c.lineTo(w * 0.18, h * 0.42);
+                c.quadraticCurveTo(w * 0.08, h * 0.30, w * 0.16, h * 0.14);
+                c.lineTo(w * 0.80, h * 0.06);
+                c.quadraticCurveTo(w * 0.92, h * 0.10, w * 0.90, h * 0.26);
+                c.lineTo(w * 0.86, h * 0.42);
+                c.quadraticCurveTo(w * 0.80, h * 0.48, w * 0.60, h * 0.45);
+                c.stroke();
+                c.beginPath();
+                c.moveTo(w * 0.62, h * 0.08); c.lineTo(w * 0.64, h * 0.42);
+                c.moveTo(w * 0.42, h * 0.10); c.lineTo(w * 0.42, h * 0.30);
+                c.stroke();
+            }
+        }
+        // tap ripple on the handle
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: -0.55 * unit
+            width: 0.6 * unit + sheetHint.bob * 2
+            height: width * 0.45
+            radius: height / 2
+            color: "transparent"
+            border.color: swTheme.neonGreen
+            border.width: 2
+            opacity: 1 - sheetHint.bob / (0.35 * unit) * 0.8
+        }
+    }
+
     // Re-RinkFloat: Tunes / Control / Data live in a pull-up sheet over the
     // full-screen main view. Drag the handle up/down, tap it to open/close.
     // The position is remembered (swSettings.sheetFraction).
@@ -13095,7 +13190,9 @@ Item {
             NumberAnimation {duration: 220; easing.type: Easing.OutCubic}
         }
 
-        Component.onCompleted: fraction = swSettings.sheetFraction >= 0.5 ? 1 : 0
+        // rf105: always opens on the full home screen (sheet down)
+        Component.onCompleted: fraction = 0
+        onFractionChanged: if (fraction > 0.1) sheetHint.done = true
 
         // Re-RinkFloat: the sheet is "magnetic": it always settles fully up or
         // fully down, whichever is closer when you let go

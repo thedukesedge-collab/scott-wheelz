@@ -804,6 +804,13 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Home screen first, swipe-up hint (v1.2.3-rf105)
+- The UI always opens on the full home screen (sheet down; its last
+  position is no longer restored).
+- After the disclaimer / tour, a neon "TAP OR SWIPE UP HERE" label with a
+  bobbing neon hand (Canvas) points at the sheet handle, with a ripple on
+  it; gone once the sheet is opened or after 10 s. It doesn't take taps.
+
 ### Disclaimer: credits, ride at your own risk, back after every update (v1.2.3-rf104)
 - BEFORE YOU START also credits Lukáš Hrázký (lukash) and the Float authors
   (no credit taken) and ends with "ride at your own risk". "Don't show this

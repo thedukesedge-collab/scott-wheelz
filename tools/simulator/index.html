@@ -55,6 +55,12 @@
   #horn.honk #hornText { color: var(--bg); }
   #hornGauge { position: absolute; left: 12px; bottom: 5px; height: 3px; border-radius: 2px; }
   /* bottom sheet */
+  #sheetHint { position: absolute; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; flex-direction: column; align-items: center; pointer-events: none; transition: opacity .3s; opacity: 0; }
+  #sheetHint .lbl { font-size: 11px; letter-spacing: 1px; color: var(--green); background: rgba(11,7,24,.9); border: 2px solid var(--green); border-radius: 999px; padding: 5px 12px; box-shadow: 0 0 10px rgba(57,255,122,.5); white-space: nowrap; }
+  #sheetHint .hand { width: 34px; height: 44px; margin-top: 4px; filter: drop-shadow(0 0 5px #39ff7a); animation: hintBob 1.3s ease-in-out infinite; }
+  #sheetHint .ring { width: 26px; height: 11px; border: 2px solid var(--green); border-radius: 50%; margin-top: -2px; animation: hintRing 1.3s ease-in-out infinite; }
+  @keyframes hintBob { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(9px) } }
+  @keyframes hintRing { 0%, 100% { opacity: .9; transform: scale(1) } 50% { opacity: .2; transform: scale(1.6) } }
   #sheet { position: absolute; left: 5px; overflow: hidden; border: 1px solid var(--purple); border-radius: 8px; background-color: var(--bg); z-index: 5; }
   #sheet.anim { transition: height .22s cubic-bezier(.2,.8,.3,1); }
   #sheetInner { position: absolute; left: 0; right: 0; top: 0; display: flex; flex-direction: column; }
@@ -270,6 +276,9 @@
   </div>
 
   <div id="sheetDismiss" style="position:absolute;left:0;right:0;top:0;z-index:5;display:none"></div>
+  <div id="sheetHint"><div class="lbl nf">TAP OR SWIPE UP HERE</div>
+    <svg class="hand" viewBox="0 0 40 52"><path d="M16 23 V47 A4 4 0 0 0 24 47 V23 M16 23 L7 22 Q3 16 6 7 L32 3 Q37 5 36 13 L34 21 Q32 24 24 23 M25 4 L26 21 M17 5 V15" fill="none" stroke="#39ff7a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div class="ring"></div></div>
   <div id="sheet" class="gridbg anim">
     <div id="sheetInner">
       <div id="handle"><div class="grip"></div></div>
@@ -352,7 +361,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf104 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf105 · sim</span></div>
     </div>
   </div>
 
@@ -583,7 +592,7 @@ function toast(msg) {
 }
 
 // ---------- layout ----------
-let W, H, u, rootW, rootH, sheetMin, sheetMax, sheetF = P.sheet >= 0.5 ? 1 : 0, dragging = false;
+let W, H, u, rootW, rootH, sheetMin, sheetMax, sheetF = 0, dragging = false;  // rf105: always opens on the home screen
 const dpr = Math.min(3, window.devicePixelRatio || 1);
 function sizeCanvas(c, w, h) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); c.style.width = w + 'px'; c.style.height = h + 'px'; const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); return x; }
 const css = (el, o) => Object.assign(el.style, o);
@@ -690,6 +699,13 @@ function layout() {
 }
 
 // ---------- bottom sheet ----------
+let hintDone = false;
+setTimeout(() => { hintDone = true; sheetHintShow(); }, 14000);
+function sheetHintShow() {
+  const blocked = $('modal').classList.contains('on') || $('tour').classList.contains('on');
+  $('sheetHint').style.opacity = !hintDone && sheetF < 0.1 && !blocked ? 1 : 0;
+}
+setInterval(() => sheetHintShow(), 500);
 function applySheet() {
   const h = sheetMin + (sheetMax - sheetMin) * sheetF;
   $('sheet').style.height = px(h);
@@ -699,6 +715,9 @@ function applySheet() {
   // rf81: with the sheet up, a tap on the main view above it puts it down
   $('sheetDismiss').style.height = px(Math.max(0, rootH - h));
   $('sheetDismiss').style.display = sheetF >= 0.5 ? 'block' : 'none';
+  // rf105: the swipe-up hint sits on the sheet's top edge; gone once it's opened
+  if (sheetF > 0.1) hintDone = true;
+  $('sheetHint').style.bottom = px(h + 2); sheetHintShow();
 }
 function setSheet(f) { sheetF = f; P.sheet = f; save(); $('sheet').classList.add('anim'); applySheet(); }
 $('sheetDismiss').addEventListener('click', () => setSheet(0));
@@ -1649,7 +1668,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf104';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf105';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1949,7 +1968,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf105' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf106' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });
