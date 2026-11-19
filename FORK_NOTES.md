@@ -804,6 +804,16 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Animated HEADLIGHTS / STATUS BAR tiles, readable previews (v1.2.3-rf92)
+- LEDS: the HEADLIGHTS tile shows a little board whose beam and taillight
+  breathe, the STATUS BAR tile ten LEDs filling up like the battery bar
+  (LedTile.art; animations run only while shown and lit; dim when off).
+- Animation previews never go invisible with BLACK: FADE to black fades the
+  name to dim, a black color 1 swaps to color 2, all black shows dim grey
+  (FADE with WHITE / BLACK looked blank after pressing up).
+- The "Needs the SLCM light module firmware" note no longer shows in RGB
+  LIGHTS, BEEPER or UPDATES.
+
 ### Knight Rider background color, neon Tune Archive (v1.2.3-rf91)
 - Refloat (leds.c) uses color 2 in FADE, STROBE, FELONY and as the
   background of PULSE and KNIGHT RIDER (color_blend(color2, color1, k)); the

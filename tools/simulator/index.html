@@ -91,6 +91,24 @@
   .ledTile .slcmTag { position: absolute; right: 30px; top: 9px; font-style: normal; font-family: Orbitron, monospace; font-size: 8px; padding: 1px 6px; border: 1px solid #FFB300; color: #FFB300; border-radius: 999px; }
   .slcmOn .ledTile .slcmTag { border-color: var(--green); color: var(--green); }
   .slcmOff .ledTile.slcm { opacity: .5; }
+  /* rf92: animated tile pictures (LedTile art in ui.qml.in) */
+  .hArt { position: absolute; left: 10px; top: 10px; width: 120px; height: 34px; display: block; }
+  .ledTile .hArt i { position: absolute; display: block; right: auto; bottom: auto; font-size: 0; }
+  .ledTile .hArt .deck { left: 2px; top: 16px; width: 58px; height: 4px; border: 2px solid var(--purple); border-radius: 4px; }
+  .ledTile .hArt .whl { left: 20px; top: 9px; width: 14px; height: 14px; border: 2px solid var(--purple); border-radius: 50%; background: #0b0718; }
+  .ledTile .hArt .hl { left: 60px; top: 16px; width: 5px; height: 7px; border-radius: 2px; background: #3a2a55; }
+  .ledTile .hArt .tl { left: 0; top: 16px; width: 4px; height: 7px; border-radius: 2px; background: #3a2a55; }
+  .ledTile .hArt .beam { left: 64px; top: 2px; width: 56px; height: 32px; clip-path: polygon(0 52%, 100% 8%, 100% 95%); background: linear-gradient(90deg, rgba(234,255,240,.9), rgba(57,255,122,0)); opacity: 0; }
+  .ledTile.lit .hArt .deck, .ledTile.lit .hArt .whl { border-color: var(--green); }
+  .ledTile.lit .hArt .hl { background: #eaffef; }
+  .ledTile.lit .hArt .tl { background: #ff2b4f; animation: hBreath 1.8s ease-in-out infinite; }
+  .ledTile.lit .hArt .beam { animation: hBreath 1.8s ease-in-out infinite; }
+  @keyframes hBreath { 0%, 100% { opacity: .35 } 50% { opacity: 1 } }
+  .bArt { position: absolute; left: 11px; top: 16px; display: flex; gap: 3px; }
+  .ledTile .bArt i { position: static; display: block; font-size: 0; width: 8px; height: 17px; border-radius: 2px; background: #21143a; border: 1px solid var(--purple); box-sizing: border-box; }
+  .ledTile.lit .bArt i { border-color: #3d2a63; animation: bFill 3.7s ease-out infinite; animation-delay: calc(var(--i) * 0.12s); }
+  .ledTile.lit .bArt i:nth-child(-n+2) { --c: #ff2b4f; } .ledTile.lit .bArt i:nth-child(n+3):nth-child(-n+4) { --c: #f5ff3b; } .ledTile.lit .bArt i:nth-child(n+5) { --c: var(--green); }
+  @keyframes bFill { 0% { background: #21143a } 8%, 85% { background: var(--c) } 100% { background: #21143a } }
   .ledTile.wide { grid-column: 1 / span 2; height: 74px; }
   .fwBar { height: 12px; border: 2px solid var(--purple); border-radius: 999px; margin: 10px 4px; overflow: hidden; display: none; }
   .fwBar i { display: block; height: 100%; width: 0; background: var(--green); border-radius: 999px; }
@@ -320,8 +338,8 @@
           <p class="ledHint" id="overrideNote" style="text-align:center;color:#ff8a1f"></p></div>
           <p id="ledNote" style="font-size:11px;color:var(--text);text-align:center;margin:4px 6px"></p>
           <div class="ledTiles">
-            <div class="ledTile" data-w="head"><span class="g">&#9673;</span><b>HEADLIGHTS</b><small id="ltHead"></small><i>&#8250;</i></div>
-            <div class="ledTile" data-w="bar"><span class="g">&#9609;</span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
+            <div class="ledTile" data-w="head"><span class="hArt"><i class="beam"></i><i class="deck"></i><i class="whl"></i><i class="hl"></i><i class="tl"></i></span><b>HEADLIGHTS</b><small id="ltHead"></small><i>&#8250;</i></div>
+            <div class="ledTile" data-w="bar"><span class="bArt"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i></span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
           </div>
           <div class="ledTiles" id="rgbTileBox"><div class="ledTile wide" data-w="rgb"><span class="g">&#9672;</span><b>RGB LIGHTS</b><small id="ltRgb"></small><i>&#8250;</i></div></div>
           <p style="font-size:11px;color:var(--text);text-align:center;margin:8px 6px">These are Refloat's LED settings (VESC Tool &#8250; Refloat Cfg &#8250; LEDs), kept in step both ways, so they work the same on every controller.</p>
@@ -337,7 +355,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf91 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf92 · sim</span></div>
     </div>
   </div>
 
@@ -1239,10 +1257,12 @@ function animCol(anim, i, n, t, hueDeg, el_text_off) {
     case 13: return x <= 0.8 ? 'rgba(244,240,255,1)' : 'rgba(255,255,255,0.22)';
     case 15: {  // Refloat's Status Idle animation (approximation)
       if (!P.rfTimeout) return 'rgba(234,214,255,1)';
-      const c1 = rfRgb(P.rfColor1), c2 = rfRgb(P.rfColor2), sp = Math.max(0.1, P.rfSpeed), md = P.rfMode, has2 = P.rfColor2 !== 0;  // rf91
+      let c1 = rfRgb(P.rfColor1), has2 = P.rfColor2 !== 0; const c2 = rfRgb(P.rfColor2), sp = Math.max(0.1, P.rfSpeed), md = P.rfMode, c1k = P.rfColor1 === 0;  // rf91/92
       const mix = q => [0, 1, 2].map(j => Math.round(c1[j] + (c2[j] - c1[j]) * q));
+      if (c1k && (md === 0 || !has2)) return '#5c5470';  // rf92: all black: dim grey
       if (md === 0) return rfCss(c1);
-      if (md === 1) return rfCss(mix(0.5 - 0.5 * Math.cos(2 * Math.PI * t * sp)));
+      if (c1k) { c1 = c2; has2 = false; }
+      if (md === 1) { const q = 0.5 - 0.5 * Math.cos(2 * Math.PI * t * sp); return has2 ? rfCss(mix(q)) : rfCss(c1, Math.max(0.15, 1 - q)); }
       if (md === 2) { const k = spot(m, frac(t * sp)); return has2 ? rfCss(mix(1 - k)) : rfCss(c1, Math.max(0.15, k)); }
       if (md === 3) return frac(t * sp * 2) < 0.5 ? rfCss(c1) : has2 ? rfCss(c2) : rfCss(c1, 0.15);
       if (md === 4) { const k = spot(x, sweep(t, 2 / sp)); return has2 ? rfCss(mix(1 - k)) : rfCss(c1, Math.max(0.15, k)); }
@@ -1250,10 +1270,12 @@ function animCol(anim, i, n, t, hueDeg, el_text_off) {
       h = md === 8 ? frac(x - t * sp) : frac(t * sp / 3); break;
     }
     case 16: {  // RGB LIGHTS: the selected Refloat light bar (same maths as 15)
-      const b = P.rgb[P.rgbSel || 0], c1 = rfRgb(b.c1), c2 = rfRgb(b.c2), sp = Math.max(0.1, b.speed), md = b.mode, has2 = b.c2 !== 0;  // rf91
+      const b = P.rgb[P.rgbSel || 0], c2 = rfRgb(b.c2), sp = Math.max(0.1, b.speed), md = b.mode, c1k = b.c1 === 0; let c1 = rfRgb(b.c1), has2 = b.c2 !== 0;  // rf91/92
       const mix = q => [0, 1, 2].map(j => Math.round(c1[j] + (c2[j] - c1[j]) * q));
+      if (c1k && (md === 0 || !has2)) return '#5c5470';  // rf92: all black: dim grey
       if (md === 0) return rfCss(c1);
-      if (md === 1) return rfCss(mix(0.5 - 0.5 * Math.cos(2 * Math.PI * t * sp)));
+      if (c1k) { c1 = c2; has2 = false; }
+      if (md === 1) { const q = 0.5 - 0.5 * Math.cos(2 * Math.PI * t * sp); return has2 ? rfCss(mix(q)) : rfCss(c1, Math.max(0.15, 1 - q)); }
       if (md === 2) { const k = spot(m, frac(t * sp)); return has2 ? rfCss(mix(1 - k)) : rfCss(c1, Math.max(0.15, k)); }
       if (md === 3) return frac(t * sp * 2) < 0.5 ? rfCss(c1) : has2 ? rfCss(c2) : rfCss(c1, 0.15);
       if (md === 4) { const k = spot(x, sweep(t, 2 / sp)); return has2 ? rfCss(mix(1 - k)) : rfCss(c1, Math.max(0.15, k)); }
@@ -1499,7 +1521,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf91';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf92';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1799,7 +1821,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf92' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf93' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

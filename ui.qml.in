@@ -4020,6 +4020,9 @@ Item {
         property bool lit: false
         property color swatch: "transparent"
         property bool slcmOnly: false  // needs the SLCM light module firmware
+        // rf92: small animated picture instead of the glyph: 1 headlights
+        // (board with a breathing beam), 2 status bar (LEDs filling up)
+        property int art: 0
         signal clicked()
         Layout.fillWidth: true
         Layout.preferredHeight: 1.9 * unit
@@ -4030,12 +4033,112 @@ Item {
         border.width: 2
 
         Text {
+            visible: tile.art === 0
             anchors.left: parent.left
             anchors.top: parent.top
             anchors.margins: 0.18 * unit
             text: tile.glyph
             color: tile.lit ? swTheme.neonGreen : swTheme.neonPurple
             font.pixelSize: 0.42 * unit
+        }
+
+        // ---- rf92 art: headlights - a little board, its beam breathing
+        Item {
+            id: headArt
+            visible: tile.art === 1
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.leftMargin: 0.2 * unit
+            anchors.topMargin: 0.2 * unit
+            width: 2.2 * unit
+            height: 0.75 * unit
+            property real glow: 0.5
+            readonly property color line: tile.lit ? swTheme.neonGreen : swTheme.neonPurple
+            SequentialAnimation on glow {
+                running: headArt.visible && tile.lit && Qt.application.state === Qt.ApplicationActive
+                loops: Animation.Infinite
+                NumberAnimation { to: 1; duration: 900; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 0.35; duration: 900; easing.type: Easing.InOutSine }
+            }
+            // beam (cone ahead of the nose)
+            Canvas {
+                id: headBeam
+                visible: tile.lit
+                x: 1.1 * unit; y: 0
+                width: 1.1 * unit; height: parent.height
+                opacity: headArt.glow
+                onWidthChanged: requestPaint()
+                onPaint: {
+                    var c = getContext("2d");
+                    c.reset();
+                    var g = c.createLinearGradient(0, 0, width, 0);
+                    g.addColorStop(0, "rgba(234,255,240,0.9)");
+                    g.addColorStop(1, "rgba(57,255,122,0)");
+                    c.fillStyle = g;
+                    c.beginPath();
+                    c.moveTo(0, height * 0.52); c.lineTo(width, height * 0.1); c.lineTo(width, height * 0.95); c.closePath();
+                    c.fill();
+                }
+            }
+            // deck
+            Rectangle {
+                x: 0.05 * unit; y: parent.height * 0.48
+                width: 1.05 * unit; height: 0.1 * unit
+                radius: height / 2
+                color: "transparent"
+                border.color: headArt.line; border.width: 2
+            }
+            // wheel
+            Rectangle {
+                x: 0.4 * unit; y: parent.height * 0.48 - 0.1 * unit
+                width: 0.32 * unit; height: width; radius: width / 2
+                color: "#0b0718"
+                border.color: headArt.line; border.width: 2
+            }
+            // headlight / taillight
+            Rectangle {
+                x: 1.02 * unit; y: parent.height * 0.48 - 0.01 * unit
+                width: 0.1 * unit; height: 0.12 * unit; radius: 0.03 * unit
+                color: tile.lit ? "#eaffef" : "#3a2a55"
+            }
+            Rectangle {
+                x: 0.0; y: parent.height * 0.48 - 0.01 * unit
+                width: 0.08 * unit; height: 0.12 * unit; radius: 0.03 * unit
+                color: tile.lit ? "#ff2b4f" : "#3a2a55"
+                opacity: tile.lit ? 0.5 + 0.5 * headArt.glow : 1
+            }
+        }
+
+        // ---- rf92 art: status bar - ten LEDs filling up like the battery bar
+        Row {
+            id: barArt
+            visible: tile.art === 2
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.leftMargin: 0.22 * unit
+            anchors.topMargin: 0.35 * unit
+            spacing: 0.06 * unit
+            property real level: 0
+            SequentialAnimation on level {
+                running: barArt.visible && tile.lit && Qt.application.state === Qt.ApplicationActive
+                loops: Animation.Infinite
+                NumberAnimation { from: 0; to: 1; duration: 1600; easing.type: Easing.OutCubic }
+                PauseAnimation { duration: 900 }
+                NumberAnimation { to: 0.8; duration: 500 }
+                PauseAnimation { duration: 700 }
+            }
+            Repeater {
+                model: 10
+                Rectangle {
+                    readonly property bool on: tile.lit && (index + 0.5) / 10 <= barArt.level
+                    width: 0.13 * unit
+                    height: 0.3 * unit
+                    radius: 0.04 * unit
+                    color: !on ? "#21143a" : index < 2 ? "#ff2b4f" : index < 4 ? "#f5ff3b" : swTheme.neonGreen
+                    border.color: tile.lit ? "#3d2a63" : swTheme.neonPurple
+                    border.width: 1
+                }
+            }
         }
         Rectangle {
             visible: tile.swatch.a > 0
@@ -4202,16 +4305,20 @@ Item {
                 var sp = Math.max(0.1, an.rf ? an.rf.speed : ledSender.rfSpeed), md = an.rf ? an.rf.mode : ledSender.rfMode;
                 var mix = function(p) { return Qt.rgba(c1.r + (c2.r - c1.r) * p, c1.g + (c2.g - c1.g) * p, c1.b + (c2.b - c1.b) * p, 1); };
                 var dim = function(cc, k) { return Qt.rgba(cc.r, cc.g, cc.b, Math.max(0.15, k)); };
+                var has2 = (an.rf ? an.rf.c2 : ledSender.rfColor2) !== 0;  // rf92: black = dim, not invisible
+                var c1black = (an.rf ? an.rf.c1 : ledSender.rfColor1) === 0;
+                if (c1black && (md === 0 || !has2)) return "#5c5470";  // all black: shown dim grey
                 if (md === 0) return c1;
-                if (md === 1) return mix(0.5 - 0.5 * Math.cos(2 * Math.PI * t * sp));
+                if (c1black) { var sw = c1; c1 = c2; c2 = sw; has2 = false; }
+                if (md === 1) { var pf = 0.5 - 0.5 * Math.cos(2 * Math.PI * t * sp); return has2 ? mix(pf) : dim(c1, 1 - pf); }
                 // rf91: PULSE / STROBE / KNIGHT RIDER show color 2 (background) unless it's black
-                var has2 = (an.rf ? an.rf.c2 : ledSender.rfColor2) !== 0;
                 if (md === 2) { var kp = spot(m, frac(t * sp)); return has2 ? mix(1 - kp) : dim(c1, kp); }
                 if (md === 3) return frac(t * sp * 2) < 0.5 ? c1 : (has2 ? c2 : dim(c1, 0));
                 if (md === 4) { var kk = spot(x, sweep(t, 2 / sp)); return has2 ? mix(1 - kk) : dim(c1, kk); }
                 if (md === 5) {
                     var fp = Math.floor(t * sp * 2) % 2;
-                    return dim((x < 0.5) === (fp === 0) ? c1 : c2, Math.floor(t * 16) % 2 === 0 ? 1 : 0.2);
+                    var side = (x < 0.5) === (fp === 0), fl = Math.floor(t * 16) % 2 === 0 ? 1 : 0.2;
+                    return side || has2 ? dim(side ? c1 : c2, fl) : dim(c1, 0.15);
                 }
                 if (md === 8) { h = frac(x - t * sp); break; }
                 h = frac(t * sp / 3); break;
@@ -8751,7 +8858,8 @@ Item {
 
             SwLText {
                 // head / bar are Refloat's own settings (any controller)
-                visible: slcmDetect.present || (ledWindow.section !== "head" && ledWindow.section !== "bar")
+                // rf92: also not in RGB LIGHTS / BEEPER / UPDATES (not SLCM things)
+                visible: slcmDetect.present || ["head", "bar", "rgb", "sound", "updates"].indexOf(ledWindow.section) < 0
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
@@ -14588,6 +14696,7 @@ Item {
                             LedTile {
                                 title: "HEADLIGHTS"
                                 glyph: "\u25C9"
+                                art: 1
                                 lit: swSettings.ledHeadlights
                                 summary: swSettings.ledHeadlights
                                     ? "ON \u00B7 MOTION " + swSettings.ledHeadlightPct + "% \u00B7 IDLE " + swSettings.ledHeadlightIdlePct + "%"
@@ -14597,6 +14706,7 @@ Item {
                             LedTile {
                                 title: "STATUS BAR"
                                 glyph: "\u2589"
+                                art: 2
                                 lit: swSettings.ledStatusBar
                                 summary: swSettings.ledStatusBar
                                     ? "ON \u00B7 RIDE " + swSettings.ledStatusRidePct + "% \u00B7 " + ledSender.rfSummary
