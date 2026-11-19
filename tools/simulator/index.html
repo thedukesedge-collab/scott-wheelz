@@ -255,7 +255,7 @@
           <div class="secTitle neonL" style="font-size:12px;margin-top:10px">BOOT MELODY</div>
           <div class="pills" id="melBoot"></div>
           <div id="melVolSteps"></div>
-          <div id="melVolNote" style="text-align:center;font-size:11px;color:#c98bff;margin-top:2px">10 / 10 is only half the horn's top volume, so it stays gentle on the motor</div>
+          <div id="melVolNote" style="text-align:center;font-size:11px;color:#c98bff;margin-top:2px">10 / 10 is about 60% of the horn's top volume, so it stays gentle on the motor</div>
           <div id="melCur" style="text-align:center;font-size:11px;color:#c98bff;margin-top:6px"></div>
           <div class="pills" style="margin-top:6px"><div class="pill" id="myMelOpen">MY MELODIES</div><div class="pill" id="padOpen">RECORD &#9834;</div><div class="pill" id="melTest">TEST</div></div>
           <div style="text-align:center;margin-top:6px"><div class="pill" id="hornReset" style="display:inline-block">RESET HORN</div></div>
@@ -310,7 +310,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf81 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf82 · sim</span></div>
     </div>
   </div>
 
@@ -817,7 +817,7 @@ $('motorStat').onclick = () => { P.tempF = !P.tempF; save(); toast(P.tempF ? 'Te
 
 // ---------- horn settings (horn only) ----------
 const HORN_ADV = [
-  ['hBeep', 'BEEP STRENGTH', 0.5, 6, 0.5, 1, ' V'], ['hBeepHz', 'BEEP PITCH', 300, 1000, 25, 0, ' Hz'],
+  ['hBeep', 'BEEP STRENGTH', 0.4, 4, 0.2, 1, ' V'], ['hBeepHz', 'BEEP PITCH', 300, 1000, 25, 0, ' Hz'],
 ];
 const HORN_SIMPLE = [
   ['hsVol', 'VOLUME (beep loudness)', 1, 10, 1, 0, ' / 10'],
@@ -826,8 +826,8 @@ const HORN_SIMPLE = [
 const simplePitchHz = l => Math.round((300 + (l - 1) * 700 / 9) / 25) * 25;
 function setHornAdvanced(on) {
   if (on === !!P.hAdv) return;
-  if (on) { P.hBeep = P.hsVol * 0.5; P.hBeepHz = simplePitchHz(P.hsPitch); P.hBuzz = Math.round(P.hsStr * 1.5); P.hBuzzHz = 70; }
-  else { P.hsVol = clamp(Math.round(P.hBeep / 0.5), 1, 10); P.hsPitch = clamp(Math.round((P.hBeepHz - 300) * 9 / 700) + 1, 1, 10); P.hsStr = clamp(Math.round(P.hBuzz / 1.5), 0, 10); }
+  if (on) { P.hBeep = Math.round(P.hsVol * 0.4 * 5) / 5; P.hBeepHz = simplePitchHz(P.hsPitch); P.hBuzz = Math.round(P.hsStr * 1.5); P.hBuzzHz = 70; }
+  else { P.hsVol = clamp(Math.round(P.hBeep / 0.4), 1, 10); P.hsPitch = clamp(Math.round((P.hBeepHz - 300) * 9 / 700) + 1, 1, 10); P.hsStr = clamp(Math.round(P.hBuzz / 1.5), 0, 10); }
   P.hAdv = on; save(); renderHorn();
 }
 $('hornMode').querySelectorAll('div').forEach(d => d.onclick = () => setHornAdvanced(d.dataset.v === '1'));
@@ -853,7 +853,7 @@ function renderHorn() {
   });
 }
 // boot melody: pitch levels 1, 2, 3 (300, 375, 450 Hz), 0.5 s each, at the horn volume
-function hornVolume() { return P.hAdv ? P.hBeep : P.hsVol * 0.5; }  // volts
+function hornVolume() { return P.hAdv ? Math.min(4, P.hBeep) : P.hsVol * 0.4; }  // volts (rf81: 10/10 = 4 V)
 // boot melody: its own volume, 1-10 -> 0.25-2.5 V (capped low on purpose)
 function melodyVolume() { return clamp(P.bootVol || 6, 1, 10) * 0.25; }
 // sound budget shared by melodies and live tiles (mirrors the board):
@@ -1088,6 +1088,7 @@ const rfCss = (c, a) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (a === 
 const LED_DEF = { ledCfg: false, ledHead: true, ledBar: true, ledBeep: true, ledHeadPct: 80, ledHeadIdlePct: 50, ledIdlePct: 80, ledRidePct: 80,
   ledAnimIdle: 15, rfMode: 4, rfColor1: 4, rfColor2: 0, rfSpeed: 1, rfTimeout: 0, ledAnimRide: 0, ledAnimDoze: 0, ledAnimBoot: 11, ledAnimShut: 0, ledColor: 200 };
 for (const k in LED_DEF) if (P[k] === undefined) P[k] = LED_DEF[k];
+if (P.hBeep > 4) P.hBeep = 4;
 if (!P.rgb) P.rgb = [{ mode: 0, c1: 1, c2: 0, speed: 1, bri: 0.8 }, { mode: 0, c1: 4, c2: 0, speed: 1, bri: 0.8 },
   { mode: 6, c1: 25, c2: 4, speed: 0.5, bri: 0.5 }, { mode: 4, c1: 4, c2: 0, speed: 1, bri: 0.5 }];
 if (P.rgbLifted === undefined) P.rgbLifted = false;
@@ -1358,7 +1359,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf81';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf82';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1658,7 +1659,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf82' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf83' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

@@ -804,7 +804,7 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
-### Animation selector, tap-to-close sheet, neon number pad (v1.2.3-rf81)
+### Animation selector, tap-to-close sheet, neon number pad, 4 V horn (v1.2.3-rf81, rf82)
 - RGB LIGHTS and STATUS BAR > Idle animation: the separate ANIMATION row is
   gone; the animated name itself sits between the down / up arrows
   (SwStepper bigName + rf / rfAnim). Same in the simulator.
@@ -814,6 +814,9 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
   offset, plot window) open our own neon number pad with DONE (applies the
   value, kept within the field's range, and closes) instead of the phone's
   grey keyboard. Settings labels, values and units are neon green.
+- Horn: 4 V is the top beep strength (VOLUME 10/10 = 4 V, 1/10 = 0.4 V;
+  ADVANCED BEEP STRENGTH 0.4-4 V in 0.2 V steps; the package caps the horn
+  at 4 V, also when it uses Refloat's haptic settings).
 
 ### STATUS BAR ON/OFF works with Refloat's own LEDs (v1.2.3-rf80)
 - Refloat's lights control only switches all LEDs or the headlights, so the

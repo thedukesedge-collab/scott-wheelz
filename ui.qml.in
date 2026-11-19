@@ -230,7 +230,7 @@ Item {
 
         // simple levels -> real values
         function simpleBuzz(level) { return level * 1.5; }
-        function simpleBeep(level) { return level * 0.5; }
+        function simpleBeep(level) { return level * 0.4; }  // rf81: 10/10 = 4 V
         // boot melody 1-10 -> 0.25-2.5 V; the package caps it at 2.5 V too
         function bootVolume(level) { return Math.max(1, Math.min(10, level)) * 0.25; }
         function simplePitch(level) { return Math.round((300 + (level - 1) * 700 / 9) / 25) * 25; }
@@ -238,7 +238,7 @@ Item {
         // the values actually sent: [beep V, beep Hz, buzz A, buzz Hz]
         function values() {
             if (swSettings.hornAdvanced) {
-                return [swSettings.hornBeepStrength, swSettings.hornBeepFreq,
+                return [Math.min(4, swSettings.hornBeepStrength), swSettings.hornBeepFreq,
                         swSettings.hornBuzzStrength, swSettings.hornBuzzFreq];
             }
             return [simpleBeep(swSettings.hornSimpleVolume), simplePitch(swSettings.hornSimplePitch),
@@ -250,12 +250,12 @@ Item {
             if (on === swSettings.hornAdvanced) return;
             var v = values();
             if (on) {
-                swSettings.hornBeepStrength = Math.round(v[0] * 2) / 2;
+                swSettings.hornBeepStrength = Math.round(v[0] * 5) / 5;
                 swSettings.hornBeepFreq = v[1];
                 swSettings.hornBuzzStrength = Math.round(v[2]);
                 swSettings.hornBuzzFreq = v[3];
             } else {
-                swSettings.hornSimpleVolume = Math.max(1, Math.min(10, Math.round(v[0] / 0.5)));
+                swSettings.hornSimpleVolume = Math.max(1, Math.min(10, Math.round(v[0] / 0.4)));
                 swSettings.hornSimplePitch = Math.max(1, Math.min(10, Math.round((v[1] - 300) * 9 / 700) + 1));
                 swSettings.hornSimpleStrength = Math.max(0, Math.min(10, Math.round(v[2] / 1.5)));
             }
@@ -2377,7 +2377,7 @@ Item {
         property int ledAnimShutdown: 0
         property int ledColor: 200
         property int hornSimpleStrength: 5    // 0-10 -> buzz 0-15 A
-        property int hornSimpleVolume: 5      // 1-10 -> beep 0.5-5 V
+        property int hornSimpleVolume: 5      // 1-10 -> beep 0.4-4 V (rf81)
         property int bootMelodyVolume: 6      // 1-10 -> 0.25-2.5 V (capped low on purpose)
         property int hornSimplePitch: 3       // 1-10 -> beep 300-1000 Hz
         property real freespinLimitKmh: 72.4  // 45 mph
@@ -12859,8 +12859,8 @@ Item {
                         SwStepper {
                             visible: swSettings.hornAdvanced
                             label: "BEEP STRENGTH"
-                            value: swSettings.hornBeepStrength
-                            from: 0.5; to: 6; step: 0.5; decimals: 1; suffix: " V"
+                            value: Math.min(4, swSettings.hornBeepStrength)
+                            from: 0.4; to: 4; step: 0.2; decimals: 1; suffix: " V"
                             onMoved: { swSettings.hornBeepStrength = newValue; hornSettingsSender.changed(); }
                         }
 
@@ -12932,7 +12932,7 @@ Item {
                             visible: swSettings.hornBootMelody
                             font.pixelSize: fontSizeSmall
                             color: "#c98bff"
-                            text: "10 / 10 is only half the horn's top volume, so it stays gentle on the motor"
+                            text: "10 / 10 is about 60% of the horn's top volume, so it stays gentle on the motor"
                         }
 
                         // which custom melody is in use (the list lives in MY MELODIES)

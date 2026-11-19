@@ -47,7 +47,7 @@ typedef enum {
 #define MELODY_MAX_NOTE 2.0f  // one note / one held tile (s); rests are not capped
 #define MELODY_UNIT 0.02f  // note length unit (s)
 // Re-Float Rink-Mixed: boot melody volume (beep V), kept well under the
-// horn's 5 V on purpose; the app's 1-10 maps to 0.25-2.5 V
+// horn's 4 V on purpose; the app's 1-10 maps to 0.25-2.5 V
 #define BOOT_MELODY_MAX_V 2.5f
 #define BOOT_MELODY_DEFAULT_V 1.5f
 // Re-RinkFloat: sound budget shared by melodies and live tiles, so the motor

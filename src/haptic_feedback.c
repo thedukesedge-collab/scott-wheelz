@@ -54,6 +54,8 @@
 //   (Refloat's default Vibrate Strength is 0), these minimums are used for the
 //   horn only. Other haptic alerts keep using the configured values.
 #define HORN_MIN_BEEP_STRENGTH 2.5f
+// rf81: the horn's beep never goes above 4 V (the app's 10/10)
+#define HORN_MAX_BEEP_STRENGTH 4.0f
 #define HORN_MIN_VIBRATE_STRENGTH 8.0f
 #define HORN_DEFAULT_BEEP_FREQUENCY 495
 #define HORN_DEFAULT_VIBRATE_FREQUENCY 70
@@ -157,7 +159,7 @@ void haptic_feedback_horn_settings(
     float buzz_strength,
     uint16_t buzz_frequency
 ) {
-    hf->horn_beep_strength = clampf(beep_strength, 0.5f, 6.0f);
+    hf->horn_beep_strength = clampf(beep_strength, 0.4f, HORN_MAX_BEEP_STRENGTH);
     hf->horn_beep_frequency = (uint16_t) clampf(beep_frequency, 300, 1000);
     hf->horn_buzz_strength = clampf(buzz_strength, 0.0f, 15.0f);
     hf->horn_buzz_frequency = (uint16_t) clampf(buzz_frequency, 30, 150);
@@ -469,7 +471,8 @@ void haptic_feedback_update(
             buzz_strength = hf->horn_buzz_strength;
             buzz_frequency = hf->horn_buzz_frequency;
         } else if (hf->type_playing == HAPTIC_FEEDBACK_HORN) {
-            beep_strength = fmaxf(beep_strength, HORN_MIN_BEEP_STRENGTH);
+            beep_strength =
+                fminf(fmaxf(beep_strength, HORN_MIN_BEEP_STRENGTH), HORN_MAX_BEEP_STRENGTH);
             buzz_strength = fmaxf(buzz_strength, HORN_MIN_VIBRATE_STRENGTH);
             if (beep_frequency == 0) {
                 beep_frequency = HORN_DEFAULT_BEEP_FREQUENCY;
