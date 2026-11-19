@@ -804,6 +804,13 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### HEAD/TAIL LIGHTS tile with the neon board (v1.2.3-rf98)
+- LEDS: HEADLIGHTS is now HEAD/TAIL LIGHTS (tile, window, switch). The tile
+  is full width with a Canvas drawing of the rider's neon board picture
+  (deck, wheel, end lights, ground glow); its end lights fade between neon
+  (purple tail / green nose) and regular (red tail / white head), left to
+  right, every 7 s while shown and on. STATUS BAR is full width below it.
+
 ### Riding animation, snooze styles, AUTO snooze (v1.2.3-rf97)
 - STATUS BAR > Riding animation (controller-driven status strip): BATTERY /
   DUTY (Refloat's own riding bar, default) or any Refloat animation, played

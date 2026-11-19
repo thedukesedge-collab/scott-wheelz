@@ -4047,6 +4047,86 @@ Item {
             font.pixelSize: 0.42 * unit
         }
 
+        // ---- rf98 art 3: HEAD/TAIL LIGHTS - the neon board (Canvas)
+        Canvas {
+            id: boardArt
+            visible: tile.art === 3
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 0.12 * unit
+            height: parent.height - 1.0 * unit
+            property real t: 0
+            readonly property bool live: visible && tile.lit && Qt.application.state === Qt.ApplicationActive
+            onLiveChanged: requestPaint()
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+            Connections { target: tile; function onLitChanged() { boardArt.requestPaint(); } }
+            Timer {
+                interval: 40
+                repeat: true
+                running: boardArt.live
+                onTriggered: { boardArt.t += 0.04; boardArt.requestPaint(); }
+            }
+                // rf98: HEAD/TAIL LIGHTS tile art - the neon board, its lights fading
+                // between neon (purple tail / green nose) and regular (red tail / white
+                // head), the fade sweeping left to right. Coordinates from the 1774x887 art.
+                function drawBoardArt(c, w, h, t, lit) {
+                    c.clearRect(0, 0, w, h);
+                    var sc = Math.min(w / 1774, h / 887), ox = (w - 1774 * sc) / 2, oy = (h - 887 * sc) / 2;
+                    var X = function(x) { return ox + x * sc; }, Y = function(y) { return oy + y * sc; };
+                    var mixc = function(a, b, k) { return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; };
+                    var css = function(v, a) { return "rgba(" + Math.round(v[0]) + "," + Math.round(v[1]) + "," + Math.round(v[2]) + "," + a + ")"; };
+                    var green = [57, 255, 60], purple = [176, 40, 255], red = [255, 40, 60], white = [240, 248, 255];
+                    // fade 0 (neon) -> 1 (regular) and back, the left end first
+                    var ph = function(lag) { var p = (t / 7 - lag) % 1; if (p < 0) p += 1; return p < 0.35 ? 0 : p < 0.5 ? (p - 0.35) / 0.15 : p < 0.85 ? 1 : 1 - (p - 0.85) / 0.15; };
+                    var kl = ph(0), kr = ph(0.06);
+                    var lc = lit ? mixc(purple, red, kl) : [90, 60, 140], rc = lit ? mixc(green, white, kr) : [90, 60, 140];
+                    var line = lit ? green : [110, 70, 170];
+                    c.lineJoin = "round"; c.lineCap = "round";
+                    // ground glow
+                    if (lit) {
+                        var g = c.createLinearGradient(X(150), 0, X(1650), 0);
+                        g.addColorStop(0, css(lc, 0)); g.addColorStop(0.15, css(lc, 0.75)); g.addColorStop(0.28, css(mixc(lc, line, 0.5), 0.6));
+                        g.addColorStop(0.5, css(line, 0.75)); g.addColorStop(0.85, css(rc, 0.75)); g.addColorStop(1, css(rc, 0));
+                        c.strokeStyle = g; c.lineWidth = Math.max(2, 14 * sc); c.shadowColor = css(line, 0.8); c.shadowBlur = 30 * sc;
+                        c.beginPath(); c.moveTo(X(150), Y(710)); c.lineTo(X(1650), Y(710)); c.stroke();
+                        // beams / glows at the ends
+                        var gl = c.createRadialGradient(X(225), Y(470), 0, X(225), Y(470), 260 * sc);
+                        gl.addColorStop(0, css(lc, 0.85)); gl.addColorStop(1, css(lc, 0));
+                        c.shadowBlur = 0; c.fillStyle = gl;
+                        c.beginPath(); c.moveTo(X(260), Y(450)); c.lineTo(X(0), Y(380)); c.lineTo(X(0), Y(560)); c.closePath(); c.fill();
+                        var gr = c.createRadialGradient(X(1550), Y(462), 0, X(1550), Y(462), 220 * sc);
+                        gr.addColorStop(0, css(rc, 0.75)); gr.addColorStop(1, css(rc, 0));
+                        c.fillStyle = gr; c.beginPath(); c.arc(X(1550), Y(462), 220 * sc, 0, 2 * Math.PI); c.fill();
+                    }
+                    c.lineWidth = Math.max(1.5, 7 * sc);
+                    c.shadowColor = css(line, 0.9); c.shadowBlur = lit ? 22 * sc : 0;
+                    c.strokeStyle = css(line, 1);
+                    // wheel
+                    c.beginPath(); c.arc(X(880), Y(460), 252 * sc, 0, 2 * Math.PI); c.stroke();
+                    c.beginPath(); c.arc(X(880), Y(460), 145 * sc, 0, 2 * Math.PI); c.stroke();
+                    // deck (filled dark so it hides the wheel behind it)
+                    var p = [[218, 390], [290, 382], [405, 406], [592, 406], [615, 432], [1158, 432], [1180, 406], [1335, 406], [1450, 376],
+                             [1545, 372], [1560, 388], [1558, 418], [1452, 507], [330, 507], [220, 442]];
+                    c.beginPath(); c.moveTo(X(p[0][0]), Y(p[0][1]));
+                    for (var i = 1; i < p.length; i++) c.lineTo(X(p[i][0]), Y(p[i][1]));
+                    c.closePath();
+                    c.shadowBlur = 0; c.fillStyle = "#06030d"; c.fill();
+                    c.shadowBlur = lit ? 22 * sc : 0; c.stroke();
+                    c.beginPath(); c.moveTo(X(232), Y(432)); c.lineTo(X(1548), Y(432)); c.stroke();
+                    // light strips
+                    c.lineWidth = Math.max(2, 10 * sc);
+                    c.strokeStyle = css(lit ? mixc(lc, white, 0.55) : lc, 1); c.shadowColor = css(lc, 1); c.shadowBlur = lit ? 30 * sc : 0;
+                    c.beginPath(); c.moveTo(X(224), Y(452)); c.lineTo(X(288), Y(490)); c.stroke();
+                    c.strokeStyle = css(lit ? mixc(rc, white, 0.55) : rc, 1); c.shadowColor = css(rc, 1);
+                    c.beginPath(); c.moveTo(X(1490), Y(488)); c.lineTo(X(1553), Y(440)); c.stroke();
+                    c.shadowBlur = 0;
+                }
+
+            onPaint: drawBoardArt(getContext("2d"), width, height, t, tile.lit)
+        }
+
         // ---- rf92 art: headlights - a little board, its beam breathing
         Item {
             id: headArt
@@ -7788,7 +7868,7 @@ Item {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         property string section: "head"
-        readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "STATUS BAR ANIMATIONS", "sound": "BEEPER", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "custom": "CUSTOM ANIMATION", "updates": "UPDATES", "rgb": "RGB LIGHTS"})
+        readonly property var titles: ({"head": "HEAD/TAIL LIGHTS", "bar": "STATUS BAR", "anim": "STATUS BAR ANIMATIONS", "sound": "BEEPER", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "custom": "CUSTOM ANIMATION", "updates": "UPDATES", "rgb": "RGB LIGHTS"})
 
         function show(which) {
             section = which;
@@ -7856,7 +7936,7 @@ Item {
                         SwPill {
                             anchors.horizontalCenter: parent.horizontalCenter
                             minWidth: 3.4 * unit
-                            label: swSettings.ledHeadlights ? "HEADLIGHTS ON" : "HEADLIGHTS OFF"
+                            label: swSettings.ledHeadlights ? "HEAD/TAIL LIGHTS ON" : "HEAD/TAIL LIGHTS OFF"
                             lit: swSettings.ledHeadlights
                             onClicked: ledSender.setHead(!swSettings.ledHeadlights)
                         }
@@ -7927,7 +8007,7 @@ Item {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: "IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEADLIGHTS OFF = always off. "
+                            text: "IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. "
                                 + "Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). "
                                 + "SNOOZE: after the set time sitting still (not engaged, no footpad, not lifted) all lights dim, head/tail and status bar; any of those wakes them. "
                                 + "AUTO = 3 min before the board powers off. BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes on its own timer; SNOOZE AFTER is for controller-driven LEDs (e.g. Thor)."
@@ -14816,9 +14896,11 @@ Item {
                             columnSpacing: 0.18 * unit
 
                             LedTile {
-                                title: "HEADLIGHTS"
+                                title: "HEAD/TAIL LIGHTS"
                                 glyph: "\u25C9"
-                                art: 1
+                                art: 3  // rf98: the neon board
+                                Layout.columnSpan: 2
+                                Layout.preferredHeight: 3.0 * unit
                                 lit: swSettings.ledHeadlights
                                 summary: swSettings.ledHeadlights
                                     ? "ON \u00B7 MOTION " + swSettings.ledHeadlightPct + "% \u00B7 IDLE " + swSettings.ledHeadlightIdlePct + "%"
@@ -14829,6 +14911,7 @@ Item {
                                 title: "STATUS BAR"
                                 glyph: "\u2589"
                                 art: 2
+                                Layout.columnSpan: 2  // rf98: full width under HEAD/TAIL LIGHTS
                                 lit: swSettings.ledStatusBar
                                 summary: swSettings.ledStatusBar
                                     ? "ON \u00B7 RIDE " + swSettings.ledStatusRidePct + "% \u00B7 " + ledSender.rfSummary
