@@ -837,6 +837,21 @@ stock ALCM v0.1.1 found these; each was checked against the code first.
   publish "dev-build" / "lcm-dev" pre-releases (bench testing only); the old
   "latest-build" is retired. A tag v<version> publishes the rider release
   (kept, marked Latest) and refreshes lcm-latest.
+- UPDATES tab: CHECK FOR UPDATES asks GitHub for the latest rider release
+  (releases/latest = newest tagged, non-prerelease; dev builds never show),
+  compares its package version with this one and its SLCM version (asset
+  `slcm-r<N>-<hash>.txt`, added by lcm.yml on a tag) with the light module's
+  name. DOWNLOAD UPDATE fetches SLCM.hex, runs parseHex (address range,
+  vector table, checksums) and refuses it unless the version inside matches
+  the release. Then a prompt: FLASH UPDATE opens LCM firmware tools with the
+  file picked and runs CHECK LCM - the normal CONTINUE / FLASH LCM / confirm
+  steps follow. A newer package is offered as a download link (VESC Tool
+  installs packages). Uses QML's XMLHttpRequest, like upstream's tune archive.
+- Note: the SLCM version (r<N>) counts lcm/alcm commits only. A bootloader
+  change (lcm/bootloader) never reaches a board through the app - the app
+  update only rewrites the light firmware. Boards flashed with an rf76-era
+  SLCM.hex keep the timed-power-off bootloader until SLCM.hex is flashed
+  once more with an ST-Link.
 - Not changed: S5 (power off from the app) - kept on purpose, idle-only on
   both ends.
 

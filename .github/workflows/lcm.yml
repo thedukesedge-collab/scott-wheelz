@@ -117,6 +117,11 @@ jobs:
             sleep 15
           done
           gh release upload "$TAG" $F/SLCM.hex $F/ALCM_VP_app.bin --clobber
+          # the SLCM version as an asset name, so the app's CHECK FOR UPDATES
+          # can see it without downloading anything (slcm-r<N>-<hash>.txt)
+          SV="$(sh lcm/tools/lcm_version.sh)"
+          echo "$SV" > "slcm-$SV.txt"
+          gh release upload "$TAG" "slcm-$SV.txt" --clobber
           # lcm-latest (linked from the app) = the SLCM of the latest rider release
           gh release view lcm-latest >/dev/null 2>&1 || gh release create lcm-latest --prerelease --latest=false \
             --title "LCM firmware (SLCM)" --notes "SLCM" --target "$GITHUB_SHA"

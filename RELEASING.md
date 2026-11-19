@@ -45,6 +45,10 @@ Package:
       power cycle).
 - [ ] Flywheel mode on and off from the app: turning it off stops the board.
 - [ ] Power-cycle: settings (horn, lights, battery curve) survive.
+- [ ] UPDATES tab: CHECK FOR UPDATES shows the previous release correctly
+      (package / LCM versions); DOWNLOAD UPDATE + FLASH UPDATE reach the
+      normal flash flow. After tagging, check again: the new release shows
+      as up to date.
 
 Light module (only if `lcm/` changed):
 - [ ] Update from the app completes; lights come back.
