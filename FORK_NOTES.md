@@ -848,7 +848,7 @@ stock ALCM v0.1.1 found these; each was checked against the code first.
   publish "dev-build" / "lcm-dev" pre-releases (bench testing only); the old
   "latest-build" is retired. A tag v<version> publishes the rider release
   (kept, marked Latest) and refreshes lcm-latest.
-- UPDATES tab: CHECK FOR UPDATES asks GitHub for the latest rider release
+- LEDS › UPDATES (a tile, opens a window): CHECK FOR UPDATES asks GitHub for the latest rider release
   (releases/latest = newest tagged, non-prerelease; dev builds never show),
   compares its package version with this one and its SLCM version (asset
   `slcm-r<N>-<hash>.txt`, added by lcm.yml on a tag) with the light module's
@@ -861,7 +861,7 @@ stock ALCM v0.1.1 found these; each was checked against the code first.
   CHECK LCM compares a downloaded SLCM with its release's build (lcmFw.relTag
   / refVer), not with this package's built-in one. Simulator: UPDATES tab
   too (pretend newer / same / none / offline release, or LIVE = real GitHub
-  check), versions updated to rf78 / SLCM r23.
+  check), versions updated to rf78 / SLCM r23. UPDATES lives under LEDS (tile), not as its own tab.
 - Note: the SLCM version (r<N>) counts lcm/alcm commits only. A bootloader
   change (lcm/bootloader) never reaches a board through the app - the app
   update only rewrites the light firmware. Boards flashed with an rf76-era

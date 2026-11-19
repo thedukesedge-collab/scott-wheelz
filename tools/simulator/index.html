@@ -230,7 +230,7 @@
     <div id="sheetInner">
       <div id="handle"><div class="grip"></div></div>
       <div id="tabs">
-        <div class="tab on" data-i="0">TUNES</div><div class="tab" data-i="1">CONTROL</div><div class="tab" data-i="2">MIXER</div><div class="tab" data-i="3">DATA</div><div class="tab" data-i="4">BOARD STYLE</div><div class="tab" data-i="5">LEDS</div><div class="tab" data-i="6">UPDATES</div>
+        <div class="tab on" data-i="0">TUNES</div><div class="tab" data-i="1">CONTROL</div><div class="tab" data-i="2">MIXER</div><div class="tab" data-i="3">DATA</div><div class="tab" data-i="4">BOARD STYLE</div><div class="tab" data-i="5">LEDS</div>
       </div>
       <div id="pages">
         <div class="page on" id="pgTunes"><div class="tunes" id="tunes"></div></div>
@@ -300,21 +300,9 @@
             <div class="ledTile" data-w="sound"><span class="g">&#9834;</span><b>SOUND</b><small id="ltSound"></small><i>&#8250;</i></div>
             <div class="ledTile wide" data-w="battery"><span class="g">&#9646;</span><b>BATTERY GAUGE</b><small id="ltBat"></small><i>&#8250;</i></div>
           </div></div>
+          <div class="ledTiles"><div class="ledTile wide" data-w="updates"><span class="g">&#8635;</span><b>UPDATES</b><small id="ltUpd">CHECK FOR UPDATES</small><i>&#8250;</i></div></div>
           <div style="height:22px"></div>
           <div id="lcmTools"><span id="lcmToolsText">LCM firmware tools</span><i id="lcmToolsFill"></i></div>
-          <div style="height:16px"></div>
-        </div>
-        <div class="page" id="pgUpdates">
-          <div class="secTitle neonL" style="font-size:16px;margin-top:6px">CHECK FOR UPDATES</div>
-          <div class="fwFit idle" id="updInstalled" style="margin:4px 6px;font-size:12px"></div>
-          <p class="ledHint" style="text-align:center;opacity:.7;margin:2px 0">Simulator only - pretend GitHub has:</p>
-          <div class="pills" id="updSim"><div class="pill" data-k="newer">NEWER RELEASE</div><div class="pill" data-k="same">THIS RELEASE</div><div class="pill" data-k="none">NO RELEASE YET</div><div class="pill" data-k="offline">OFFLINE</div><div class="pill" data-k="live">LIVE (REAL GITHUB)</div></div>
-          <div id="updCheckBtn" class="bigBeep">&#8635;&nbsp; CHECK FOR UPDATES</div>
-          <p id="updMsg" style="text-align:center;font-size:12px;color:var(--green);margin:6px 8px"></p>
-          <div class="fwFit" id="updPkg" style="margin:6px;display:none"><div id="updPkgTitle" class="nf" style="font-size:13px;margin-bottom:4px"></div><div id="updPkgText" style="color:#ead6ff"></div><div class="pills" style="margin-top:6px"><div class="pill on" id="updPkgDl">DOWNLOAD PACKAGE</div></div></div>
-          <div class="fwFit" id="updLcm" style="margin:6px;display:none"><div id="updLcmTitle" class="nf" style="font-size:13px;margin-bottom:4px"></div><div id="updLcmText" style="color:#ead6ff"></div><div class="pills" style="margin-top:6px"><div class="pill" id="updDl">DOWNLOAD UPDATE</div><div class="pill on" id="updFlash" style="display:none">FLASH UPDATE</div></div><div id="updDlMsg" style="margin-top:4px"></div></div>
-          <p id="updNotes" style="font-size:11px;color:var(--text);margin:6px 8px;white-space:pre-wrap;display:none"></p>
-          <div class="pills"><div class="pill" id="updPage">OPEN RELEASE PAGE</div></div>
           <div style="height:16px"></div>
         </div>
       </div>
@@ -375,6 +363,17 @@
         <div class="secTitle">4. Gauge</div><div class="pills" id="batStyles"></div>
         <p class="ledHint" id="batNote"></p>
         <div class="pills"><div class="pill" id="batAdvOpen">ADVANCED &#8250;</div></div>
+      </div>
+      <div class="ledSec" data-s="updates">
+          <div class="fwFit idle" id="updInstalled" style="margin:4px 6px;font-size:12px"></div>
+          <p class="ledHint" style="text-align:center;opacity:.7;margin:2px 0">Simulator only - pretend GitHub has:</p>
+          <div class="pills" id="updSim"><div class="pill" data-k="newer">NEWER RELEASE</div><div class="pill" data-k="same">THIS RELEASE</div><div class="pill" data-k="none">NO RELEASE YET</div><div class="pill" data-k="offline">OFFLINE</div><div class="pill" data-k="live">LIVE (REAL GITHUB)</div></div>
+          <div id="updCheckBtn" class="bigBeep">&#8635;&nbsp; CHECK FOR UPDATES</div>
+          <p id="updMsg" style="text-align:center;font-size:12px;color:var(--green);margin:6px 8px"></p>
+          <div class="fwFit" id="updPkg" style="margin:6px;display:none"><div id="updPkgTitle" class="nf" style="font-size:13px;margin-bottom:4px"></div><div id="updPkgText" style="color:#ead6ff"></div><div class="pills" style="margin-top:6px"><div class="pill on" id="updPkgDl">DOWNLOAD PACKAGE</div></div></div>
+          <div class="fwFit" id="updLcm" style="margin:6px;display:none"><div id="updLcmTitle" class="nf" style="font-size:13px;margin-bottom:4px"></div><div id="updLcmText" style="color:#ead6ff"></div><div class="pills" style="margin-top:6px"><div class="pill" id="updDl">DOWNLOAD UPDATE</div><div class="pill on" id="updFlash" style="display:none">FLASH UPDATE</div></div><div id="updDlMsg" style="margin-top:4px"></div></div>
+          <p id="updNotes" style="font-size:11px;color:var(--text);margin:6px 8px;white-space:pre-wrap;display:none"></p>
+          <div class="pills"><div class="pill" id="updPage">OPEN RELEASE PAGE</div></div>
       </div>
       <div class="ledSec" data-s="fw">
         <div class="secTitle">Light module</div>
@@ -634,7 +633,7 @@ function setSheet(f) { sheetF = f; P.sheet = f; save(); $('sheet').classList.add
   const end = () => { if (!dragging) return; dragging = false; hd.classList.remove('drag'); if (!moved) setSheet(sheetF < 0.5 ? 1 : 0); else setSheet(sheetF < 0.5 ? 0 : 1); };
   hd.addEventListener('pointerup', end); hd.addEventListener('pointercancel', end);
 })();
-function setTab(i) { const was = P.tab; P.tab = i; save(); if (i !== 2 && typeof padRelease === 'function') padRelease(); if ((was === 2) !== (i === 2)) layout(); document.querySelectorAll('.tab').forEach((t, k) => t.classList.toggle('on', k === i)); document.querySelectorAll('.page').forEach((p, k) => p.classList.toggle('on', k === i)); if (i === 2) renderPad(); if (i === 1 && typeof renderMelody === 'function') renderMelody(); if (i === 6 && typeof updPaint === 'function') updPaint(); }
+function setTab(i) { const was = P.tab; P.tab = i; save(); if (i !== 2 && typeof padRelease === 'function') padRelease(); if ((was === 2) !== (i === 2)) layout(); document.querySelectorAll('.tab').forEach((t, k) => t.classList.toggle('on', k === i)); document.querySelectorAll('.page').forEach((p, k) => p.classList.toggle('on', k === i)); if (i === 2) renderPad(); if (i === 1 && typeof renderMelody === 'function') renderMelody(); }
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setTab(+t.dataset.i)));
 
 // ---------- long press helper ----------
@@ -1264,7 +1263,7 @@ $('batName').onchange = () => { batEdit(x => x.name = $('batName').value.trim() 
 $('batUseMine').onclick = () => { if (!P.batCustom) batEdit(() => {}); P.batSize = P.batCustom.size; P.batCell = 'MY CELL'; P.batStyle = 0; save(); renderBattery(); renderLedsSoft(); };
 $('batResAuto').onclick = () => { P.batResAuto = true; save(); renderBattery(); };
 $('batResMan').onclick = () => { P.batResAuto = false; save(); renderBattery(); };
-const LED_TITLES = { head: 'HEADLIGHTS', bar: 'STATUS BAR', anim: 'ANIMATIONS', sound: 'SOUND', battery: 'BATTERY GAUGE', fw: 'LCM FIRMWARE', custom: 'CUSTOM ANIMATION' };
+const LED_TITLES = { head: 'HEADLIGHTS', bar: 'STATUS BAR', anim: 'ANIMATIONS', sound: 'SOUND', battery: 'BATTERY GAUGE', fw: 'LCM FIRMWARE', custom: 'CUSTOM ANIMATION', updates: 'UPDATES' };
 const ledWin = w => {
   $('ledWin').style.display = w ? 'flex' : 'none';
   $('ledWinDim').style.display = w ? 'block' : 'none';
@@ -1272,7 +1271,8 @@ const ledWin = w => {
   $('ledWinTitle').textContent = LED_TITLES[w];
   document.querySelectorAll('.ledSec').forEach(x => x.classList.toggle('on', x.dataset.s === w));
   if (w === 'fw') { fwForget(); fwFitPaint(); }
-  $('slcmFooter').style.display = (P.simSetup || 'slcm') !== 'slcm' && (w === 'head' || w === 'bar') ? 'none' : '';
+  if (w === 'updates' && typeof updPaint === 'function') updPaint();
+  $('slcmFooter').style.display = w === 'updates' || ((P.simSetup || 'slcm') !== 'slcm' && (w === 'head' || w === 'bar')) ? 'none' : '';
 };
 document.querySelectorAll('.ledTile').forEach(t => t.onclick = () => ledWin(t.dataset.w));
 $('ledWinBack').onclick = () => { if (document.querySelector('.ledSec.on[data-s="custom"]')) { ledWin('anim'); renderLeds(); return; } fwForget(); ledWin(null); };
@@ -1533,6 +1533,9 @@ function updLcmFit() {
 }
 function updPaint() {
   const l = updLcmVer();
+  { const pf = updPkgFit(), lf = updLcmFit();
+    $('ltUpd').textContent = UPD.phase === 1 ? 'CHECKING...' : UPD.phase !== 2 ? 'CHECK FOR UPDATES'
+      : pf === 'newer' && lf === 'newer' ? 'PACKAGE + LCM UPDATE AVAILABLE' : pf === 'newer' ? 'PACKAGE UPDATE AVAILABLE' : lf === 'newer' ? 'LCM UPDATE AVAILABLE' : 'UP TO DATE · CHECK AGAIN'; }
   $('updInstalled').textContent = 'This package: Re-Float Rink-Mixed ' + PKG_VER + '\nLight module: ' + (l ? 'SLCM ' + verTxt(l) : 'no SLCM with the bootloader');
   $('updInstalled').style.whiteSpace = 'pre-wrap';
   document.querySelectorAll('#updSim .pill').forEach(x => x.classList.toggle('on', x.dataset.k === (P.updSim || 'newer')));
@@ -2208,7 +2211,7 @@ function frame(now) {
 }
 
 // ---------- start ----------
-layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); renderHorn(); renderMelody(); renderLeds(); setTab(Math.min(P.tab || 0, 6));
+layout(); renderTunes(); renderStyle(); buildLegend(); renderFs(); renderHorn(); renderMelody(); renderLeds(); setTab(Math.min(P.tab || 0, 5));
 window.addEventListener('resize', () => { layout(); renderTunes(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { layout(); renderTunes(); });
 requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });

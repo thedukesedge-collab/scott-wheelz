@@ -7247,7 +7247,7 @@ Item {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         property string section: "head"
-        readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "ANIMATIONS", "sound": "SOUND", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "custom": "CUSTOM ANIMATION"})
+        readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "ANIMATIONS", "sound": "SOUND", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "custom": "CUSTOM ANIMATION", "updates": "UPDATES"})
 
         function show(which) {
             section = which;
@@ -7821,6 +7821,216 @@ Item {
                             minWidth: 3.4 * unit
                             label: "ADVANCED \u203A"
                             onClicked: batteryAdvanced.open()
+                        }
+                    }
+
+                    // Re-Float Rink-Mixed: UPDATES (CHECK FOR UPDATES on GitHub)
+                    Column {
+                        width: parent.width
+                        spacing: 0.16 * unit
+                        visible: ledWindow.section === "updates"
+
+                        // what's installed
+                        Rectangle {
+                            width: parent.width
+                            height: installedText.implicitHeight + 0.24 * unit
+                            radius: 0.08 * unit
+                            color: "#140c26"
+                            border.color: swTheme.neonPurple
+                            border.width: 2
+                            Text {
+                                id: installedText
+                                anchors.centerIn: parent
+                                width: parent.width - 0.24 * unit
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                color: "#ead6ff"
+                                font.pixelSize: fontSizeSmall
+                                text: "This package: Re-Float Rink-Mixed " + lcmFw.pkgVersion + "\n"
+                                    + "Light module: " + (lcmFw.hasBootloader ? "SLCM " + lcmFw.verText(lcmFw.lcmVer)
+                                        : (lcmFw.nameKnown ? (lcmFw.lcmName !== "" ? "“" + lcmFw.lcmName + "” (not updatable from the app)" : "no SLCM detected")
+                                        : "not asked yet"))
+                            }
+                        }
+
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: Math.min(parent.width, 5.2 * unit)
+                            height: 1.4 * unit
+                            radius: height / 2
+                            opacity: updater.phase === 1 || updater.dlState === 1 ? 0.5 : 1
+                            color: updCheckArea.pressed ? swTheme.neonGreen : "transparent"
+                            border.color: swTheme.neonGreen
+                            border.width: 3
+                            Text {
+                                anchors.centerIn: parent
+                                text: updater.phase === 1 ? "CHECKING..." : "↻  CHECK FOR UPDATES"
+                                color: updCheckArea.pressed ? swTheme.background : swTheme.neonGreen
+                                font.family: "Exan"
+                                font.pixelSize: 0.32 * unit
+                            }
+                            MouseArea {
+                                id: updCheckArea
+                                anchors.fill: parent
+                                enabled: updater.phase !== 1 && updater.dlState !== 1
+                                onClicked: updater.check()
+                            }
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            color: updater.phase === 3 ? "#FFB300" : swTheme.neonGreen
+                            text: updater.message !== "" ? updater.message
+                                : "Checks GitHub for the latest rider release. Only tagged, bench-tested releases are offered, never development builds. Needs the phone's internet connection."
+                        }
+
+                        // package
+                        Rectangle {
+                            visible: !!updater.rel
+                            width: parent.width
+                            height: pkgCol.implicitHeight + 0.3 * unit
+                            radius: 0.08 * unit
+                            readonly property color tone: updater.pkgFit === "newer" ? "#FFB300" : swTheme.neonGreen
+                            color: updater.pkgFit === "newer" ? "#2A1F00" : "#0d2a12"
+                            border.color: tone
+                            border.width: 2
+                            Column {
+                                id: pkgCol
+                                anchors.centerIn: parent
+                                width: parent.width - 0.3 * unit
+                                spacing: 0.12 * unit
+                                Text {
+                                    width: parent.width
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.WordWrap
+                                    color: parent.parent.tone
+                                    font.family: "Exan"
+                                    font.pixelSize: 0.26 * unit
+                                    text: updater.pkgFit === "newer" ? "PACKAGE UPDATE AVAILABLE"
+                                        : updater.pkgFit === "same" ? "PACKAGE UP TO DATE"
+                                        : updater.pkgFit === "older" ? "PACKAGE NEWER THAN THE RELEASE" : "PACKAGE"
+                                }
+                                Text {
+                                    width: parent.width
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.WordWrap
+                                    color: "#ead6ff"
+                                    font.pixelSize: fontSizeSmall
+                                    text: !updater.rel ? ""
+                                        : updater.pkgFit === "newer" ? updater.rel.version + " is out (you have " + lcmFw.pkgVersion + "). Download it, then install it in VESC Tool › VESC Packages. Update the package first, then the light module."
+                                        : updater.pkgFit === "same" ? "You have the latest release, " + lcmFw.pkgVersion + "."
+                                        : updater.pkgFit === "older" ? "You have " + lcmFw.pkgVersion + ", newer than the latest release (" + updater.rel.version + "): a development build."
+                                        : "Latest release: " + updater.rel.version + "."
+                                }
+                                SwPill {
+                                    visible: updater.pkgFit === "newer" && !!updater.rel && updater.rel.pkgUrl !== ""
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    minWidth: 3.6 * unit
+                                    label: "DOWNLOAD PACKAGE"
+                                    lit: true
+                                    onClicked: Qt.openUrlExternally(updater.rel.pkgUrl)
+                                }
+                            }
+                        }
+
+                        // light module (SLCM)
+                        Rectangle {
+                            visible: !!updater.rel
+                            width: parent.width
+                            height: slcmCol.implicitHeight + 0.3 * unit
+                            radius: 0.08 * unit
+                            readonly property bool attention: updater.lcmFit === "newer" || updater.lcmFit === "other" || updater.lcmFit === "unknown"
+                            readonly property color tone: attention ? "#FFB300" : (updater.lcmFit === "same" ? swTheme.neonGreen : swTheme.neonPurple)
+                            color: attention ? "#2A1F00" : (updater.lcmFit === "same" ? "#0d2a12" : "#140c26")
+                            border.color: tone
+                            border.width: 2
+                            Column {
+                                id: slcmCol
+                                anchors.centerIn: parent
+                                width: parent.width - 0.3 * unit
+                                spacing: 0.12 * unit
+                                Text {
+                                    width: parent.width
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.WordWrap
+                                    color: parent.parent.tone === swTheme.neonPurple ? "#c98bff" : parent.parent.tone
+                                    font.family: "Exan"
+                                    font.pixelSize: 0.26 * unit
+                                    text: updater.lcmFit === "newer" ? "LCM UPDATE AVAILABLE"
+                                        : updater.lcmFit === "same" ? "LCM UP TO DATE"
+                                        : updater.lcmFit === "older" ? "LCM NEWER THAN THE RELEASE"
+                                        : updater.lcmFit === "other" ? "DIFFERENT LCM BUILD"
+                                        : "LIGHT MODULE (SLCM)"
+                                }
+                                Text {
+                                    width: parent.width
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.WordWrap
+                                    color: "#ead6ff"
+                                    font.pixelSize: fontSizeSmall
+                                    readonly property string relText: updater.relSlcm ? "SLCM " + lcmFw.verText(updater.relSlcm) : ""
+                                    readonly property string lcmText: "SLCM " + lcmFw.verText(lcmFw.lcmVer)
+                                    text: updater.lcmFit === "newer" ? "The release has " + relText + ", your light module runs " + lcmText + "."
+                                        : updater.lcmFit === "same" ? "Your light module runs " + lcmText + ", the release's build. You can still reflash it."
+                                        : updater.lcmFit === "older" ? "Your light module runs " + lcmText + ", newer than the release's " + relText + ". Flashing would downgrade it."
+                                        : updater.lcmFit === "other" ? "Your light module runs " + lcmText + ", a different build from the release's " + relText + " (e.g. a custom build)."
+                                        : updater.lcmFit === "unknown" ? "This release doesn't list its SLCM version: download it to see which build it is."
+                                        : updater.lcmFit === "missing" ? "This release has no SLCM.hex."
+                                        : updater.lcmFit === "nolcm" ? (relText ? "The release has " + relText + ". " : "")
+                                            + "No SLCM with the bootloader answered" + (lcmFw.nameKnown ? "" : " (board connected and powered on?)")
+                                            + ". A light module needs SLCM.hex flashed once with an ST-Link before it can update from the app."
+                                        : ""
+                                }
+                                SwPill {
+                                    visible: !!updater.rel && updater.rel.hexUrl !== "" && updater.lcmFit !== "nolcm" && updater.dlState !== 2
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    minWidth: 3.6 * unit
+                                    label: updater.dlState === 1 ? "DOWNLOADING..."
+                                        : updater.lcmFit === "same" ? "DOWNLOAD TO REFLASH"
+                                        : updater.lcmFit === "older" ? "DOWNLOAD (DOWNGRADE)" : "DOWNLOAD UPDATE"
+                                    lit: updater.lcmFit === "newer"
+                                    enabledLook: updater.dlState !== 1 && !lcmFw.active
+                                    onClicked: updater.download()
+                                }
+                                SwPill {
+                                    visible: updater.dlState === 2
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    minWidth: 3.6 * unit
+                                    label: "FLASH UPDATE"
+                                    lit: true
+                                    enabledLook: !lcmFw.active
+                                    onClicked: updatePrompt.open()
+                                }
+                                Text {
+                                    visible: updater.dlMessage !== ""
+                                    width: parent.width
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.WordWrap
+                                    color: updater.dlState === 3 ? "#FFB300" : swTheme.neonGreen
+                                    font.pixelSize: fontSizeSmall
+                                    text: updater.dlMessage
+                                }
+                            }
+                        }
+
+                        // release notes
+                        SwLText {
+                            visible: !!updater.rel && updater.rel.notes !== ""
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            textFormat: Text.PlainText
+                            text: updater.rel ? "Release notes (" + updater.rel.tag + "):\n" + updater.rel.notes.substr(0, 1200) : ""
+                        }
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 3.6 * unit
+                            label: "OPEN RELEASE PAGE"
+                            onClicked: Qt.openUrlExternally(updater.rel ? updater.rel.page : updater.releasesPage)
                         }
                     }
 
@@ -11794,7 +12004,6 @@ Item {
                 SwTabButton {text: "DATA"}
                 SwTabButton {text: "BOARD STYLE"}
                 SwTabButton {text: "LEDS"}
-                SwTabButton {text: "UPDATES"}
 
                 background: Rectangle {
                     color: "#0b0718"
@@ -13482,6 +13691,28 @@ Item {
                             }
                         }
 
+                        // Re-Float Rink-Mixed: CHECK FOR UPDATES (package + SLCM on GitHub)
+                        GridLayout {
+                            width: parent.width
+                            columns: 2
+                            rowSpacing: 0.18 * unit
+                            columnSpacing: 0.18 * unit
+
+                            LedTile {
+                                Layout.columnSpan: 2
+                                title: "UPDATES"
+                                glyph: "\u21BB"
+                                lit: updater.pkgFit === "newer" || updater.lcmFit === "newer"
+                                summary: updater.phase === 1 ? "CHECKING..."
+                                    : updater.phase !== 2 ? "CHECK FOR UPDATES"
+                                    : updater.pkgFit === "newer" && updater.lcmFit === "newer" ? "PACKAGE + LCM UPDATE AVAILABLE"
+                                    : updater.pkgFit === "newer" ? "PACKAGE UPDATE AVAILABLE"
+                                    : updater.lcmFit === "newer" ? "LCM UPDATE AVAILABLE"
+                                    : "UP TO DATE \u00B7 CHECK AGAIN"
+                                onClicked: ledWindow.show("updates")
+                            }
+                        }
+
                         Item { width: parent.width; height: 0.6 * unit }
 
                         // Re-Float Rink-Mixed: LCM firmware tools, tucked away
@@ -13539,231 +13770,6 @@ Item {
                     }
                 }
 
-                // Re-Float Rink-Mixed: UPDATES - check GitHub for the latest
-                // rider release (package + SLCM light module firmware)
-                ScrollView {
-                    Layout.fillHeight: true
-                    Layout.fillWidth: true
-                    contentWidth: availableWidth
-                    clip: true
-
-                    Column {
-                        id: updatesPage
-                        anchors.fill: parent
-                        anchors.leftMargin: 0.15 * unit
-                        anchors.rightMargin: 0.15 * unit
-                        spacing: 0.16 * unit
-
-                        Item { width: parent.width; height: 0.05 * unit }
-
-                        LedHeading { text: "Check for updates" }
-
-                        // what's installed
-                        Rectangle {
-                            width: parent.width
-                            height: installedText.implicitHeight + 0.24 * unit
-                            radius: 0.08 * unit
-                            color: "#140c26"
-                            border.color: swTheme.neonPurple
-                            border.width: 2
-                            Text {
-                                id: installedText
-                                anchors.centerIn: parent
-                                width: parent.width - 0.24 * unit
-                                horizontalAlignment: Text.AlignHCenter
-                                wrapMode: Text.WordWrap
-                                color: "#ead6ff"
-                                font.pixelSize: fontSizeSmall
-                                text: "This package: Re-Float Rink-Mixed " + lcmFw.pkgVersion + "\n"
-                                    + "Light module: " + (lcmFw.hasBootloader ? "SLCM " + lcmFw.verText(lcmFw.lcmVer)
-                                        : (lcmFw.nameKnown ? (lcmFw.lcmName !== "" ? "“" + lcmFw.lcmName + "” (not updatable from the app)" : "no SLCM detected")
-                                        : "not asked yet"))
-                            }
-                        }
-
-                        Rectangle {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            width: Math.min(parent.width, 5.2 * unit)
-                            height: 1.4 * unit
-                            radius: height / 2
-                            opacity: updater.phase === 1 || updater.dlState === 1 ? 0.5 : 1
-                            color: updCheckArea.pressed ? swTheme.neonGreen : "transparent"
-                            border.color: swTheme.neonGreen
-                            border.width: 3
-                            Text {
-                                anchors.centerIn: parent
-                                text: updater.phase === 1 ? "CHECKING..." : "↻  CHECK FOR UPDATES"
-                                color: updCheckArea.pressed ? swTheme.background : swTheme.neonGreen
-                                font.family: "Exan"
-                                font.pixelSize: 0.32 * unit
-                            }
-                            MouseArea {
-                                id: updCheckArea
-                                anchors.fill: parent
-                                enabled: updater.phase !== 1 && updater.dlState !== 1
-                                onClicked: updater.check()
-                            }
-                        }
-
-                        SwLText {
-                            width: parent.width
-                            horizontalAlignment: Text.AlignHCenter
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: fontSizeSmall
-                            color: updater.phase === 3 ? "#FFB300" : swTheme.neonGreen
-                            text: updater.message !== "" ? updater.message
-                                : "Checks GitHub for the latest rider release. Only tagged, bench-tested releases are offered, never development builds. Needs the phone's internet connection."
-                        }
-
-                        // package
-                        Rectangle {
-                            visible: !!updater.rel
-                            width: parent.width
-                            height: pkgCol.implicitHeight + 0.3 * unit
-                            radius: 0.08 * unit
-                            readonly property color tone: updater.pkgFit === "newer" ? "#FFB300" : swTheme.neonGreen
-                            color: updater.pkgFit === "newer" ? "#2A1F00" : "#0d2a12"
-                            border.color: tone
-                            border.width: 2
-                            Column {
-                                id: pkgCol
-                                anchors.centerIn: parent
-                                width: parent.width - 0.3 * unit
-                                spacing: 0.12 * unit
-                                Text {
-                                    width: parent.width
-                                    horizontalAlignment: Text.AlignHCenter
-                                    wrapMode: Text.WordWrap
-                                    color: parent.parent.tone
-                                    font.family: "Exan"
-                                    font.pixelSize: 0.26 * unit
-                                    text: updater.pkgFit === "newer" ? "PACKAGE UPDATE AVAILABLE"
-                                        : updater.pkgFit === "same" ? "PACKAGE UP TO DATE"
-                                        : updater.pkgFit === "older" ? "PACKAGE NEWER THAN THE RELEASE" : "PACKAGE"
-                                }
-                                Text {
-                                    width: parent.width
-                                    horizontalAlignment: Text.AlignHCenter
-                                    wrapMode: Text.WordWrap
-                                    color: "#ead6ff"
-                                    font.pixelSize: fontSizeSmall
-                                    text: !updater.rel ? ""
-                                        : updater.pkgFit === "newer" ? updater.rel.version + " is out (you have " + lcmFw.pkgVersion + "). Download it, then install it in VESC Tool › VESC Packages. Update the package first, then the light module."
-                                        : updater.pkgFit === "same" ? "You have the latest release, " + lcmFw.pkgVersion + "."
-                                        : updater.pkgFit === "older" ? "You have " + lcmFw.pkgVersion + ", newer than the latest release (" + updater.rel.version + "): a development build."
-                                        : "Latest release: " + updater.rel.version + "."
-                                }
-                                SwPill {
-                                    visible: updater.pkgFit === "newer" && !!updater.rel && updater.rel.pkgUrl !== ""
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    minWidth: 3.6 * unit
-                                    label: "DOWNLOAD PACKAGE"
-                                    lit: true
-                                    onClicked: Qt.openUrlExternally(updater.rel.pkgUrl)
-                                }
-                            }
-                        }
-
-                        // light module (SLCM)
-                        Rectangle {
-                            visible: !!updater.rel
-                            width: parent.width
-                            height: slcmCol.implicitHeight + 0.3 * unit
-                            radius: 0.08 * unit
-                            readonly property bool attention: updater.lcmFit === "newer" || updater.lcmFit === "other" || updater.lcmFit === "unknown"
-                            readonly property color tone: attention ? "#FFB300" : (updater.lcmFit === "same" ? swTheme.neonGreen : swTheme.neonPurple)
-                            color: attention ? "#2A1F00" : (updater.lcmFit === "same" ? "#0d2a12" : "#140c26")
-                            border.color: tone
-                            border.width: 2
-                            Column {
-                                id: slcmCol
-                                anchors.centerIn: parent
-                                width: parent.width - 0.3 * unit
-                                spacing: 0.12 * unit
-                                Text {
-                                    width: parent.width
-                                    horizontalAlignment: Text.AlignHCenter
-                                    wrapMode: Text.WordWrap
-                                    color: parent.parent.tone === swTheme.neonPurple ? "#c98bff" : parent.parent.tone
-                                    font.family: "Exan"
-                                    font.pixelSize: 0.26 * unit
-                                    text: updater.lcmFit === "newer" ? "LCM UPDATE AVAILABLE"
-                                        : updater.lcmFit === "same" ? "LCM UP TO DATE"
-                                        : updater.lcmFit === "older" ? "LCM NEWER THAN THE RELEASE"
-                                        : updater.lcmFit === "other" ? "DIFFERENT LCM BUILD"
-                                        : "LIGHT MODULE (SLCM)"
-                                }
-                                Text {
-                                    width: parent.width
-                                    horizontalAlignment: Text.AlignHCenter
-                                    wrapMode: Text.WordWrap
-                                    color: "#ead6ff"
-                                    font.pixelSize: fontSizeSmall
-                                    readonly property string relText: updater.relSlcm ? "SLCM " + lcmFw.verText(updater.relSlcm) : ""
-                                    readonly property string lcmText: "SLCM " + lcmFw.verText(lcmFw.lcmVer)
-                                    text: updater.lcmFit === "newer" ? "The release has " + relText + ", your light module runs " + lcmText + "."
-                                        : updater.lcmFit === "same" ? "Your light module runs " + lcmText + ", the release's build. You can still reflash it."
-                                        : updater.lcmFit === "older" ? "Your light module runs " + lcmText + ", newer than the release's " + relText + ". Flashing would downgrade it."
-                                        : updater.lcmFit === "other" ? "Your light module runs " + lcmText + ", a different build from the release's " + relText + " (e.g. a custom build)."
-                                        : updater.lcmFit === "unknown" ? "This release doesn't list its SLCM version: download it to see which build it is."
-                                        : updater.lcmFit === "missing" ? "This release has no SLCM.hex."
-                                        : updater.lcmFit === "nolcm" ? (relText ? "The release has " + relText + ". " : "")
-                                            + "No SLCM with the bootloader answered" + (lcmFw.nameKnown ? "" : " (board connected and powered on?)")
-                                            + ". A light module needs SLCM.hex flashed once with an ST-Link before it can update from the app."
-                                        : ""
-                                }
-                                SwPill {
-                                    visible: !!updater.rel && updater.rel.hexUrl !== "" && updater.lcmFit !== "nolcm" && updater.dlState !== 2
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    minWidth: 3.6 * unit
-                                    label: updater.dlState === 1 ? "DOWNLOADING..."
-                                        : updater.lcmFit === "same" ? "DOWNLOAD TO REFLASH"
-                                        : updater.lcmFit === "older" ? "DOWNLOAD (DOWNGRADE)" : "DOWNLOAD UPDATE"
-                                    lit: updater.lcmFit === "newer"
-                                    enabledLook: updater.dlState !== 1 && !lcmFw.active
-                                    onClicked: updater.download()
-                                }
-                                SwPill {
-                                    visible: updater.dlState === 2
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    minWidth: 3.6 * unit
-                                    label: "FLASH UPDATE"
-                                    lit: true
-                                    enabledLook: !lcmFw.active
-                                    onClicked: updatePrompt.open()
-                                }
-                                Text {
-                                    visible: updater.dlMessage !== ""
-                                    width: parent.width
-                                    horizontalAlignment: Text.AlignHCenter
-                                    wrapMode: Text.WordWrap
-                                    color: updater.dlState === 3 ? "#FFB300" : swTheme.neonGreen
-                                    font.pixelSize: fontSizeSmall
-                                    text: updater.dlMessage
-                                }
-                            }
-                        }
-
-                        // release notes
-                        SwLText {
-                            visible: !!updater.rel && updater.rel.notes !== ""
-                            width: parent.width
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: fontSizeSmall
-                            textFormat: Text.PlainText
-                            text: updater.rel ? "Release notes (" + updater.rel.tag + "):\n" + updater.rel.notes.substr(0, 1200) : ""
-                        }
-
-                        SwPill {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            minWidth: 3.6 * unit
-                            label: "OPEN RELEASE PAGE"
-                            onClicked: Qt.openUrlExternally(updater.rel ? updater.rel.page : updater.releasesPage)
-                        }
-
-                        Item { width: parent.width; height: 0.3 * unit }
-                    }
-                }
             }
 
             // Re-RinkFloat: title strip - RE:FLOAT + RINK-MIXED + version
