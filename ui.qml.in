@@ -9785,6 +9785,36 @@ Item {
                 }
             }
 
+            // rf106: TEST the boot melody right here (big neon button)
+            Rectangle {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: Math.min(parent.width, 5.0 * unit)
+                Layout.preferredHeight: 1.1 * unit
+                radius: height / 2
+                readonly property bool ready: state.pkgState === state.s_Ready
+                color: melTestArea.pressed ? swTheme.neonGreen : "transparent"
+                border.color: ready ? swTheme.neonGreen : swTheme.neonPurple
+                border.width: 3
+                Text {
+                    anchors.centerIn: parent
+                    text: "\u266A  TEST"
+                    color: melTestArea.pressed ? swTheme.background : (parent.ready ? swTheme.neonGreen : swTheme.neonPurple)
+                    font.family: "Exan"
+                    font.pixelSize: 0.36 * unit
+                }
+                MouseArea {
+                    id: melTestArea
+                    anchors.fill: parent
+                    onClicked: {
+                        if (parent.ready) {
+                            hornSettingsSender.playMelody(swSettings.hornBootCustom);
+                        } else {
+                            VescIf.emitStatusMessage("Melody test works when the board is idle (READY)", false);
+                        }
+                    }
+                }
+            }
+
             Row {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: 0.2 * unit

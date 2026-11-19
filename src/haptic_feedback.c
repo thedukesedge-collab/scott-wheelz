@@ -59,12 +59,13 @@
 #define HORN_MIN_VIBRATE_STRENGTH 8.0f
 #define HORN_DEFAULT_BEEP_FREQUENCY 495
 #define HORN_DEFAULT_VIBRATE_FREQUENCY 70
-// Re-Float Rink-Mixed (rf68): the default boot melody is the rider's own
-// ("Melody 2"), in the custom melody format: (pitch level 1-10 = E4..G5, 0 =
-// rest; length in 20 ms units). 3.46 s.
+// Re-Float Rink-Mixed: the default boot melody, in the custom melody format
+// (pitch level 1-10 = E4..G5, 0 = rest; length in 20 ms units). rf106: Jingle
+// Bells (public domain; same as the app's CLASSICS one), 3.48 s. (rf68-rf105:
+// the rider's "Melody 2".)
 static const uint8_t default_melody[] = {
-    1, 17, 0, 5, 4, 6,  0, 5, 4, 4, 0, 9, 4, 14, 0,  11,
-    4, 16, 0, 6, 6, 20, 0, 3, 9, 7, 0, 3, 7, 11, 10, 36,
+    8,  9, 0, 2, 8, 9, 0, 2,  8, 20, 0, 2, 8,  9, 0, 2, 8, 9, 0, 2, 8,
+    20, 0, 2, 8, 9, 0, 2, 10, 9, 0,  2, 6, 14, 0, 2, 7, 4, 0, 2, 8, 42,
 };
 
 void haptic_feedback_init(HapticFeedback *hf) {

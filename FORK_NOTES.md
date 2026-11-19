@@ -804,6 +804,14 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### MY MELODIES TEST, Jingle Bells default (v1.2.3-rf106)
+- MY MELODIES has a big neon TEST button above DEFAULT MELODY / RECORD NEW:
+  plays the current boot melody (board READY), like MIXER > TEST.
+- The default boot melody (haptic_feedback.c default_melody, DEFAULT
+  MELODY) is now Jingle Bells (public domain), 21 notes / rests, 3.48 s,
+  same as the CLASSICS one. The rider's old default is still in their MY
+  MELODIES as "Melody 2".
+
 ### Home screen first, swipe-up hint (v1.2.3-rf105)
 - The UI always opens on the full home screen (sheet down; its last
   position is no longer restored).
