@@ -1280,7 +1280,8 @@ static void aux_thd(void *arg) {
         d->leds.snooze_dark = d->lcm.vp.flags & LCM_VP_FLAG_DOZE_DARK;
         // rf88: VESC's power-off timer (reset by motor commands with current:
         // riding, braking a rolling wheel, Refloat's motor tones)
-        d->leds.shutdown_timeout = shutdown_seconds(VESC_IF->get_cfg_int(CFG_PARAM_app_shutdown_mode));
+        d->leds.shutdown_timeout =
+            shutdown_seconds(VESC_IF->get_cfg_int(CFG_PARAM_app_shutdown_mode));
         if (d->state.state == STATE_RUNNING || d->motor.abs_erpm > ERPM_MOVING_THRESHOLD ||
             d->motor_control.tone_ticks > 0 || d->leds.motor_active_time == 0.0f) {
             d->leds.motor_active_time = VESC_IF->system_time();
