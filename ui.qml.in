@@ -445,9 +445,9 @@ Item {
 
         function send() {
             if (!swSettings.ledConfigured) return;
-            var data = commands.createData(23, commands.c_LCM_VP_SETTINGS);
+            var data = commands.createData(25, commands.c_LCM_VP_SETTINGS);
             data.setUint8(2, (swSettings.ledHeadlights ? 1 : 0) | (swSettings.ledStatusBar ? 2 : 0) | (swSettings.ledBeep ? 4 : 0)
-                | (swSettings.ledDozeBreath ? 0 : 0x20));
+                | (swSettings.ledSnoozeStyle === 2 ? 0x20 : 0));  // rf97: DARK snooze
             data.setUint8(3, swSettings.ledHeadlightPct);
             data.setUint8(4, swSettings.ledStatusIdlePct);
             data.setUint8(5, swSettings.ledStatusRidePct);
@@ -460,7 +460,9 @@ Item {
             data.setUint8(13, swSettings.ledHeadlightIdlePct);
             var cu = custom();
             for (var ci = 0; ci < 8; ci++) data.setUint8(14 + ci, cu[ci]);
-            data.setUint8(22, swSettings.ledSnoozeMin);  // rf86: Refloat LEDs snooze
+            data.setUint8(22, swSettings.ledSnoozeMin);  // rf86: controller LEDs snooze (255 AUTO)
+            data.setUint8(23, swSettings.ledRideMode);  // rf97
+            data.setUint8(24, swSettings.ledSnoozeStyle);
             vescCommands.sendCustomAppData(data.buffer);
         }
 
@@ -2446,7 +2448,9 @@ Item {
         property bool ledDozeBreath: true  // headlights breathe in snooze (SLCM; off = dark)
         property bool hideDisclaimer: false  // rf93: "don't show this again" on the start disclaimer
         property bool tourSeen: false  // rf90: the tips & tricks tour opens once on first start
-        property int ledSnoozeMin: 0  // rf86: controller-driven LEDs snooze after this many idle minutes (0 = never)
+        property int ledSnoozeMin: 255  // rf97: 255 = AUTO (3 min before power-off), 0 = never
+        property int ledRideMode: 0  // rf97: riding status bar: 0 battery / duty, else Refloat mode + 1
+        property int ledSnoozeStyle: 0  // rf97: 0 breathe, 1 dim, 2 dark  // rf86: controller-driven LEDs snooze after this many idle minutes (0 = never)
         property string ledCustom: ""  // CUSTOM animation, 8 numbers (JSON), see ledSender.custom()
         property int ledAnimBoot: 11
         property int ledAnimShutdown: 0
@@ -4301,7 +4305,7 @@ Item {
                 break;
             }
             case 15: {  // Refloat's Status Idle animation (approximation)
-                if (!an.rf && !ledSender.rfOn) return "#ead6ff";  // battery display
+                if ((!an.rf && !ledSender.rfOn) || (an.rf && an.rf.mode < 0)) return "#ead6ff";  // battery display
                 var c1 = ledSender.rfQColor(an.rf ? an.rf.c1 : ledSender.rfColor1), c2 = ledSender.rfQColor(an.rf ? an.rf.c2 : ledSender.rfColor2);
                 var sp = Math.max(0.1, an.rf ? an.rf.speed : ledSender.rfSpeed), md = an.rf ? an.rf.mode : ledSender.rfMode;
                 var mix = function(p) { return Qt.rgba(c1.r + (c2.r - c1.r) * p, c1.g + (c2.g - c1.g) * p, c1.b + (c2.b - c1.b) * p, 1); };
@@ -6834,6 +6838,8 @@ Item {
         // Rink-Mixed tour opens once instead (SKIP closes it)
         // rf93: the disclaimer opens every time (until "don't show again"),
         // the tour after it on first start
+        // rf97: SNOOZE BREATHING OFF from before -> DARK snooze style
+        if (!swSettings.ledDozeBreath && swSettings.ledSnoozeStyle === 0) swSettings.ledSnoozeStyle = 2;
         if (!swSettings.hideDisclaimer) disclaimerDialog.open();
         else if (!swSettings.tourSeen) rinkTour.open();
 
@@ -7873,14 +7879,36 @@ Item {
 
                         // rf86: snooze for controller-driven LEDs (head/tail and status
                         // bar), kept by the package; an SLCM snoozes by itself
+                        LedHeading { text: "Snooze" }
+
+                        // rf97: AUTO (default) = 3 min before the board powers off
                         SwStepper {
                             visible: ledSender.rgbAvail || ledSender.rfStatusAvail
                             label: "SNOOZE AFTER"
-                            value: swSettings.ledSnoozeMin
+                            valueWidth: 2.8 * unit
+                            value: swSettings.ledSnoozeMin === 255 ? -1 : swSettings.ledSnoozeMin
                             // rf88: snooze comes before the board powers off
-                            from: 0; to: vescAppConfig.offMinutes >= 2 ? Math.min(60, Math.ceil(vescAppConfig.offMinutes) - 1) : 60; step: 1
-                            valueText: value === 0 ? "NEVER" : value + " min"
-                            onMoved: { swSettings.ledSnoozeMin = newValue; ledSender.changed(); }
+                            from: -1; to: vescAppConfig.offMinutes >= 2 ? Math.min(60, Math.ceil(vescAppConfig.offMinutes) - 1) : 60; step: 1
+                            valueText: value < 0 ? (vescAppConfig.offMinutes >= 4 ? "AUTO " + Math.round(vescAppConfig.offMinutes - 3) + " min"
+                                                    : vescAppConfig.offMinutes > 0 ? "AUTO (off)" : "AUTO 10 min")
+                                     : value === 0 ? "NEVER" : value + " min"
+                            onMoved: { swSettings.ledSnoozeMin = newValue < 0 ? 255 : newValue; ledSender.changed(); }
+                        }
+
+                        // rf97: how the lights look while snoozing
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.15 * unit
+                            Repeater {
+                                // DIM only for controller-driven LEDs (an SLCM breathes or goes dark)
+                                model: (ledSender.rgbAvail || ledSender.rfStatusAvail) ? [["BREATHE", 0], ["DIM", 1], ["DARK", 2]] : [["BREATHE", 0], ["DARK", 2]]
+                                SwPill {
+                                    minWidth: 2.2 * unit
+                                    label: modelData[0]
+                                    lit: swSettings.ledSnoozeStyle === modelData[1] || (modelData[1] === 0 && swSettings.ledSnoozeStyle === 1 && !(ledSender.rgbAvail || ledSender.rfStatusAvail))
+                                    onClicked: { swSettings.ledSnoozeStyle = modelData[1]; swSettings.ledDozeBreath = modelData[1] !== 2; ledSender.changed(); }
+                                }
+                            }
                         }
 
                         SwLText {
@@ -7892,16 +7920,7 @@ Item {
                             color: swTheme.neonGreen
                             text: "Board powers off after " + (vescAppConfig.offMinutes < 1 ? "10 s" : vescAppConfig.offMinutes >= 60 ? (vescAppConfig.offMinutes / 60) + " h" : vescAppConfig.offMinutes + " min")
                                 + " without riding (VESC Shutdown Mode). The lights blink twice every 15 s in the last minute."
-                                + (swSettings.ledSnoozeMin >= vescAppConfig.offMinutes && vescAppConfig.offMinutes >= 1 ? " SNOOZE AFTER is longer, so it won't show." : "")
-                        }
-
-                        SwPill {
-                            visible: slcmDetect.present || ((ledSender.rgbAvail || ledSender.rfStatusAvail) && swSettings.ledSnoozeMin > 0)
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            minWidth: 3.4 * unit
-                            label: swSettings.ledDozeBreath ? "SNOOZE BREATHING ON" : "SNOOZE BREATHING OFF"
-                            lit: swSettings.ledDozeBreath
-                            onClicked: { swSettings.ledDozeBreath = !swSettings.ledDozeBreath; ledSender.changed(); }
+                                + (swSettings.ledSnoozeMin !== 255 && swSettings.ledSnoozeMin >= vescAppConfig.offMinutes && vescAppConfig.offMinutes >= 1 ? " SNOOZE AFTER is longer, so it won't show." : "")
                         }
 
                         SwLText {
@@ -7911,7 +7930,7 @@ Item {
                             text: "IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEADLIGHTS OFF = always off. "
                                 + "Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). "
                                 + "SNOOZE: after the set time sitting still (not engaged, no footpad, not lifted) all lights dim, head/tail and status bar; any of those wakes them. "
-                                + "SNOOZE BREATHING: they slowly breathe while snoozing; off = dark. An SLCM light module snoozes by itself; SNOOZE AFTER is for controller-driven LEDs (e.g. Thor)."
+                                + "AUTO = 3 min before the board powers off. BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes on its own timer; SNOOZE AFTER is for controller-driven LEDs (e.g. Thor)."
                         }
                     }
                     Column {
@@ -8042,6 +8061,18 @@ Item {
                         // uses SLCM EXTRAS > ANIMATIONS > RIDING)
                         LedHeading { visible: ledSender.rfStatusAvail; text: "Riding animation" }
 
+                        // rf97: riding animation for the controller's status strip:
+                        // BATTERY / DUTY (Refloat) or a Refloat animation in the idle colors
+                        SwStepper {
+                            visible: ledSender.rfStatusAvail
+                            bigName: true
+                            value: swSettings.ledRideMode
+                            rf: ({mode: value - 1, c1: ledSender.rfColor1, c2: ledSender.rfColor2, speed: ledSender.rfSpeed})
+                            from: 0; to: ledSender.rfModes.length; step: 1
+                            valueText: value === 0 ? "BATTERY / DUTY" : ledSender.rfModes[value - 1]
+                            onMoved: { swSettings.ledRideMode = newValue; ledSender.changed(); }
+                        }
+
                         SwStepper {
                             visible: ledSender.rfStatusAvail
                             label: "DUTY BAR FROM"
@@ -8065,7 +8096,7 @@ Item {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: "Riding shows the battery level, then the duty bar from the set duty (NEVER = battery only). FOOTPAD SENSORS: show a released sensor while riding. "
+                            text: "BATTERY / DUTY: the battery level, then the duty bar from the set duty (NEVER = battery only). Any other animation plays in the idle animation's colors and speed while riding; the duty bar still takes over from the set duty. FOOTPAD SENSORS: show a released sensor while riding. "
                                 + "Same as Refloat's Status Duty Threshold and Show Sensor Indicators While Running."
                         }
                     }

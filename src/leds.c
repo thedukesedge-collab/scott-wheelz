@@ -554,10 +554,24 @@ static void status_animate(
     if (idle_blend < 1.0f) {
         bool reverse = strip == &leds->front_strip;
         if (leds->status_duty_blend < 1.0f) {
-            float battery = VESC_IF->mc_get_battery_level(NULL);
-            anim_progress_bar(
-                leds, strip, battery, BATTERY_COLOR, false, reverse, fminf(blend, 1.0f - idle_blend)
-            );
+            if (leds->ride_mode > 0 && strip == &leds->status_strip &&
+                leds->state.state == STATE_RUNNING) {
+                // rf97: riding animation (Status Idle colors / speed, chosen mode)
+                LedBar bar = leds->cfg->status_idle;
+                bar.mode = (LedAnimMode) (leds->ride_mode - 1);
+                led_strip_animate(leds, strip, &bar, current_time - leds->status_animation_start);
+            } else {
+                float battery = VESC_IF->mc_get_battery_level(NULL);
+                anim_progress_bar(
+                    leds,
+                    strip,
+                    battery,
+                    BATTERY_COLOR,
+                    false,
+                    reverse,
+                    fminf(blend, 1.0f - idle_blend)
+                );
+            }
         }
 
         if (leds->status_duty_blend > 0.0f) {
@@ -758,6 +772,8 @@ void leds_init(Leds *leds) {
     leds->status_disabled = false;
     leds->snooze_timeout = 0.0f;
     leds->snooze_dark = false;
+    leds->snooze_dim = false;
+    leds->ride_mode = 0;
     leds->snooze_activity_time = 0.0f;
     leds->shutdown_timeout = 0.0f;
     leds->motor_active_time = 0.0f;
@@ -991,8 +1007,9 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
     if (leds->snooze_timeout > 0.0f &&
         current_time - leds->snooze_activity_time > leds->snooze_timeout) {
         // 6 s breath between 3% and 30% of the set brightness
-        snooze = leds->snooze_dark
-            ? 0.0f
+        snooze = leds->snooze_dark ? 0.0f
+            : leds->snooze_dim
+            ? 0.1f
             : 0.03f + 0.27f * (0.5f - 0.5f * cosf(current_time * (2.0f * (float) M_PI / 6.0f)));
     }
 

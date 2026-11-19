@@ -804,6 +804,21 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Riding animation, snooze styles, AUTO snooze (v1.2.3-rf97)
+- STATUS BAR > Riding animation (controller-driven status strip): BATTERY /
+  DUTY (Refloat's own riding bar, default) or any Refloat animation, played
+  with the Status Idle colors / speed while riding (leds.c status_animate,
+  riding only; the duty bar still takes over above DUTY BAR FROM). Byte 21
+  of COMMAND_LCM_VP_SETTINGS (0, or Refloat mode + 1), EEPROM word 83 bits
+  16-23. Light code only.
+- Snooze style BREATHE / DIM (steady 10%, controller LEDs) / DARK replaces
+  the SNOOZE BREATHING pill (byte 22, word 82 bits 12-15; DARK also sets
+  LCM_VP_FLAG_DOZE_DARK for an SLCM). SNOOZE BREATHING OFF from before
+  becomes DARK.
+- SNOOZE AFTER defaults to AUTO (255): 3 min before VESC powers off (10 min
+  without a power-off timer, none if it powers off within 4 min).
+- tools/lcm_vp_test covers the new bytes and the color bits in word 2.
+
 ### MAX SPEED tucked away, terms first, speedo badge (v1.2.3-rf96)
 - MAX SPEED left the CONTROL section list: a dim "Max speed limiter >" line
   at the bottom of CONTROL (amber "MAX SPEED LIMIT: 45 MPH" when one is

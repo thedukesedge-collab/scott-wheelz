@@ -97,6 +97,11 @@ typedef struct {
     // engage, all strips dim to a slow breath (or dark with snooze_dark)
     float snooze_timeout;  // 0 = never
     bool snooze_dark;
+    bool snooze_dim;  // rf97: steady low glow instead of the breath
+    // rf97: riding status bar: 0 = Refloat's battery / duty bar, else the
+    // Status Idle colors / speed with Refloat animation ride_mode - 1 (the duty
+    // bar still takes over above the duty threshold)
+    uint8_t ride_mode;
     float snooze_activity_time;
 
     // rf88: power-off warning. VESC powers off after shutdown_timeout s

@@ -59,7 +59,10 @@ typedef enum {
 // colors, speed, timeout) - translated for the SLCM in each poll reply, so
 // changes in VESC Tool's Refloat Cfg reach the LCM too (rf72)
 #define LCM_VP_ANIM_REFLOAT 0x80
-#define LCM_VP_SNOOZE_MAX 60  // minutes (rf86 snooze for Refloat's own LEDs)
+#define LCM_VP_SNOOZE_MAX 60  // minutes (rf86 snooze for controller-driven LEDs)
+#define LCM_VP_SNOOZE_AUTO 255  // rf97: 3 min before VESC powers off
+#define LCM_VP_RIDE_MODES 10  // rf97: 0 battery / duty (Refloat), 1-9 Refloat mode + 1
+#define LCM_VP_SNOOZE_STYLES 3  // rf97: 0 breathe, 1 dim, 2 dark
 #define LCM_VP_EEPROM_WORDS 6  // 80-83 + 125-126 (CUSTOM animation)
 
 typedef struct {
@@ -75,6 +78,11 @@ typedef struct {
     // rf86: minutes idle before Refloat's own LEDs snooze (0 = never), byte
     // 20 of COMMAND_LCM_VP_SETTINGS; the SLCM keeps its own snooze
     uint8_t snooze_minutes;
+    // rf97: bytes 21 / 22: riding status bar animation for controller-driven
+    // LEDs (0 = Refloat's battery / duty bar, else a Refloat mode + 1 with the
+    // Status Idle colors), snooze style (0 breathe, 1 dim, 2 dark)
+    uint8_t ride_mode;
+    uint8_t snooze_style;
 } LcmVpSettings;
 
 typedef struct {

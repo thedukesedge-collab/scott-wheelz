@@ -1276,12 +1276,24 @@ static void aux_thd(void *arg) {
         // settings, LCM_VP_FLAG_STATUS_BAR) also switches Refloat's own
         // status strip - Refloat's lights control only has all / headlights
         d->leds.status_disabled = d->lcm.vp.valid && !(d->lcm.vp.flags & LCM_VP_FLAG_STATUS_BAR);
-        d->leds.snooze_timeout = d->lcm.vp.valid ? d->lcm.vp.snooze_minutes * 60.0f : 0.0f;
-        d->leds.snooze_dark = d->lcm.vp.flags & LCM_VP_FLAG_DOZE_DARK;
+        d->leds.snooze_dark =
+            (d->lcm.vp.flags & LCM_VP_FLAG_DOZE_DARK) || d->lcm.vp.snooze_style == 2;
+        d->leds.snooze_dim = d->lcm.vp.snooze_style == 1;
+        d->leds.ride_mode = d->lcm.vp.valid ? d->lcm.vp.ride_mode : 0;
         // rf88: VESC's power-off timer (reset by motor commands with current:
         // riding, braking a rolling wheel, Refloat's motor tones)
         d->leds.shutdown_timeout =
             shutdown_seconds(VESC_IF->get_cfg_int(CFG_PARAM_app_shutdown_mode));
+        // rf97: AUTO snooze = 3 min before VESC powers off (10 min without a
+        // power-off timer; none when it powers off within 4 min)
+        if (!d->lcm.vp.valid) {
+            d->leds.snooze_timeout = 0.0f;
+        } else if (d->lcm.vp.snooze_minutes == LCM_VP_SNOOZE_AUTO) {
+            float off = d->leds.shutdown_timeout;
+            d->leds.snooze_timeout = off <= 0.0f ? 600.0f : off >= 240.0f ? off - 180.0f : 0.0f;
+        } else {
+            d->leds.snooze_timeout = d->lcm.vp.snooze_minutes * 60.0f;
+        }
         if (d->state.state == STATE_RUNNING || d->motor.abs_erpm > ERPM_MOVING_THRESHOLD ||
             d->motor_control.tone_ticks > 0 || d->leds.motor_active_time == 0.0f) {
             d->leds.motor_active_time = VESC_IF->system_time();

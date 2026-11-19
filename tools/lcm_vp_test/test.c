@@ -157,6 +157,19 @@ int main(void){
         assert(l5.vp.snooze_minutes == 5 && memcmp(&l5.vp, &lcm.vp, sizeof lcm.vp) == 0);
         in21[20] = 0; lcm_vp_set(&lcm, in21, 21);
     }
+    /* rf97: AUTO snooze (255), ride mode (byte 21, max 9), snooze style (byte 22, max 2) */
+    {
+        uint8_t in23[23]; memcpy(in23, in12, 12); memcpy(in23 + 12, lcm.vp.custom, 8);
+        in23[20] = 255; in23[21] = 99; in23[22] = 7;
+        lcm_vp_set(&lcm, in23, 23);
+        assert(lcm.vp.snooze_minutes == 255 && lcm.vp.ride_mode == 9 && lcm.vp.snooze_style == 2);
+        in23[21] = 5; in23[22] = 1; lcm_vp_set(&lcm, in23, 23);
+        lcm_vp_set(&lcm, in23, 21); assert(lcm.vp.ride_mode == 5 && lcm.vp.snooze_style == 1);
+        uint32_t ws[LCM_VP_EEPROM_WORDS]; lcm_vp_pack(&lcm, ws);
+        LcmData l6; memset(&l6,0,sizeof l6); lcm_init(&l6, &hw); lcm_vp_unpack(&l6, ws);
+        assert(memcmp(&l6.vp, &lcm.vp, sizeof lcm.vp) == 0 && l6.vp.color == lcm.vp.color);
+        in23[20] = 0; in23[21] = 0; in23[22] = 0; lcm_vp_set(&lcm, in23, 23);
+    }
     /* bad magic: not loaded */
     w[0] &= 0x00FFFFFF; LcmData l3; memset(&l3,0,sizeof l3); lcm_vp_unpack(&l3, w); assert(!l3.vp.valid);
     /* battery curve: p42a points (cell mV at 100..0 %) */
