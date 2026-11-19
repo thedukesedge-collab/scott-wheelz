@@ -804,6 +804,22 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Riding animation, BATTERY idle choice, controller beeper, colored color names (v1.2.3-rf84)
+- STATUS BAR > Idle animation: BATTERY is the first choice of the selector
+  (Refloat Status Idle Timeout 0) instead of a separate ON/OFF pill; picking
+  an animation from BATTERY sets the timeout to 10 s.
+- STATUS BAR > Riding animation (only with Refloat's own status strip, e.g.
+  Thor): DUTY BAR FROM 15-100% (Refloat Status Duty Threshold; 100% = NEVER,
+  battery only) and FOOTPAD SENSORS ON/OFF (Show Sensor Indicators While
+  Running). Refloat's riding bar is battery level / duty bar, nothing else.
+- SOUND > Controller: BEEPER ON/OFF = Refloat's Enable Beeper on Servo/PPM
+  (is_beeper_enabled). Refloat has no separate write-beep switch: this one
+  gates the write beep and every warning beep. TEST BEEP: COMMAND_LCM_TEST_BEEP
+  with [2] = 1 beeps the controller (beep_alert); the 2-byte form still
+  beeps the light module.
+- COLOR 1 / COLOR 2 values (RGB LIGHTS, Status Idle) are shown in their own
+  color (black as dim grey). SwStepper.valueColor.
+
 ### IN MOTION / IDLE light naming (v1.2.3-rf83)
 - HEADLIGHTS window: the two brightness rows are now IN MOTION (Refloat's
   Headlight Brightness, board engaged) and IDLE (Front Brightness, the rest

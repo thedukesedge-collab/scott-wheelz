@@ -406,6 +406,17 @@ Item {
         property int rfTimeout: 0  // 0: Refloat's idle animation off (battery display)
         property bool rfLoaded: false  // read from the Refloat config (never write defaults over it)
         readonly property bool rfOn: rfTimeout > 0
+        // Refloat's riding status bar: battery level, the duty bar above
+        // leds.status.duty_threshold (Refloat uses at least 15%; 100% = never),
+        // footpad sensors (leds.status.show_sensors_while_running)
+        property real rfDutyTh: 0.5
+        property bool rfSensors: true
+        property bool rfStatusAvail: false  // Refloat's own status strip is set up
+        property bool ctrlBeep: true  // is_beeper_enabled (Refloat's beeper on Servo/PPM, also the write beep)
+        // readable text color for a Refloat LED color (black shown dim grey)
+        function rfTextColor(i) {
+            return i === 0 ? "#8a8a8a" : rfHue[i] < 0 ? "#ffffff" : Qt.hsla(rfHue[i] * 2 / 360, 1, 0.62, 1);
+        }
         readonly property bool idleFollows: swSettings.ledAnimIdle === 128
         readonly property string rfSummary: !rfOn ? "IDLE: BATTERY" : "IDLE: " + rfModes[rfMode]
         function setRf(key, v) {
@@ -468,6 +479,18 @@ Item {
             send();
             ledRetryTimer.restart();
             ledCfgWriteTimer.restart();  // mirror into the Refloat LED config
+        }
+
+        // controller beeper (Refloat's, on Servo/PPM)
+        function setCtrlBeep(on) {
+            if (!rfLoaded) fromConfig();
+            ctrlBeep = on;
+            ledCfgWriteTimer.restart();
+        }
+        function testCtrlBeep() {
+            var data = commands.createData(3, commands.c_LCM_TEST_BEEP);
+            data.setUint8(2, 1);
+            vescCommands.sendCustomAppData(data.buffer);
         }
 
         // LCM test beep: settings first (the beep request rides in the VP block)
@@ -608,6 +631,18 @@ Item {
                 c.updateParamInt("leds.status.idle_timeout", rfTimeout);
                 dirty = true;
             }
+            if (rfLoaded && Math.abs(c.getParamDouble("leds.status.duty_threshold") - rfDutyTh) > 0.001) {
+                c.updateParamDouble("leds.status.duty_threshold", rfDutyTh);
+                dirty = true;
+            }
+            if (rfLoaded && c.getParamBool("is_beeper_enabled") !== ctrlBeep) {
+                c.updateParamBool("is_beeper_enabled", ctrlBeep);
+                dirty = true;
+            }
+            if (rfLoaded && c.getParamBool("leds.status.show_sensors_while_running") !== rfSensors) {
+                c.updateParamBool("leds.status.show_sensors_while_running", rfSensors);
+                dirty = true;
+            }
             if (dirty) packageConfig.writeConfig();
         }
 
@@ -647,6 +682,10 @@ Item {
             rfColor2 = c.getParamEnum("leds.status_idle.color2");
             rfSpeed = c.getParamDouble("leds.status_idle.speed");
             rfTimeout = c.getParamInt("leds.status.idle_timeout");  // the package reads these itself
+            rfDutyTh = c.getParamDouble("leds.status.duty_threshold");
+            rfSensors = c.getParamBool("leds.status.show_sensors_while_running");
+            ctrlBeep = c.getParamBool("is_beeper_enabled");
+            rfStatusAvail = c.getParamEnum("hardware.leds.mode") !== 0 && c.getParamInt("hardware.leds.status.count") > 0;
             rfLoaded = true;
             if (changedAny) send();  // only goes out once the LEDS tab has been used
         }
@@ -4189,6 +4228,7 @@ Item {
         property int decimals: 0
         property string suffix: ""
         property string valueText: ""  // overrides the number if set
+        property color valueColor: swTheme.neonGreen
         property real valueWidth: 2.1 * unit  // wider for names (animations)
         property bool animName: false  // draw valueText as an LED animation (AnimName)
         // Refloat animation as the value (AnimName anim 15): rfAnim for the
@@ -4246,7 +4286,7 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         fontSizeMode: Text.HorizontalFit
                         minimumPixelSize: 0.16 * unit
-                        color: swTheme.neonGreen
+                        color: stepper.valueColor
                         font.family: "Exan"
                         font.pixelSize: 0.32 * unit
                         text: stepper.valueText !== "" ? stepper.valueText : stepper.value.toFixed(stepper.decimals) + stepper.suffix
@@ -7507,32 +7547,22 @@ Item {
                         // translated by the package)
                         LedHeading { text: "Idle animation" }
 
-                        AnimName {
-                            visible: !ledSender.rfOn
-                            width: parent.width
-                            height: 0.9 * unit
-                            anim: 15
-                            text: "BATTERY LEVEL"
-                            basePixelSize: 0.4 * unit
-                        }
-
-                        // the animation preview is the selector
+                        // the animation preview is the selector; first choice
+                        // BATTERY = Refloat's idle animation off (idle_timeout 0)
                         SwStepper {
-                            visible: ledSender.rfOn
                             bigName: true
                             rfAnim: true
-                            value: ledSender.rfMode
-                            from: 0; to: ledSender.rfModes.length - 1; step: 1
-                            valueText: ledSender.rfModes[value]
-                            onMoved: ledSender.setRf("rfMode", newValue)
-                        }
-
-                        SwPill {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            minWidth: 4.4 * unit
-                            label: ledSender.rfOn ? "IDLE ANIMATION ON" : "IDLE ANIMATION OFF"
-                            lit: ledSender.rfOn
-                            onClicked: ledSender.setRf("rfTimeout", ledSender.rfOn ? 0 : 10)
+                            value: ledSender.rfOn ? ledSender.rfMode : -1
+                            from: -1; to: ledSender.rfModes.length - 1; step: 1
+                            valueText: value < 0 ? "BATTERY" : ledSender.rfModes[value]
+                            onMoved: {
+                                if (newValue < 0) {
+                                    ledSender.setRf("rfTimeout", 0);
+                                } else {
+                                    ledSender.rfMode = newValue;
+                                    ledSender.setRf("rfTimeout", ledSender.rfOn ? ledSender.rfTimeout : 10);
+                                }
+                            }
                         }
 
                         Column {
@@ -7547,6 +7577,7 @@ Item {
                                 value: ledSender.rfColor1
                                 from: 0; to: ledSender.rfColors.length - 1; step: 1
                                 valueText: ledSender.rfColors[value]
+                                valueColor: ledSender.rfTextColor(value)
                                 onMoved: ledSender.setRf("rfColor1", newValue)
                             }
                             SwStepper {
@@ -7556,6 +7587,7 @@ Item {
                                 value: ledSender.rfColor2
                                 from: 0; to: ledSender.rfColors.length - 1; step: 1
                                 valueText: ledSender.rfColors[value]
+                                valueColor: ledSender.rfTextColor(value)
                                 onMoved: ledSender.setRf("rfColor2", newValue)
                             }
                             Rectangle {
@@ -7592,10 +7624,41 @@ Item {
                             font.pixelSize: fontSizeSmall
                             text: "Refloat's own Status Idle animation, so it's the same on every controller (Thor, Floatwheel, ...): Refloat's LEDs play it themselves, "
                                 + "and for an SLCM light module the package turns it into the closest SLCM animation (from SLCM r19; older builds show the battery). "
-                                + "Off = the battery level. START AFTER only applies to Refloat's LEDs, an SLCM starts right away."
+                                + "BATTERY = the battery level. START AFTER only applies to Refloat's LEDs, an SLCM starts right away."
                                 + (slcmDetect.present && !ledSender.idleFollows
                                     ? " Right now the SLCM plays " + ledSender.animLabel(0, swSettings.ledAnimIdle) + " from SLCM EXTRAS \u203A ANIMATIONS instead; change anything here to follow this again."
                                     : "")
+                        }
+
+                        // rf84: Refloat's riding status bar (Thor etc.; an SLCM
+                        // uses SLCM EXTRAS > ANIMATIONS > RIDING)
+                        LedHeading { visible: ledSender.rfStatusAvail; text: "Riding animation" }
+
+                        SwStepper {
+                            visible: ledSender.rfStatusAvail
+                            label: "DUTY BAR FROM"
+                            value: Math.max(15, Math.round(ledSender.rfDutyTh * 20) * 5)
+                            from: 15; to: 100; step: 5
+                            valueText: value >= 100 ? "NEVER" : value + "%"
+                            onMoved: { if (!ledSender.rfLoaded) ledSender.fromConfig(); ledSender.rfDutyTh = newValue / 100; ledSender.changed(); }
+                        }
+
+                        SwPill {
+                            visible: ledSender.rfStatusAvail
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 4.4 * unit
+                            label: ledSender.rfSensors ? "FOOTPAD SENSORS ON" : "FOOTPAD SENSORS OFF"
+                            lit: ledSender.rfSensors
+                            onClicked: { if (!ledSender.rfLoaded) ledSender.fromConfig(); ledSender.rfSensors = !ledSender.rfSensors; ledSender.changed(); }
+                        }
+
+                        SwLText {
+                            visible: ledSender.rfStatusAvail
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "Riding shows the battery level, then the duty bar from the set duty (NEVER = battery only). FOOTPAD SENSORS: show a released sensor while riding. "
+                                + "Same as Refloat's Status Duty Threshold and Show Sensor Indicators While Running."
                         }
                     }
                     Column {
@@ -7797,6 +7860,38 @@ Item {
                         width: parent.width
                         spacing: 0.14 * unit
                         visible: ledWindow.section === "sound"
+
+                        // rf84: the controller's own beeper (Refloat setting)
+                        LedHeading { text: "Controller" }
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.15 * unit
+                            SwPill {
+                                minWidth: 3.4 * unit
+                                label: ledSender.ctrlBeep ? "BEEPER ON" : "BEEPER OFF"
+                                lit: ledSender.ctrlBeep
+                                onClicked: ledSender.setCtrlBeep(!ledSender.ctrlBeep)
+                            }
+                            SwPill {
+                                minWidth: 3.0 * unit
+                                label: "\u266A TEST BEEP"
+                                lit: true
+                                onClicked: {
+                                    ledSender.testCtrlBeep();
+                                    VescIf.emitStatusMessage(ledSender.ctrlBeep ? "Test beep sent to the controller"
+                                        : "Controller beeper is off - turn it on to hear the test beep", true);
+                                }
+                            }
+                        }
+                        SwLText {
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "Refloat's Enable Beeper on Servo/PPM: the beep when settings are written, and the warning beeps (low / high battery, temperature, sensor faults). "
+                                + "Refloat has one switch for all of them: OFF also silences the warnings."
+                        }
+
+                        LedHeading { text: "Light module" }
 
                         SwPill {
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -8010,6 +8105,7 @@ Item {
                             value: rgbCol.bar.c1 || 0
                             from: 0; to: ledSender.rfColors.length - 1; step: 1
                             valueText: ledSender.rfColors[value]
+                            valueColor: ledSender.rfTextColor(value)
                             onMoved: ledSender.rgbSet(rgbCol.sel, "c1", newValue)
                         }
                         SwStepper {
@@ -8019,6 +8115,7 @@ Item {
                             value: rgbCol.bar.c2 || 0
                             from: 0; to: ledSender.rfColors.length - 1; step: 1
                             valueText: ledSender.rfColors[value]
+                            valueColor: ledSender.rfTextColor(value)
                             onMoved: ledSender.rgbSet(rgbCol.sel, "c2", newValue)
                         }
                         SwStepper {
@@ -14049,8 +14146,8 @@ Item {
                             LedTile {
                                 title: "SOUND"
                                 glyph: "\u266A"
-                                lit: swSettings.ledBeep
-                                summary: (swSettings.ledBeep ? "BEEPER ON" : "BEEPER OFF") + " \u00B7 TEST BEEP"
+                                lit: ledSender.ctrlBeep || swSettings.ledBeep
+                                summary: "CONTROLLER " + (ledSender.ctrlBeep ? "ON" : "OFF") + " \u00B7 LCM " + (swSettings.ledBeep ? "ON" : "OFF")
                                 onClicked: ledWindow.show("sound")
                             }
                             LedTile {
