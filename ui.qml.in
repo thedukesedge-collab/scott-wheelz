@@ -2444,6 +2444,7 @@ Item {
         property int ledAnimRide: 0
         property int ledAnimDoze: 0
         property bool ledDozeBreath: true  // headlights breathe in snooze (SLCM; off = dark)
+        property bool tourSeen: false  // rf90: the tips & tricks tour opens once on first start
         property int ledSnoozeMin: 0  // rf86: Refloat's own LEDs snooze after this many idle minutes (0 = never)
         property string ledCustom: ""  // CUSTOM animation, 8 numbers (JSON), see ledSender.custom()
         property int ledAnimBoot: 11
@@ -6718,9 +6719,9 @@ Item {
             }
         }
 
-        if (preferences.showWelcomeDialog) {
-            welcomeDialog.show();
-        }
+        // rf90: no welcome dialog / upstream hint pages on start; the
+        // Rink-Mixed tour opens once instead (SKIP closes it)
+        if (!swSettings.tourSeen) rinkTour.open();
 
         onStartupTimer.start();
     }
@@ -7254,6 +7255,7 @@ Item {
 
                             RightSwitch {
                                 id: prefShowWelcomeDialog
+                                visible: false  // rf90: the welcome dialog no longer opens
                                 checked: true
                                 label: "Show Welcome dialog"
                             }
@@ -7562,7 +7564,7 @@ Item {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         property string section: "head"
-        readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "STATUS BAR ANIMATIONS", "sound": "SOUND", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "custom": "CUSTOM ANIMATION", "updates": "UPDATES", "rgb": "RGB LIGHTS"})
+        readonly property var titles: ({"head": "HEADLIGHTS", "bar": "STATUS BAR", "anim": "STATUS BAR ANIMATIONS", "sound": "BEEPER", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "custom": "CUSTOM ANIMATION", "updates": "UPDATES", "rgb": "RGB LIGHTS"})
 
         function show(which) {
             section = which;
@@ -10544,17 +10546,8 @@ Item {
             uiHintsSwipe.seenAll = uiHintsSwipe.currentIndex == uiHintsSwipe.count - 1;
         }
 
-        Component.onCompleted: {
-            fill();
-        }
-
-        Connections {
-            target: state
-
-            function onCommsInitialized() {
-                uiHintsRect.fillDataRecord();
-            }
-        }
+        // rf90: upstream's hint pages no longer open on start (the
+        // Rink-Mixed tour replaces them)
     }
 
     // rf87: Neon Future tour of the Re-Float Rink-Mixed features (SETTINGS >
@@ -10567,6 +10560,7 @@ Item {
         color: "#E6050210"
 
         function open() { tourSwipe.currentIndex = 0; visible = true; }
+        function close() { visible = false; swSettings.tourSeen = true; }
 
         // [glyph, title, where, text]
         readonly property var pages: [
@@ -10581,9 +10575,10 @@ Item {
             ["◢", "BOARD STYLE", "BOARD STYLE TAB", "Pick rails, tire and colors so the board on screen looks like yours."],
             ["◉", "LIGHTS", "LEDS TAB", "HEADLIGHTS: IN MOTION and IDLE levels, SNOOZE after sitting still. STATUS BAR: idle and riding animations. RGB LIGHTS for Refloat's own LEDs (Thor), linked with Refloat's settings."],
             ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
-            ["♬", "SOUND", "LEDS › SOUND", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
+            ["♬", "BEEPER", "LEDS › BEEPER", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
             ["↻", "UPDATES", "LEDS › UPDATES", "Check for new package and SLCM releases from GitHub, download and flash in a few taps. Floatwheel, XRV, Pint V and GTV light modules with SLCM update over Bluetooth."],
-            ["⚠", "BUILT SAFE", "ALWAYS ON", "The board won't engage while the light module is flashing, settings are only saved standing still, and the sensors are watched the whole ride. Have fun out there."]
+            ["★", "CREDIT WHERE IT'S DUE", "THE ORIGINAL", "Built on Refloat by Lukáš Hrázký (lukash), itself built on the Float package by Mitch Lustig, Dado Mista and Nico Aleman. All the credit for this great package goes to them. I take no credit for any of it."],
+            ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "How the board rides is unchanged: balance, tunes, pushbacks, footpads and alerts are Refloat's own code. Everything else was carefully gone through and is mostly quality-of-life and user-experience upgrades: the look, lights, sounds and setup tools. (MAX SPEED is the one opt-in exception: it sets a VESC limit, only if you turn it on.) Have fun out there."]
         ]
 
         MouseArea { anchors.fill: parent }  // block the screen behind
@@ -10739,12 +10734,12 @@ Item {
                 spacing: 0.3 * unit
                 NeonButton {
                     text: tourSwipe.currentIndex === 0 ? "Skip" : "Back"
-                    onClicked: tourSwipe.currentIndex === 0 ? rinkTour.visible = false : tourSwipe.decrementCurrentIndex()
+                    onClicked: tourSwipe.currentIndex === 0 ? rinkTour.close() : tourSwipe.decrementCurrentIndex()
                 }
                 NeonButton {
                     lit: true
                     text: tourSwipe.currentIndex === rinkTour.pages.length - 1 ? "Done" : "Next"
-                    onClicked: tourSwipe.currentIndex === rinkTour.pages.length - 1 ? rinkTour.visible = false : tourSwipe.incrementCurrentIndex()
+                    onClicked: tourSwipe.currentIndex === rinkTour.pages.length - 1 ? rinkTour.close() : tourSwipe.incrementCurrentIndex()
                 }
             }
         }
@@ -14584,7 +14579,7 @@ Item {
                                 onClicked: ledWindow.show("anim")
                             }
                             LedTile {
-                                title: "SOUND"
+                                title: "BEEPER"
                                 glyph: "\u266A"
                                 lit: ledSender.ctrlBeep || swSettings.ledBeep
                                 summary: "CONTROLLER " + (ledSender.ctrlBeep ? "ON" : "OFF") + " \u00B7 LCM " + (swSettings.ledBeep ? "ON" : "OFF")

@@ -324,7 +324,7 @@
           <div id="slcmExtras"><div class="secTitle" style="text-align:center;margin-top:6px">SLCM extras</div>
           <div class="ledTiles">
             <div class="ledTile wide" data-w="anim"><span class="g">&#10022;</span><span class="sw" id="ltSw"></span><b>STATUS BAR ANIMATIONS</b><small id="ltAnim"></small><i>&#8250;</i></div>
-            <div class="ledTile" data-w="sound"><span class="g">&#9834;</span><b>SOUND</b><small id="ltSound"></small><i>&#8250;</i></div>
+            <div class="ledTile" data-w="sound"><span class="g">&#9834;</span><b>BEEPER</b><small id="ltSound"></small><i>&#8250;</i></div>
             <div class="ledTile" data-w="battery"><span class="g">&#9646;</span><b>BATTERY GAUGE</b><small id="ltBat"></small><i>&#8250;</i></div>
           </div></div>
           <div class="ledTiles"><div class="ledTile wide" data-w="updates"><span class="g">&#8635;</span><b>UPDATES</b><small id="ltUpd">CHECK FOR UPDATES</small><i>&#8250;</i></div></div>
@@ -333,7 +333,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf89 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf90 · sim</span></div>
     </div>
   </div>
 
@@ -733,9 +733,10 @@ const TOUR = [
   ["◢", "BOARD STYLE", "BOARD STYLE TAB", "Pick rails, tire and colors so the board on screen looks like yours."],
   ["◉", "LIGHTS", "LEDS TAB", "HEADLIGHTS: IN MOTION and IDLE levels, SNOOZE after sitting still. STATUS BAR: idle and riding animations. RGB LIGHTS for Refloat's own LEDs (Thor), linked with Refloat's settings."],
   ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
-  ["♬", "SOUND", "LEDS › SOUND", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
+  ["♬", "BEEPER", "LEDS › BEEPER", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
   ["↻", "UPDATES", "LEDS › UPDATES", "Check for new package and SLCM releases from GitHub, download and flash in a few taps. Floatwheel, XRV, Pint V and GTV light modules with SLCM update over Bluetooth."],
-  ["⚠", "BUILT SAFE", "ALWAYS ON", "The board won't engage while the light module is flashing, settings are only saved standing still, and the sensors are watched the whole ride. Have fun out there."]
+  ["★", "CREDIT WHERE IT'S DUE", "THE ORIGINAL", "Built on Refloat by Lukáš Hrázký (lukash), itself built on the Float package by Mitch Lustig, Dado Mista and Nico Aleman. All the credit for this great package goes to them. I take no credit for any of it."],
+  ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "How the board rides is unchanged: balance, tunes, pushbacks, footpads and alerts are Refloat's own code. Everything else was carefully gone through and is mostly quality-of-life and user-experience upgrades: the look, lights, sounds and setup tools. (MAX SPEED is the one opt-in exception: it sets a VESC limit, only if you turn it on.) Have fun out there."]
 ];
 let tourI = 0, tourX = null;
 function tourShow() {
@@ -745,7 +746,8 @@ function tourShow() {
   $('tourBack').textContent = tourI ? 'BACK' : 'SKIP'; $('tourNext').textContent = tourI === TOUR.length - 1 ? 'DONE' : 'NEXT';
 }
 function tourOpen() { tourI = 0; tourShow(); $('tour').classList.add('on'); }
-function tourGo(d) { const n = tourI + d; if (n < 0 || n >= TOUR.length) { $('tour').classList.remove('on'); return; } tourI = n; $('tourPg').style.opacity = 0; setTimeout(() => { tourShow(); $('tourPg').style.opacity = 1; }, 120); }
+const tourClose = () => { $('tour').classList.remove('on'); P.tourSeen = true; save(); };
+function tourGo(d) { const n = tourI + d; if (n < 0 || n >= TOUR.length) { tourClose(); return; } tourI = n; $('tourPg').style.opacity = 0; setTimeout(() => { tourShow(); $('tourPg').style.opacity = 1; }, 120); }
 $('tourBack').onclick = () => tourGo(-1); $('tourNext').onclick = () => tourGo(1);
 $('tourCard').addEventListener('pointerdown', e => tourX = e.clientX);
 $('tourCard').addEventListener('pointerup', e => { if (tourX !== null && Math.abs(e.clientX - tourX) > 50) { const d = e.clientX < tourX ? 1 : -1; if (tourI + d >= 0 && tourI + d < TOUR.length) tourGo(d); } tourX = null; });
@@ -769,6 +771,8 @@ $('msSet').onclick = () => {
   $('msAck').onchange = () => { $('msOk').disabled = !$('msAck').checked; $('msOk').style.opacity = $('msAck').checked ? 1 : .4; };
 };
 renderMs();
+// rf90: the tour opens once on first start (SKIP closes it)
+if (!P.tourSeen) setTimeout(tourOpen, 600);
 $('btnSettings').onclick = () => {
   const sw = (id, on, l) => '<div class="row"><div class="l">' + l + '</div><div class="sw' + (on ? ' on' : '') + '" data-sw="' + id + '"></div></div>';
   modal('<h3>SETTINGS</h3><div class="tabs"><div class="pill on" data-tab="0">SETUP</div><div class="pill" data-tab="1">PREFERENCES</div></div>'
@@ -1438,7 +1442,7 @@ $('batName').onchange = () => { batEdit(x => x.name = $('batName').value.trim() 
 $('batUseMine').onclick = () => { if (!P.batCustom) batEdit(() => {}); P.batSize = P.batCustom.size; P.batCell = 'MY CELL'; P.batStyle = 0; save(); renderBattery(); renderLedsSoft(); };
 $('batResAuto').onclick = () => { P.batResAuto = true; save(); renderBattery(); };
 $('batResMan').onclick = () => { P.batResAuto = false; save(); renderBattery(); };
-const LED_TITLES = { rgb: 'RGB LIGHTS', head: 'HEADLIGHTS', bar: 'STATUS BAR', anim: 'STATUS BAR ANIMATIONS', sound: 'SOUND', battery: 'BATTERY GAUGE', fw: 'LCM FIRMWARE', custom: 'CUSTOM ANIMATION', updates: 'UPDATES' };
+const LED_TITLES = { rgb: 'RGB LIGHTS', head: 'HEADLIGHTS', bar: 'STATUS BAR', anim: 'STATUS BAR ANIMATIONS', sound: 'BEEPER', battery: 'BATTERY GAUGE', fw: 'LCM FIRMWARE', custom: 'CUSTOM ANIMATION', updates: 'UPDATES' };
 const ledWin = w => {
   $('ledWin').style.display = w ? 'flex' : 'none';
   $('ledWinDim').style.display = w ? 'block' : 'none';
@@ -1480,7 +1484,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf89';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf90';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1780,7 +1784,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf90' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf91' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

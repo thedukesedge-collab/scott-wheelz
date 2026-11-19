@@ -804,6 +804,17 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Tour on first start, BEEPER, credits page (v1.2.3-rf90)
+- The tips & tricks tour opens by itself the first time the package is
+  opened (swSettings.tourSeen; SKIP or DONE closes it for good; SETTINGS >
+  Show tips & tricks opens it again). Upstream's welcome dialog and hint
+  pages no longer open on start (the "Show Welcome dialog" switch is hidden).
+- LEDS > SOUND is now BEEPER.
+- Tour: "BUILT SAFE" replaced by "CREDIT WHERE IT'S DUE" (Refloat by Lukáš
+  Hrázký, Float by Mitch Lustig, Dado Mista, Nico Aleman; no credit taken)
+  and "SAME RIDE" (riding is Refloat's own code; the rest is reviewed
+  quality-of-life / user-experience upgrades; MAX SPEED is opt-in).
+
 ### MAX SPEED from VESC's Max ERPM (v1.2.3-rf89)
 - CONTROL > MAX SPEED (30-75 mph): sets VESC's own Max ERPM / Min ERPM
   (motor config) from the wheel diameter, motor poles and gear ratio set in
