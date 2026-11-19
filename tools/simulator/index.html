@@ -355,7 +355,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf93 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf94 · sim</span></div>
     </div>
   </div>
 
@@ -381,7 +381,7 @@
         <div class="pills"><div class="pill" id="ledHeadPill"></div></div>
         <div id="ledHeadSteps"></div>
         <div class="pills" id="ledBreathBox"><div class="pill" id="ledBreathPill"></div></div>
-        <p class="ledHint">IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEADLIGHTS OFF = always off. Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). SNOOZE: after the set time sitting still (not engaged, no footpad, not lifted) all lights dim, head/tail and status bar; any of those wakes them. SNOOZE BREATHING: they slowly breathe while snoozing; off = dark. An SLCM light module snoozes by itself; SNOOZE AFTER is for Refloat's own LEDs (e.g. Thor).</p>
+        <p class="ledHint">IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEADLIGHTS OFF = always off. Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). SNOOZE: after the set time sitting still (not engaged, no footpad, not lifted) all lights dim, head/tail and status bar; any of those wakes them. SNOOZE BREATHING: they slowly breathe while snoozing; off = dark. An SLCM light module snoozes by itself; SNOOZE AFTER is for controller-driven LEDs (e.g. Thor).</p>
       </div>
       <div class="ledSec" data-s="bar">
         <div class="pills"><div class="pill" id="ledBarPill"></div></div>
@@ -753,7 +753,7 @@ const TOUR = [
   ["▶", "PLAY & SAVE", "MIXER › PLAY / SAVE", "PLAY to hear it back, SAVE to keep it, DONE to make it the melody your board plays when it boots."],
   ["♥", "MY MELODIES", "MIXER › MY MELODIES", "All your saved tunes in one place. Tap one to make it your boot melody, ✎ to edit it on the tiles, ⧉ to copy, ✕ to delete. DEFAULT MELODY brings the original back; MELODY VOLUME sets how loud."],
   ["◢", "BOARD STYLE", "BOARD STYLE TAB", "Pick rails, tire and colors so the board on screen looks like yours."],
-  ["◉", "LIGHTS", "LEDS TAB", "HEADLIGHTS: IN MOTION and IDLE levels, SNOOZE after sitting still. STATUS BAR: idle and riding animations. RGB LIGHTS for Refloat's own LEDs (Thor), linked with Refloat's settings."],
+  ["◉", "LIGHTS", "LEDS TAB", "HEADLIGHTS: IN MOTION and IDLE levels, SNOOZE after sitting still. STATUS BAR: idle and riding animations. RGB LIGHTS for controller-driven LEDs (Thor), linked with Refloat's settings."],
   ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
   ["♬", "BEEPER", "LEDS › BEEPER", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
   ["↻", "UPDATES", "LEDS › UPDATES", "Check for new package and SLCM releases from GitHub, download and flash in a few taps. Floatwheel, XRV, Pint V and GTV light modules with SLCM update over Bluetooth."],
@@ -796,7 +796,7 @@ renderMs();
 // rf90: the tour opens once on first start (SKIP closes it)
 // rf93: disclaimer each time the UI opens (until "don't show again"), then the tour on first start
 function disclaimerOpen() {
-  modal('<h3>BEFORE YOU START</h3><div style="font-size:13px;line-height:1.45;color:#d6ffe4">Everything in Re-Float Rink-Mixed works off your current Refloat settings: tunes, lights, sounds and the rest read and write Refloat\'s own configuration.<br><br>To use its features properly you need a working board that is set up and rides correctly on Refloat, and working LEDs (Refloat\'s own LEDs or a light module) for the light features.<br><br>If something doesn\'t work, check the board and its Refloat settings in VESC Tool first.</div>'
+  modal('<h3>BEFORE YOU START</h3><div style="font-size:13px;line-height:1.45;color:#d6ffe4">Everything in Re-Float Rink-Mixed works off your current Refloat settings: tunes, lights, sounds and the rest read and write Refloat\'s own configuration.<br><br>To use its features properly you need a working board that is set up and rides correctly on Refloat, and working LEDs for the light features.<br><br>Based on Refloat 1.2.3. Later Refloat versions are known to ride quite differently, so if you\'re coming back from a newer version your board will likely feel noticeably different.<br><br>If something doesn\'t work, check the board and its Refloat settings in VESC Tool first.</div>'
     + '<label style="display:flex;gap:8px;align-items:center;margin-top:10px;color:#ead6ff;font-size:13px"><input type="checkbox" id="dcHide"> Don\'t show this again</label>'
     + '<div class="btns"><button class="pri" data-ok>GOT IT</button></div>', () => { if ($('dcHide').checked) { P.hideDisclaimer = true; save(); } if (!P.tourSeen) setTimeout(tourOpen, 200); });
 }
@@ -1333,8 +1333,8 @@ function renderLedsSoft() {
   $('overrideNote').textContent = ov ? ov + ': overrides the other light settings (riding and idle) until switched back on.' : '';
   $('lightsOverride').innerHTML = ov.replace(' LIGHTS ', '<br>LIGHTS ');
   $('slcmFooter').style.color = slcm ? 'var(--green)' : '#FFB300';
-  $('slcmFooter').innerHTML = slcm ? '&#10004; SLCM ' + FW_BUILD + ' detected' : "&#9888; Needs the SLCM light module firmware (brightness also sets Refloat's own LEDs)";
-  $('ledNote').textContent = !lightsOk ? "Refloat's LEDs aren't set up on this board, so there are no LIGHTS / HEADLIGHTS buttons. Set them up in VESC Tool \u25B8 Refloat Cfg \u25B8 Hardware (LED Mode, type, pin)."
+  $('slcmFooter').innerHTML = slcm ? '&#10004; SLCM ' + FW_BUILD + ' detected' : "&#9888; Needs the SLCM light module firmware (brightness also sets controller-driven LEDs)";
+  $('ledNote').textContent = !lightsOk ? "controller-driven LEDs aren't set up on this board, so there are no LIGHTS / HEADLIGHTS buttons. Set them up in VESC Tool \u25B8 Refloat Cfg \u25B8 Hardware (LED Mode, type, pin)."
     : !slcm ? "Using a light module (LCM)? Set Refloat Cfg \u25B8 Hardware \u25B8 LED Mode to External (or Internal and External) and write the config, so it follows these buttons."
     : P.ledCfg ? 'SLCM settings are stored on the board, so they apply even without the phone.' : 'SLCM settings are only sent once you change one here; until then the light module keeps its own.';
   const pill = (id, on, txt) => { $(id).textContent = txt + (on ? ' ON' : ' OFF'); $(id).classList.toggle('on', on); };
@@ -1352,7 +1352,7 @@ function renderLedsSoft() {
   $('ltBat').textContent = P.batOn ? (P.batCell === 'MY CELL' && P.batCustom ? P.batCustom.name : P.batCell) + ' · ' + P.batPar + 'P · ' + STYLES[P.batStyle + 1] : 'VESC BATTERY %';
   $('batPill').textContent = 'BATTERY CURVE ' + (P.batOn ? 'ON' : 'OFF'); $('batPill').classList.toggle('on', P.batOn);
   $('batLive').textContent = batLive(); $('batAdvLive').textContent = batLive();
-  // rf85: no light module set up (Thor on Refloat's own LEDs / no LEDs): tools hidden
+  // rf85: no light module set up (Thor on controller-driven LEDs / no LEDs): tools hidden
   $('lcmTools').style.display = (P.simSetup || 'slcm') === 'slcm' || FW.active ? '' : 'none';
   $('fwOnlySlcm').style.display = (P.simSetup || 'slcm') === 'slcm' ? 'none' : '';
   if (!lcmHold.t) { $('lcmToolsText').textContent = FW.active ? 'LCM FIRMWARE · FLASHING ' + Math.round(FW.p * 100) + '%' : (lcmHold.hint ? 'HOLD 2 s TO OPEN' : 'LCM firmware tools'); $('lcmToolsText').style.color = FW.active ? 'var(--green)' : ''; }
@@ -1363,7 +1363,7 @@ function renderLedsSoft() {
 function renderLeds() {
   const pct = v => v + '%';
   $('ledHeadSteps').innerHTML = ''; ledStep($('ledHeadSteps'), 'ledHeadPct', 'IN MOTION', 0, 100, 5, v => v ? v + '%' : 'OFF'); ledStep($('ledHeadSteps'), 'ledHeadIdlePct', 'IDLE', 0, 100, 5, v => v ? v + '%' : 'OFF');
-  // rf86: snooze for Refloat's own LEDs (THOR pretend option)
+  // rf86: snooze for controller-driven LEDs (THOR pretend option)
   if (P.ledSnoozeMin === undefined) P.ledSnoozeMin = 0;
   // rf88: pretend VESC Shutdown Mode = off after 10 min: snooze stays below it
   if ((P.simSetup || 'slcm') === 'refloat') {
@@ -1384,7 +1384,7 @@ function renderLeds() {
 }
 // RGB LIGHTS (the real one: ledSender.rgb* in ui.qml.in): Refloat's four
 // light bars - HEAD / TAIL with the headlights on, FRONT / REAR (running
-// lights) with them off. Only with Refloat's own LEDs (THOR pretend option).
+// lights) with them off. Only with controller-driven LEDs (THOR pretend option).
 function renderRgb() {
   const i = P.rgbSel || 0, b = P.rgb[i], box = $('rgbSteps');
   document.querySelectorAll('#rgbSel .pill').forEach(x => x.classList.toggle('on', +x.dataset.i === i));
@@ -1424,7 +1424,7 @@ function renderRf() {
     $('rfSwatch').style.background = 'linear-gradient(90deg,' + rfCss(rfRgb(P.rfColor1)) + ',' + rfCss(rfRgb(P.rfMode >= 1 && P.rfMode <= 5 ? P.rfColor2 : P.rfColor1)) + ')';
   }
   const slcm = (P.simSetup || 'slcm') === 'slcm';
-  $('rfHint').textContent = "Refloat's own Status Idle animation, so it's the same on every controller (Thor, Floatwheel, ...): Refloat's LEDs play it themselves, and for an SLCM light module the package turns it into the closest SLCM animation (from SLCM r19; older builds show the battery). BATTERY = the battery level. START AFTER only applies to Refloat's LEDs, an SLCM starts right away."
+  $('rfHint').textContent = "Refloat's own Status Idle animation, so it's the same on every controller (Thor, Floatwheel, ...): controller-driven LEDs play it themselves, and for an SLCM light module the package turns it into the closest SLCM animation (from SLCM r19; older builds show the battery). BATTERY = the battery level. START AFTER only applies to controller-driven LEDs, an SLCM starts right away."
     + (slcm && P.ledAnimIdle !== 15 ? ' Right now the SLCM plays ' + animLabel('ledAnimIdle', P.ledAnimIdle) + ' from SLCM EXTRAS \u203A ANIMATIONS instead; change anything here to follow this again.' : '');
 }
 $('rfSensPill').onclick = () => { P.rfSens = !P.rfSens; save(); renderRf(); };
@@ -1527,7 +1527,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf93';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf94';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1827,7 +1827,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf94' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf95' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

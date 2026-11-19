@@ -413,7 +413,7 @@ Item {
         property bool rfSensors: true
         property bool rfStatusAvail: false  // Refloat's own status strip is set up
         // rf85: LED Mode includes an external light module (LCM). Without one
-        // (e.g. a Thor on Refloat's own LEDs) the LCM firmware tools are hidden.
+        // (e.g. a Thor on controller-driven LEDs) the LCM firmware tools are hidden.
         property bool lcmModule: true
         property bool ctrlBeep: true  // is_beeper_enabled (Refloat's beeper on Servo/PPM, also the write beep)
         // rf87: the colors offered (Refloat's enum indexes): the basic ones;
@@ -466,7 +466,7 @@ Item {
 
         // ---- quick light switches (LEDS > Lights; any controller): they
         // override the other light settings (brightness etc. are kept) and work
-        // riding and idle. Refloat's own LEDs follow via its lights control,
+        // riding and idle. controller-driven LEDs follow via its lights control,
         // an SLCM via the VP flags.
         readonly property bool quickAvailable: lights.enabled || slcmDetect.present || swSettings.ledConfigured
         readonly property bool allOn: swSettings.ledHeadlights && swSettings.ledStatusBar && (!lights.enabled || lights.on)
@@ -2446,7 +2446,7 @@ Item {
         property bool ledDozeBreath: true  // headlights breathe in snooze (SLCM; off = dark)
         property bool hideDisclaimer: false  // rf93: "don't show this again" on the start disclaimer
         property bool tourSeen: false  // rf90: the tips & tricks tour opens once on first start
-        property int ledSnoozeMin: 0  // rf86: Refloat's own LEDs snooze after this many idle minutes (0 = never)
+        property int ledSnoozeMin: 0  // rf86: controller-driven LEDs snooze after this many idle minutes (0 = never)
         property string ledCustom: ""  // CUSTOM animation, 8 numbers (JSON), see ledSender.custom()
         property int ledAnimBoot: 11
         property int ledAnimShutdown: 0
@@ -7540,7 +7540,8 @@ Item {
                 font.pointSize: 12
                 wrapMode: Text.WordWrap
                 text: "Everything in Re-Float Rink-Mixed works off your current Refloat settings: tunes, lights, sounds and the rest read and write Refloat's own configuration.\n\n"
-                    + "To use its features properly you need a working board that is set up and rides correctly on Refloat, and working LEDs (Refloat's own LEDs or a light module) for the light features.\n\n"
+                    + "To use its features properly you need a working board that is set up and rides correctly on Refloat, and working LEDs for the light features.\n\n"
+                    + "Based on Refloat 1.2.3. Later Refloat versions are known to ride quite differently, so if you're coming back from a newer version your board will likely feel noticeably different.\n\n"
                     + "If something doesn't work, check the board and its Refloat settings in VESC Tool first."
             }
 
@@ -7801,7 +7802,7 @@ Item {
                             onMoved: { swSettings.ledHeadlightIdlePct = newValue; ledSender.changed(); }
                         }
 
-                        // rf86: snooze for Refloat's own LEDs (head/tail and status
+                        // rf86: snooze for controller-driven LEDs (head/tail and status
                         // bar), kept by the package; an SLCM snoozes by itself
                         SwStepper {
                             visible: ledSender.rgbAvail || ledSender.rfStatusAvail
@@ -7841,7 +7842,7 @@ Item {
                             text: "IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEADLIGHTS OFF = always off. "
                                 + "Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). "
                                 + "SNOOZE: after the set time sitting still (not engaged, no footpad, not lifted) all lights dim, head/tail and status bar; any of those wakes them. "
-                                + "SNOOZE BREATHING: they slowly breathe while snoozing; off = dark. An SLCM light module snoozes by itself; SNOOZE AFTER is for Refloat's own LEDs (e.g. Thor)."
+                                + "SNOOZE BREATHING: they slowly breathe while snoozing; off = dark. An SLCM light module snoozes by itself; SNOOZE AFTER is for controller-driven LEDs (e.g. Thor)."
                         }
                     }
                     Column {
@@ -7879,7 +7880,7 @@ Item {
                         }
 
                         // rf72: Refloat's Status Idle animation - one setting for
-                        // every controller (Refloat's LEDs play it, an SLCM gets it
+                        // every controller (controller-driven LEDs play it, an SLCM gets it
                         // translated by the package)
                         LedHeading { text: "Idle animation" }
 
@@ -7960,9 +7961,9 @@ Item {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: "Refloat's own Status Idle animation, so it's the same on every controller (Thor, Floatwheel, ...): Refloat's LEDs play it themselves, "
+                            text: "Refloat's own Status Idle animation, so it's the same on every controller (Thor, Floatwheel, ...): controller-driven LEDs play it themselves, "
                                 + "and for an SLCM light module the package turns it into the closest SLCM animation (from SLCM r19; older builds show the battery). "
-                                + "BATTERY = the battery level. START AFTER only applies to Refloat's LEDs, an SLCM starts right away."
+                                + "BATTERY = the battery level. START AFTER only applies to controller-driven LEDs, an SLCM starts right away."
                                 + (slcmDetect.present && !ledSender.idleFollows
                                     ? " Right now the SLCM plays " + ledSender.animLabel(0, swSettings.ledAnimIdle) + " from SLCM EXTRAS \u203A ANIMATIONS instead; change anything here to follow this again."
                                     : "")
@@ -8906,7 +8907,7 @@ Item {
                 color: slcmDetect.present ? swTheme.neonGreen : "#FFB300"
                 text: slcmDetect.present ? "\u2714 SLCM " + slcmDetect.version + " detected"
                     : (ledWindow.section === "head" || ledWindow.section === "bar"
-                        ? "Brightness also sets Refloat's own LEDs (any controller); the rest needs SLCM"
+                        ? "Brightness also sets controller-driven LEDs (any controller); the rest needs SLCM"
                         : "\u26A0 Needs the SLCM light module firmware")
             }
         }
@@ -10793,7 +10794,7 @@ Item {
             ["▶", "PLAY & SAVE", "MIXER › PLAY / SAVE", "PLAY to hear it back, SAVE to keep it, DONE to make it the melody your board plays when it boots."],
             ["♥", "MY MELODIES", "MIXER › MY MELODIES", "All your saved tunes in one place. Tap one to make it your boot melody, ✎ to edit it on the tiles, ⧉ to copy, ✕ to delete. DEFAULT MELODY brings the original back; MELODY VOLUME sets how loud."],
             ["◢", "BOARD STYLE", "BOARD STYLE TAB", "Pick rails, tire and colors so the board on screen looks like yours."],
-            ["◉", "LIGHTS", "LEDS TAB", "HEADLIGHTS: IN MOTION and IDLE levels, SNOOZE after sitting still. STATUS BAR: idle and riding animations. RGB LIGHTS for Refloat's own LEDs (Thor), linked with Refloat's settings."],
+            ["◉", "LIGHTS", "LEDS TAB", "HEADLIGHTS: IN MOTION and IDLE levels, SNOOZE after sitting still. STATUS BAR: idle and riding animations. RGB LIGHTS for controller-driven LEDs (Thor), linked with Refloat's settings."],
             ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
             ["♬", "BEEPER", "LEDS › BEEPER", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
             ["↻", "UPDATES", "LEDS › UPDATES", "Check for new package and SLCM releases from GitHub, download and flash in a few taps. Floatwheel, XRV, Pint V and GTV light modules with SLCM update over Bluetooth."],
@@ -14717,7 +14718,7 @@ Item {
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
                             text: !lights.enabled && !slcmDetect.present
-                                ? "No SLCM found and Refloat's LEDs aren't set up on this board (VESC Tool \u25B8 Refloat Cfg \u25B8 Hardware: LED Mode, type, pin), so the light switches are hidden."
+                                ? "No SLCM found and controller-driven LEDs aren't set up on this board (VESC Tool \u25B8 Refloat Cfg \u25B8 Hardware: LED Mode, type, pin), so the light switches are hidden."
                                 : (!lights.lcm && !slcmDetect.present
                                     ? "Using a light module (LCM)? Set Refloat Cfg \u25B8 Hardware \u25B8 LED Mode to External (or Internal and External) and write the config, so it follows these buttons."
                                     : (swSettings.ledConfigured && slcmDetect.present
@@ -14755,7 +14756,7 @@ Item {
                         }
 
                         // RGB LIGHTS: Refloat's own light animations, only when
-                        // Refloat's LEDs are set up (RGB strips, e.g. Thor)
+                        // controller-driven LEDs are set up (RGB strips, e.g. Thor)
                         GridLayout {
                             visible: ledSender.rgbAvail
                             width: parent.width

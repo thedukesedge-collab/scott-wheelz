@@ -804,6 +804,13 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Disclaimer wording (v1.2.3-rf94)
+- Disclaimer: no "(Refloat's own LEDs or a light module)"; adds that the
+  package is based on Refloat 1.2.3, later Refloat versions ride quite
+  differently, and coming back from a newer version will likely feel
+  different. App texts say "controller-driven LEDs" instead of "Refloat's
+  own LEDs" (Refloat drives LEDs, it doesn't have any).
+
 ### Start disclaimer (v1.2.3-rf93)
 - Each time the package UI opens, a BEFORE YOU START dialog says everything
   works off the current Refloat settings and needs a working board (rides
