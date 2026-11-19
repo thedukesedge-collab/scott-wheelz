@@ -5050,6 +5050,7 @@ Item {
                 font.pixelSize: Math.max(fontSizeSuperSmall, speedo.radius * 0.095)
                 text: "DUTY %1%".arg(round(speedo.duty * 100))
             }
+
         }
     }
 
@@ -7437,7 +7438,7 @@ Item {
         target: mc
 
         readonly property real erpmDefault: 100000  // VESC's default Max ERPM (no limit)
-        readonly property real minKmh: 48.3  // 30 mph: lowest cap offered
+        readonly property real minKmh: 64.4  // 40 mph: lowest cap offered (rf96)
         readonly property real maxKmh: 120.7  // 75 mph
         property real wheelD: 0
         property int poles: 0
@@ -7451,6 +7452,8 @@ Item {
         readonly property bool ready: erpmPerKmh > 0
         readonly property bool limited: ready && maxErpm > 0 && maxErpm < erpmDefault * 0.99
         readonly property real capKmh: limited ? maxErpm / erpmPerKmh : 0
+        // rf96: a cap the rider set here (not a huge VESC Tool value): shown on the speedo
+        readonly property bool shown: limited && capKmh < 161
 
         function load() {
             wheelD = mc.getParamDouble("si_wheel_diameter");
@@ -7553,39 +7556,105 @@ Item {
         }
     }
 
+    // rf96: terms before the MAX SPEED window opens (every time)
     BaseDialog {
-        id: maxSpeedDialog
+        id: maxSpeedTerms
         parent: ApplicationWindow.overlay
-        title: "\u26A0 Max speed - at your own risk"
+        title: "\u26A0 Max speed limiter"
         standardButtons: Dialog.Ok | Dialog.Cancel
 
         onOpened: {
             maxSpeedAck.checked = false;
-            standardButton(Dialog.Ok).text = "Set limit";
+            standardButton(Dialog.Ok).text = "Continue";
             standardButton(Dialog.Ok).enabled = false;
         }
-        onAccepted: if (maxSpeedAck.checked) maxSpeed.request(1)
+        onAccepted: if (maxSpeedAck.checked) maxSpeedPanel.open()
 
         Column {
-            width: maxSpeedDialog.availableWidth
+            width: maxSpeedTerms.availableWidth
             spacing: 0.25 * unit
 
             NText {
                 width: parent.width
                 font.pointSize: 12
                 wrapMode: Text.WordWrap
-                text: "This sets VESC's Max ERPM to %1 %2 (%3 ERPM, from your wheel diameter %4 mm, %5 motor poles).\n\n".arg(Math.round(maxSpeed.targetKmh * vescConfig.imperialFactor)).arg(vescConfig.speedUnit).arg(Math.round(maxSpeed.targetKmh * maxSpeed.erpmPerKmh)).arg(Math.round(maxSpeed.wheelD * 1000)).arg(maxSpeed.poles)
-                    + "In the air the tire spins up to about this speed and coasts there: the motor stops pushing harder but doesn't brake or cut out, so you land and ride off like now, with the tire closer to ground speed.\n\n"
-                    + "WARNING: the limit also applies on the ground. If you ever reach it while riding (downhill, a tailwind, a wrong wheel diameter), the motor can no longer push the nose back up and the board WILL NOSEDIVE.\n\n"
-                    + "Set it well above the fastest you ride. ERPM Limit Start is raised to 95% so the push only fades in the last 5%. Check your real top speed after changing the wheel or tire."
+                text: "This is meant for riders who want to limit how fast the tire free-spins in the air (off a jump). It sets VESC's own Max ERPM from your wheel diameter; it is off unless you set it.\n\n"
+                    + "WARNING: the limit also applies while riding. If you ever reach this speed on the ground, the motor can no longer push the nose back up and the board WILL NOSEDIVE.\n\n"
+                    + "Set it well above the fastest you ride, and check your real top speed after changing the wheel or tire. You ride at your own risk."
             }
 
             CheckBox {
                 id: maxSpeedAck
                 width: parent.width
-                text: "I understand the risk and accept it"
-                onCheckedChanged: maxSpeedDialog.standardButton(Dialog.Ok).enabled = checked
+                text: "I understand and accept these terms"
+                onCheckedChanged: maxSpeedTerms.standardButton(Dialog.Ok).enabled = checked
             }
+        }
+    }
+
+    // rf96: the MAX SPEED window (behind the terms)
+    BaseDialog {
+        id: maxSpeedPanel
+        parent: ApplicationWindow.overlay
+        title: "Max speed"
+        standardButtons: Dialog.Close
+
+        Column {
+            width: maxSpeedPanel.availableWidth
+            spacing: 0.2 * unit
+
+            // rf89: MAX SPEED (VESC's Max ERPM from the wheel diameter)
+            SwLText {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                font.pixelSize: fontSizeSmall
+                color: maxSpeed.limited ? swTheme.neonGreen : "#ead6ff"
+                text: !maxSpeed.ready ? "Set the wheel diameter and motor poles in VESC Tool (Motor Settings \u203A Additional Info) first."
+                    : (maxSpeed.limited ? "Now: %1 %2 (Max ERPM %3)".arg(Math.round(maxSpeed.capKmh * vescConfig.imperialFactor)).arg(vescConfig.speedUnit).arg(Math.round(maxSpeed.maxErpm))
+                                        : "Now: no limit")
+                      + " \u00B7 wheel %1 mm, %2 poles".arg(Math.round(maxSpeed.wheelD * 1000)).arg(maxSpeed.poles)
+            }
+
+            SwStepper {
+                visible: maxSpeed.ready
+                label: "LIMIT"
+                value: Math.round(maxSpeed.targetKmh * vescConfig.imperialFactor)
+                from: Math.ceil(maxSpeed.minKmh * vescConfig.imperialFactor)
+                to: Math.floor(maxSpeed.maxKmh * vescConfig.imperialFactor)
+                step: 1
+                suffix: " " + vescConfig.speedUnit
+                onMoved: { maxSpeed.targetTouched = true; maxSpeed.targetKmh = newValue / vescConfig.imperialFactor; }
+            }
+
+            Row {
+                visible: maxSpeed.ready
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 0.2 * unit
+                SwPill {
+                    minWidth: 2.8 * unit
+                    label: "SET LIMIT"
+                    lit: true
+                    onClicked: maxSpeed.request(1)
+                }
+                SwPill {
+                    visible: maxSpeed.limited
+                    minWidth: 2.8 * unit
+                    label: "REMOVE"
+                    onClicked: maxSpeed.request(2)
+                }
+            }
+
+            SwLText {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                font.pixelSize: fontSizeSmall
+                text: "Caps how fast the tire can spin up in the air off a jump: it coasts at about this speed instead of 50+. "
+                    + "Uses VESC's own Max ERPM and your wheel diameter, so it follows your setup. It also caps riding speed: set it well above your top speed."
+            }
+
+            Item { width: parent.width; height: 0.3 * unit }
+
         }
     }
 
@@ -11512,6 +11581,30 @@ Item {
                     valueText: toFixed1Zero(swSettings.peakDuty * 100) + "%"
                 }
 
+                // rf96: a max speed limit is set (MAX SPEED in CONTROL): always
+                // shown at the top of the speedo, between the peaks
+                Rectangle {
+                    visible: maxSpeed.shown
+                    z: 3
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: -0.08 * unit
+                    width: maxSpeedBadge.implicitWidth + 0.3 * unit
+                    height: maxSpeedBadge.implicitHeight + 0.1 * unit
+                    radius: height / 2
+                    color: "#0b0718"
+                    border.color: "#FFB300"
+                    border.width: 1
+                    Text {
+                        id: maxSpeedBadge
+                        anchors.centerIn: parent
+                        color: "#FFB300"
+                        font.family: "Exan"
+                        font.pixelSize: 0.2 * unit
+                        text: "\u26A0 MAX %1 %2".arg(Math.round(maxSpeed.capKmh * vescConfig.imperialFactor)).arg(vescConfig.speedUnit.toUpperCase())
+                    }
+                }
+
                 function resetPeaks() {
                     swSettings.peakSpeed = 0;
                     swSettings.peakDuty = 0;
@@ -13381,65 +13474,6 @@ Item {
                             value: 0
                         }
 
-                        // rf89: MAX SPEED (VESC's Max ERPM from the wheel diameter)
-                        SwNeonLabel {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            font.pixelSize: 0.45 * unit
-                            font.letterSpacing: 0.06 * unit
-                            text: "MAX SPEED"
-                        }
-
-                        SwLText {
-                            width: parent.width
-                            horizontalAlignment: Text.AlignHCenter
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: fontSizeSmall
-                            color: maxSpeed.limited ? swTheme.neonGreen : "#ead6ff"
-                            text: !maxSpeed.ready ? "Set the wheel diameter and motor poles in VESC Tool (Motor Settings \u203A Additional Info) first."
-                                : (maxSpeed.limited ? "Now: %1 %2 (Max ERPM %3)".arg(Math.round(maxSpeed.capKmh * vescConfig.imperialFactor)).arg(vescConfig.speedUnit).arg(Math.round(maxSpeed.maxErpm))
-                                                    : "Now: no limit")
-                                  + " \u00B7 wheel %1 mm, %2 poles".arg(Math.round(maxSpeed.wheelD * 1000)).arg(maxSpeed.poles)
-                        }
-
-                        SwStepper {
-                            visible: maxSpeed.ready
-                            label: "LIMIT"
-                            value: Math.round(maxSpeed.targetKmh * vescConfig.imperialFactor)
-                            from: Math.ceil(maxSpeed.minKmh * vescConfig.imperialFactor)
-                            to: Math.floor(maxSpeed.maxKmh * vescConfig.imperialFactor)
-                            step: 1
-                            suffix: " " + vescConfig.speedUnit
-                            onMoved: { maxSpeed.targetTouched = true; maxSpeed.targetKmh = newValue / vescConfig.imperialFactor; }
-                        }
-
-                        Row {
-                            visible: maxSpeed.ready
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 0.2 * unit
-                            SwPill {
-                                minWidth: 2.8 * unit
-                                label: "SET LIMIT"
-                                lit: true
-                                onClicked: maxSpeedDialog.open()
-                            }
-                            SwPill {
-                                visible: maxSpeed.limited
-                                minWidth: 2.8 * unit
-                                label: "REMOVE"
-                                onClicked: maxSpeed.request(2)
-                            }
-                        }
-
-                        SwLText {
-                            width: parent.width
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: fontSizeSmall
-                            text: "Caps how fast the tire can spin up in the air off a jump: it coasts at about this speed instead of 50+. "
-                                + "Uses VESC's own Max ERPM and your wheel diameter, so it follows your setup. It also caps riding speed: set it well above your top speed."
-                        }
-
-                        Item { width: parent.width; height: 0.3 * unit }
-
                         // Re-RinkFloat: free-spin limiter - rf75: removed from the
                         // package (it was the only change to the balance current);
                         // the controls stay hidden
@@ -13854,6 +13888,23 @@ Item {
                                     color: flywheelOnButton.neon
                                     opacity: flywheelOnButton.spinning || flywheelOnButton.pressed ? 0.9 : 0.3
                                 }
+                            }
+                        }
+
+                        // rf96: MAX SPEED tucked away at the bottom of CONTROL; the
+                        // terms must be accepted each time before it opens
+                        Item { width: parent.width; height: 0.4 * unit }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: maxSpeed.shown ? "\u26A0 MAX SPEED LIMIT: %1 %2 \u203A".arg(Math.round(maxSpeed.capKmh * vescConfig.imperialFactor)).arg(vescConfig.speedUnit.toUpperCase())
+                                                 : "Max speed limiter \u203A"
+                            color: maxSpeed.shown ? "#FFB300" : "#5c5470"
+                            font.family: maxSpeed.shown ? "Exan" : font.family
+                            font.pixelSize: 0.2 * unit
+                            MouseArea {
+                                anchors.fill: parent
+                                anchors.margins: -0.2 * unit
+                                onClicked: maxSpeedTerms.open()
                             }
                         }
 

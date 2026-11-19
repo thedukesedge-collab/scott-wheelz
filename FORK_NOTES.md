@@ -804,6 +804,17 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### MAX SPEED tucked away, terms first, speedo badge (v1.2.3-rf96)
+- MAX SPEED left the CONTROL section list: a dim "Max speed limiter >" line
+  at the bottom of CONTROL (amber "MAX SPEED LIMIT: 45 MPH" when one is
+  set). Tapping it opens terms every time (meant to limit airtime
+  free-spin; reaching it while riding = nosedive) with an "I understand and
+  accept" box that has to be ticked before CONTINUE, then the MAX SPEED
+  window (LIMIT, SET LIMIT, REMOVE). Off by default (no limit until set).
+- Minimum 40 mph (64.4 km/h).
+- While a limit is set (cap under 100 mph) an amber "MAX 45 MPH" badge sits
+  at the top of the speedo, between TOP SPEED and MAX DUTY.
+
 ### Tour wording (v1.2.3-rf95)
 - Home screen page: "TILT slider and MAX SPEED / DUTY"; horn page: "stays
   well within safe, low motor current".

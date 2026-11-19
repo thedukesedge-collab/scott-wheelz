@@ -241,6 +241,7 @@
     <div id="speedoWrap">
       <canvas id="speedo"></canvas>
       <div class="peak nf" id="pkSpeed"><div class="v"></div><div class="l">TOP SPEED</div></div>
+      <div class="nf" id="msBadge" style="display:none;position:absolute;left:50%;transform:translateX(-50%);top:-6px;z-index:3;background:#0b0718;font-size:10px;color:#FFB300;border:1px solid #FFB300;border-radius:999px;padding:2px 9px;white-space:nowrap"></div>
       <div class="peak nf" id="pkDuty"><div class="v"></div><div class="l">MAX DUTY</div></div>
     </div>
     <div class="spacer"></div>
@@ -280,11 +281,6 @@
         <div class="page" id="pgControl">
           <div class="secTitle">Move</div>
           <div id="moveBox"><div class="neonL" id="fwdL">FWD</div><div id="moveTrack"><div class="bar"></div><div id="moveKnob"></div></div><div class="neonL" id="revL">REV</div></div>
-          <div class="secTitle neonL" style="font-size:16px;margin-top:14px">MAX SPEED</div>
-          <p class="ledHint" id="msNow" style="text-align:center"></p>
-          <div id="msSteps"></div>
-          <div class="pills"><div class="pill on" id="msSet">SET LIMIT</div><div class="pill" id="msRemove">REMOVE</div></div>
-          <p class="ledHint">Caps how fast the tire can spin up in the air off a jump: it coasts at about this speed instead of 50+. Uses VESC's own Max ERPM and your wheel diameter, so it follows your setup. It also caps riding speed: set it well above your top speed.</p>
           <div style="display:none"><div class="secTitle neonL" style="font-size:16px;margin-top:14px">FREE-SPIN LIMITER</div>
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Holds the tire at this speed while wheelslip is detected (e.g. in the air off a jump): the motor eases off so the tire keeps spinning just under the limit. Normal riding is not limited. Minimum 40 mph.</p>
           <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin:10px 0 4px">
@@ -307,6 +303,7 @@
           <div class="secTitle neonL" style="font-size:16px;margin-top:14px">MAGIC FLYWHEEL</div>
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Before enabling flywheel mode make sure that your board is nose up and perfectly balanced. To turn it off, you must disengage the board first.</p>
           <div class="fly" id="flyBtn">FLYWHEEL ON</div>
+          <div style="text-align:center;margin:18px 0 6px"><span id="msLink" style="font-size:11px;color:#5c5470;cursor:pointer"></span></div>
         </div>
         <div class="page" id="pgMixer">
           <div style="display:flex;align-items:center;gap:8px"><div class="pill" id="mxPlay">LIVE</div><div class="pill" id="mxRec">&#9679; REC</div><span style="flex:1"></span><span class="neonL" id="mxHint" style="font-size:10px">TAP TO PLAY</span></div>
@@ -355,7 +352,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf95 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf96 · sim</span></div>
     </div>
   </div>
 
@@ -773,23 +770,36 @@ function tourGo(d) { const n = tourI + d; if (n < 0 || n >= TOUR.length) { tourC
 $('tourBack').onclick = () => tourGo(-1); $('tourNext').onclick = () => tourGo(1);
 $('tourCard').addEventListener('pointerdown', e => tourX = e.clientX);
 $('tourCard').addEventListener('pointerup', e => { if (tourX !== null && Math.abs(e.clientX - tourX) > 50) { const d = e.clientX < tourX ? 1 : -1; if (tourI + d >= 0 && tourI + d < TOUR.length) tourGo(d); } tourX = null; });
-// rf89: MAX SPEED (maxSpeed in ui.qml.in): VESC Max ERPM from the wheel
-// diameter / poles set in VESC Tool (pretend: 280 mm, 30 poles)
+// rf89/96: MAX SPEED (maxSpeed in ui.qml.in): VESC Max ERPM from the wheel
+// diameter / poles set in VESC Tool (pretend: 280 mm, 30 poles). Tucked away
+// at the bottom of CONTROL behind terms; a set limit shows on the speedo.
 const MS = { d: 0.28, poles: 30, gear: 1 };
 const msPerMph = () => (1000 / 60) / (Math.PI * MS.d) * (MS.poles / 2) * MS.gear / 0.621371192;
 function renderMs() {
-  if (P.msTarget === undefined) P.msTarget = 45;
+  if (P.msTarget === undefined || P.msTarget < 40) P.msTarget = 45;
+  if (P.msCap && P.msCap < 40) P.msCap = 40;
+  $('msLink').textContent = P.msCap ? '\u26A0 MAX SPEED LIMIT: ' + P.msCap + ' MPH \u203A' : 'Max speed limiter \u203A';
+  $('msBadge').style.display = P.msCap ? '' : 'none'; $('msBadge').textContent = '\u26A0 MAX ' + P.msCap + ' MPH';  // rf96: on the speedo
+  $('msLink').style.color = P.msCap ? '#FFB300' : '#5c5470'; $('msLink').style.fontFamily = P.msCap ? 'Orbitron,monospace' : '';
+  if (!$('msNow')) return;
   $('msNow').textContent = (P.msCap ? 'Now: ' + P.msCap + ' mph (Max ERPM ' + Math.round(P.msCap * msPerMph()) + ')' : 'Now: no limit') + ' · wheel 280 mm, 30 poles';
   $('msNow').style.color = P.msCap ? 'var(--green)' : '';
   $('msRemove').style.display = P.msCap ? '' : 'none';
-  $('msSteps').innerHTML = ''; cuStep('msSteps', 'LIMIT', () => P.msTarget, 30, 75, 1, v => v + ' mph', v => { P.msTarget = v; save(); renderMs(); });
+  $('msSteps').innerHTML = ''; cuStep('msSteps', 'LIMIT', () => P.msTarget, 40, 75, 1, v => v + ' mph', v => { P.msTarget = v; save(); renderMs(); });
 }
-$('msRemove').onclick = () => { P.msCap = 0; save(); renderMs(); toast('Max speed limit removed'); };
-$('msSet').onclick = () => {
-  const e = Math.round(P.msTarget * msPerMph());
-  modal('<h3>\u26A0 MAX SPEED - AT YOUR OWN RISK</h3><div style="font-size:13px;line-height:1.45;color:#d6ffe4">This sets VESC\'s Max ERPM to <b>' + P.msTarget + ' mph</b> (' + e + ' ERPM, from your wheel diameter 280 mm, 30 motor poles).<br><br>In the air the tire spins up to about this speed and coasts there: the motor stops pushing harder but doesn\'t brake or cut out, so you land and ride off like now, with the tire closer to ground speed.<br><br><b style="color:#ff2b4f">WARNING:</b> the limit also applies on the ground. If you ever reach it while riding (downhill, a tailwind, a wrong wheel diameter), the motor can no longer push the nose back up and the board <b style="color:#ff2b4f">WILL NOSEDIVE</b>.<br><br>Set it well above the fastest you ride. ERPM Limit Start is raised to 95% so the push only fades in the last 5%. Check your real top speed after changing the wheel or tire.</div>'
-    + '<label style="display:flex;gap:8px;align-items:center;margin-top:10px;color:#ead6ff;font-size:13px"><input type="checkbox" id="msAck"> I understand the risk and accept it</label>'
-    + '<div class="btns"><button data-close>Cancel</button><button class="pri" data-ok id="msOk" disabled style="opacity:.4">Set limit</button></div>', () => { if (!$('msAck').checked) return false; P.msCap = P.msTarget; save(); renderMs(); toast('Max speed set: ' + P.msCap + ' mph (' + e + ' ERPM)'); });
+function msPanel() {
+  modal('<h3>MAX SPEED</h3><p class="ledHint" id="msNow" style="text-align:center"></p><div id="msSteps"></div>'
+    + '<div class="pills"><div class="pill on" id="msSet">SET LIMIT</div><div class="pill" id="msRemove">REMOVE</div></div>'
+    + '<p class="ledHint">Caps how fast the tire can spin up in the air off a jump: it coasts at about this speed instead of 50+. Uses VESC\'s own Max ERPM and your wheel diameter, so it follows your setup. It also caps riding speed: set it well above your top speed.</p>'
+    + '<div class="btns"><button class="pri" data-close>CLOSE</button></div>');
+  $('msSet').onclick = () => { P.msCap = P.msTarget; save(); renderMs(); toast('Max speed set: ' + P.msCap + ' mph (' + Math.round(P.msCap * msPerMph()) + ' ERPM)'); };
+  $('msRemove').onclick = () => { P.msCap = 0; save(); renderMs(); toast('Max speed limit removed'); };
+  renderMs();
+}
+$('msLink').onclick = () => {
+  modal('<h3>\u26A0 MAX SPEED LIMITER</h3><div style="font-size:13px;line-height:1.45;color:#d6ffe4">This is meant for riders who want to limit how fast the tire free-spins in the air (off a jump). It sets VESC\'s own Max ERPM from your wheel diameter; it is off unless you set it.<br><br><b style="color:#ff2b4f">WARNING:</b> the limit also applies while riding. If you ever reach this speed on the ground, the motor can no longer push the nose back up and the board <b style="color:#ff2b4f">WILL NOSEDIVE</b>.<br><br>Set it well above the fastest you ride, and check your real top speed after changing the wheel or tire. You ride at your own risk.</div>'
+    + '<label style="display:flex;gap:8px;align-items:center;margin-top:10px;color:#ead6ff;font-size:13px"><input type="checkbox" id="msAck"> I understand and accept these terms</label>'
+    + '<div class="btns"><button data-close>CANCEL</button><button class="pri" data-ok id="msOk" disabled style="opacity:.4">CONTINUE</button></div>', () => { if (!$('msAck').checked) return false; setTimeout(msPanel, 50); });
   $('msAck').onchange = () => { $('msOk').disabled = !$('msAck').checked; $('msOk').style.opacity = $('msAck').checked ? 1 : .4; };
 };
 renderMs();
@@ -1527,7 +1537,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf95';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf96';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1827,7 +1837,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf96' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf97' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });
@@ -2119,6 +2129,7 @@ function drawSpeedo() {
   ntext(ctx, Math.round(S.erpm) + ' ERPM', cx, ly, Math.max(8, R * 0.095), '#7d68ab', { mono: true, weight: '500' }); ly += R * 0.11;
   const dcol = S.duty >= 0.9 ? RED : S.duty >= 0.8 ? ORANGE : PURPLE;
   ntext(ctx, 'DUTY ' + Math.round(S.duty * 100) + '%', cx, ly, Math.max(8, R * 0.095), dcol, { mono: true, weight: '500' });
+  // rf96: a max speed limit is set: always shown under the speedo
   // current / duty dials (hidden if the speedo gets squeezed)
   if (h >= 2.6 * u) {
     const ds = 1.9 * u;
