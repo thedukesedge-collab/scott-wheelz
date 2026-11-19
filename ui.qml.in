@@ -389,7 +389,7 @@ Item {
         // (IDLE = 128, see lcm.c refloat_idle_anim).
         readonly property var rfModes: ["SOLID", "FADE", "PULSE", "STROBE", "KNIGHT RIDER", "FELONY",
             "RAINBOW CYCLE", "RAINBOW FADE", "RAINBOW ROLL"]
-        readonly property var rfColors: ["BLACK", "WHITE (FULL)", "WHITE (RGB)", "WHITE (SINGLE)", "RED", "FERRARI",
+        readonly property var rfColors: ["BLACK", "WHITE", "WHITE (RGB)", "WHITE (SINGLE)", "RED", "FERRARI",
             "FLAME", "CORAL", "SUNSET", "SUNRISE", "GOLD", "ORANGE", "YELLOW", "BANANA", "LIME", "ACID", "SAGE",
             "GREEN", "MINT", "TIFFANY", "CYAN", "STEEL", "SKY", "AZURE", "SAPPHIRE", "BLUE", "VIOLET", "AMETHYST",
             "MAGENTA", "PINK", "FUCHSIA", "LAVENDER"]
@@ -416,6 +416,19 @@ Item {
         // (e.g. a Thor on Refloat's own LEDs) the LCM firmware tools are hidden.
         property bool lcmModule: true
         property bool ctrlBeep: true  // is_beeper_enabled (Refloat's beeper on Servo/PPM, also the write beep)
+        // rf87: the colors offered (Refloat's enum indexes): the basic ones;
+        // a color set in VESC Tool outside this list still shows by its name
+        // and is kept until changed here
+        readonly property var rfColorSet: [0, 1, 4, 11, 12, 14, 17, 18, 19, 20, 22, 25, 26, 28, 29]
+        function rfColorNext(cur, dir) {
+            var l = rfColorSet;
+            if (dir > 0) {
+                for (var i = 0; i < l.length; i++) if (l[i] > cur) return l[i];
+            } else {
+                for (var j = l.length - 1; j >= 0; j--) if (l[j] < cur) return l[j];
+            }
+            return cur;
+        }
         // readable text color for a Refloat LED color (black shown dim grey)
         function rfTextColor(i) {
             return i === 0 ? "#8a8a8a" : rfHue[i] < 0 ? "#ffffff" : Qt.hsla(rfHue[i] * 2 / 360, 1, 0.62, 1);
@@ -7240,9 +7253,8 @@ Item {
                                 Layout.alignment: Qt.AlignHCenter
                                 text: "Show tips & tricks"
                                 onClicked: {
-                                    uiHints.reset();
-                                    uiHintsRect.fill(true);
                                     settingsDialog.close();
+                                    rinkTour.open();  // rf87: Neon Future tour of the Rink-Mixed features
                                 }
                             }
                         }
@@ -7593,20 +7605,20 @@ Item {
                                 label: "COLOR 1"
                                 valueWidth: 3.2 * unit
                                 value: ledSender.rfColor1
-                                from: 0; to: ledSender.rfColors.length - 1; step: 1
+                                from: 0; to: 29; step: 1
                                 valueText: ledSender.rfColors[value]
                                 valueColor: ledSender.rfTextColor(value)
-                                onMoved: ledSender.setRf("rfColor1", newValue)
+                                onMoved: ledSender.setRf("rfColor1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                             }
                             SwStepper {
                                 visible: ledSender.rfMode === 1 || ledSender.rfMode === 5
                                 label: "COLOR 2"
                                 valueWidth: 3.2 * unit
                                 value: ledSender.rfColor2
-                                from: 0; to: ledSender.rfColors.length - 1; step: 1
+                                from: 0; to: 29; step: 1
                                 valueText: ledSender.rfColors[value]
                                 valueColor: ledSender.rfTextColor(value)
-                                onMoved: ledSender.setRf("rfColor2", newValue)
+                                onMoved: ledSender.setRf("rfColor2", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                             }
                             Rectangle {
                                 visible: ledSender.rfMode < 6
@@ -8121,20 +8133,20 @@ Item {
                             label: "COLOR 1"
                             valueWidth: 3.2 * unit
                             value: rgbCol.bar.c1 || 0
-                            from: 0; to: ledSender.rfColors.length - 1; step: 1
+                            from: 0; to: 29; step: 1
                             valueText: ledSender.rfColors[value]
                             valueColor: ledSender.rfTextColor(value)
-                            onMoved: ledSender.rgbSet(rgbCol.sel, "c1", newValue)
+                            onMoved: ledSender.rgbSet(rgbCol.sel, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                         }
                         SwStepper {
                             visible: rgbCol.bar.mode === 1 || rgbCol.bar.mode === 5
                             label: "COLOR 2"
                             valueWidth: 3.2 * unit
                             value: rgbCol.bar.c2 || 0
-                            from: 0; to: ledSender.rfColors.length - 1; step: 1
+                            from: 0; to: 29; step: 1
                             valueText: ledSender.rfColors[value]
                             valueColor: ledSender.rfTextColor(value)
-                            onMoved: ledSender.rgbSet(rgbCol.sel, "c2", newValue)
+                            onMoved: ledSender.rgbSet(rgbCol.sel, "c2", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                         }
                         SwStepper {
                             visible: (rgbCol.bar.mode || 0) !== 0
@@ -10385,6 +10397,199 @@ Item {
 
             function onCommsInitialized() {
                 uiHintsRect.fillDataRecord();
+            }
+        }
+    }
+
+    // rf87: Neon Future tour of the Re-Float Rink-Mixed features (SETTINGS >
+    // Show tips & tricks). Swipe or NEXT / BACK; tap outside does nothing.
+    Rectangle {
+        id: rinkTour
+        anchors.fill: parent
+        z: 95
+        visible: false
+        color: "#E6050210"
+
+        function open() { tourSwipe.currentIndex = 0; visible = true; }
+
+        // [glyph, title, where, text]
+        readonly property var pages: [
+            ["✦", "RE:FLOAT RINK-MIXED", "WELCOME", "Refloat 1.2.3 under the hood, Neon Future on top. Swipe through what's new; it takes a minute."],
+            ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and peaks right there."],
+            ["≡", "PULL-UP SHEET", "SWIPE UP", "Drag the sheet up for TUNES, CONTROL, MIXER, DATA, BOARD STYLE and LEDS. Tap anywhere on the main view to put it away."],
+            ["♫", "HORN", "HOME + CONTROL", "Hold HORN to beep through the motor, no extra hardware. Sound and volume (10/10 = 4 V) in CONTROL › HORN SETTINGS. It stays inside safe heat limits."],
+            ["♪", "THE MIXER", "MIXER TAB", "Your board is an instrument. Ten neon tiles, ten notes, played right through the motor. Tap and hold a tile in LIVE to jam."],
+            ["●", "RECORD A MELODY", "MIXER › REC", "Hit REC, then play your tune on the tiles: recording starts with your first note. The timeline fills as you go; CLEAR to start over."],
+            ["▶", "PLAY & SAVE", "MIXER › PLAY / SAVE", "PLAY to hear it back, SAVE to keep it, DONE to make it the melody your board plays when it boots."],
+            ["♥", "MY MELODIES", "MIXER › MY MELODIES", "All your saved tunes in one place. Tap one to make it your boot melody, ✎ to edit it on the tiles, ⧉ to copy, ✕ to delete. DEFAULT MELODY brings the original back; MELODY VOLUME sets how loud."],
+            ["◢", "BOARD STYLE", "BOARD STYLE TAB", "Pick rails, tire and colors so the board on screen looks like yours."],
+            ["◉", "LIGHTS", "LEDS TAB", "HEADLIGHTS: IN MOTION and IDLE levels, SNOOZE after sitting still. STATUS BAR: idle and riding animations. RGB LIGHTS for Refloat's own LEDs (Thor), linked with Refloat's settings."],
+            ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
+            ["♬", "SOUND", "LEDS › SOUND", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
+            ["↻", "UPDATES", "LEDS › UPDATES", "Check for new package and SLCM releases from GitHub, download and flash in a few taps. Floatwheel, XRV, Pint V and GTV light modules with SLCM update over Bluetooth."],
+            ["⚠", "BUILT SAFE", "ALWAYS ON", "The board won't engage while the light module is flashing, settings are only saved standing still, and the sensors are watched the whole ride. Have fun out there."]
+        ]
+
+        MouseArea { anchors.fill: parent }  // block the screen behind
+
+        Rectangle {
+            id: tourCard
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 0.6 * unit, 9 * unit)
+            height: Math.min(parent.height - 1.2 * unit, 11 * unit)
+            radius: 0.35 * unit
+            color: "#0b0718"
+            border.color: swTheme.neonPurple
+            border.width: 2
+
+            Text {
+                id: tourHead
+                anchors.top: parent.top
+                anchors.topMargin: 0.3 * unit
+                anchors.horizontalCenter: parent.horizontalCenter
+                textFormat: Text.StyledText
+                text: "<font color='#b14cff'>RE:</font><font color='#ead6ff'>FLOAT</font> <font color='#7a3fc0'>—</font> <font color='#39ff7a'>RINK-MIXED</font>"
+                font.family: "Exan"
+                font.pixelSize: 0.28 * unit
+            }
+
+            SwipeView {
+                id: tourSwipe
+                anchors.top: tourHead.bottom
+                anchors.topMargin: 0.2 * unit
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: tourDots.top
+                anchors.margins: 0.3 * unit
+                clip: true
+
+                Repeater {
+                    model: rinkTour.pages
+
+                    Item {
+                        Column {
+                            anchors.centerIn: parent
+                            width: parent.width
+                            spacing: 0.25 * unit
+
+                            Item {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                width: 2.2 * unit
+                                height: 2.2 * unit
+                                Rectangle {
+                                    id: tourRing
+                                    anchors.fill: parent
+                                    radius: width / 2
+                                    color: "transparent"
+                                    border.color: swTheme.neonGreen
+                                    border.width: 3
+                                }
+                                Glow {
+                                    anchors.fill: tourRing
+                                    source: tourRing
+                                    radius: Math.round(0.25 * unit)
+                                    samples: 2 * radius + 1
+                                    color: swTheme.neonGreen
+                                    opacity: 0.6
+                                }
+                                Text {
+                                    id: tourGlyph
+                                    anchors.centerIn: parent
+                                    text: modelData[0]
+                                    color: "#d6ffe4"
+                                    font.pixelSize: 0.95 * unit
+                                }
+                                Glow {
+                                    anchors.fill: tourGlyph
+                                    source: tourGlyph
+                                    radius: Math.round(0.2 * unit)
+                                    samples: 2 * radius + 1
+                                    color: swTheme.neonGreen
+                                    opacity: 0.8
+                                }
+                            }
+
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: modelData[2]
+                                color: swTheme.neonPurple
+                                font.family: "Exan"
+                                font.pixelSize: 0.2 * unit
+                                font.letterSpacing: 0.06 * unit
+                            }
+
+                            Item {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                width: parent.width
+                                height: tourTitle.implicitHeight
+                                Text {
+                                    id: tourTitle
+                                    width: parent.width
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.WordWrap
+                                    text: modelData[1]
+                                    color: swTheme.neonGreen
+                                    font.family: "Exan"
+                                    font.pixelSize: 0.42 * unit
+                                    font.letterSpacing: 0.04 * unit
+                                }
+                                Glow {
+                                    anchors.fill: tourTitle
+                                    source: tourTitle
+                                    radius: Math.round(0.15 * unit)
+                                    samples: 2 * radius + 1
+                                    color: swTheme.neonGreen
+                                    opacity: 0.6
+                                }
+                            }
+
+                            Text {
+                                width: parent.width
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                text: modelData[3]
+                                color: "#ead6ff"
+                                font.pixelSize: 0.27 * unit
+                                lineHeight: 1.15
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row {
+                id: tourDots
+                anchors.bottom: tourButtons.top
+                anchors.bottomMargin: 0.25 * unit
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 0.12 * unit
+                Repeater {
+                    model: rinkTour.pages.length
+                    Rectangle {
+                        width: index === tourSwipe.currentIndex ? 0.4 * unit : 0.14 * unit
+                        height: 0.14 * unit
+                        radius: height / 2
+                        color: index === tourSwipe.currentIndex ? swTheme.neonGreen : "#4a2a73"
+                        Behavior on width { NumberAnimation { duration: 150 } }
+                    }
+                }
+            }
+
+            Row {
+                id: tourButtons
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 0.3 * unit
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 0.3 * unit
+                NeonButton {
+                    text: tourSwipe.currentIndex === 0 ? "Skip" : "Back"
+                    onClicked: tourSwipe.currentIndex === 0 ? rinkTour.visible = false : tourSwipe.decrementCurrentIndex()
+                }
+                NeonButton {
+                    lit: true
+                    text: tourSwipe.currentIndex === rinkTour.pages.length - 1 ? "Done" : "Next"
+                    onClicked: tourSwipe.currentIndex === rinkTour.pages.length - 1 ? rinkTour.visible = false : tourSwipe.incrementCurrentIndex()
+                }
             }
         }
     }

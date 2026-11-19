@@ -185,10 +185,27 @@
   .sl b { color: #d6ffe4; font-weight: 500; text-align: right; font-family: ui-monospace, monospace; }
   .sl.locked { opacity: .45; }
 .rgbGrp{display:flex;align-items:center;gap:6px;margin:3px 0}.rgbGrp span{flex:1;color:var(--green);font-size:13px;letter-spacing:1px;text-shadow:0 0 6px var(--green)}.rgbGrp .pill{min-width:64px;text-align:center}
+  #tour { position: absolute; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(5,2,16,.9); }
+  #tour.on { display: flex; }
+  #tourCard { width: calc(100% - 24px); max-width: 360px; height: min(560px, calc(100% - 40px)); background: #0b0718; border: 2px solid var(--purple); border-radius: 14px; display: flex; flex-direction: column; align-items: center; padding: 14px 14px 16px; box-sizing: border-box; }
+  #tourPg { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; transition: opacity .18s; }
+  #tourRing { width: 86px; height: 86px; border: 3px solid var(--green); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 38px; color: #d6ffe4; box-shadow: 0 0 14px var(--green), inset 0 0 10px rgba(57,255,122,.4); text-shadow: 0 0 10px var(--green); }
+  #tourWhere { font: 700 10px Orbitron, monospace; letter-spacing: 2px; color: var(--purple); }
+  #tourTitle { font: 700 20px Orbitron, monospace; color: var(--green); letter-spacing: 1px; text-shadow: 0 0 8px var(--green); }
+  #tourText { color: #ead6ff; font-size: 13px; line-height: 1.45; }
+  #tourDots { display: flex; gap: 5px; margin: 10px 0; }
+  #tourDots i { width: 6px; height: 6px; border-radius: 3px; background: #4a2a73; transition: width .15s; }
+  #tourDots i.on { width: 16px; background: var(--green); }
 </style>
 </head>
 <body>
 <div id="phone">
+<div id="tour"><div id="tourCard">
+  <div class="nf" style="font-size:12px"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span></div>
+  <div id="tourPg"><div id="tourRing"></div><div id="tourWhere"></div><div id="tourTitle"></div><div id="tourText"></div></div>
+  <div id="tourDots"></div>
+  <div style="display:flex;gap:12px"><div class="pill" id="tourBack" style="min-width:90px;text-align:center"></div><div class="pill on" id="tourNext" style="min-width:90px;text-align:center"></div></div>
+</div></div>
   <div id="mainBg" class="gridbg"></div>
   <div id="hud">
     <div id="batt"><div id="battFill"></div><div id="battV"></div><div id="battPct" class="nf"></div></div>
@@ -311,7 +328,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf86 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf87 · sim</span></div>
     </div>
   </div>
 
@@ -698,6 +715,35 @@ $('btnEdit').onclick = () => {
   $('mName').value = P.name;
   const n = () => $('mNameN').textContent = $('mName').value.length + ' / 30 · shown at the top of the dashboard'; n(); $('mName').oninput = n;
 };
+// rf87: Neon Future tour (SETTINGS > PREFERENCES > SHOW TIPS & TRICKS), same pages as rinkTour in ui.qml.in
+const TOUR = [
+  ["✦", "RE:FLOAT RINK-MIXED", "WELCOME", "Refloat 1.2.3 under the hood, Neon Future on top. Swipe through what's new; it takes a minute."],
+  ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and peaks right there."],
+  ["≡", "PULL-UP SHEET", "SWIPE UP", "Drag the sheet up for TUNES, CONTROL, MIXER, DATA, BOARD STYLE and LEDS. Tap anywhere on the main view to put it away."],
+  ["♫", "HORN", "HOME + CONTROL", "Hold HORN to beep through the motor, no extra hardware. Sound and volume (10/10 = 4 V) in CONTROL › HORN SETTINGS. It stays inside safe heat limits."],
+  ["♪", "THE MIXER", "MIXER TAB", "Your board is an instrument. Ten neon tiles, ten notes, played right through the motor. Tap and hold a tile in LIVE to jam."],
+  ["●", "RECORD A MELODY", "MIXER › REC", "Hit REC, then play your tune on the tiles: recording starts with your first note. The timeline fills as you go; CLEAR to start over."],
+  ["▶", "PLAY & SAVE", "MIXER › PLAY / SAVE", "PLAY to hear it back, SAVE to keep it, DONE to make it the melody your board plays when it boots."],
+  ["♥", "MY MELODIES", "MIXER › MY MELODIES", "All your saved tunes in one place. Tap one to make it your boot melody, ✎ to edit it on the tiles, ⧉ to copy, ✕ to delete. DEFAULT MELODY brings the original back; MELODY VOLUME sets how loud."],
+  ["◢", "BOARD STYLE", "BOARD STYLE TAB", "Pick rails, tire and colors so the board on screen looks like yours."],
+  ["◉", "LIGHTS", "LEDS TAB", "HEADLIGHTS: IN MOTION and IDLE levels, SNOOZE after sitting still. STATUS BAR: idle and riding animations. RGB LIGHTS for Refloat's own LEDs (Thor), linked with Refloat's settings."],
+  ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
+  ["♬", "SOUND", "LEDS › SOUND", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
+  ["↻", "UPDATES", "LEDS › UPDATES", "Check for new package and SLCM releases from GitHub, download and flash in a few taps. Floatwheel, XRV, Pint V and GTV light modules with SLCM update over Bluetooth."],
+  ["⚠", "BUILT SAFE", "ALWAYS ON", "The board won't engage while the light module is flashing, settings are only saved standing still, and the sensors are watched the whole ride. Have fun out there."]
+];
+let tourI = 0, tourX = null;
+function tourShow() {
+  const [g, t, w, x] = TOUR[tourI];
+  $('tourRing').textContent = g; $('tourWhere').textContent = w; $('tourTitle').textContent = t; $('tourText').textContent = x;
+  $('tourDots').innerHTML = TOUR.map((_, i) => '<i' + (i === tourI ? ' class="on"' : '') + '></i>').join('');
+  $('tourBack').textContent = tourI ? 'BACK' : 'SKIP'; $('tourNext').textContent = tourI === TOUR.length - 1 ? 'DONE' : 'NEXT';
+}
+function tourOpen() { tourI = 0; tourShow(); $('tour').classList.add('on'); }
+function tourGo(d) { const n = tourI + d; if (n < 0 || n >= TOUR.length) { $('tour').classList.remove('on'); return; } tourI = n; $('tourPg').style.opacity = 0; setTimeout(() => { tourShow(); $('tourPg').style.opacity = 1; }, 120); }
+$('tourBack').onclick = () => tourGo(-1); $('tourNext').onclick = () => tourGo(1);
+$('tourCard').addEventListener('pointerdown', e => tourX = e.clientX);
+$('tourCard').addEventListener('pointerup', e => { if (tourX !== null && Math.abs(e.clientX - tourX) > 50) { const d = e.clientX < tourX ? 1 : -1; if (tourI + d >= 0 && tourI + d < TOUR.length) tourGo(d); } tourX = null; });
 $('btnSettings').onclick = () => {
   const sw = (id, on, l) => '<div class="row"><div class="l">' + l + '</div><div class="sw' + (on ? ' on' : '') + '" data-sw="' + id + '"></div></div>';
   modal('<h3>SETTINGS</h3><div class="tabs"><div class="pill on" data-tab="0">SETUP</div><div class="pill" data-tab="1">PREFERENCES</div></div>'
@@ -711,13 +757,14 @@ $('btnSettings').onclick = () => {
     + '<div data-pg="1" style="display:none;max-height:52vh;overflow:auto">'
     + '<div class="card"><b>DASHBOARD</b><div class="row"><div class="l">Speed dial max (' + 'mph)</div><input type="number" id="mDial" min="10" max="200" style="width:80px"></div>' + sw('a', true, 'Show battery voltage') + sw('b', false, 'Battery voltage per cell') + sw('c', true, 'Log scale for the battery current bar') + '</div>'
     + '<div class="card"><b>TUNES</b>' + sw('d', false, 'Show changed options count') + '</div>'
-    + '<div class="card"><b>DATA &amp; APP</b>' + sw('e', true, 'Show Welcome dialog') + sw('f', true, 'Check for new package versions') + '</div></div>'
+    + '<div class="card"><b>DATA &amp; APP</b>' + sw('e', true, 'Show Welcome dialog') + sw('f', true, 'Check for new package versions') + '<div style="text-align:center;margin-top:6px"><span class="nb" id="mTour">SHOW TIPS &amp; TRICKS</span></div></div></div>'
     + '<div class="btns"><button class="pri" data-ok>CLOSE</button></div>', () => { P.dialMax = clamp(+$('mDial').value || 40, 10, 200); save(); });
   $('mDial').value = P.dialMax;
   $('mDial').readOnly = true; $('mDial').style.color = 'var(--green)'; $('mDial').style.fontFamily = 'Orbitron,monospace';
   $('mDial').onclick = () => numPad('Speed dial max', +$('mDial').value || 40, 10, 200, 'mph', v => { $('mDial').value = v; P.dialMax = v; save(); });
   document.querySelectorAll('#modalBox [data-tab]').forEach(t => t.onclick = () => { document.querySelectorAll('#modalBox [data-tab]').forEach(x => x.classList.toggle('on', x === t)); document.querySelectorAll('#modalBox [data-pg]').forEach(g => g.style.display = g.dataset.pg === t.dataset.tab ? '' : 'none'); });
   document.querySelectorAll('#modalBox [data-sw]').forEach(x => x.onclick = () => x.classList.toggle('on'));
+  $('mTour').onclick = () => { $('modal').classList.remove('on'); tourOpen(); };
   document.querySelectorAll('#modalBox [data-t]').forEach(x => x.onclick = () => toast(x.dataset.t));
 };
 
@@ -1092,12 +1139,15 @@ const ANIM_ZERO = { ledAnimIdle: 'STANDARD', ledAnimRide: 'OFF', ledAnimDoze: 'O
 const animLabel = (k, v) => v === 15 ? 'STATUS BAR' : v === 0 ? ANIM_ZERO[k] : LED_ANIMS[v];
 // rf72: Refloat's own Status Idle animation (leds.status_idle.*, leds.status.idle_timeout)
 const RF_MODES = ['SOLID', 'FADE', 'PULSE', 'STROBE', 'KNIGHT RIDER', 'FELONY', 'RAINBOW CYCLE', 'RAINBOW FADE', 'RAINBOW ROLL'];
-const RF_COLORS = ['BLACK', 'WHITE (FULL)', 'WHITE (RGB)', 'WHITE (SINGLE)', 'RED', 'FERRARI', 'FLAME', 'CORAL', 'SUNSET', 'SUNRISE', 'GOLD', 'ORANGE',
+const RF_COLORS = ['BLACK', 'WHITE', 'WHITE (RGB)', 'WHITE (SINGLE)', 'RED', 'FERRARI', 'FLAME', 'CORAL', 'SUNSET', 'SUNRISE', 'GOLD', 'ORANGE',
   'YELLOW', 'BANANA', 'LIME', 'ACID', 'SAGE', 'GREEN', 'MINT', 'TIFFANY', 'CYAN', 'STEEL', 'SKY', 'AZURE', 'SAPPHIRE', 'BLUE', 'VIOLET', 'AMETHYST',
   'MAGENTA', 'PINK', 'FUCHSIA', 'LAVENDER'];
 const RF_HUE = [-1, -1, -1, -1, 0, 7, 9, 5, 10, 13, 13, 14, 19, 18, 30, 41, 46, 60, 69, 83, 90, 107, 100, 101, 107, 120, 135, 132, 150, 157, 167, 170];
 const rfRgb = i => i === 0 ? [32, 32, 32] : RF_HUE[i] < 0 ? [255, 255, 255] : hsl2rgb(RF_HUE[i] * 2 / 360);
 function hsl2rgb(h) { const f = n => { const k = (n + h * 12) % 12; return Math.round(255 * (0.5 - 0.5 * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); }; return [f(0), f(8), f(4)]; }
+// rf87: the colors offered (rfColorSet in ui.qml.in); others still show by name
+const RF_SET = [0, 1, 4, 11, 12, 14, 17, 18, 19, 20, 22, 25, 26, 28, 29];
+const rfNext = (cur, v) => v > cur ? (RF_SET.find(x => x > cur) ?? cur) : v < cur ? ([...RF_SET].reverse().find(x => x < cur) ?? cur) : cur;
 // readable text in the color itself (black shown dim grey), as rfTextColor in ui.qml.in
 const rfTxt = i => i === 0 ? '#8a8a8a' : RF_HUE[i] < 0 ? '#ffffff' : 'hsl(' + RF_HUE[i] * 2 + ',100%,62%)';
 const rfCss = (c, a) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (a === undefined ? 1 : a).toFixed(2) + ')';
@@ -1262,9 +1312,9 @@ function renderRgb() {
   $('rgbPreview').innerHTML = [...RF_MODES[b.mode]].map(ch => '<span>' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
   document.querySelectorAll('#rgbPreview ~ .stepBtn, .animSel:not(#rfSel) .stepBtn').forEach(x => x.classList.toggle('lim', +x.dataset.d < 0 ? b.mode <= 0 : b.mode >= 8));
   box.innerHTML = '';
-  const st = (k, l, mn, mx, stp, fmt) => cuStep('rgbSteps', l, () => b[k], mn, mx, stp, fmt, v => { b[k] = Math.round(v * 100) / 100; P.ledCfg = true; save(); renderRgb(); renderLedsSoft(); }, k[0] === 'c' ? rfTxt : null);
-  if (b.mode < 6) st('c1', 'COLOR 1', 0, 31, 1, v => RF_COLORS[v]);
-  if (b.mode === 1 || b.mode === 5) st('c2', 'COLOR 2', 0, 31, 1, v => RF_COLORS[v]);
+  const st = (k, l, mn, mx, stp, fmt) => cuStep('rgbSteps', l, () => b[k], mn, mx, stp, fmt, v => { b[k] = k[0] === 'c' ? rfNext(b[k], v) : Math.round(v * 100) / 100; P.ledCfg = true; save(); renderRgb(); renderLedsSoft(); }, k[0] === 'c' ? rfTxt : null);
+  if (b.mode < 6) st('c1', 'COLOR 1', 0, 29, 1, v => RF_COLORS[v]);
+  if (b.mode === 1 || b.mode === 5) st('c2', 'COLOR 2', 0, 29, 1, v => RF_COLORS[v]);
   if (b.mode !== 0) st('speed', 'SPEED', 0.1, 5, 0.1, v => v.toFixed(1) + '/s');
   // HEAD / FRONT brightness = the HEADLIGHTS window's RIDING / RUNNING levels
   const bk = i === 0 ? 'ledHeadPct' : i === 2 ? 'ledHeadIdlePct' : null;
@@ -1287,9 +1337,9 @@ function renderRf() {
   $('rfSensPill').textContent = 'FOOTPAD SENSORS ' + (P.rfSens ? 'ON' : 'OFF'); $('rfSensPill').classList.toggle('on', P.rfSens);
   box.innerHTML = ''; $('rfSwatch').style.display = on && P.rfMode < 6 ? '' : 'none';
   if (on) {
-    const st = (k, l, mn, mx, stp, fmt) => cuStep('rfSteps', l, () => P[k], mn, mx, stp, fmt, v => { P[k] = Math.round(v * 10) / 10; P.ledAnimIdle = 15; P.ledCfg = true; save(); renderRf(); renderLedsSoft(); }, k.startsWith('rfColor') ? rfTxt : null);
-    if (P.rfMode < 6) st('rfColor1', 'COLOR 1', 0, 31, 1, v => RF_COLORS[v]);
-    if (P.rfMode === 1 || P.rfMode === 5) st('rfColor2', 'COLOR 2', 0, 31, 1, v => RF_COLORS[v]);
+    const st = (k, l, mn, mx, stp, fmt) => cuStep('rfSteps', l, () => P[k], mn, mx, stp, fmt, v => { P[k] = k.startsWith('rfColor') ? rfNext(P[k], v) : Math.round(v * 10) / 10; P.ledAnimIdle = 15; P.ledCfg = true; save(); renderRf(); renderLedsSoft(); }, k.startsWith('rfColor') ? rfTxt : null);
+    if (P.rfMode < 6) st('rfColor1', 'COLOR 1', 0, 29, 1, v => RF_COLORS[v]);
+    if (P.rfMode === 1 || P.rfMode === 5) st('rfColor2', 'COLOR 2', 0, 29, 1, v => RF_COLORS[v]);
     if (P.rfMode !== 0) st('rfSpeed', 'SPEED', 0.1, 5, 0.1, v => v.toFixed(1) + '/s');
     st('rfTimeout', 'START AFTER', 1, 300, 1, v => v + ' s');
     $('rfSwatch').style.background = 'linear-gradient(90deg,' + rfCss(rfRgb(P.rfColor1)) + ',' + rfCss(rfRgb(P.rfMode === 1 || P.rfMode === 5 ? P.rfColor2 : P.rfColor1)) + ')';
@@ -1398,7 +1448,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf86';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf87';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -1698,7 +1748,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf87' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf88' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

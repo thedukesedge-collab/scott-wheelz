@@ -804,6 +804,17 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Neon tips & tricks tour, simpler colors (v1.2.3-rf87)
+- SETTINGS > Show tips & tricks opens a Neon Future tour (rinkTour) of the
+  Rink-Mixed features: home screen, sheet, horn, the MIXER (play live, REC,
+  PLAY / SAVE / DONE, MY MELODIES), board style, lights, battery gauge,
+  sound, updates, safety. Swipe or BACK / NEXT. (Upstream's hints still
+  show on first start.) Same tour in the simulator.
+- Color steppers offer the basic colors only (ledSender.rfColorSet: black,
+  white, red, orange, yellow, lime, green, mint, tiffany, cyan, sky, blue,
+  violet, magenta, pink); WHITE (FULL) shows as WHITE. A color set in VESC
+  Tool outside the list still shows by name and is kept until changed.
+
 ### Snooze for Refloat's own LEDs (v1.2.3-rf86)
 - LEDS > HEADLIGHTS > SNOOZE AFTER (NEVER, 1-60 min; shown with Refloat's
   own LEDs, e.g. Thor): after that long in READY with no movement, footpad
