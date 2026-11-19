@@ -158,7 +158,7 @@
   .modal .card p { margin: 0 0 8px; font-size: 11px; color: #cbb8ec; text-align: center; }
   .modal .row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid #3a2266; }
   .modal .row:first-of-type { border-top: 0; }
-  .modal .row .l { flex: 1; font-size: 12px; color: #ead6ff; } .modal .row .l small { display: block; color: #9d8ac0; font-size: 10px; }
+  .modal .row .l { flex: 1; font-size: 12px; color: var(--green); } .modal .row .l small { display: block; color: #9d8ac0; font-size: 10px; }
   .modal .nb { border: 2px solid var(--green); color: var(--green); border-radius: 999px; padding: 6px 12px; font-family: Orbitron, monospace; font-size: 10px; cursor: pointer; }
   .modal .sw { width: 38px; height: 20px; border-radius: 10px; background: #3a2266; position: relative; cursor: pointer; } .modal .sw.on { background: var(--green); }
   .modal .sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #ead6ff; transition: left .15s; } .modal .sw.on::after { left: 20px; }
@@ -228,6 +228,7 @@
     <div id="horn"><div id="hornText" class="nf">HORN</div><div id="hornGauge"></div></div>
   </div>
 
+  <div id="sheetDismiss" style="position:absolute;left:0;right:0;top:0;z-index:5;display:none"></div>
   <div id="sheet" class="gridbg anim">
     <div id="sheetInner">
       <div id="handle"><div class="grip"></div></div>
@@ -318,6 +319,13 @@
     <div class="nf" style="text-align:center;color:var(--green);font-size:16px;margin-bottom:8px">&#10004; LCM UPDATE DOWNLOADED</div>
     <div id="updPromptText" style="white-space:pre-wrap"></div>
     <div class="pills" style="margin-top:12px"><div class="pill" id="updLater">LATER</div><div class="pill on" id="updGo">FLASH UPDATE</div></div>
+  </div>
+  <div id="npDim" style="position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:70;display:none"></div>
+  <div id="np" style="position:absolute;left:0;right:0;bottom:0;z-index:71;display:none;background:#0b0718;border:2px solid var(--purple);border-radius:14px 14px 0 0;padding:12px">
+    <div class="neonL" id="npLabel" style="text-align:center;font-size:14px"></div>
+    <div class="nf" id="npVal" style="text-align:center;color:var(--green);font-size:30px;margin:4px 0"></div>
+    <div id="npRange" style="text-align:center;font-size:11px;color:#c98bff;margin-bottom:8px"></div>
+    <div id="npKeys" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
   </div>
   <div id="updPromptDim" style="position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:59;display:none"></div>
   <div id="ledWin" style="position:absolute;left:0;right:0;bottom:0;height:50%;z-index:46;display:none;flex-direction:column;gap:8px;background:#0b0718;border:2px solid var(--purple);border-radius:14px 14px 0 0;padding:10px 12px">
@@ -631,8 +639,12 @@ function applySheet() {
   const avail = rootH - h - 0.1 * u, full = rootH - sheetMin - 0.1 * u;
   $('mainBg').style.height = px(avail);
   $('hud').style.transform = 'scale(' + Math.min(1, avail / Math.max(1, full)) + ')';
+  // rf81: with the sheet up, a tap on the main view above it puts it down
+  $('sheetDismiss').style.height = px(Math.max(0, rootH - h));
+  $('sheetDismiss').style.display = sheetF >= 0.5 ? 'block' : 'none';
 }
 function setSheet(f) { sheetF = f; P.sheet = f; save(); $('sheet').classList.add('anim'); applySheet(); }
+$('sheetDismiss').addEventListener('click', () => setSheet(0));
 (() => {
   const hd = $('handle'); let y0 = 0, f0 = 0, moved = false;
   hd.addEventListener('pointerdown', e => { hd.setPointerCapture(e.pointerId); y0 = e.clientY; f0 = sheetF; moved = false; dragging = true; hd.classList.add('drag'); $('sheet').classList.remove('anim'); });
@@ -689,6 +701,8 @@ $('btnSettings').onclick = () => {
     + '<div class="card"><b>DATA &amp; APP</b>' + sw('e', true, 'Show Welcome dialog') + sw('f', true, 'Check for new package versions') + '</div></div>'
     + '<div class="btns"><button class="pri" data-ok>CLOSE</button></div>', () => { P.dialMax = clamp(+$('mDial').value || 40, 10, 200); save(); });
   $('mDial').value = P.dialMax;
+  $('mDial').readOnly = true; $('mDial').style.color = 'var(--green)'; $('mDial').style.fontFamily = 'Orbitron,monospace';
+  $('mDial').onclick = () => numPad('Speed dial max', +$('mDial').value || 40, 10, 200, 'mph', v => { $('mDial').value = v; P.dialMax = v; save(); });
   document.querySelectorAll('#modalBox [data-tab]').forEach(t => t.onclick = () => { document.querySelectorAll('#modalBox [data-tab]').forEach(x => x.classList.toggle('on', x === t)); document.querySelectorAll('#modalBox [data-pg]').forEach(g => g.style.display = g.dataset.pg === t.dataset.tab ? '' : 'none'); });
   document.querySelectorAll('#modalBox [data-sw]').forEach(x => x.onclick = () => x.classList.toggle('on'));
   document.querySelectorAll('#modalBox [data-t]').forEach(x => x.onclick = () => toast(x.dataset.t));
@@ -1668,6 +1682,31 @@ function updPrompt(on) {
   $('updPromptText').textContent = UPD.dlMsg + '\n\n' + (l ? 'Your light module runs SLCM ' + verTxt(l) + '.\n\n' : '')
     + 'FLASH UPDATE opens the LCM firmware tools with this file selected and runs CHECK LCM. Then CONTINUE and FLASH LCM, as always.\n\nBoard powered on and idle, app connected. The board won’t start while it updates (about a minute).';
 }
+// rf81: neon number pad with DONE (the real one: numPad in ui.qml.in)
+const NP = { entry: '', fresh: true, mn: 0, mx: 100, unit: '', fn: null };
+function npPaint() {
+  const v = NP.entry === '' ? -1 : +NP.entry, out = v >= 0 && (v < NP.mn || v > NP.mx);
+  $('npVal').textContent = (NP.entry === '' ? '-' : NP.entry) + (NP.unit ? ' ' + NP.unit : '');
+  $('npRange').textContent = NP.mn + ' \u2013 ' + NP.mx + (out ? ' \u00B7 DONE keeps it in range' : ''); $('npRange').style.color = out ? '#FFB300' : '#c98bff';
+}
+function numPad(label, value, mn, mx, unit, fn) {
+  Object.assign(NP, { entry: String(value), fresh: true, mn, mx, unit, fn });
+  $('npLabel').textContent = label.toUpperCase(); npPaint();
+  $('np').style.display = $('npDim').style.display = 'block';
+}
+const npClose = () => { $('np').style.display = $('npDim').style.display = 'none'; };
+['1', '2', '3', '4', '5', '6', '7', '8', '9', '<', '0', 'DONE'].forEach(k => {
+  const b = document.createElement('div'); b.className = 'pill' + (k === 'DONE' ? ' on' : ''); b.style.cssText = 'text-align:center;padding:12px 0;font-size:' + (k === 'DONE' ? 13 : 20) + 'px;border-radius:10px' + (k === 'DONE' ? '' : ';color:var(--green)');
+  b.innerHTML = k === '<' ? '&#9003;' : k;
+  b.onclick = () => {
+    if (k === 'DONE') { if (NP.entry !== '' && NP.fn) NP.fn(clamp(+NP.entry, NP.mn, NP.mx)); npClose(); return; }
+    if (k === '<') NP.entry = NP.fresh ? '' : NP.entry.slice(0, -1);
+    else if (NP.fresh || NP.entry.length < 4) { NP.entry = (NP.fresh ? '' : NP.entry) + k; if (NP.entry.length > 1 && NP.entry[0] === '0') NP.entry = NP.entry.slice(1); }
+    NP.fresh = false; npPaint();
+  };
+  $('npKeys').appendChild(b);
+});
+$('npDim').onclick = npClose;
 $('updCheckBtn').onclick = updCheck;
 $('updDl').onclick = updDownload;
 $('updFlash').onclick = () => updPrompt(true);

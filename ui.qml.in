@@ -6796,6 +6796,7 @@ Item {
             property alias checked: swtch.checked
 
             LText {
+                color: swTheme.neonGreen  // rf81: neon settings text
                 Layout.fillWidth: true
                 text: parent.label
             }
@@ -6817,6 +6818,7 @@ Item {
             property int maxValue: 100
 
             LText {
+                color: swTheme.neonGreen  // rf81: neon settings text
                 Layout.fillWidth: true
                 text: parent.label
             }
@@ -6828,6 +6830,17 @@ Item {
                 maximumLength: 4
                 horizontalAlignment: TextInput.AlignRight
                 inputMethodHints: Qt.ImhDigitsOnly
+                // rf81: our own neon number pad (with DONE) instead of the
+                // phone's grey keyboard
+                readOnly: true
+                color: swTheme.neonGreen
+                font.family: "Exan"
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: numPad.edit(textField.parent.label, textField.parent.value, textField.parent.minValue,
+                        textField.parent.maxValue, textField.parent.valueUnit, function(v) { textField.text = String(v); })
+                }
 
                 property string prevText
 
@@ -6858,6 +6871,7 @@ Item {
             }
 
             LText {
+                color: swTheme.neonGreen  // rf81: neon settings text
                 text: parent.valueUnit
             }
         }
@@ -6989,7 +7003,7 @@ Item {
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 0
-                                    LText { text: "Automatic"; font.pixelSize: 0.26 * unit; color: "#ead6ff" }
+                                    LText { text: "Automatic"; font.pixelSize: 0.26 * unit; color: swTheme.neonGreen }
                                     NText {
                                         id: setupAutoBackupDate
                                         property var backup: null
@@ -7015,7 +7029,7 @@ Item {
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 0
-                                    LText { text: "This board"; font.pixelSize: 0.26 * unit; color: "#ead6ff" }
+                                    LText { text: "This board"; font.pixelSize: 0.26 * unit; color: swTheme.neonGreen }
                                     NText {
                                         id: setupIdBackupDate
                                         property var backup: null
@@ -7042,7 +7056,7 @@ Item {
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 0
-                                    LText { text: "Shared"; font.pixelSize: 0.26 * unit; color: "#ead6ff" }
+                                    LText { text: "Shared"; font.pixelSize: 0.26 * unit; color: swTheme.neonGreen }
                                     NText {
                                         font.pixelSize: 0.2 * unit
                                         color: "#9d8ac0"
@@ -7121,6 +7135,7 @@ Item {
                                 Layout.fillWidth: true
 
                                 LText {
+                                    color: swTheme.neonGreen  // rf81: neon settings text
                                     text: "Tune slots"
                                 }
 
@@ -8732,6 +8747,122 @@ Item {
                         if (!lcmFwConfirm.ack) return;
                         lcmFwConfirm.close();
                         if (lcmFw.canFlash) lcmFw.start();
+                    }
+                }
+            }
+        }
+    }
+
+    // Re-Float Rink-Mixed (rf81): neon number pad for the settings' number
+    // fields (IntTextField) - themed like the rest, DONE applies the value
+    // (kept within the field's range) and closes it
+    Popup {
+        id: numPad
+        parent: mainItem
+        x: 0
+        y: mainItem.height - height
+        width: mainItem.width
+        modal: true
+        dim: true
+        padding: 0.25 * unit
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        property string label: ""
+        property string unitText: ""
+        property string entry: ""
+        property bool fresh: true  // the first key replaces the old value
+        property int minValue: 0
+        property int maxValue: 100
+        property var apply: null
+
+        function edit(lbl, value, mn, mx, unitTxt, fn) {
+            label = lbl;
+            unitText = unitTxt || "";
+            minValue = mn;
+            maxValue = mx;
+            entry = String(value);
+            fresh = true;
+            apply = fn;
+            open();
+        }
+        function key(k) {
+            if (k === "<") {
+                entry = fresh ? "" : entry.slice(0, -1);
+            } else if (entry.length < 4 || fresh) {
+                entry = (fresh ? "" : entry) + k;
+                if (entry.length > 1 && entry.charAt(0) === "0") entry = entry.substr(1);
+            }
+            fresh = false;
+        }
+        function done() {
+            if (entry !== "" && apply) {
+                apply(Math.max(minValue, Math.min(maxValue, parseInt(entry))));
+            }
+            close();
+        }
+
+        background: Rectangle {
+            color: "#0b0718"
+            radius: 0.25 * unit
+            border.color: swTheme.neonPurple
+            border.width: 2
+        }
+
+        Column {
+            width: parent.width
+            spacing: 0.15 * unit
+
+            SwNeonLabel {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: numPad.label.toUpperCase()
+            }
+
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                color: swTheme.neonGreen
+                font.family: "Exan"
+                font.pixelSize: 0.6 * unit
+                text: (numPad.entry === "" ? "-" : numPad.entry) + (numPad.unitText !== "" ? " " + numPad.unitText : "")
+            }
+
+            SwLText {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                font.pixelSize: fontSizeSmall
+                readonly property int v: numPad.entry === "" ? -1 : parseInt(numPad.entry)
+                color: v >= 0 && (v < numPad.minValue || v > numPad.maxValue) ? "#FFB300" : "#c98bff"
+                text: numPad.minValue + " \u2013 " + numPad.maxValue
+                    + (v >= 0 && (v < numPad.minValue || v > numPad.maxValue) ? " \u00B7 DONE keeps it in range" : "")
+            }
+
+            Grid {
+                anchors.horizontalCenter: parent.horizontalCenter
+                columns: 3
+                spacing: 0.15 * unit
+                Repeater {
+                    model: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "<", "0", "DONE"]
+                    Rectangle {
+                        width: (numPad.availableWidth - 0.3 * unit) / 3
+                        height: 0.95 * unit
+                        radius: 0.2 * unit
+                        readonly property bool isDone: modelData === "DONE"
+                        color: padKey.pressed || isDone ? swTheme.neonGreen : "#140a26"
+                        border.color: isDone || padKey.pressed ? swTheme.neonGreen : swTheme.neonPurple
+                        border.width: 2
+                        Text {
+                            anchors.centerIn: parent
+                            text: modelData === "<" ? "\u232B" : modelData
+                            color: padKey.pressed || parent.isDone ? swTheme.background : swTheme.neonGreen
+                            font.family: modelData === "<" ? "" : "Exan"
+                            font.pixelSize: (parent.isDone ? 0.3 : 0.42) * unit
+                        }
+                        MouseArea {
+                            id: padKey
+                            anchors.fill: parent
+                            onClicked: parent.isDone ? numPad.done() : numPad.key(modelData)
+                        }
                     }
                 }
             }
@@ -12013,6 +12144,18 @@ Item {
                 }
             }
         }
+    }
+
+    // Re-Float Rink-Mixed (rf81): with the sheet (SUW) up, a tap anywhere on
+    // the main view above it just puts it down (that tap does nothing else)
+    MouseArea {
+        anchors.left: root.left
+        anchors.right: root.right
+        anchors.top: root.top
+        anchors.bottom: bottomSheet.top
+        z: 5
+        enabled: bottomSheet.fraction > 0.5 && !bottomSheet.dragging
+        onClicked: bottomSheet.setFraction(0)
     }
 
     // Re-RinkFloat: Tunes / Control / Data live in a pull-up sheet over the

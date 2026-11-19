@@ -804,10 +804,16 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
-### The animation preview is the selector (v1.2.3-rf81)
+### Animation selector, tap-to-close sheet, neon number pad (v1.2.3-rf81)
 - RGB LIGHTS and STATUS BAR > Idle animation: the separate ANIMATION row is
   gone; the animated name itself sits between the down / up arrows
   (SwStepper bigName + rf / rfAnim). Same in the simulator.
+- With the sheet (SUW) up, a tap anywhere on the main view above it puts it
+  down (that tap does nothing else).
+- Settings number fields (IntTextField: speed dial max, temperature warning
+  offset, plot window) open our own neon number pad with DONE (applies the
+  value, kept within the field's range, and closes) instead of the phone's
+  grey keyboard. Settings labels, values and units are neon green.
 
 ### STATUS BAR ON/OFF works with Refloat's own LEDs (v1.2.3-rf80)
 - Refloat's lights control only switches all LEDs or the headlights, so the
