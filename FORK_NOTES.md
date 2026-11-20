@@ -1568,3 +1568,8 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - Kept on purpose: COMMAND_LCM_POWER_OFF / COMMAND_FREESPIN_LIMIT stubs
   (old apps still send them; they're accepted silently), the stored horn
   buzz settings (part of the saved horn words and the app protocol).
+
+### Tap the version line to read the notice again (v1.2.3-rf141)
+- Tapping the RE:FLOAT — RINK-MIXED version line at the bottom of the
+  screen opens the "Before you start" notice again (Scout's Honor at its
+  bottom), also after "Don't show this again". UI only.

@@ -16292,6 +16292,12 @@ Item {
                 text: '<font color="#b14cff">RE:</font><font color="#ead6ff">FLOAT</font>'
                       + '<font color="#7a3fc0"> — </font><font color="#39ff7a">RINK-MIXED</font>'
                       + '<font color="#7d68ab">  {{VERSION}}</font>'
+                // rf141: tap to read the "Before you start" notice again (and
+                // what's at the bottom of it)
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: disclaimerDialog.open()
+                }
             }
         }
     }
