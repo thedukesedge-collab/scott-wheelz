@@ -15795,7 +15795,9 @@ Item {
                         }
 
                         // Re-Float Rink-Mixed: CHECK FOR UPDATES (package + SLCM on GitHub)
+                        // rf130: SLCM boards only (not in the Refloat view)
                         GridLayout {
+                            visible: slcmDetect.present
                             width: parent.width
                             columns: 2
                             rowSpacing: 0.18 * unit

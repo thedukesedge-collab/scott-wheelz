@@ -1470,3 +1470,7 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   BEFORE OFF (minutes before VESC's power-off) + the power-off note. The
   HEAD/TAIL LIGHTS window keeps a SNOOZE LOOK card. SLCM boards unchanged.
 - Simulator: version label rf129.
+
+### No UPDATES tile in the Refloat view (v1.2.3-rf130)
+- The UPDATES (CHECK FOR UPDATES) tile on the LEDS page shows only when
+  an SLCM is detected; SLCM boards unchanged.
