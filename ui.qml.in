@@ -4383,6 +4383,18 @@ Item {
         function sweep(t, period) { return 0.5 - 0.5 * Math.cos(2 * Math.PI * t / period); }
         function frac(v) { return v - Math.floor(v); }
 
+        // rf125: BATTERY (Refloat view): a gauge draining full -> empty, green ->
+        // yellow -> red, blinking red near the end, then refilling (6 s loop)
+        function batteryCol(x, t) {
+            var p = frac(t / 6), lv = Math.max(0, 1 - p / 0.8);
+            var low = lv < 0.25, blink = Math.floor(t * 4) % 2 === 0;
+            var hc = lv > 0.5 ? 0.33 : lv > 0.25 ? 0.14 : 0;
+            if (x > lv || lv <= 0) {
+                return lv <= 0 ? Qt.hsla(0, 1, 0.5, blink ? 0.55 : 0.12) : Qt.rgba(0.92, 0.84, 1, 0.16);
+            }
+            return Qt.hsla(hc, 1, 0.5, low && !blink ? 0.25 : 1);
+        }
+
         function col(i, n, t) {
             var x = n > 1 ? i / (n - 1) : 0.5, h = 0, l = 0.6, a = 1, sat = 1, hu = an.hue / 360;
             var m = Math.abs(x - 0.5) * 2;  // 0 centre .. 1 ends
@@ -4449,7 +4461,8 @@ Item {
                     var wa = an.rf.mode === -2 ? 0.2 + 0.8 * (0.5 - 0.5 * Math.cos(2 * Math.PI * t / 4)) : an.rf.mode === -3 ? 0.4 : 0.15;
                     return Qt.rgba(0.92, 0.84, 1, wa);
                 }
-                if ((!an.rf && !ledSender.rfOn) || (an.rf && an.rf.mode < 0)) return "#ead6ff";  // battery display
+                if ((!an.rf && !ledSender.rfOn) || (an.rf && an.rf.mode < 0))  // battery display
+                    return an.text.indexOf("BATTERY") === 0 ? batteryCol(x, t) : "#ead6ff";
                 var c1 = ledSender.rfQColor(an.rf ? an.rf.c1 : ledSender.rfColor1), c2 = ledSender.rfQColor(an.rf ? an.rf.c2 : ledSender.rfColor2);
                 var sp = Math.max(0.1, an.rf ? an.rf.speed : ledSender.rfSpeed), md = an.rf ? an.rf.mode : ledSender.rfMode;
                 var mix = function(p) { return Qt.rgba(c1.r + (c2.r - c1.r) * p, c1.g + (c2.g - c1.g) * p, c1.b + (c2.b - c1.b) * p, 1); };

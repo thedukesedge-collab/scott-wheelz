@@ -1431,3 +1431,10 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - STATUS BAR SIMPLE: COLOR / IDLE / RIDING / SNOOZE in one card.
 - Every row in these screens has the same value width, so the arrows line
   up; the hints are centered.
+
+### BATTERY text animates as a draining gauge (v1.2.3-rf125)
+- Refloat view only: the BATTERY / BATTERY/DUTY choices (status bar idle
+  and riding, SIMPLE and ADVANCED) light their letters like a battery
+  gauge: full -> empty over ~5 s, green -> yellow -> red, blinking red at
+  the end, then refill (AnimName.batteryCol). SLCM screens unchanged
+  (BATTERY LEVEL / STANDARD keep their old look).

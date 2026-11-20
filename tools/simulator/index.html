@@ -1443,6 +1443,13 @@ function ledStep(box, k, label, mn, mx, stp, fmt, wide) {
 }
 // LED animation names drawn the way the status bar plays them (the real one:
 // AnimName in ui.qml.in, mirroring status_leds.c)
+// rf125: BATTERY (Refloat view): gauge draining full -> empty, green -> yellow -> red, blinking red at the end (6 s loop)
+function batCol(x, t) {
+  const p = t / 6 - Math.floor(t / 6), lv = Math.max(0, 1 - p / 0.8), blink = Math.floor(t * 4) % 2 === 0;
+  const hc = lv > 0.5 ? 120 : lv > 0.25 ? 50 : 0;
+  if (x > lv || lv <= 0) return lv <= 0 ? 'hsla(0,100%,50%,' + (blink ? 0.55 : 0.12) + ')' : 'rgba(234,214,255,0.16)';
+  return 'hsla(' + hc + ',100%,50%,' + (lv < 0.25 && !blink ? 0.25 : 1) + ')';
+}
 function animCol(anim, i, n, t, hueDeg, el_text_off) {
   const x = n > 1 ? i / (n - 1) : 0.5, m = Math.abs(x - 0.5) * 2, hu = hueDeg / 360;
   const frac = v => v - Math.floor(v), spot = (x, c) => Math.max(0.3, 1 - Math.abs(x - c) * 3.2), sweep = (t, p) => 0.5 - 0.5 * Math.cos(2 * Math.PI * t / p);
@@ -1520,8 +1527,8 @@ setInterval(() => {
   const t = performance.now() / 1000;
   document.querySelectorAll('.animName').forEach(el => {
     if (!el.offsetParent) return;
-    const sp = el.children, n = sp.length, anim = +el.dataset.anim, off = el.textContent === 'OFF';
-    for (let i = 0; i < n; i++) { const c = animCol(anim, i, n, t, P.ledColor || 0, off); sp[i].style.color = c; sp[i].style.textShadow = '0 0 4px ' + c + ', 0 0 10px ' + c; }
+    const sp = el.children, n = sp.length, anim = +el.dataset.anim, off = el.textContent === 'OFF', bat = el.textContent.startsWith('BATTERY');
+    for (let i = 0; i < n; i++) { const c = (anim === 15 || anim === 17) && bat ? batCol(n > 1 ? i / (n - 1) : 0.5, t) : animCol(anim, i, n, t, P.ledColor || 0, off); sp[i].style.color = c; sp[i].style.textShadow = '0 0 4px ' + c + ', 0 0 10px ' + c; }
   });
 }, 50);
 function renderLedsSoft() {
