@@ -1504,3 +1504,7 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   the motor quiet and main sounds one short beep_alert (silent when the
   beeper is off, never while running). Old melodies are unchanged.
 - Package only; VESC firmware unchanged.
+
+### MIXER: orange BEEP button (v1.2.3-rf134)
+- ♪ BEEP is orange (#ff8a1f, like its timeline marks) so it stands apart
+  from LIVE / REC (SwPill.litColor).

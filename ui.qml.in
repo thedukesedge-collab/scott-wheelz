@@ -4094,14 +4094,15 @@ Item {
         property bool enabledLook: true
         property real minWidth: 2.0 * unit
         property real labelSize: 0.24 * unit  // rf132
+        property color litColor: swTheme.neonGreen  // rf134: e.g. the orange BEEP
         signal clicked()
         // implicit size, so pills also work inside Row/ColumnLayouts
         implicitWidth: Math.max(minWidth, pillText.implicitWidth + 0.6 * unit)
         implicitHeight: 0.72 * unit
         radius: height / 2
         opacity: enabledLook ? 1 : 0.4
-        color: lit || pillArea.pressed ? swTheme.neonGreen : "transparent"
-        border.color: lit || pillArea.pressed ? swTheme.neonGreen : swTheme.neonPurple
+        color: lit || pillArea.pressed ? litColor : "transparent"
+        border.color: lit || pillArea.pressed ? litColor : swTheme.neonPurple
         border.width: 2
 
         Text {
@@ -15185,6 +15186,7 @@ Item {
                             SwPill {
                                 label: "\u266A BEEP"
                                 lit: true
+                                litColor: "#ff8a1f"  // rf134: orange, like its timeline marks
                                 onClicked: melodyPad.beep()
                             }
 
