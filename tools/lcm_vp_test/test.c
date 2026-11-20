@@ -173,8 +173,16 @@ int main(void){
     /* rf109: status bar snooze (byte 23, max 3), word 82 bits 9-11 */
     {
         uint8_t in24[24]; memcpy(in24, in12, 12); memcpy(in24 + 12, lcm.vp.custom, 8);
-        in24[20] = 5; in24[21] = 2; in24[22] = 1; in24[23] = 9;
-        lcm_vp_set(&lcm, in24, 24); assert(lcm.vp.status_snooze == 3);
+        in24[20] = 5; in24[21] = 2; in24[22] = 1; in24[23] = 99;
+        lcm_vp_set(&lcm, in24, 24); assert(lcm.vp.status_snooze == 12);  /* rf111: up to 12 */
+        in24[23] = 11; lcm_vp_set(&lcm, in24, 24);
+        { uint32_t w11[LCM_VP_EEPROM_WORDS]; lcm_vp_pack(&lcm, w11);
+          LcmData l8; memset(&l8,0,sizeof l8); lcm_init(&l8, &hw); lcm_vp_unpack(&l8, w11);
+          assert(l8.vp.status_snooze == 11 && l8.vp.ride_mode == 2 && memcmp(&l8.vp, &lcm.vp, sizeof lcm.vp) == 0);
+          /* an rf109 save: status in word 2 bits 9-11, word 3 nibble 0 */
+          w11[3] &= ~(0x0Fu << 20); w11[2] |= 2u << 9;
+          LcmData l9; memset(&l9,0,sizeof l9); lcm_init(&l9, &hw); lcm_vp_unpack(&l9, w11);
+          assert(l9.vp.status_snooze == 2 && l9.vp.color == lcm.vp.color); }
         in24[23] = 2; lcm_vp_set(&lcm, in24, 24);
         lcm_vp_set(&lcm, in24, 23); assert(lcm.vp.status_snooze == 2);
         uint32_t ws[LCM_VP_EEPROM_WORDS]; lcm_vp_pack(&lcm, ws);

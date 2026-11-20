@@ -365,7 +365,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf110 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf111 · sim</span></div>
     </div>
   </div>
 
@@ -405,8 +405,8 @@
         <p class="ledHint" id="rfHint"></p>
         <div id="rfStSnz">
           <div class="secTitle">Snooze</div>
-          <div class="pills" id="stSnz"><div class="pill" data-v="0">BREATHE</div><div class="pill" data-v="1">DIM</div><div class="pill" data-v="2">DARK</div><div class="pill" data-v="3">NORMAL</div></div>
-          <p class="ledHint">How the status bar looks while the board snoozes; it snoozes together with the head / tail lights (HEAD/TAIL LIGHTS &#8250; SNOOZE BEFORE OFF). NORMAL: it keeps its idle look.</p>
+          <div class="animSel" id="stSnzSel"><span class="stepBtn" data-d="-1">&#9660;</span><div class="stepVal animName" id="stSnzPreview" data-anim="18" style="flex:1;font-size:16px;text-align:center"></div><span class="stepBtn" data-d="1">&#9650;</span></div>
+          <p class="ledHint">How the status bar looks while the board snoozes; it snoozes together with the head / tail lights (HEAD/TAIL LIGHTS &#8250; SNOOZE BEFORE OFF). BREATHE / DIM / DARK: its brightness; NORMAL: it keeps its idle look; an animation plays in the idle animation's colors and speed.</p>
         </div>
         <div id="rfRide">
           <div class="secTitle">Riding animation</div>
@@ -1435,11 +1435,14 @@ function animCol(anim, i, n, t, hueDeg, el_text_off) {
       if (md === 5) { const fp = Math.floor(t * sp * 2) % 2; return rfCss((x < 0.5) === (fp === 0) ? c1 : c2, Math.floor(t * 16) % 2 === 0 ? 1 : 0.2); }
       h = md === 8 ? frac(x - t * sp) : frac(t * sp / 3); break;
     }
+    case 18:  // rf111: status bar snooze (BREATHE / DIM / DARK / NORMAL, or a Refloat animation)
+      if ((P.stSnz || 0) < 4) return 'rgba(234,214,255,' + ((P.stSnz || 0) === 2 ? 0.25 : (P.stSnz || 0) === 1 ? 0.5 : (P.stSnz || 0) === 0 ? (0.35 + 0.65 * (0.5 - 0.5 * Math.cos(t))).toFixed(2) : 1) + ')';
+      // falls through
     case 17:  // rf97: riding animation (idle colors, P.rideMode - 1; 0 = battery)
-      if (!P.rideMode) return 'rgba(234,214,255,1)';
+      if (anim === 17 && !P.rideMode) return 'rgba(234,214,255,1)';
       // falls through
     case 16: {  // RGB LIGHTS: the selected Refloat light bar (same maths as 15)
-      const b = anim === 17 ? { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed, mode: P.rideMode - 1 } : P.rgb[P.rgbSel || 0], c2 = rfRgb(b.c2), sp = Math.max(0.1, b.speed), md = b.mode, c1k = b.c1 === 0; let c1 = rfRgb(b.c1), has2 = b.c2 !== 0;  // rf91/92
+      const b = anim === 18 ? { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed, mode: (P.stSnz || 0) - 4 } : anim === 17 ? { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed, mode: P.rideMode - 1 } : P.rgb[P.rgbSel || 0], c2 = rfRgb(b.c2), sp = Math.max(0.1, b.speed), md = b.mode, c1k = b.c1 === 0; let c1 = rfRgb(b.c1), has2 = b.c2 !== 0;  // rf91/92
       const mix = q => [0, 1, 2].map(j => Math.round(c1[j] + (c2[j] - c1[j]) * q));
       if (c1k && (md === 0 || !has2)) return '#5c5470';  // rf92: all black: dim grey
       if (md === 0) return rfCss(c1);
@@ -1555,7 +1558,7 @@ function renderRgb() {
   const i = P.rgbSel || 0, b = P.rgb[i], box = $('rgbSteps');
   document.querySelectorAll('#rgbSel .pill').forEach(x => x.classList.toggle('on', +x.dataset.i === i));
   $('rgbPreview').innerHTML = [...RF_MODES[b.mode]].map(ch => '<span>' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
-  document.querySelectorAll('#rgbPreview ~ .stepBtn, .animSel:not(#rfSel):not(#rideSel) .stepBtn').forEach(x => x.classList.toggle('lim', +x.dataset.d < 0 ? b.mode <= 0 : b.mode >= 8));
+  document.querySelectorAll('#rgbPreview ~ .stepBtn, .animSel:not(#rfSel):not(#rideSel):not(#stSnzSel) .stepBtn').forEach(x => x.classList.toggle('lim', +x.dataset.d < 0 ? b.mode <= 0 : b.mode >= 8));
   box.innerHTML = '';
   const st = (k, l, mn, mx, stp, fmt) => cuStep('rgbSteps', l, () => b[k], mn, mx, stp, fmt, v => { b[k] = k[0] === 'c' ? rfNext(b[k], v) : Math.round(v * 100) / 100; P.ledCfg = true; save(); renderRgb(); renderLedsSoft(); }, k[0] === 'c' ? rfTxt : null);
   if (b.mode < 6) st('c1', 'COLOR 1', 0, 29, 1, v => RF_COLORS[v]);
@@ -1571,7 +1574,7 @@ function renderRgb() {
   $('rgbLifted').textContent = 'OFF WHEN LIFTED: ' + (P.rgbLifted ? 'ON' : 'OFF'); $('rgbLifted').classList.toggle('on', P.rgbLifted);
 }
 document.querySelectorAll('#rgbSel .pill').forEach(x => x.onclick = () => { P.rgbSel = +x.dataset.i; save(); renderRgb(); });
-document.querySelectorAll('.animSel:not(#rfSel):not(#rideSel) .stepBtn').forEach(x => x.onclick = () => { const b = P.rgb[P.rgbSel || 0], v = clamp(b.mode + +x.dataset.d, 0, 8); if (v !== b.mode) { if (oneCol(v) && !oneCol(b.mode)) b.c2 = 0; b.mode = v; P.ledCfg = true; save(); renderRgb(); renderLedsSoft(); } });
+document.querySelectorAll('.animSel:not(#rfSel):not(#rideSel):not(#stSnzSel) .stepBtn').forEach(x => x.onclick = () => { const b = P.rgb[P.rgbSel || 0], v = clamp(b.mode + +x.dataset.d, 0, 8); if (v !== b.mode) { if (oneCol(v) && !oneCol(b.mode)) b.c2 = 0; b.mode = v; P.ledCfg = true; save(); renderRgb(); renderLedsSoft(); } });
 // idle choice: -1 = BATTERY (Refloat idle timeout 0), else the Refloat mode
 document.querySelectorAll('#rfSel .stepBtn').forEach(x => x.onclick = () => { const cur = P.rfTimeout > 0 ? P.rfMode : -1, v = clamp(cur + +x.dataset.d, -1, 8); if (v === cur) return; if (v < 0) P.rfTimeout = 0; else { if (oneCol(v) && !(cur >= 0 && oneCol(cur))) P.rfColor2 = 0; P.rfMode = v; if (!(P.rfTimeout > 0)) P.rfTimeout = 10; } P.ledAnimIdle = 15; P.ledCfg = true; save(); renderRf(); renderLedsSoft(); });
 $('rgbLifted').onclick = () => { P.rgbLifted = !P.rgbLifted; save(); renderRgb(); };
@@ -1583,7 +1586,10 @@ function renderRf() {
   $('rfRide').style.display = P.simSetup === 'refloat' ? '' : 'none'; $('rfRideSteps').innerHTML = '';
   // rf109: status bar snooze look
   $('rfStSnz').style.display = P.simSetup === 'refloat' ? '' : 'none';
-  document.querySelectorAll('#stSnz .pill').forEach(x => { x.classList.toggle('on', +x.dataset.v === (P.stSnz || 0)); x.onclick = () => { P.stSnz = +x.dataset.v; save(); renderRf(); }; });
+  // rf111: BREATHE / DIM / DARK / NORMAL, then every Refloat animation (4-12)
+  const sv = P.stSnz || 0;
+  $('stSnzPreview').innerHTML = [...(sv >= 4 ? RF_MODES[sv - 4] : ['BREATHE', 'DIM', 'DARK', 'NORMAL'][sv])].map(ch => '<span>' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
+  document.querySelectorAll('#stSnzSel .stepBtn').forEach(b => { b.classList.toggle('lim', +b.dataset.d < 0 ? sv <= 0 : sv >= 12); b.onclick = () => { P.stSnz = clamp(sv + +b.dataset.d, 0, 12); save(); renderRf(); }; });
   // rf97: riding animation (0 = BATTERY / DUTY, else Refloat mode + 1 in the idle colors)
   if (P.rideMode === undefined) P.rideMode = 0;
   $('ridePreview').innerHTML = [...(P.rideMode ? RF_MODES[P.rideMode - 1] : 'BATTERY / DUTY')].map(ch => '<span>' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
@@ -1709,7 +1715,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf110';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf111';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -2009,7 +2015,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf111' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf112' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

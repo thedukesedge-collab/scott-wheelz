@@ -538,6 +538,15 @@ static void status_animate(
         rate_limitf(&leds->status_duty_blend, 0.0f, SB_RATE);
     }
 
+    // rf111: snoozing with a chosen animation: the status bar plays it (Status
+    // Idle colors / speed) instead of its idle / battery display
+    if (leds->status_snoozing && leds->status_snooze >= 4 && strip == &leds->status_strip) {
+        LedBar bar = leds->cfg->status_idle;
+        bar.mode = (LedAnimMode) (leds->status_snooze - 4);
+        led_strip_animate(leds, strip, &bar, current_time - leds->status_animation_start);
+        return;
+    }
+
     if (idle_blend > 0.0f) {
         if (strip == &leds->front_strip) {
             strip_set_color(leds, strip, 0x00000000, strip->brightness, blend);
@@ -774,6 +783,7 @@ void leds_init(Leds *leds) {
     leds->snooze_dark = false;
     leds->snooze_dim = false;
     leds->status_snooze = 0;
+    leds->status_snoozing = false;
     leds->ride_mode = 0;
     leds->shutdown_timeout = 0.0f;
     leds->motor_active_time = 0.0f;
@@ -1001,12 +1011,14 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
     // (motor_active_time: riding, a rolling wheel, a motor tone) - no
     // separate activity tracking
     float snooze = 1.0f, status_snooze = 1.0f;
+    leds->status_snoozing = false;
     float breath =
         0.03f + 0.27f * (0.5f - 0.5f * cosf(current_time * (2.0f * (float) M_PI / 6.0f)));
     if (leds->snooze_timeout > 0.0f && leds->motor_active_time > 0.0f &&
         current_time - leds->motor_active_time > leds->snooze_timeout) {
         // rf109: the status bar has its own look, same timing
-        status_snooze = leds->status_snooze == 3 ? 1.0f
+        leds->status_snoozing = true;
+        status_snooze = leds->status_snooze >= 3 ? 1.0f  // normal / an animation (rf111)
             : leds->status_snooze == 2           ? 0.0f
             : leds->status_snooze == 1           ? 0.1f
                                                  : breath;

@@ -2478,7 +2478,7 @@ Item {
         property int ledSnoozeMin: 5  // rf100: minutes BEFORE the board powers off (0 = never)
         property int ledRideMode: 0  // rf97: riding status bar: 0 battery / duty, else Refloat mode + 1
         property int ledSnoozeStyle: 0  // rf97: 0 breathe, 1 dim, 2 dark
-        property int ledStatusSnooze: 0  // rf109: status bar while snoozing: 0 breathe, 1 dim, 2 dark, 3 normal
+        property int ledStatusSnooze: 0  // rf109: status bar while snoozing: 0 breathe, 1 dim, 2 dark, 3 normal; rf111: 4-12 Refloat animation + 4
         property real hapticLast: 3  // rf108: strength brought back by HAPTIC FEEDBACK ON
         property int rfBgLast: 1  // rf101: background color brought back by BACKGROUND ON (WHITE)  // rf86: controller-driven LEDs snooze after this many idle minutes (0 = never)
         property string ledCustom: ""  // CUSTOM animation, 8 numbers (JSON), see ledSender.custom()
@@ -8295,19 +8295,16 @@ Item {
                         // rf109: the status bar's own snooze look (same timing as the
                         // head / tail lights: HEAD/TAIL LIGHTS > SNOOZE BEFORE OFF)
                         LedHeading { visible: ledSender.rfStatusAvail; text: "Snooze" }
-                        Row {
+                        // rf111: the animation preview is the selector, like idle / riding:
+                        // BREATHE, DIM, DARK, NORMAL, then every Refloat animation
+                        SwStepper {
                             visible: ledSender.rfStatusAvail
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 0.12 * unit
-                            Repeater {
-                                model: [["BREATHE", 0], ["DIM", 1], ["DARK", 2], ["NORMAL", 3]]
-                                SwPill {
-                                    minWidth: 1.9 * unit
-                                    label: modelData[0]
-                                    lit: swSettings.ledStatusSnooze === modelData[1]
-                                    onClicked: { swSettings.ledStatusSnooze = modelData[1]; ledSender.changed(); }
-                                }
-                            }
+                            bigName: true
+                            value: swSettings.ledStatusSnooze
+                            rf: ({mode: value >= 4 ? value - 4 : -1, c1: ledSender.rfColor1, c2: ledSender.rfColor2, speed: ledSender.rfSpeed})
+                            from: 0; to: 3 + ledSender.rfModes.length; step: 1
+                            valueText: value >= 4 ? ledSender.rfModes[value - 4] : ["BREATHE", "DIM", "DARK", "NORMAL"][value]
+                            onMoved: { swSettings.ledStatusSnooze = newValue; ledSender.changed(); }
                         }
                         SwLText {
                             visible: ledSender.rfStatusAvail
@@ -8316,7 +8313,7 @@ Item {
                             font.pixelSize: fontSizeSmall
                             text: "How the status bar looks while the board snoozes; it snoozes together with the head / tail lights (HEAD/TAIL LIGHTS \u203A SNOOZE BEFORE OFF"
                                 + (swSettings.ledSnoozeMin > 0 && vescAppConfig.offMinutes > swSettings.ledSnoozeMin ? ": at " + (vescAppConfig.offMinutes - swSettings.ledSnoozeMin) + " min idle" : "")
-                                + "). NORMAL: it keeps its idle look."
+                                + "). BREATHE / DIM / DARK: its brightness; NORMAL: it keeps its idle look; an animation plays in the idle animation's colors and speed."
                         }
 
                         // rf84: Refloat's riding status bar (Thor etc.; an SLCM

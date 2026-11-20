@@ -804,6 +804,14 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Status bar snooze: any animation (v1.2.3-rf111)
+- STATUS BAR > Snooze is now a selector like idle / riding: BREATHE, DIM,
+  DARK, NORMAL, then every Refloat animation (played in the Status Idle
+  colors / speed while snoozing; status_animate draws it instead of the
+  idle / battery display). status_snooze 0-12; stored in EEPROM word 83 bits
+  20-23 (rf109 saves in word 82 bits 9-11 still load); ride_mode masked to
+  bits 16-19. Unit test covers both layouts.
+
 ### Tour welcome wording (v1.2.3-rf110)
 - "Refloat 1.2.3 under the hood, reimagined with a Neon Future style theme
   and a bunch of extra features."

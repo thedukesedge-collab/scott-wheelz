@@ -465,11 +465,12 @@ void lcm_vp_pack(const LcmData *lcm, uint32_t words[LCM_VP_EEPROM_WORDS]) {
         vp->animations[2];
     // word 2: boot, shutdown animations, snooze style (rf97, bits 12-15), color
     words[2] = ((uint32_t) vp->animations[3] << 24) | ((uint32_t) vp->animations[4] << 16) |
-        ((uint32_t) (vp->snooze_style & 0x0F) << 12) |
-        ((uint32_t) (vp->status_snooze & 0x07) << 9) | vp->color;
+        ((uint32_t) (vp->snooze_style & 0x0F) << 12) | vp->color;
     // word 3: magic 0x49 ('I'), -, snooze minutes (rf86), headlight idle %
-    words[3] = (0x49u << 24) | ((uint32_t) vp->ride_mode << 16) |
-        ((uint32_t) vp->snooze_minutes << 8) | vp->headlight_idle_brightness;
+    // rf111: status snooze in bits 20-23 (rf109 saves: word 2 bits 9-11)
+    words[3] = (0x49u << 24) | ((uint32_t) (vp->status_snooze & 0x0F) << 20) |
+        ((uint32_t) (vp->ride_mode & 0x0F) << 16) | ((uint32_t) vp->snooze_minutes << 8) |
+        vp->headlight_idle_brightness;
     // words 4, 5: CUSTOM animation
     for (int i = 0; i < 2; ++i) {
         words[4 + i] = ((uint32_t) vp->custom[4 * i] << 24) |
@@ -483,14 +484,30 @@ void lcm_vp_unpack(LcmData *lcm, const uint32_t words[LCM_VP_EEPROM_WORDS]) {
         return;
     }
     uint8_t buffer[LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH + 4] = {
-        (words[0] >> 16) & 0xFF, (words[0] >> 8) & 0xFF,  words[0] & 0xFF,
-        words[1] >> 24,          (words[1] >> 16) & 0xFF, (words[1] >> 8) & 0xFF,
-        words[1] & 0xFF,         words[2] >> 24,          (words[2] >> 16) & 0xFF,
-        (words[2] >> 8) & 0x01,  words[2] & 0xFF,         words[3] & 0xFF,
-        words[4] >> 24,          (words[4] >> 16) & 0xFF, (words[4] >> 8) & 0xFF,
-        words[4] & 0xFF,         words[5] >> 24,          (words[5] >> 16) & 0xFF,
-        (words[5] >> 8) & 0xFF,  words[5] & 0xFF,         (words[3] >> 8) & 0xFF,
-        (words[3] >> 16) & 0xFF, (words[2] >> 12) & 0x0F, (words[2] >> 9) & 0x07,
+        (words[0] >> 16) & 0xFF,
+        (words[0] >> 8) & 0xFF,
+        words[0] & 0xFF,
+        words[1] >> 24,
+        (words[1] >> 16) & 0xFF,
+        (words[1] >> 8) & 0xFF,
+        words[1] & 0xFF,
+        words[2] >> 24,
+        (words[2] >> 16) & 0xFF,
+        (words[2] >> 8) & 0x01,
+        words[2] & 0xFF,
+        words[3] & 0xFF,
+        words[4] >> 24,
+        (words[4] >> 16) & 0xFF,
+        (words[4] >> 8) & 0xFF,
+        words[4] & 0xFF,
+        words[5] >> 24,
+        (words[5] >> 16) & 0xFF,
+        (words[5] >> 8) & 0xFF,
+        words[5] & 0xFF,
+        (words[3] >> 8) & 0xFF,
+        (words[3] >> 16) & 0x0F,
+        (words[2] >> 12) & 0x0F,
+        ((words[3] >> 20) & 0x0F) ? (words[3] >> 20) & 0x0F : (words[2] >> 9) & 0x07,
     };
     // saved before the idle headlight level existed: idle = riding (and no
     // CUSTOM animation yet either)
