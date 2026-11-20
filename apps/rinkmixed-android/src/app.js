@@ -83,7 +83,7 @@ async function disconnect() {
 
 async function pickAndConnect() {
   try {
-    await BleClient.initialize({ androidNeverForLocation: true });
+    await BleClient.initialize();  // also asks for location: the manifest has no neverForLocation flag
     const dev = await BleClient.requestDevice({ services: [NUS] });
     await connect(dev.deviceId, dev.name);
   } catch (e) {
@@ -98,7 +98,7 @@ async function reconnectSaved() {
   try { saved = JSON.parse(localStorage.getItem(SAVED) || 'null'); } catch (e) {}
   if (!saved) return false;
   try {
-    await BleClient.initialize({ androidNeverForLocation: true });
+    await BleClient.initialize();  // also asks for location: the manifest has no neverForLocation flag
     await connect(saved.deviceId, saved.name);
     return true;
   } catch (e) {
