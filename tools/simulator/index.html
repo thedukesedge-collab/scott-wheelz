@@ -1608,7 +1608,7 @@ function renderRgb() {
   $('rgbSimple').style.display = P.rgbAdv ? 'none' : ''; $('rgbAdv').style.display = P.rgbAdv ? '' : 'none';
   $('rgbSimpleP').classList.toggle('on', !P.rgbAdv); $('rgbAdvP').classList.toggle('on', !!P.rgbAdv);
   [['rsHead', 'HEAD', 0], ['rsTail', 'TAIL', 1], ['rsFront', 'FRONT', 2], ['rsRear', 'REAR', 3]].forEach(([id, l, k]) =>
-    animRow($(id), l, () => P.rgb[k].mode, 8, v => RF_MODES[v], 20 + k, v => { if (oneCol(v) && !oneCol(P.rgb[k].mode)) P.rgb[k].c2 = 0; if (v === 5 && P.rgb[k].mode !== 5) { P.rgb[k].c1 = 4; P.rgb[k].c2 = 25; } P.rgb[k].mode = v; save(); renderRgb(); }));
+    animRow($(id), l, () => P.rgb[k].mode, 8, v => RF_MODES[v], 20 + k, v => { if (oneCol(v) && !oneCol(P.rgb[k].mode)) P.rgb[k].c2 = 0; if (v === 5 && P.rgb[k].mode !== 5) { P.rgb[k].c1 = 4; P.rgb[k].c2 = 25; } P.rgb[k].mode = v; if (v === 0 && k < 2) P.rgb[k].c1 = k === 0 ? 1 : 4;  /* rf120: riding SOLID = white head / red tail */ save(); renderRgb(); }));
   [['rsBriR', 'ledHeadPct'], ['rsBriI', 'ledHeadIdlePct']].forEach(([id, k]) => { $(id).innerHTML = ''; ledStep($(id), k, 'BRIGHTNESS', 0, 100, 5, v => v + '%'); });
   const i = P.rgbSel || 0, b = P.rgb[i], box = $('rgbSteps');
   document.querySelectorAll('#rgbSel .pill').forEach(x => x.classList.toggle('on', +x.dataset.i === i));

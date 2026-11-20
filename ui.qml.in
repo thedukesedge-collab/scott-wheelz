@@ -9125,7 +9125,11 @@ Item {
                                             value: (ledSender.rgb[modelData[1]] || {}).mode || 0
                                             from: 0; to: ledSender.rfModes.length - 1; step: 1
                                             valueText: ledSender.rfModes[value] || ""
-                                            onMoved: ledSender.rgbSet(modelData[1], "mode", newValue)
+                                            onMoved: {
+                                                ledSender.rgbSet(modelData[1], "mode", newValue);
+                                                // rf120: riding SOLID = headlight WHITE / tail light RED
+                                                if (newValue === 0 && modelData[1] < 2) ledSender.rgbSet(modelData[1], "c1", modelData[1] === 0 ? 1 : 4);
+                                            }
                                         }
                                     }
                                     SwStepper {

@@ -1397,3 +1397,7 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   Colors can still be changed in ADVANCED afterwards.
 - SIMPLE: COLOR leaves a FELONY riding / snooze alone; leaving FELONY
   there goes back to the shared COLOR.
+
+### RGB LIGHTS SIMPLE: riding SOLID = white head / red tail (v1.2.3-rf120)
+- In RGB LIGHTS SIMPLE, picking SOLID for RIDING HEAD sets color 1 to
+  WHITE, for RIDING TAIL to RED (Refloat's headlights / taillights bars).
