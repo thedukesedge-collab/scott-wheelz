@@ -399,6 +399,7 @@
         <div class="pills"><div class="pill" id="ledBarPill"></div></div>
         <div id="ledBarSteps"></div>
         <p class="ledHint">Same as Refloat's Status Idle Brightness (idle) and Status Brightness (riding).</p>
+        <div id="barSlcm"><div class="pills"><div class="pill on" id="barAnimOpen">ANIMATIONS &#8250;</div></div></div>
         <div id="barRf">
         <div class="secTitle">Idle animation</div>
         <div class="animSel" id="rfSel"><span class="stepBtn" data-d="-1">&#9660;</span><div class="stepVal animName" id="rfPreview" data-anim="15" style="flex:1;font-size:18px;text-align:center"></div><span class="stepBtn" data-d="1">&#9650;</span></div>
@@ -427,7 +428,7 @@
         <div id="ledAnimSteps"></div>
         <div id="ledColorSteps"></div>
         <div id="ledSwatch" style="height:8px;border-radius:4px;width:70%;margin:4px auto 0"></div>
-        <p class="ledHint">OFF = nothing shown (riding still warns when the battery is low). STANDARD = battery level, footpad sensors when stepped on. BATTERY LEVEL shows the battery gauge anywhere (riding: live); it needs the SLCM build that comes with this package (CHECK LCM: up to date). IDLE STATUS BAR = the idle animation set in STATUS BAR (Refloat's own), the same on every controller.</p>
+        <p class="ledHint">OFF = nothing shown (riding still warns when the battery is low). STANDARD = battery level, footpad sensors when stepped on. BATTERY LEVEL shows the battery gauge anywhere (riding: live); it needs the SLCM build that comes with this package (CHECK LCM: up to date). IDLE STATUS BAR = Refloat's Status Idle animation (VESC Tool &#8250; Refloat Cfg), turned into the closest SLCM look.</p>
         <div class="pills"><div class="pill on" id="cuOpen">DESIGN CUSTOM &#8250;</div></div>
       </div>
       <div class="ledSec" data-s="custom">
@@ -1386,7 +1387,7 @@ const rfNext = (cur, v) => v > cur ? (RF_SET.find(x => x > cur) ?? cur) : v < cu
 const rfTxt = i => i === 0 ? '#8a8a8a' : RF_HUE[i] < 0 ? '#ffffff' : 'hsl(' + RF_HUE[i] * 2 + ',100%,62%)';
 const rfCss = (c, a) => 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (a === undefined ? 1 : a).toFixed(2) + ')';
 const LED_DEF = { ledCfg: false, ledHead: true, ledBar: true, ledBeep: true, ledHeadPct: 80, ledHeadIdlePct: 50, ledIdlePct: 80, ledRidePct: 80,
-  ledAnimIdle: 15, rfMode: 4, rfColor1: 4, rfColor2: 0, rfSpeed: 1, rfTimeout: 0, ledAnimRide: 0, ledAnimDoze: 0, ledAnimBoot: 11, ledAnimShut: 0, ledColor: 200 };
+  ledAnimIdle: 0, rfMode: 4, rfColor1: 4, rfColor2: 0, rfSpeed: 1, rfTimeout: 0, ledAnimRide: 0, ledAnimDoze: 0, ledAnimBoot: 11, ledAnimShut: 0, ledColor: 200 };
 for (const k in LED_DEF) if (P[k] === undefined) P[k] = LED_DEF[k];
 if (P.hBeep > 4) P.hBeep = 4;
 if (!P.rgb) P.rgb = [{ mode: 0, c1: 1, c2: 0, speed: 1, bri: 0.8 }, { mode: 0, c1: 4, c2: 0, speed: 1, bri: 0.8 },
@@ -1539,7 +1540,9 @@ function renderLedsSoft() {
   $('ledSwatch').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
   $('ltSw').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
   $('ltHead').textContent = P.ledHead ? 'ON · ' + ((P.simSetup || 'slcm') === 'slcm' ? 'RIDE ' : 'MOTION ') + P.ledHeadPct + '% · IDLE ' + P.ledHeadIdlePct + '%' : 'OFF';
-  $('ltBar').textContent = P.ledBar ? 'ON · RIDE ' + P.ledRidePct + '% · ' + (P.rfTimeout > 0 ? 'IDLE: ' + RF_MODES[P.rfMode] : 'IDLE: BATTERY') : 'OFF';
+  const sb = (P.simSetup || 'slcm') === 'slcm';  // rf117: SLCM: brightness here, presets in ANIMATIONS
+  $('barSlcm').style.display = sb ? '' : 'none'; $('barRf').style.display = sb ? 'none' : '';
+  $('ltBar').textContent = P.ledBar ? 'ON · RIDE ' + P.ledRidePct + '% · ' + (sb ? 'IDLE ' + animLabel('ledAnimIdle', P.ledAnimIdle) : P.rfTimeout > 0 ? 'IDLE: ' + RF_MODES[P.rfMode] : 'IDLE: BATTERY') : 'OFF';
   $('ltAnim').textContent = 'IDLE ' + animLabel('ledAnimIdle', P.ledAnimIdle) + ' · RIDE ' + animLabel('ledAnimRide', P.ledAnimRide);
   $('ltSound').textContent = 'CONTROLLER ' + (P.ctrlBeep !== false ? 'ON' : 'OFF') + ' · LCM ' + (P.ledBeep ? 'ON' : 'OFF');
   pill('ctrlBeepPill', P.ctrlBeep !== false, 'BEEPER');
@@ -1735,6 +1738,7 @@ document.querySelectorAll('.ledTile').forEach(t => t.onclick = () => ledWin(t.da
 $('ledWinBack').onclick = () => { if (document.querySelector('.ledSec.on[data-s="custom"]')) { ledWin('anim'); renderLeds(); return; } fwForget(); ledWin(null); };
 $('ledWinDim').onclick = () => { fwForget(); ledWin(null); };
 $('cuOpen').onclick = () => { ledWin('custom'); renderCustom(); };
+$('barAnimOpen').onclick = () => { ledWin('anim'); renderLeds(); };
 $('ledBreathPill').onclick = () => { P.ledBreath = P.ledBreath === false; P.snzStyle = P.ledBreath ? 0 : 2; P.ledCfg = true; save(); renderLedsSoft(); };
 $('ctrlBeepPill').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); renderLedsSoft(); renderCtl(); };
 $('ctrlTestBeep').onclick = () => {

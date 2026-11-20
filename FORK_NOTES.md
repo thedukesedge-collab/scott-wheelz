@@ -1361,3 +1361,15 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   DARK flag sent to the SLCM is the same as before.
 - SLCM firmware, the SLCM poll reply and the LCM settings bytes the SLCM
   uses are unchanged (lcm/ untouched since rf82).
+
+### SLCM STATUS BAR as when the SLCM was first tied in (v1.2.3-rf117)
+- SLCM boards: STATUS BAR = on/off + idle / riding brightness only (rf71),
+  with an ANIMATIONS › link. The animations are the SLCM's own presets
+  (THE FUZZ, FIRE, RAINBOW SCAN, ...) in SLCM EXTRAS › ANIMATIONS, with
+  their animated names and one COLOR. Refloat's Status Idle animation is
+  no longer in this window for SLCM boards (no more two places for the
+  idle animation); STATUS BAR stays one optional IDLE choice there.
+- Default IDLE for a fresh install: STANDARD (was STATUS BAR, 128).
+  Saved settings are kept as they are.
+- STATUS BAR tile on an SLCM board shows the SLCM IDLE preset.
+- Controller-driven LEDs (Thor) unchanged.
