@@ -295,13 +295,13 @@ void lcm_light_ctrl_request(LcmData *lcm, unsigned char *cfg, int len) {
         return;
     }
 
-    int32_t idx = 0;
+    const int32_t idx = 3;  // 3 brightness bytes, then the payload
 
     // rf77: clamped as in upstream v1.3 (a bad packet must not overflow
     // payload[] - payload_size sits right after it)
-    lcm->brightness = min(cfg[idx++], 100u);
-    lcm->brightness_idle = min(cfg[idx++], 100u);
-    lcm->status_brightness = min(cfg[idx++], 100u);
+    lcm->brightness = min(cfg[0], 100u);
+    lcm->brightness_idle = min(cfg[1], 100u);
+    lcm->status_brightness = min(cfg[2], 100u);
 
     if (len > 3) {
         if (lcm->enabled) {
@@ -465,7 +465,10 @@ bool lcm_vp_set(LcmData *lcm, const uint8_t *buffer, int len) {
         vp.snooze_speed = lcm->vp.snooze_speed;
     }
 
-    bool changed = memcmp(&vp, &lcm->vp, sizeof(vp)) != 0;
+    // both copies start from memset(0) (vp above, lcm->vp in data_init) and
+    // are only ever copied whole, so the padding compares equal too
+    bool changed =
+        memcmp(&vp, &lcm->vp, sizeof(vp)) != 0;  // NOLINT(bugprone-suspicious-memory-comparison)
     lcm->vp = vp;
     return changed;
 }

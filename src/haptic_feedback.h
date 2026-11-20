@@ -105,7 +105,6 @@ typedef struct {
     volatile uint8_t melody_count;
     uint8_t melody_beep_step;  // rf133: last step that asked for a controller beep (+1)
     bool beep_request;  // rf133: main sounds one short controller beep, then clears it
-    bool melody_gaps;  // short gap between notes (custom melodies, not the default)
     volatile uint16_t live_hz;
     volatile time_t live_timer;
     volatile time_t live_start;

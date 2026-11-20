@@ -45,6 +45,14 @@ jobs:
           git clone -q --depth 1 --branch v1.2.3 https://github.com/lukash/refloat /tmp/upstream
           nix shell nixpkgs/nixos-24.11#gcc-arm-embedded-13 -c sh tools/stack_report.sh /tmp/upstream/src
 
+      # refloatRM: static analysis (clang-tidy: clang static analyzer +
+      # bug-prone patterns); fails on findings in files changed by the fork
+      - name: Static analysis
+        if: steps.build.outcome == 'success'
+        run: |
+          [ -d /tmp/upstream ] || git clone -q --depth 1 --branch v1.2.3 https://github.com/lukash/refloat /tmp/upstream
+          sh tools/static_analysis.sh /tmp/upstream/src
+
       - name: Upload Package
         if: always() && steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4

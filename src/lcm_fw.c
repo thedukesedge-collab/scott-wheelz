@@ -181,6 +181,9 @@ void lcm_fw_command(
             fw->error = LCM_FW_ERR_LCM_GAVE_UP;
         }
         return;
+
+    default:
+        return;  // unknown sub-command: ignored
     }
 }
 

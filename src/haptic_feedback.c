@@ -57,9 +57,7 @@
 #define HORN_MIN_BEEP_STRENGTH 2.5f
 // rf81: the horn's beep never goes above 4 V (the app's 10/10)
 #define HORN_MAX_BEEP_STRENGTH 4.0f
-#define HORN_MIN_VIBRATE_STRENGTH 8.0f
 #define HORN_DEFAULT_BEEP_FREQUENCY 495
-#define HORN_DEFAULT_VIBRATE_FREQUENCY 70
 // Re-Float Rink-Mixed: the default boot melody, in the custom melody format
 // (pitch level 1-10 = E4..G5, 0 = rest; length in 20 ms units). rf106: Jingle
 // Bells (public domain; same as the app's CLASSICS one), 3.48 s. (rf68-rf105:
@@ -112,7 +110,6 @@ void haptic_feedback_play_melody(
     hf->melody_active = false;
     float total = 0.0f;
     uint8_t n = 0;
-    hf->melody_gaps = true;
     if (count == 0) {
         notes = default_melody;
         count = sizeof(default_melody) / 2;
@@ -388,7 +385,7 @@ void haptic_feedback_update(
                 hz = 0;
             }
             // short gap at the end of each note so repeated pitches are heard
-            bool gap = hf->melody_gaps && age > hf->melody_len[step] - 0.03f;
+            bool gap = age > hf->melody_len[step] - 0.03f;
             if (hz == 0 || gap) {
                 foc_play_tone(0, 1, 0.0f);
             } else {
@@ -478,58 +475,33 @@ void haptic_feedback_update(
         uint16_t beep_frequency = tone->frequency;
         float buzz_strength = hf->cfg->vibrate.strength;
         uint16_t buzz_frequency = hf->cfg->vibrate.frequency;
-        if (hf->type_playing == HAPTIC_FEEDBACK_HORN && hf->horn_custom) {
-            // Re-RinkFloat: the horn's own settings from the app
-            beep_strength = hf->horn_beep_strength;
-            beep_frequency = hf->horn_beep_frequency;
-            buzz_strength = hf->horn_buzz_strength;
-            buzz_frequency = hf->horn_buzz_frequency;
-        } else if (hf->type_playing == HAPTIC_FEEDBACK_HORN) {
-            beep_strength =
-                fminf(fmaxf(beep_strength, HORN_MIN_BEEP_STRENGTH), HORN_MAX_BEEP_STRENGTH);
-            buzz_strength = fmaxf(buzz_strength, HORN_MIN_VIBRATE_STRENGTH);
-            if (beep_frequency == 0) {
-                beep_frequency = HORN_DEFAULT_BEEP_FREQUENCY;
-            }
-            if (buzz_frequency == 0) {
-                buzz_frequency = HORN_DEFAULT_VIBRATE_FREQUENCY;
+        bool horn = hf->type_playing == HAPTIC_FEEDBACK_HORN;
+        if (horn) {
+            // Re-RinkFloat: the horn's own settings from the app, else the
+            // configured tone within the horn's limits
+            if (hf->horn_custom) {
+                beep_strength = hf->horn_beep_strength;
+                beep_frequency = hf->horn_beep_frequency;
+            } else {
+                beep_strength =
+                    fminf(fmaxf(beep_strength, HORN_MIN_BEEP_STRENGTH), HORN_MAX_BEEP_STRENGTH);
+                if (beep_frequency == 0) {
+                    beep_frequency = HORN_DEFAULT_BEEP_FREQUENCY;
+                }
             }
         }
 
         bool play_beep = beep_strength > 0.0f;
-        bool play_buzz = buzz_strength > 0.0f;
-
-        if (hf->type_playing == HAPTIC_FEEDBACK_HORN) {
-            // rf75 safety: the horn never adds current to the motor. Idle, a
-            // current tone would move the wheel; riding, it would add a square
-            // wave on top of the balance current. Buzz modes fall back to the
-            // beep.
-            bool can_buzz = false;
-            (void) play_buzz;
-            switch (hf->horn_mode) {
-            case HORN_MODE_BEEP:
-                play_buzz = false;
-                break;
-            case HORN_MODE_BUZZ:
-                // fall back to the beep if buzzing isn't possible
-                play_buzz = can_buzz;
-                play_beep = play_beep && !can_buzz;
-                break;
-            case HORN_MODE_ALT: {
-                uint32_t step = (uint32_t) (timer_age(time, hf->horn_start) / HORN_ALT_STEP);
-                bool beep_step = (step % 2) == 0;
-                // idle / no vibrate: beep, pause, beep, ...
-                play_buzz = can_buzz && !beep_step;
-                play_beep = play_beep && beep_step;
-                break;
-            }
-            default:
-                play_buzz = can_buzz;
-                break;
-            }
+        // rf75 safety: the horn never adds current to the motor (no buzz in any
+        // horn mode). Idle, a current tone would move the wheel; riding, it
+        // would add a square wave on top of the balance current. rf140: the
+        // buzz branches that could never run were removed.
+        bool play_buzz = !horn && buzz_strength > 0.0f;
+        if (horn && hf->horn_mode == HORN_MODE_ALT) {
+            // beep, pause, beep, ...
+            uint32_t step = (uint32_t) (timer_age(time, hf->horn_start) / HORN_ALT_STEP);
+            play_beep = play_beep && (step % 2) == 0;
         }
-
-        bool horn = hf->type_playing == HAPTIC_FEEDBACK_HORN;
 
         if (play_beep) {
             foc_play_tone(0, beep_frequency, beep_strength * scale);

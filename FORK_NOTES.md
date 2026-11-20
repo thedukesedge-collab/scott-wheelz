@@ -1547,3 +1547,24 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 ### Scout's Honor: new portrait (v1.2.3-rf139)
 - The Code Compliance Scout portrait replaced with the user's new
   illustration (same size: JPEG 220x269, ~10.5 KB embedded). UI only.
+
+### Safety review, static analysis in CI, dead code removed (v1.2.3-rf140)
+- CI: new "Static analysis" step (tools/static_analysis.sh, clang-tidy:
+  clang static analyzer + bugprone checks on every src/*.c). Findings on
+  lines that are word-for-word upstream Refloat v1.2.3 are reported only;
+  any finding on a line added or changed by refloatRM fails the build.
+- Fixed the three findings on fork lines (no behaviour change):
+  lcm_light_ctrl_request reads the 3 brightness bytes by fixed index (the
+  `min(cfg[idx++], ..)` form was correct - the macro evaluates once - but
+  read as a double increment); lcm_vp_set's whole-struct compare is
+  documented (both copies are zeroed, padding included); lcm_fw_command
+  has an explicit `default:` (unknown sub-commands ignored, as before).
+- haptic_feedback.c: removed the horn "buzz" branches that could never run
+  (since rf75 the horn never adds motor current: `can_buzz` was always
+  false) and the always-true `melody_gaps` flag. Same output in every
+  case: horn = beep only (ALT = beep / pause), other alerts unchanged.
+  Removed the then-unused HORN_MIN_VIBRATE_STRENGTH /
+  HORN_DEFAULT_VIBRATE_FREQUENCY.
+- Kept on purpose: COMMAND_LCM_POWER_OFF / COMMAND_FREESPIN_LIMIT stubs
+  (old apps still send them; they're accepted silently), the stored horn
+  buzz settings (part of the saved horn words and the app protocol).
