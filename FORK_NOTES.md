@@ -1543,3 +1543,7 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 ### Scout's Honor: no "EASTER EGG" label (v1.2.3-rf138)
 - The "— EASTER EGG —" label above the portrait is gone; the divider
   still separates it from the notice. UI only.
+
+### Scout's Honor: new portrait (v1.2.3-rf139)
+- The Code Compliance Scout portrait replaced with the user's new
+  illustration (same size: JPEG 220x269, ~10.5 KB embedded). UI only.
