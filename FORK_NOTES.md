@@ -1474,3 +1474,17 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 ### No UPDATES tile in the Refloat view (v1.2.3-rf130)
 - The UPDATES (CHECK FOR UPDATES) tile on the LEDS page shows only when
   an SLCM is detected; SLCM boards unchanged.
+
+### AUTO APPLY in ADVANCED, controller BEEPER on the LEDS page (v1.2.3-rf131)
+- SIMPLE views always apply LED changes right away. The ADVANCED views of
+  HEAD/TAIL LIGHTS and STATUS BAR (Refloat view) have an APPLY card with
+  AUTO APPLY ON (default) / OFF. With it off, changes made there wait:
+  APPLY CHANGES at the top of the window sends them (the LCM packet and
+  the Refloat config write, still only once the board is stopped); waiting
+  changes are kept when leaving the window (APPLY WAITING LED CHANGES on
+  the LEDS page). Light switches always apply right away. The periodic
+  resend and config reads hold off while changes wait. SLCM boards always
+  apply (unchanged).
+- Controller beeper: BEEPER card (ON/OFF + TEST BEEP) on the LEDS page in
+  the Refloat view; the beeper writes on its own (not held by AUTO APPLY,
+  doesn't write waiting LED changes).

@@ -490,32 +490,92 @@ Item {
         function setHead(on) {
             swSettings.ledHeadlights = on;
             changed();
+            if (!autoApply) apply();  // rf131: light switches always apply
             if (lights.enabled) commands.sendLightsControl(on ? true : undefined, on);
         }
         function setStatus(on) {
             swSettings.ledStatusBar = on;
             changed();
+            if (!autoApply) apply();  // rf131: light switches always apply
             if (on && lights.enabled && !lights.on) commands.sendLightsControl(true);
         }
         function setAll(on) {
             swSettings.ledHeadlights = on;
             swSettings.ledStatusBar = on;
             changed();
+            if (!autoApply) apply();  // rf131: light switches always apply
             if (lights.enabled) commands.sendLightsControl(on, on);
+        }
+
+        // rf131: SIMPLE always applies right away; in an ADVANCED view AUTO APPLY
+        // can be turned off: changes then wait for APPLY CHANGES (Refloat view
+        // only; an SLCM always applies)
+        readonly property bool advancedOpen: ledWindow.visible
+            && ((ledWindow.section === "head" && rgbAvail && swSettings.rgbAdvanced)
+                || (ledWindow.section === "bar" && !slcmPresets && swSettings.barAdvanced))
+        readonly property bool autoApply: swSettings.ledAutoApply || slcmDetect.present || !advancedOpen
+        property bool pending: false
+        property bool applying: false
+        function apply() {
+            pending = false;
+            applying = true;
+            send();
+            ledRetryTimer.restart();
+            ledCfgWriteTimer.stop();
+            cfgTimerFired();
+        }
+        function setAutoApply(on) {
+            swSettings.ledAutoApply = on;
+            if (on && pending) apply();
+        }
+        function cfgTimerFired() {
+            if (!autoApply && !applying) {
+                pending = true;
+                return;
+            }
+            if (!cfgReady()) return;
+            if (mainItem.boardRunning) {  // toConfig waits for the board to stop
+                ledCfgWriteTimer.restart();
+                return;
+            }
+            toConfig();
+            applying = false;
         }
 
         function changed() {
             swSettings.ledConfigured = true;
+            if (!autoApply) {
+                pending = true;
+                return;
+            }
             send();
             ledRetryTimer.restart();
             ledCfgWriteTimer.restart();  // mirror into the Refloat LED config
         }
 
-        // controller beeper (Refloat's, on Servo/PPM)
+        // controller beeper (Refloat's, on Servo/PPM): always right away, on its
+        // own (rf131: not held by AUTO APPLY, and doesn't write waiting LED changes)
         function setCtrlBeep(on) {
             if (!rfLoaded) fromConfig();
             ctrlBeep = on;
-            ledCfgWriteTimer.restart();
+            beepWriteTimer.restart();
+        }
+        function writeBeep() {
+            if (!cfgReady()) return;
+            if (mainItem.boardRunning) {
+                beepWriteTimer.restart();
+                return;
+            }
+            var c = packageConfig.pkgConfig;
+            if (c.getParamBool("is_beeper_enabled") !== ctrlBeep) {
+                c.updateParamBool("is_beeper_enabled", ctrlBeep);
+                packageConfig.writeConfig();
+            }
+        }
+        property Timer beepTimer: Timer {
+            id: beepWriteTimer
+            interval: 800
+            onTriggered: ledSender.writeBeep()
         }
         function testCtrlBeep() {
             var data = commands.createData(3, commands.c_LCM_TEST_BEEP);
@@ -730,7 +790,7 @@ Item {
         }
 
         function fromConfig() {
-            if (!cfgReady() || ledCfgWriteTimer.running) return;  // our own change is newer
+            if (!cfgReady() || ledCfgWriteTimer.running || pending) return;  // our own change is newer (rf131: or waiting for APPLY)
             var c = packageConfig.pkgConfig;
             var changedAny = false;
             var on = c.getParamBool("leds.headlights_on");
@@ -783,7 +843,7 @@ Item {
         property Timer cfgWriteTimer: Timer {
             id: ledCfgWriteTimer
             interval: 1500
-            onTriggered: ledSender.toConfig()
+            onTriggered: ledSender.cfgTimerFired()  // rf131: held while AUTO APPLY is off
         }
 
         property Connections cfgConns: Connections {
@@ -795,7 +855,7 @@ Item {
         function tick() {
             if (++count >= 5) {
                 count = 0;
-                send();
+                if (!pending) send();  // rf131: waiting changes stay on the phone
             }
         }
 
@@ -2551,6 +2611,7 @@ Item {
         property bool snzAdvanced: false  // SNOOZE ADVANCED: own colors / speed
         property bool barAdvanced: false  // rf118: STATUS BAR view (Refloat LEDs)
         property bool rgbAdvanced: false  // rf118: RGB LIGHTS view
+        property bool ledAutoApply: true  // rf131: LED changes go to the board right away
         property int rgbIdleLastFront: 50  // rf127: idle brightness before OFF
         property int rgbIdleLastRear: 50
         property int snzC1: 4
@@ -8240,6 +8301,19 @@ Item {
 
             Rectangle { Layout.fillWidth: true; height: 2; color: swTheme.neonPurple; opacity: 0.6 }
 
+            // rf131: AUTO APPLY off: send the changes made here to the board
+            SwPill {
+                visible: !ledSender.autoApply
+                Layout.alignment: Qt.AlignHCenter
+                minWidth: 5.0 * unit
+                label: ledSender.pending ? "\u2713 APPLY CHANGES" : "NO CHANGES TO APPLY"
+                lit: ledSender.pending
+                onClicked: if (ledSender.pending) {
+                    ledSender.apply();
+                    VescIf.emitStatusMessage(mainItem.boardRunning ? "LED changes applied (saved once the board stops)" : "LED changes applied", true);
+                }
+            }
+
             Flickable {
                 id: ledWindowFlick
                 Layout.fillWidth: true
@@ -8450,6 +8524,27 @@ Item {
                                 width: parent.width
                                 spacing: 0.14 * unit
                                 visible: swSettings.rgbAdvanced
+                                // rf131: AUTO APPLY (ADVANCED only; SIMPLE always applies right away)
+                                LedCard {
+                                    width: parent.width
+                                    title: "APPLY"
+                                    SwPill {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        minWidth: 3.4 * unit
+                                        label: swSettings.ledAutoApply ? "AUTO APPLY ON" : "AUTO APPLY OFF"
+                                        lit: swSettings.ledAutoApply
+                                        onClicked: ledSender.setAutoApply(!swSettings.ledAutoApply)
+                                    }
+                                    SwLText {
+                                        width: parent.width
+                                        horizontalAlignment: Text.AlignHCenter
+                                        wrapMode: Text.WordWrap
+                                        font.pixelSize: fontSizeSmall
+                                        text: swSettings.ledAutoApply ? "Changes go to the board right away."
+                                            : "Make your changes, then tap APPLY CHANGES at the top. Light switches still apply right away."
+                                    }
+                                }
+
 
                                 // RIDING (engaged, headlights on) = Refloat's
                                 // headlights / taillights bars; IDLE = front / rear
@@ -8777,6 +8872,28 @@ Item {
                             width: parent.width
                             spacing: 0.14 * unit
                             visible: !ledSender.slcmPresets && swSettings.barAdvanced
+
+                            // rf131: AUTO APPLY (ADVANCED only; SIMPLE always applies right away)
+                            LedCard {
+                                width: parent.width
+                                title: "APPLY"
+                                SwPill {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    minWidth: 3.4 * unit
+                                    label: swSettings.ledAutoApply ? "AUTO APPLY ON" : "AUTO APPLY OFF"
+                                    lit: swSettings.ledAutoApply
+                                    onClicked: ledSender.setAutoApply(!swSettings.ledAutoApply)
+                                }
+                                SwLText {
+                                    width: parent.width
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.WordWrap
+                                    font.pixelSize: fontSizeSmall
+                                    text: swSettings.ledAutoApply ? "Changes go to the board right away."
+                                        : "Make your changes, then tap APPLY CHANGES at the top. Light switches still apply right away."
+                                }
+                            }
+
 
                         // rf72: Refloat's Status Idle animation - one setting for
                         // every controller (controller-driven LEDs play it, an SLCM gets it
@@ -15744,6 +15861,53 @@ Item {
                                     + " idling (VESC Shutdown Mode)"
                                     + (snzBefore > 0 && vescAppConfig.offMinutes > snzBefore ? ", so the lights snooze at " + (vescAppConfig.offMinutes - snzBefore) + " min." : ".")
                                     + " They blink twice every 15 s in the last minute."
+                            }
+                        }
+
+                        // rf131: the controller beeper (Refloat's) in the Refloat view
+                        LedCard {
+                            visible: !slcmDetect.present
+                            width: parent.width
+                            title: "BEEPER"
+                            Row {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                spacing: 0.15 * unit
+                                SwPill {
+                                    minWidth: 3.0 * unit
+                                    label: ledSender.ctrlBeep ? "BEEPER ON" : "BEEPER OFF"
+                                    lit: ledSender.ctrlBeep
+                                    onClicked: ledSender.setCtrlBeep(!ledSender.ctrlBeep)
+                                }
+                                SwPill {
+                                    minWidth: 3.0 * unit
+                                    label: "\u266A TEST BEEP"
+                                    lit: true
+                                    onClicked: {
+                                        ledSender.testCtrlBeep();
+                                        VescIf.emitStatusMessage(ledSender.ctrlBeep ? "Test beep sent to the controller"
+                                            : "Controller beeper is off - turn it on to hear the test beep", true);
+                                    }
+                                }
+                            }
+                            SwLText {
+                                width: parent.width
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: fontSizeSmall
+                                text: "Refloat's beeper: write / power beeps and warnings (battery, temperature, sensors). OFF also mutes the warnings."
+                            }
+                        }
+
+                        // rf131: changes made in an ADVANCED view with AUTO APPLY off, still waiting
+                        SwPill {
+                            visible: ledSender.pending && !slcmDetect.present
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 5.0 * unit
+                            label: "\u2713 APPLY WAITING LED CHANGES"
+                            lit: true
+                            onClicked: {
+                                ledSender.apply();
+                                VescIf.emitStatusMessage("LED changes applied", true);
                             }
                         }
 

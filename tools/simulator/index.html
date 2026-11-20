@@ -357,6 +357,8 @@
             <div class="ledTile wide" data-w="head" style="height:150px"><canvas id="boardArt" style="position:absolute;left:8px;right:8px;top:6px;width:calc(100% - 16px);height:94px"></canvas><b>HEAD/TAIL LIGHTS</b><small id="ltHead"></small><i>&#8250;</i></div>
             <div class="ledTile wide" data-w="bar" style="height:92px"><span class="bArt"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i></span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
           </div>
+          <div class="ledCard" id="ledsBeepCard" style="display:none"><div class="cardT">BEEPER</div><div class="pills"><div class="pill" id="ledsBeepP"></div><div class="pill on" id="ledsTestBeep">&#9834; TEST BEEP</div></div><p class="ledHint" style="text-align:center">Refloat's beeper: write / power beeps and warnings (battery, temperature, sensors). OFF also mutes the warnings.</p></div>
+          <div class="pills" id="ledsWaitBox" style="display:none"><div class="pill on" id="ledsWaitP">&#10003; APPLY WAITING LED CHANGES</div></div>
           <div class="ledCard" id="ledsSnzCard" style="display:none"><div class="cardT">SNOOZE</div><div id="ledsSnzSteps"></div></div>
           <div class="ledTiles" id="rgbTileBox"><div class="ledTile wide" data-w="rgb"><span class="g">&#9672;</span><b>RGB LIGHTS</b><small id="ltRgb"></small><i>&#8250;</i></div></div>
           <p style="font-size:11px;color:var(--text);text-align:center;margin:8px 6px">These are Refloat's LED settings (VESC Tool &#8250; Refloat Cfg &#8250; LEDs), kept in step both ways, so they work the same on every controller.</p>
@@ -392,6 +394,7 @@
   <div id="updPromptDim" style="position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:59;display:none"></div>
   <div id="ledWin" style="position:absolute;left:0;right:0;bottom:0;height:50%;z-index:46;display:none;flex-direction:column;gap:8px;background:#0b0718;border:2px solid var(--purple);border-radius:14px 14px 0 0;padding:10px 12px">
     <div style="display:flex;align-items:center;gap:6px"><div class="pill" id="ledWinBack" style="min-width:64px;text-align:center">&#8249; BACK</div><span class="neonL" id="ledWinTitle" style="flex:1;text-align:center;font-size:16px"></span><div style="min-width:64px"></div></div>
+    <div class="pills" id="applyBar" style="display:none"><div class="pill" id="applyP"></div></div>
     <div style="height:2px;background:var(--purple);opacity:.6"></div>
     <div style="flex:1;overflow-y:auto">
       <div class="ledSec" data-s="head">
@@ -415,6 +418,7 @@
           <p class="ledHint">Refloat's status bar animations for each moment. Each effect starts in its own colors (KNIGHT RIDER red, FELONY red / blue, STROBE white, ...); COLOR changes them all. ADVANCED: second color / background, speed, START AFTER, the duty bar, footpad sensors and own colors for riding and snooze.</p>
         </div>
         <div id="barAdv">
+        <div class="ledCard autoCard"><div class="cardT">APPLY</div><div class="pills"><div class="pill autoP"></div></div><p class="ledHint autoHint"></p></div>
         <div class="secTitle">Idle animation</div>
         <div class="animSel" id="rfSel"><span class="stepBtn" data-d="-1">&#9660;</span><div class="stepVal animName" id="rfPreview" data-anim="15" style="flex:1;font-size:18px;text-align:center"></div><span class="stepBtn" data-d="1">&#9650;</span></div>
         <div id="rfSteps"></div>
@@ -475,6 +479,7 @@
           <p class="ledHint">RIDING: while the board is engaged; IDLE: the rest of the time. Each effect starts in its own colors (SOLID white headlight / red tail light, KNIGHT RIDER red, FELONY red / blue, ...). IDLE OFF: that light is dark when idle. RESTORE DEFAULTS: solid white headlight and solid red tail light while riding, off when idle. ADVANCED: second color / background, speed, tail light brightness and OFF WHEN LIFTED.</p>
         </div>
         <div id="rgbAdv">
+        <div class="ledCard autoCard"><div class="cardT">APPLY</div><div class="pills"><div class="pill autoP"></div></div><p class="ledHint autoHint"></p></div>
         <div id="rgbSel">
           <div class="rgbGrp"><span>RIDING</span><div class="pill" data-i="0">HEADLIGHT</div><div class="pill" data-i="1">TAIL LIGHT</div></div>
           <div class="rgbGrp"><span>IDLE</span><div class="pill" data-i="2">HEADLIGHT</div><div class="pill" data-i="3">TAIL LIGHT</div></div>
@@ -1540,6 +1545,8 @@ function renderLedsSoft() {
   $('rgbTileBox').style.display = 'none';  // rf128: merged into HEAD/TAIL LIGHTS
   $('rgbInHead').style.display = setup === 'refloat' ? '' : 'none';
   $('ledsSnzCard').style.display = setup === 'refloat' ? '' : 'none';
+  $('ledsBeepCard').style.display = slcm ? 'none' : '';  // rf131
+  renderApply();
   $('updTileBox').style.display = slcm ? '' : 'none';  // rf130: not in the Refloat view
   $('ltRgb').textContent = 'HEADLIGHT ' + RF_MODES[P.rgb[0].mode] + ' · TAIL ' + RF_MODES[P.rgb[1].mode];
   $('pgLeds').classList.toggle('slcmOn', slcm); $('pgLeds').classList.toggle('slcmOff', !slcm);
@@ -1581,7 +1588,7 @@ function renderLedsSoft() {
   $('ltBar').textContent = P.ledBar ? 'ON · RIDE ' + P.ledRidePct + '% · ' + (sb ? 'IDLE ' + animLabel('ledAnimIdle', P.ledAnimIdle) : P.rfTimeout > 0 ? 'IDLE: ' + RF_MODES[P.rfMode] : 'IDLE: BATTERY') : 'OFF';
   $('ltAnim').textContent = 'IDLE ' + animLabel('ledAnimIdle', P.ledAnimIdle) + ' · RIDE ' + animLabel('ledAnimRide', P.ledAnimRide);
   $('ltSound').textContent = 'CONTROLLER ' + (P.ctrlBeep !== false ? 'ON' : 'OFF') + ' · LCM ' + (P.ledBeep ? 'ON' : 'OFF');
-  pill('ctrlBeepPill', P.ctrlBeep !== false, 'BEEPER');
+  pill('ctrlBeepPill', P.ctrlBeep !== false, 'BEEPER'); pill('ledsBeepP', P.ctrlBeep !== false, 'BEEPER');
   for (let i = 0; i < 11; i++) { const v = P['_pt' + i]; const c0 = P.batCustom || batCur(); if (v !== undefined && $('batAdv').style.display === 'flex' && v !== c0.points[i]) batEdit(x => { x.points[i] = v; }); }
   if ($('batAdv').style.display === 'flex' && P._ir !== undefined) { const c0 = P.batCustom || batCur(); if (P._ir !== c0.ir || (P.batCustom && P._cap !== P.batCustom.cap)) batEdit(x => { x.ir = P._ir; x.cap = P._cap; }); }
   const cc = batCur();
@@ -1795,7 +1802,9 @@ $('batResMan').onclick = () => { P.batResAuto = false; save(); renderBattery(); 
 const LED_TITLES = { rgb: 'RGB LIGHTS', head: 'HEAD/TAIL LIGHTS', bar: 'STATUS BAR', anim: 'STATUS BAR ANIMATIONS', sound: 'BEEPER', battery: 'BATTERY GAUGE', fw: 'LCM FIRMWARE', custom: 'CUSTOM ANIMATION', updates: 'UPDATES' };
 // rf128: RGB LIGHTS lives inside HEAD/TAIL LIGHTS (controller-driven RGB LEDs)
 (() => { const src = document.querySelector('.ledSec[data-s="rgb"]'), dst = $('rgbInHead'); while (src.firstChild) dst.appendChild(src.firstChild); })();
+let curLedWin = '';
 const ledWin = w => {
+  curLedWin = w || ''; setTimeout(() => typeof renderApply === 'function' && renderApply(), 0);
   $('ledWin').style.display = w ? 'flex' : 'none';
   $('ledWinDim').style.display = w ? 'block' : 'none';
   if (!w) return;
@@ -1810,13 +1819,34 @@ document.querySelectorAll('.ledTile').forEach(t => t.onclick = () => ledWin(t.da
 $('ledWinBack').onclick = () => { if (document.querySelector('.ledSec.on[data-s="custom"]')) { ledWin('anim'); renderLeds(); return; } fwForget(); ledWin(null); };
 $('ledWinDim').onclick = () => { fwForget(); ledWin(null); };
 $('cuOpen').onclick = () => { ledWin('custom'); renderCustom(); };
-$('barSimpleP').onclick = () => { P.barAdv = false; save(); renderRf(); };
-$('barAdvP').onclick = () => { P.barAdv = true; save(); renderRf(); };
+$('barSimpleP').onclick = () => { P.barAdv = false; save(); renderRf(); renderApply(); };
+$('barAdvP').onclick = () => { P.barAdv = true; save(); renderRf(); renderApply(); };
 $('rgbRestore').onclick = () => { for (let i = 0; i < 4; i++) Object.assign(P.rgb[i], { mode: 0, c1: i % 2 ? 4 : 1, c2: 0 }); P.rgbOff = { 2: true, 3: true }; P.ledCfg = true; save(); renderRgb(); renderLedsSoft(); };
-$('rgbSimpleP').onclick = () => { P.rgbAdv = false; save(); renderRgb(); };
-$('rgbAdvP').onclick = () => { P.rgbAdv = true; save(); renderRgb(); };
+$('rgbSimpleP').onclick = () => { P.rgbAdv = false; save(); renderRgb(); renderApply(); };
+$('rgbAdvP').onclick = () => { P.rgbAdv = true; save(); renderRgb(); renderApply(); };
 $('barAnimOpen').onclick = () => { ledWin('anim'); renderLeds(); };
 $('ledBreathPill').onclick = () => { P.ledBreath = P.ledBreath === false; P.snzStyle = P.ledBreath ? 0 : 2; P.ledCfg = true; save(); renderLedsSoft(); };
+// rf131: AUTO APPLY (ADVANCED only), APPLY CHANGES
+function advOpen() { if ($('ledWin').style.display !== 'flex') return false; const s = curLedWin; return (s === 'head' && P.simSetup === 'refloat' && P.rgbAdv) || (s === 'bar' && P.simSetup === 'refloat' && P.barAdv); }
+function manual() { return P.ledAutoApply === false && advOpen(); }
+function renderApply() {
+  document.querySelectorAll('.autoP').forEach(p => { p.textContent = P.ledAutoApply === false ? 'AUTO APPLY OFF' : 'AUTO APPLY ON'; p.classList.toggle('on', P.ledAutoApply !== false); });
+  document.querySelectorAll('.autoHint').forEach(h => h.textContent = P.ledAutoApply === false ? 'Make your changes, then tap APPLY CHANGES at the top. Light switches still apply right away.' : 'Changes go to the board right away.');
+  $('applyBar').style.display = manual() ? '' : 'none';
+  $('applyP').textContent = P.ledPending ? '\u2713 APPLY CHANGES' : 'NO CHANGES TO APPLY'; $('applyP').classList.toggle('on', !!P.ledPending);
+  $('ledsWaitBox').style.display = P.ledPending && P.simSetup !== 'slcm' ? '' : 'none';
+}
+document.querySelectorAll('.autoP').forEach(p => p.onclick = () => { P.ledAutoApply = P.ledAutoApply === false; if (P.ledAutoApply) P.ledPending = false; save(); renderApply(); });
+const doApply = () => { P.ledPending = false; save(); renderApply(); toast('LED changes applied'); };
+$('applyP').onclick = () => { if (P.ledPending) doApply(); };
+$('ledsWaitP').onclick = doApply;
+$('ledsBeepP').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); renderLedsSoft(); renderCtl(); };
+$('ledsTestBeep').onclick = () => $('ctrlTestBeep').click();
+// any change inside an ADVANCED view while AUTO APPLY is off waits
+$('ledWin').addEventListener('click', e => {
+  if (!manual() || e.target.closest('.autoCard') || e.target.closest('#applyBar') || e.target.id === 'ledWinBack' || e.target.closest('#rgbSimpleP,#rgbAdvP,#barSimpleP,#barAdvP')) return;
+  if (e.target.closest('.stepBtn,.pill,.sw')) { P.ledPending = true; save(); setTimeout(renderApply, 0); }
+}, true);
 $('ctrlBeepPill').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); renderLedsSoft(); renderCtl(); };
 $('ctrlTestBeep').onclick = () => {
   if (P.ctrlBeep === false) { toast('Controller beeper is off - turn it on to hear the test beep'); return; }
@@ -1843,7 +1873,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf130';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf131';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -2143,7 +2173,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf131' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf132' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });
