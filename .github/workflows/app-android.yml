@@ -1,0 +1,72 @@
+# Re-Float Rink-Mixed Android app (apps/rinkmixed-android): the simulator UI
+# wrapped with Capacitor + Bluetooth. Builds a signed APK on every push to the
+# app-android branch and attaches it to the "app-android-latest" release.
+name: App (Android)
+
+on:
+  push:
+    branches: [app-android]
+    paths: ['apps/rinkmixed-android/**', 'tools/simulator/**', '.github/workflows/app-android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  APP: apps/rinkmixed-android
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install
+        working-directory: ${{ env.APP }}
+        run: npm install --no-audit --no-fund
+      - name: Protocol tests
+        working-directory: ${{ env.APP }}
+        run: npm test
+      - name: Build web app (simulator UI + app layer)
+        working-directory: ${{ env.APP }}
+        run: npm run www
+      - name: Android project
+        working-directory: ${{ env.APP }}
+        run: |
+          npx cap add android
+          npx cap sync android
+      - name: Build APK
+        working-directory: ${{ env.APP }}/android
+        run: ./gradlew --no-daemon assembleRelease
+      - name: Sign APK
+        working-directory: ${{ env.APP }}
+        env:
+          KS_B64: ${{ secrets.RM_APP_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.RM_APP_KEYSTORE_PASS }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > release.jks; PASS="$KS_PASS"
+          else
+            cp dev-signing/rinkmixed-dev.jks release.jks; PASS=rinkmixed-dev  # development key, see dev-signing/README.md
+          fi
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          IN=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$BT/zipalign" -f -p 4 "$IN" aligned.apk
+          "$BT/apksigner" sign --ks release.jks --ks-pass "pass:$PASS" --key-pass "pass:$PASS" --ks-key-alias rinkmixed \
+            --out rinkmixed-android.apk aligned.apk
+          "$BT/apksigner" verify rinkmixed-android.apk
+          rm -f release.jks
+      - name: Publish APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view app-android-latest >/dev/null 2>&1 || gh release create app-android-latest --prerelease \
+            --target app-android --title "Rink-Mixed Android app (dev build)" --notes "Dev builds from the app-android branch."
+          gh release edit app-android-latest --notes "Rink-Mixed Android app, dev build from ${GITHUB_SHA::7} (app-android branch). Tap rinkmixed-android.apk to download and install (allow installs from your browser)."
+          gh release upload app-android-latest "$APP/rinkmixed-android.apk" --clobber

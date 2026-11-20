@@ -1,0 +1,8 @@
+{
+  "appId": "com.rinkmixed.app",
+  "appName": "Rink-Mixed",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}
