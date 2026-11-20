@@ -8049,15 +8049,6 @@ Item {
                 color: swTheme.neonPurple
                 opacity: 0.5
             }
-            Text {
-                width: parent.width
-                horizontalAlignment: Text.AlignHCenter
-                text: "\u2014 EASTER EGG \u2014"
-                color: swTheme.neonPurple
-                font.family: "Exan"
-                font.pixelSize: 0.2 * unit
-                font.letterSpacing: 0.04 * unit
-            }
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: Math.min(parent.width * 0.6, 3.2 * unit)

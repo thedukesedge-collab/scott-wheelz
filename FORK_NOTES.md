@@ -1539,3 +1539,7 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - The notice's own text (settings, Refloat 1.2.3, credits, ride at your
   own risk) is unchanged. UI only; no firmware, settings or licensing
   change. Compressed QML ~103 KB of the 128 KB limit (was ~91 KB).
+
+### Scout's Honor: no "EASTER EGG" label (v1.2.3-rf138)
+- The "— EASTER EGG —" label above the portrait is gone; the divider
+  still separates it from the notice. UI only.
