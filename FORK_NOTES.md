@@ -804,6 +804,13 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Snooze controls look like the SLCM ANIMATIONS rows (v1.2.3-rf112)
+- STATUS BAR > Snooze and HEAD/TAIL LIGHTS > SNOOZE LOOK are labelled rows
+  with the animated name on the right, the same as the SLCM ANIMATIONS
+  window (IDLE / RIDING / SNOOZE ...). BREATHE / DIM / DARK previews breathe,
+  dim or go dark (AnimName rf mode -2 / -3 / -4). An SLCM only offers
+  BREATHE / DARK (DIM is skipped).
+
 ### Status bar snooze: any animation (v1.2.3-rf111)
 - STATUS BAR > Snooze is now a selector like idle / riding: BREATHE, DIM,
   DARK, NORMAL, then every Refloat animation (played in the Status Idle

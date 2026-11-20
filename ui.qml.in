@@ -4356,6 +4356,11 @@ Item {
                 break;
             }
             case 15: {  // Refloat's Status Idle animation (approximation)
+                // rf112: snooze looks: -2 breathe, -3 dim, -4 dark (and -1 battery / normal)
+                if (an.rf && an.rf.mode <= -2) {
+                    var wa = an.rf.mode === -2 ? 0.2 + 0.8 * (0.5 - 0.5 * Math.cos(2 * Math.PI * t / 4)) : an.rf.mode === -3 ? 0.4 : 0.15;
+                    return Qt.rgba(0.92, 0.84, 1, wa);
+                }
                 if ((!an.rf && !ledSender.rfOn) || (an.rf && an.rf.mode < 0)) return "#ead6ff";  // battery display
                 var c1 = ledSender.rfQColor(an.rf ? an.rf.c1 : ledSender.rfColor1), c2 = ledSender.rfQColor(an.rf ? an.rf.c2 : ledSender.rfColor2);
                 var sp = Math.max(0.1, an.rf ? an.rf.speed : ledSender.rfSpeed), md = an.rf ? an.rf.mode : ledSender.rfMode;
@@ -8120,19 +8125,24 @@ Item {
                             onMoved: { swSettings.ledSnoozeMin = newValue; ledSender.changed(); }
                         }
 
-                        // rf97: how the lights look while snoozing
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 0.15 * unit
-                            Repeater {
-                                // DIM only for controller-driven LEDs (an SLCM breathes or goes dark)
-                                model: (ledSender.rgbAvail || ledSender.rfStatusAvail) ? [["BREATHE", 0], ["DIM", 1], ["DARK", 2]] : [["BREATHE", 0], ["DARK", 2]]
-                                SwPill {
-                                    minWidth: 2.2 * unit
-                                    label: modelData[0]
-                                    lit: swSettings.ledSnoozeStyle === modelData[1] || (modelData[1] === 0 && swSettings.ledSnoozeStyle === 1 && !(ledSender.rgbAvail || ledSender.rfStatusAvail))
-                                    onClicked: { swSettings.ledSnoozeStyle = modelData[1]; swSettings.ledDozeBreath = modelData[1] !== 2; ledSender.changed(); }
-                                }
+                        // rf97 / rf112: how the head / tail lights look while snoozing, as a
+                        // row like the SLCM ANIMATIONS (DIM only for controller-driven LEDs)
+                        SwStepper {
+                            id: htSnoozeLook
+                            readonly property bool ctl: ledSender.rgbAvail || ledSender.rfStatusAvail
+                            width: parent.width
+                            label: "SNOOZE LOOK"
+                            valueWidth: 3.6 * unit
+                            value: !ctl && swSettings.ledSnoozeStyle === 1 ? 0 : swSettings.ledSnoozeStyle
+                            rf: ({mode: [-2, -3, -4][value], c1: 1, c2: 0, speed: 1})
+                            from: 0; to: 2; step: 1
+                            valueText: ["BREATHE", "DIM", "DARK"][value]
+                            onMoved: {
+                                var v = newValue;
+                                if (!ctl && v === 1) v = value === 0 ? 2 : 0;  // an SLCM: breathe or dark
+                                swSettings.ledSnoozeStyle = v;
+                                swSettings.ledDozeBreath = v !== 2;
+                                ledSender.changed();
                             }
                         }
 
@@ -8299,9 +8309,11 @@ Item {
                         // BREATHE, DIM, DARK, NORMAL, then every Refloat animation
                         SwStepper {
                             visible: ledSender.rfStatusAvail
-                            bigName: true
+                            width: parent.width
+                            label: "SNOOZE"  // rf112: same look as the SLCM ANIMATIONS rows
+                            valueWidth: 3.6 * unit
                             value: swSettings.ledStatusSnooze
-                            rf: ({mode: value >= 4 ? value - 4 : -1, c1: ledSender.rfColor1, c2: ledSender.rfColor2, speed: ledSender.rfSpeed})
+                            rf: ({mode: value >= 4 ? value - 4 : [-2, -3, -4, -1][value], c1: ledSender.rfColor1, c2: ledSender.rfColor2, speed: ledSender.rfSpeed})
                             from: 0; to: 3 + ledSender.rfModes.length; step: 1
                             valueText: value >= 4 ? ledSender.rfModes[value - 4] : ["BREATHE", "DIM", "DARK", "NORMAL"][value]
                             onMoved: { swSettings.ledStatusSnooze = newValue; ledSender.changed(); }
