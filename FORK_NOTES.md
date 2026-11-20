@@ -1345,3 +1345,19 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - LCM flash: the bootloader build no longer repeats the clock setup the
   bootloader already did (SystemInit in system_hk32f030m.c, bootloader build
   only), which pays for the above.
+
+### SLCM LED windows back to how they were with the SLCM (v1.2.3-rf116)
+- All the new LED features (rf83+: IN MOTION / IDLE naming, snooze before
+  power-off, snooze looks, riding / snooze animations with own colors,
+  power-off blink, BACKGROUND switch ...) are for controller-driven LEDs
+  (Refloat's own LED section: Thor, RGB strips) only.
+- On an SLCM board (ledSender.slcmPresets: SLCM answering, no
+  controller-driven LEDs) HEAD/TAIL LIGHTS and STATUS BAR are the rf82
+  windows again: HEADLIGHTS ON/OFF, RIDING / RUNNING LIGHTS, SNOOZE
+  BREATHING ON/OFF; brightness + Refloat's Status Idle animation turned into
+  the closest SLCM look. SLCM EXTRAS > ANIMATIONS is unchanged. rf115's copy
+  of the SLCM presets in STATUS BAR is gone (they stay in SLCM EXTRAS).
+- SNOOZE BREATHING also sets the snooze style (BREATHE / DARK) so the
+  DARK flag sent to the SLCM is the same as before.
+- SLCM firmware, the SLCM poll reply and the LCM settings bytes the SLCM
+  uses are unchanged (lcm/ untouched since rf82).
