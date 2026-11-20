@@ -91,7 +91,7 @@
   .ledCard { border: 2px solid rgba(168,85,255,.55); background: #120a22; border-radius: 12px; padding: 6px 8px; margin: 6px 0; }
   .ledCard .cardSep { height: 1px; background: rgba(168,85,255,.35); margin: 4px 0; }
   .ledCard .cardT { text-align: center; color: var(--green); font-family: Orbitron, monospace; font-size: 12px; letter-spacing: 1px; margin-bottom: 2px; }
-  #barSimple .stepVal, #rgbSimple .stepVal, #headSnzTitle .stepVal { width: 118px !important; }
+  #barSimple .stepVal, #rgbSimple .stepVal, #headSnzTitle .stepVal, #ledsSnzCard .stepVal { width: 118px !important; }
   #barSimple .ledHint, #rgbSimple .ledHint { text-align: center; }
   .pill { border: 2px solid var(--purple); color: var(--purple); border-radius: 999px; padding: 6px 14px; font-family: Orbitron, monospace; font-size: 11px; cursor: pointer; }
   #lcmTools { position: relative; width: max-content; margin: 0 auto; padding: 6px 10px; font-size: 10px; letter-spacing: .5px; color: #5c5470; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; }
@@ -357,6 +357,7 @@
             <div class="ledTile wide" data-w="head" style="height:150px"><canvas id="boardArt" style="position:absolute;left:8px;right:8px;top:6px;width:calc(100% - 16px);height:94px"></canvas><b>HEAD/TAIL LIGHTS</b><small id="ltHead"></small><i>&#8250;</i></div>
             <div class="ledTile wide" data-w="bar" style="height:92px"><span class="bArt"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i></span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
           </div>
+          <div class="ledCard" id="ledsSnzCard" style="display:none"><div class="cardT">SNOOZE</div><div id="ledsSnzSteps"></div></div>
           <div class="ledTiles" id="rgbTileBox"><div class="ledTile wide" data-w="rgb"><span class="g">&#9672;</span><b>RGB LIGHTS</b><small id="ltRgb"></small><i>&#8250;</i></div></div>
           <p style="font-size:11px;color:var(--text);text-align:center;margin:8px 6px">These are Refloat's LED settings (VESC Tool &#8250; Refloat Cfg &#8250; LEDs), kept in step both ways, so they work the same on every controller.</p>
           <div id="slcmExtras"><div class="secTitle" style="text-align:center;margin-top:6px">SLCM extras</div>
@@ -371,7 +372,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf115 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf129 · sim</span></div>
     </div>
   </div>
 
@@ -397,9 +398,9 @@
         <div class="pills"><div class="pill" id="ledHeadPill"></div></div>
         <div id="rgbInHead"></div>
         <div id="ledHeadSteps"></div>
-        <div class="ledCard" id="headSnzTitle"><div class="cardT">SNOOZE</div><div id="headSnzSteps"></div><div id="ledBreathBox"></div></div><div class="pills"><div class="pill" id="ledBreathPill" style="display:none"></div></div>
+        <div class="ledCard" id="headSnzTitle"><div class="cardT">SNOOZE LOOK</div><div id="headSnzSteps"></div><div id="ledBreathBox"></div></div><div class="pills"><div class="pill" id="ledBreathPill" style="display:none"></div></div>
         <p class="ledHint" id="headHintSlcm">HEADLIGHTS OFF is fully off (riding and idle). RIDING LIGHTS apply while the board is engaged, RUNNING LIGHTS the rest of the time; 0% = off. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). SNOOZE BREATHING: the head and tail lights slowly breathe while the board snoozes (SLCM); off = dark in snooze.</p>
-        <p class="ledHint" id="headHintRf">RIDING: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). SNOOZE uses the same idle clock as VESC's power-off: riding or rolling the wheel restarts it (footpads and lifting don't), and wakes the lights. SNOOZE sets how many minutes before the board powers off the head/tail lights and status bar start snoozing (default 5). BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes by itself; this is for controller-driven LEDs (e.g. Thor).</p>
+        <p class="ledHint" id="headHintRf">RIDING: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). SNOOZE uses the same idle clock as VESC's power-off: riding or rolling the wheel restarts it (footpads and lifting don't), and wakes the lights. When to snooze is set on the LEDS page (SNOOZE). BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes by itself; this is for controller-driven LEDs (e.g. Thor).</p>
       </div>
       <div class="ledSec" data-s="bar">
         <div class="pills"><div class="pill" id="ledBarPill"></div></div>
@@ -424,7 +425,7 @@
           <div id="stSnzBox"></div>
           <div class="pills" id="snzModeBox"><div class="pill" id="snzSimple">SIMPLE</div><div class="pill" id="snzAdv">ADVANCED &#8250;</div></div>
           <div id="snzColSteps"></div>
-          <p class="ledHint">How the status bar looks while the board snoozes; it snoozes together with the head / tail lights (HEAD/TAIL LIGHTS &#8250; SNOOZE BEFORE OFF). BREATHE / DIM / DARK: its brightness; NORMAL: it keeps its idle look; an animation plays in the idle animation's colors and speed (SIMPLE) or its own (ADVANCED).</p>
+          <p class="ledHint">How the status bar looks while the board snoozes; it snoozes together with the head / tail lights (LEDS &#8250; SNOOZE). BREATHE / DIM / DARK: its brightness; NORMAL: it keeps its idle look; an animation plays in the idle animation's colors and speed (SIMPLE) or its own (ADVANCED).</p>
         </div>
         <div id="rfRide">
           <div class="secTitle">Riding animation</div>
@@ -1538,6 +1539,7 @@ function renderLedsSoft() {
   const setup = P.simSetup || 'slcm', slcm = setup === 'slcm', lightsOk = setup !== 'none';
   $('rgbTileBox').style.display = 'none';  // rf128: merged into HEAD/TAIL LIGHTS
   $('rgbInHead').style.display = setup === 'refloat' ? '' : 'none';
+  $('ledsSnzCard').style.display = setup === 'refloat' ? '' : 'none';
   $('ltRgb').textContent = 'HEADLIGHT ' + RF_MODES[P.rgb[0].mode] + ' · TAIL ' + RF_MODES[P.rgb[1].mode];
   $('pgLeds').classList.toggle('slcmOn', slcm); $('pgLeds').classList.toggle('slcmOff', !slcm);
   document.querySelectorAll('#simSetup .pill').forEach(x => x.classList.toggle('on', x.dataset.k === setup));
@@ -1602,10 +1604,10 @@ function renderLeds() {
   // rf88: pretend VESC Shutdown Mode = off after 10 min: snooze stays below it
   if ((P.simSetup || 'slcm') === 'refloat') {
     P.ledSnoozeMin = Math.min(P.ledSnoozeMin, 9);
-    $('headSnzSteps').innerHTML = ''; ledStep($('headSnzSteps'), 'ledSnoozeMin', 'BEFORE OFF', 0, 9, 1, v => v ? v + ' min' : 'NEVER');
+    $('ledsSnzSteps').innerHTML = ''; ledStep($('ledsSnzSteps'), 'ledSnoozeMin', 'BEFORE OFF', 0, 9, 1, v => v ? v + ' min' : 'NEVER');  // rf129: on the LEDS page
     const n = document.createElement('p'); n.className = 'ledHint'; n.style.cssText = 'text-align:center;color:var(--green)';
     n.textContent = 'Board powers off after 10 min idling (VESC Shutdown Mode)' + (P.ledSnoozeMin ? ', so the lights snooze at ' + (10 - P.ledSnoozeMin) + ' min.' : '.') + ' They blink twice every 15 s in the last minute.';
-    $('headSnzSteps').appendChild(n);
+    $('ledsSnzSteps').appendChild(n);
   }
   $('ledBarSteps').innerHTML = ''; ledStep($('ledBarSteps'), 'ledIdlePct', 'IDLE BRIGHTNESS', 0, 100, 5, pct); ledStep($('ledBarSteps'), 'ledRidePct', 'RIDING BRIGHTNESS', 0, 100, 5, pct);
   $('ledAnimSteps').innerHTML = '';
@@ -1840,7 +1842,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf115';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf129';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -2140,7 +2142,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf116' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf130' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

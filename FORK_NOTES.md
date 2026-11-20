@@ -1464,3 +1464,9 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   brightness rows are hidden there (the BRIGHTNESS card has them).
 - Refloat boards without RGB strips: the same window without the effect
   cards (brightness rows + snooze card). SLCM boards: unchanged.
+
+### Snooze timer on the LEDS page (v1.2.3-rf129)
+- Controller-driven LEDs: SNOOZE card on the LEDS page under the tiles:
+  BEFORE OFF (minutes before VESC's power-off) + the power-off note. The
+  HEAD/TAIL LIGHTS window keeps a SNOOZE LOOK card. SLCM boards unchanged.
+- Simulator: version label rf129.
