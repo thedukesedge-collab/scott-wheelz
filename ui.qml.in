@@ -9108,7 +9108,7 @@ Item {
                             spacing: 0.14 * unit
                             visible: !swSettings.rgbAdvanced
                             Repeater {
-                                model: [["Riding", [["HEAD", 0], ["TAIL", 1]]], ["Idle", [["FRONT", 2], ["REAR", 3]]]]
+                                model: [["Riding", [["HEADLIGHT", 0], ["TAIL LIGHT", 1]]], ["Idle", [["FRONT", 2], ["REAR", 3]]]]
                                 Column {
                                     id: rgbSimpleGrp
                                     width: rgbCol.width
@@ -9144,7 +9144,7 @@ Item {
                                 width: parent.width
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: fontSizeSmall
-                                text: "RIDING: HEAD / TAIL while the board is engaged; IDLE: FRONT / REAR the rest of the time. Each keeps its own colors. "
+                                text: "RIDING: HEADLIGHT / TAIL LIGHT while the board is engaged; IDLE: FRONT / REAR the rest of the time. Each keeps its own colors. "
                                     + "ADVANCED: colors, speed, tail / rear brightness and OFF WHEN LIFTED."
                             }
                         }
@@ -9178,7 +9178,7 @@ Item {
                                             SwPill {
                                                 readonly property int bar: rgbGroup.base + (modelData === "HEAD" ? 0 : 1)
                                                 minWidth: 2.0 * unit
-                                                label: rgbGroup.base === 2 ? (modelData === "HEAD" ? "FRONT" : "REAR") : modelData
+                                                label: rgbGroup.base === 2 ? (modelData === "HEAD" ? "FRONT" : "REAR") : (modelData === "HEAD" ? "HEADLIGHT" : "TAIL LIGHT")
                                                 lit: rgbCol.sel === bar
                                                 onClicked: rgbCol.sel = bar
                                             }
@@ -15594,7 +15594,7 @@ Item {
                                 glyph: "\u25C8"
                                 lit: true
                                 summary: ledSender.rgbLoaded
-                                    ? "HEAD " + ledSender.rfModes[ledSender.rgb[0].mode] + " \u00B7 FRONT " + ledSender.rfModes[ledSender.rgb[2].mode]
+                                    ? "HEADLIGHT " + ledSender.rfModes[ledSender.rgb[0].mode] + " \u00B7 FRONT " + ledSender.rfModes[ledSender.rgb[2].mode]
                                     : "HEAD / TAIL / FRONT / REAR"
                                 onClicked: ledWindow.show("rgb")
                             }

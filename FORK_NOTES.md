@@ -1401,3 +1401,7 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 ### RGB LIGHTS SIMPLE: riding SOLID = white head / red tail (v1.2.3-rf120)
 - In RGB LIGHTS SIMPLE, picking SOLID for RIDING HEAD sets color 1 to
   WHITE, for RIDING TAIL to RED (Refloat's headlights / taillights bars).
+
+### RGB LIGHTS: HEADLIGHT / TAIL LIGHT names (v1.2.3-rf121)
+- RGB LIGHTS riding rows / buttons read HEADLIGHT and TAIL LIGHT (were
+  HEAD / TAIL), also in the hint and the LEDS tile summary.

@@ -463,11 +463,11 @@
         <div id="rgbSimple">
           <div class="secTitle">Riding</div><div id="rsHead"></div><div id="rsTail"></div><div id="rsBriR"></div>
           <div class="secTitle">Idle</div><div id="rsFront"></div><div id="rsRear"></div><div id="rsBriI"></div>
-          <p class="ledHint">RIDING: HEAD / TAIL while the board is engaged; IDLE: FRONT / REAR the rest of the time. Each keeps its own colors. ADVANCED: colors, speed, tail / rear brightness and OFF WHEN LIFTED.</p>
+          <p class="ledHint">RIDING: HEADLIGHT / TAIL LIGHT while the board is engaged; IDLE: FRONT / REAR the rest of the time. Each keeps its own colors. ADVANCED: colors, speed, tail / rear brightness and OFF WHEN LIFTED.</p>
         </div>
         <div id="rgbAdv">
         <div id="rgbSel">
-          <div class="rgbGrp"><span>RIDING</span><div class="pill" data-i="0">HEAD</div><div class="pill" data-i="1">TAIL</div></div>
+          <div class="rgbGrp"><span>RIDING</span><div class="pill" data-i="0">HEADLIGHT</div><div class="pill" data-i="1">TAIL LIGHT</div></div>
           <div class="rgbGrp"><span>IDLE</span><div class="pill" data-i="2">FRONT</div><div class="pill" data-i="3">REAR</div></div>
         </div>
         <div class="animSel"><span class="stepBtn" data-d="-1">&#9660;</span><div class="stepVal animName" id="rgbPreview" data-anim="16" style="flex:1;font-size:18px;text-align:center"></div><span class="stepBtn" data-d="1">&#9650;</span></div>
@@ -1522,7 +1522,7 @@ setInterval(() => {
 function renderLedsSoft() {
   const setup = P.simSetup || 'slcm', slcm = setup === 'slcm', lightsOk = setup !== 'none';
   $('rgbTileBox').style.display = setup === 'refloat' ? '' : 'none';
-  $('ltRgb').textContent = 'HEAD ' + RF_MODES[P.rgb[0].mode] + ' · FRONT ' + RF_MODES[P.rgb[2].mode];
+  $('ltRgb').textContent = 'HEADLIGHT ' + RF_MODES[P.rgb[0].mode] + ' · FRONT ' + RF_MODES[P.rgb[2].mode];
   $('pgLeds').classList.toggle('slcmOn', slcm); $('pgLeds').classList.toggle('slcmOff', !slcm);
   document.querySelectorAll('#simSetup .pill').forEach(x => x.classList.toggle('on', x.dataset.k === setup));
   $('slcmBanner').className = 'fwFit' + (slcm ? ' ok' : '');
@@ -1607,7 +1607,7 @@ function renderRgb() {
   // rf118: SIMPLE (one row per light bar, own colors kept) / ADVANCED
   $('rgbSimple').style.display = P.rgbAdv ? 'none' : ''; $('rgbAdv').style.display = P.rgbAdv ? '' : 'none';
   $('rgbSimpleP').classList.toggle('on', !P.rgbAdv); $('rgbAdvP').classList.toggle('on', !!P.rgbAdv);
-  [['rsHead', 'HEAD', 0], ['rsTail', 'TAIL', 1], ['rsFront', 'FRONT', 2], ['rsRear', 'REAR', 3]].forEach(([id, l, k]) =>
+  [['rsHead', 'HEADLIGHT', 0], ['rsTail', 'TAIL LIGHT', 1], ['rsFront', 'FRONT', 2], ['rsRear', 'REAR', 3]].forEach(([id, l, k]) =>
     animRow($(id), l, () => P.rgb[k].mode, 8, v => RF_MODES[v], 20 + k, v => { if (oneCol(v) && !oneCol(P.rgb[k].mode)) P.rgb[k].c2 = 0; if (v === 5 && P.rgb[k].mode !== 5) { P.rgb[k].c1 = 4; P.rgb[k].c2 = 25; } P.rgb[k].mode = v; if (v === 0 && k < 2) P.rgb[k].c1 = k === 0 ? 1 : 4;  /* rf120: riding SOLID = white head / red tail */ save(); renderRgb(); }));
   [['rsBriR', 'ledHeadPct'], ['rsBriI', 'ledHeadIdlePct']].forEach(([id, k]) => { $(id).innerHTML = ''; ledStep($(id), k, 'BRIGHTNESS', 0, 100, 5, v => v + '%'); });
   const i = P.rgbSel || 0, b = P.rgb[i], box = $('rgbSteps');
