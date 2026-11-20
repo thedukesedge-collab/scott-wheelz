@@ -390,21 +390,15 @@
       <div class="ledSec" data-s="head">
         <div class="pills"><div class="pill" id="ledHeadPill"></div></div>
         <div id="ledHeadSteps"></div>
-        <div class="secTitle">Snooze</div>
-        <div id="ledBreathBox"></div><div class="pill" id="ledBreathPill" style="display:none"></div>
-        <p class="ledHint">IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). SNOOZE uses the same idle clock as VESC's power-off: riding or rolling the wheel restarts it (footpads and lifting don't), and wakes the lights. SNOOZE sets how many minutes before the board powers off the head/tail lights and status bar start snoozing (default 5). BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes by itself; this is for controller-driven LEDs (e.g. Thor).</p>
+        <div class="secTitle" id="headSnzTitle">Snooze</div>
+        <div id="ledBreathBox"></div><div class="pills"><div class="pill" id="ledBreathPill" style="display:none"></div></div>
+        <p class="ledHint" id="headHintSlcm">HEADLIGHTS OFF is fully off (riding and idle). RIDING LIGHTS apply while the board is engaged, RUNNING LIGHTS the rest of the time; 0% = off. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). SNOOZE BREATHING: the head and tail lights slowly breathe while the board snoozes (SLCM); off = dark in snooze.</p>
+        <p class="ledHint" id="headHintRf">IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). SNOOZE uses the same idle clock as VESC's power-off: riding or rolling the wheel restarts it (footpads and lifting don't), and wakes the lights. SNOOZE sets how many minutes before the board powers off the head/tail lights and status bar start snoozing (default 5). BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes by itself; this is for controller-driven LEDs (e.g. Thor).</p>
       </div>
       <div class="ledSec" data-s="bar">
         <div class="pills"><div class="pill" id="ledBarPill"></div></div>
         <div id="ledBarSteps"></div>
         <p class="ledHint">Same as Refloat's Status Idle Brightness (idle) and Status Brightness (riding).</p>
-        <div id="barSlcm">
-          <div class="secTitle">Animations</div>
-          <div id="barSlcmSteps"></div><div id="barSlcmColor"></div>
-          <div id="barSlcmSwatch" style="height:8px;border-radius:4px;width:70%;margin:4px auto 0"></div>
-          <div class="pills"><div class="pill on" id="barCuOpen">DESIGN CUSTOM &#8250;</div></div>
-          <p class="ledHint">The light module's own animations for each moment: IDLE, RIDING, SNOOZE, BOOT, SHUTDOWN. COLOR is your color for CLASSIC / COLOR SCAN / PULSE / WAVE and CUSTOM. STANDARD = battery level, footpad sensors when stepped on; OFF = nothing (riding still warns when the battery is low); STATUS BAR (IDLE) = Refloat's Status Idle animation.</p>
-        </div>
         <div id="barRf">
         <div class="secTitle">Idle animation</div>
         <div class="animSel" id="rfSel"><span class="stepBtn" data-d="-1">&#9660;</span><div class="stepVal animName" id="rfPreview" data-anim="15" style="flex:1;font-size:18px;text-align:center"></div><span class="stepBtn" data-d="1">&#9650;</span></div>
@@ -1516,7 +1510,12 @@ function renderLedsSoft() {
   $('slcmBanner').className = 'fwFit' + (slcm ? ' ok' : '');
   $('slcmBanner').innerHTML = slcm ? '<b>&#10004; SLCM DETECTED</b> · ' + FW_BUILD + '<br>Same light settings as any controller, plus the SLCM EXTRAS below.'
     : "<b>REFLOAT LIGHTS</b><br>These are Refloat's own LED settings, the same on any controller (Thor, Floatwheel, ...).";
-  $('slcmExtras').style.display = slcm ? '' : 'none'; $('ledBreathBox').style.display = slcm || setup === 'refloat' ? '' : 'none';
+  $('slcmExtras').style.display = slcm ? '' : 'none';
+  // rf116: an SLCM board: HEAD/TAIL as with the SLCM (rf82); the new snooze rows only for controller-driven LEDs
+  const slcmUi = setup === 'slcm';
+  $('ledBreathBox').style.display = setup === 'refloat' ? '' : 'none'; $('headSnzTitle').style.display = setup === 'refloat' ? '' : 'none';
+  $('ledBreathPill').style.display = slcmUi ? '' : 'none';
+  $('headHintSlcm').style.display = slcmUi ? '' : 'none'; $('headHintRf').style.display = slcmUi ? 'none' : '';
   if (P.snzStyle === undefined) P.snzStyle = P.ledBreath === false ? 2 : 0;
   // rf112: SNOOZE LOOK row with a preview (DIM only for controller-driven LEDs)
   $('ledBreathBox').innerHTML = '';
@@ -1536,10 +1535,10 @@ function renderLedsSoft() {
     : !slcm ? "Using a light module (LCM)? Set Refloat Cfg \u25B8 Hardware \u25B8 LED Mode to External (or Internal and External) and write the config, so it follows these buttons."
     : P.ledCfg ? 'SLCM settings are stored on the board, so they apply even without the phone.' : 'SLCM settings are only sent once you change one here; until then the light module keeps its own.';
   const pill = (id, on, txt) => { $(id).textContent = txt + (on ? ' ON' : ' OFF'); $(id).classList.toggle('on', on); };
-  pill('ledHeadPill', P.ledHead, 'HEAD/TAIL LIGHTS'); pill('ledBreathPill', P.ledBreath !== false, 'SNOOZE BREATHING'); pill('ledBarPill', P.ledBar, 'STATUS BAR'); pill('ledBeepPill', P.ledBeep, 'LCM BEEPER');
+  pill('ledHeadPill', P.ledHead, (P.simSetup || 'slcm') === 'slcm' ? 'HEADLIGHTS' : 'HEAD/TAIL LIGHTS'); pill('ledBreathPill', P.ledBreath !== false, 'SNOOZE BREATHING'); pill('ledBarPill', P.ledBar, 'STATUS BAR'); pill('ledBeepPill', P.ledBeep, 'LCM BEEPER');
   $('ledSwatch').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
   $('ltSw').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
-  $('ltHead').textContent = P.ledHead ? 'ON · MOTION ' + P.ledHeadPct + '% · IDLE ' + P.ledHeadIdlePct + '%' : 'OFF';
+  $('ltHead').textContent = P.ledHead ? 'ON · ' + ((P.simSetup || 'slcm') === 'slcm' ? 'RIDE ' : 'MOTION ') + P.ledHeadPct + '% · IDLE ' + P.ledHeadIdlePct + '%' : 'OFF';
   $('ltBar').textContent = P.ledBar ? 'ON · RIDE ' + P.ledRidePct + '% · ' + (P.rfTimeout > 0 ? 'IDLE: ' + RF_MODES[P.rfMode] : 'IDLE: BATTERY') : 'OFF';
   $('ltAnim').textContent = 'IDLE ' + animLabel('ledAnimIdle', P.ledAnimIdle) + ' · RIDE ' + animLabel('ledAnimRide', P.ledAnimRide);
   $('ltSound').textContent = 'CONTROLLER ' + (P.ctrlBeep !== false ? 'ON' : 'OFF') + ' · LCM ' + (P.ledBeep ? 'ON' : 'OFF');
@@ -1560,7 +1559,8 @@ function renderLedsSoft() {
 }
 function renderLeds() {
   const pct = v => v + '%';
-  $('ledHeadSteps').innerHTML = ''; ledStep($('ledHeadSteps'), 'ledHeadPct', 'IN MOTION', 0, 100, 5, v => v ? v + '%' : 'OFF'); ledStep($('ledHeadSteps'), 'ledHeadIdlePct', 'IDLE', 0, 100, 5, v => v ? v + '%' : 'OFF');
+  $('ledHeadSteps').innerHTML = ''; const su = (P.simSetup || 'slcm') === 'slcm';  // rf116: SLCM wording as before
+  ledStep($('ledHeadSteps'), 'ledHeadPct', su ? 'RIDING LIGHTS' : 'IN MOTION', 0, 100, 5, v => v ? v + '%' : 'OFF'); ledStep($('ledHeadSteps'), 'ledHeadIdlePct', su ? 'RUNNING LIGHTS (IDLE)' : 'IDLE', 0, 100, 5, v => v ? v + '%' : 'OFF');
   // rf86: snooze for controller-driven LEDs (THOR pretend option)
   if (P.ledSnoozeMin === undefined || P.ledSnoozeMin < 0 || !P.snz100) { P.ledSnoozeMin = 5; P.snz100 = true; }  // rf100: minutes before power-off
   // rf88: pretend VESC Shutdown Mode = off after 10 min: snooze stays below it
@@ -1578,16 +1578,6 @@ function renderLeds() {
   renderRf();
   renderBattery();
   $('ledColorSteps').innerHTML = ''; ledStep($('ledColorSteps'), 'ledColor', 'COLOR', 0, 350, 10, v => v + '°');
-  // rf115: an SLCM board gets the SLCM's own presets in the STATUS BAR window again
-  const slcmP = (P.simSetup || 'slcm') === 'slcm';
-  $('barSlcm').style.display = slcmP ? '' : 'none'; $('barRf').style.display = slcmP ? 'none' : '';
-  $('barSlcmSteps').innerHTML = ''; $('barSlcmColor').innerHTML = '';
-  if (slcmP) {
-    [['ledAnimIdle', 'IDLE'], ['ledAnimRide', 'RIDING'], ['ledAnimDoze', 'SNOOZE'], ['ledAnimBoot', 'BOOT'], ['ledAnimShut', 'SHUTDOWN']]
-      .forEach(([k, l]) => ledStep($('barSlcmSteps'), k, l, 0, LED_ANIMS.length - (k === 'ledAnimIdle' ? 0 : 1), 1, v => animLabel(k, v), true));
-    ledStep($('barSlcmColor'), 'ledColor', 'COLOR', 0, 350, 10, v => v + '°');
-    $('barSlcmSwatch').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
-  }
   renderLedsSoft();
 }
 // RGB LIGHTS (the real one: ledSender.rgb* in ui.qml.in): Refloat's four
@@ -1745,7 +1735,7 @@ document.querySelectorAll('.ledTile').forEach(t => t.onclick = () => ledWin(t.da
 $('ledWinBack').onclick = () => { if (document.querySelector('.ledSec.on[data-s="custom"]')) { ledWin('anim'); renderLeds(); return; } fwForget(); ledWin(null); };
 $('ledWinDim').onclick = () => { fwForget(); ledWin(null); };
 $('cuOpen').onclick = () => { ledWin('custom'); renderCustom(); };
-$('barCuOpen').onclick = () => { ledWin('custom'); renderCustom(); };
+$('ledBreathPill').onclick = () => { P.ledBreath = P.ledBreath === false; P.snzStyle = P.ledBreath ? 0 : 2; P.ledCfg = true; save(); renderLedsSoft(); };
 $('ctrlBeepPill').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); renderLedsSoft(); renderCtl(); };
 $('ctrlTestBeep').onclick = () => {
   if (P.ctrlBeep === false) { toast('Controller beeper is off - turn it on to hear the test beep'); return; }
