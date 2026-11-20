@@ -804,6 +804,15 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### SLCM presets back in STATUS BAR (v1.2.3-rf115)
+- On an SLCM board (SLCM answering, no controller-driven status strip:
+  ledSender.slcmPresets) the STATUS BAR window shows the SLCM's own presets
+  again, like when the SLCM was first tied in: IDLE / RIDING / SNOOZE /
+  BOOT / SHUTDOWN rows (rainbow scan, fire, knight rider, ... with live
+  previews), COLOR and DESIGN CUSTOM. IDLE keeps STATUS BAR (Refloat's
+  Status Idle animation) as one choice. Controller-driven LEDs (Thor) keep
+  the Refloat idle / snooze / riding settings.
+
 ### Riding and snooze animations: own colors / speed (v1.2.3-rf114)
 - Riding animation now has the same adjustments as the idle animation:
   COLOR 1, COLOR 2 / BACKGROUND (ON / OFF) and SPEED (RfColorsBlock),

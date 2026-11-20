@@ -365,7 +365,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf114 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf115 · sim</span></div>
     </div>
   </div>
 
@@ -398,6 +398,14 @@
         <div class="pills"><div class="pill" id="ledBarPill"></div></div>
         <div id="ledBarSteps"></div>
         <p class="ledHint">Same as Refloat's Status Idle Brightness (idle) and Status Brightness (riding).</p>
+        <div id="barSlcm">
+          <div class="secTitle">Animations</div>
+          <div id="barSlcmSteps"></div><div id="barSlcmColor"></div>
+          <div id="barSlcmSwatch" style="height:8px;border-radius:4px;width:70%;margin:4px auto 0"></div>
+          <div class="pills"><div class="pill on" id="barCuOpen">DESIGN CUSTOM &#8250;</div></div>
+          <p class="ledHint">The light module's own animations for each moment: IDLE, RIDING, SNOOZE, BOOT, SHUTDOWN. COLOR is your color for CLASSIC / COLOR SCAN / PULSE / WAVE and CUSTOM. STANDARD = battery level, footpad sensors when stepped on; OFF = nothing (riding still warns when the battery is low); STATUS BAR (IDLE) = Refloat's Status Idle animation.</p>
+        </div>
+        <div id="barRf">
         <div class="secTitle">Idle animation</div>
         <div class="animSel" id="rfSel"><span class="stepBtn" data-d="-1">&#9660;</span><div class="stepVal animName" id="rfPreview" data-anim="15" style="flex:1;font-size:18px;text-align:center"></div><span class="stepBtn" data-d="1">&#9650;</span></div>
         <div id="rfSteps"></div>
@@ -417,6 +425,7 @@
           <div id="rfRideSteps"></div>
           <div class="pills"><div class="pill" id="rfSensPill"></div></div>
           <p class="ledHint">BATTERY / DUTY: the battery level, then the duty bar from the set duty (NEVER = battery only). Any other animation has its own colors and speed, set here; the duty bar still takes over from the set duty. FOOTPAD SENSORS: show a released sensor while riding. Same as Refloat's Status Duty Threshold and Show Sensor Indicators While Running.</p>
+        </div>
         </div>
       </div>
       <div class="ledSec" data-s="anim">
@@ -1569,6 +1578,16 @@ function renderLeds() {
   renderRf();
   renderBattery();
   $('ledColorSteps').innerHTML = ''; ledStep($('ledColorSteps'), 'ledColor', 'COLOR', 0, 350, 10, v => v + '°');
+  // rf115: an SLCM board gets the SLCM's own presets in the STATUS BAR window again
+  const slcmP = (P.simSetup || 'slcm') === 'slcm';
+  $('barSlcm').style.display = slcmP ? '' : 'none'; $('barRf').style.display = slcmP ? 'none' : '';
+  $('barSlcmSteps').innerHTML = ''; $('barSlcmColor').innerHTML = '';
+  if (slcmP) {
+    [['ledAnimIdle', 'IDLE'], ['ledAnimRide', 'RIDING'], ['ledAnimDoze', 'SNOOZE'], ['ledAnimBoot', 'BOOT'], ['ledAnimShut', 'SHUTDOWN']]
+      .forEach(([k, l]) => ledStep($('barSlcmSteps'), k, l, 0, LED_ANIMS.length - (k === 'ledAnimIdle' ? 0 : 1), 1, v => animLabel(k, v), true));
+    ledStep($('barSlcmColor'), 'ledColor', 'COLOR', 0, 350, 10, v => v + '°');
+    $('barSlcmSwatch').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
+  }
   renderLedsSoft();
 }
 // RGB LIGHTS (the real one: ledSender.rgb* in ui.qml.in): Refloat's four
@@ -1726,6 +1745,7 @@ document.querySelectorAll('.ledTile').forEach(t => t.onclick = () => ledWin(t.da
 $('ledWinBack').onclick = () => { if (document.querySelector('.ledSec.on[data-s="custom"]')) { ledWin('anim'); renderLeds(); return; } fwForget(); ledWin(null); };
 $('ledWinDim').onclick = () => { fwForget(); ledWin(null); };
 $('cuOpen').onclick = () => { ledWin('custom'); renderCustom(); };
+$('barCuOpen').onclick = () => { ledWin('custom'); renderCustom(); };
 $('ctrlBeepPill').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); renderLedsSoft(); renderCtl(); };
 $('ctrlTestBeep').onclick = () => {
   if (P.ctrlBeep === false) { toast('Controller beeper is off - turn it on to hear the test beep'); return; }
@@ -1752,7 +1772,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf114';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf115';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -2052,7 +2072,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf115' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf116' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

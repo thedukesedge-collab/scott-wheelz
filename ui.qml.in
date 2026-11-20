@@ -405,6 +405,9 @@ Item {
         property int rfTimeout: 0  // 0: Refloat's idle animation off (battery display)
         property bool rfLoaded: false  // read from the Refloat config (never write defaults over it)
         readonly property bool rfOn: rfTimeout > 0
+        // rf115: an SLCM board without a controller-driven status strip: the
+        // STATUS BAR window shows the SLCM's own presets
+        readonly property bool slcmPresets: slcmDetect.present && !rfStatusAvail
         // Refloat's riding status bar: battery level, the duty bar above
         // leds.status.duty_threshold (Refloat uses at least 15%; 100% = never),
         // footpad sensors (leds.status.show_sensors_while_running)
@@ -8273,6 +8276,62 @@ Item {
                             text: "Same as Refloat's Status Idle Brightness (idle) and Status Brightness (riding)."
                         }
 
+                        // rf115: an SLCM board (no controller-driven status strip) gets the
+                        // SLCM's own presets here again (fire, rainbows, ... + color), like
+                        // when the SLCM was first tied into the package
+                        Column {
+                            width: parent.width
+                            spacing: 0.14 * unit
+                            visible: ledSender.slcmPresets
+
+                            LedHeading { text: "Animations" }
+                            Repeater {
+                                model: ledSender.animContexts
+                                SwStepper {
+                                    width: parent.width
+                                    label: modelData[0]
+                                    valueWidth: 3.6 * unit
+                                    animName: true
+                                    value: index === 0 && swSettings.ledAnimIdle === 128 ? 15 : swSettings[modelData[1]]
+                                    from: 0; to: ledSender.animNames.length - (index === 0 ? 0 : 1); step: 1
+                                    valueText: ledSender.animLabel(index, value)
+                                    onMoved: { swSettings[modelData[1]] = index === 0 && newValue === 15 ? 128 : newValue; ledSender.changed(); }
+                                }
+                            }
+                            SwStepper {
+                                label: "COLOR"
+                                value: swSettings.ledColor
+                                from: 0; to: 350; step: 10; suffix: "\u00B0"
+                                onMoved: { swSettings.ledColor = newValue; ledSender.changed(); }
+                            }
+                            Rectangle {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                width: parent.width * 0.7
+                                height: 0.18 * unit
+                                radius: height / 2
+                                color: Qt.hsla(swSettings.ledColor / 360, 1.0, 0.5, 1.0)
+                            }
+                            SwPill {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                minWidth: 4.6 * unit
+                                label: "DESIGN CUSTOM \u203A"
+                                lit: true
+                                onClicked: ledWindow.show("custom")
+                            }
+                            SwLText {
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: fontSizeSmall
+                                text: "The light module's own animations for each moment: IDLE, RIDING, SNOOZE, BOOT, SHUTDOWN. COLOR is your color for CLASSIC / COLOR SCAN / PULSE / WAVE and CUSTOM. "
+                                    + "STANDARD = battery level, footpad sensors when stepped on; OFF = nothing (riding still warns when the battery is low); STATUS BAR (IDLE) = Refloat's Status Idle animation."
+                            }
+                        }
+
+                        Column {
+                            width: parent.width
+                            spacing: 0.14 * unit
+                            visible: !ledSender.slcmPresets
+
                         // rf72: Refloat's Status Idle animation - one setting for
                         // every controller (controller-driven LEDs play it, an SLCM gets it
                         // translated by the package)
@@ -8369,6 +8428,7 @@ Item {
                                 + (slcmDetect.present && !ledSender.idleFollows
                                     ? " Right now the SLCM plays " + ledSender.animLabel(0, swSettings.ledAnimIdle) + " from SLCM EXTRAS \u203A ANIMATIONS instead; change anything here to follow this again."
                                     : "")
+                        }
                         }
 
                         // rf109: the status bar's own snooze look (same timing as the
