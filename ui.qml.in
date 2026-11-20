@@ -4236,7 +4236,8 @@ Item {
         property color swatch: "transparent"
         property bool slcmOnly: false  // needs the SLCM light module firmware
         // rf92: small animated picture instead of the glyph: 2 status bar
-        // (LEDs filling up), 3 the neon board (HEAD/TAIL LIGHTS, rf98)
+        // (LEDs filling up), 3 the neon board (HEAD/TAIL LIGHTS, rf98),
+        // 4 the board's front with a live status bar (rf136)
         property int art: 0
         signal clicked()
         Layout.fillWidth: true
@@ -4335,6 +4336,115 @@ Item {
                 }
 
             onPaint: drawBoardArt(getContext("2d"), width, height, t, tile.lit)
+        }
+
+        // ---- rf136 art 4: STATUS BAR (Refloat view) - the board's front (the
+        // user's neon drawing) with its status bar playing Refloat's Status Idle
+        // animation (or the battery gauge) on ten LEDs. Coordinates from the
+        // 1254x1254 art.
+        Canvas {
+            id: statusArt
+            visible: tile.art === 4
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 0.12 * unit
+            height: parent.height - 1.0 * unit
+            property real t: 0
+            readonly property bool live: visible && tile.lit && Qt.application.state === Qt.ApplicationActive
+            onLiveChanged: requestPaint()
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+            Connections { target: tile; function onLitChanged() { statusArt.requestPaint(); } }
+            Timer {
+                interval: 40
+                repeat: true
+                running: statusArt.live
+                onTriggered: { statusArt.t += 0.04; statusArt.requestPaint(); }
+            }
+            function rgbOf(i) {  // Refloat color index -> [r, g, b] (BLACK = off)
+                if (i === 0) return [0, 0, 0];
+                var q = ledSender.rfQColor(i);
+                return [q.r * 255, q.g * 255, q.b * 255];
+            }
+            function hue(h) { var q = Qt.hsla(((h % 1) + 1) % 1, 1, 0.5, 1); return [q.r * 255, q.g * 255, q.b * 255]; }
+            function mix(a, b, k) { return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k]; }
+            // one LED (i of n) of Refloat's Status Idle animation at time t (approximate)
+            function led(i, n, t) {
+                if (!ledSender.rfOn) {  // battery display: drains, blinks red near the end, refills
+                    var p = (t / 6) % 1, lv = Math.max(0, 1 - p / 0.8), blink = Math.floor(t * 4) % 2 === 0;
+                    var x = (i + 0.5) / n;
+                    if (x > lv) return lv <= 0 && blink ? [120, 0, 20] : [0, 0, 0];
+                    var c = lv > 0.5 ? [57, 255, 60] : lv > 0.25 ? [255, 230, 40] : [255, 40, 60];
+                    return lv < 0.25 && !blink ? mix(c, [0, 0, 0], 0.7) : c;
+                }
+                var c1 = rgbOf(ledSender.rfColor1), c2 = rgbOf(ledSender.rfColor2), f = Math.max(0.1, ledSender.rfSpeed), ph = t * f;
+                switch (ledSender.rfMode) {
+                case 1: return mix(c1, c2, (Math.sin(ph * 2 * Math.PI) + 1) / 2);  // FADE
+                case 2: return mix(c2, c1, Math.pow((Math.sin(ph * 2 * Math.PI) + 1) / 2, 2));  // PULSE
+                case 3: return (ph * 4) % 1 < 0.5 ? c1 : c2;  // STROBE
+                case 4: {  // KNIGHT RIDER
+                    var pos = (n - 1) * (1 - Math.abs(((ph * 0.8) % 2) - 1));
+                    return mix(c2, c1, Math.max(0, 1 - Math.abs(i - pos) / 1.6));
+                }
+                case 5: {  // FELONY: halves flashing
+                    var side = i < n / 2, on = Math.floor(ph * 6) % 2 === 0;
+                    return side === on ? c1 : c2;
+                }
+                case 6: return hue(ph * 0.25);  // RAINBOW CYCLE
+                case 7: return mix(hue(ph * 0.25), [0, 0, 0], (1 - Math.cos(ph * 2 * Math.PI)) * 0.25);  // RAINBOW FADE
+                case 8: return hue(ph * 0.25 + i / n);  // RAINBOW ROLL
+                default: return c1;  // SOLID
+                }
+            }
+            function drawStatusArt(c, w, h, t, lit) {
+                c.clearRect(0, 0, w, h);
+                // the drawing spans x 165..1085, y 170..1070
+                var sc = Math.min(w / 940, h / 920), ox = (w - 940 * sc) / 2 - 155 * sc, oy = (h - 920 * sc) / 2 - 160 * sc;
+                var X = function(x) { return ox + x * sc; }, Y = function(y) { return oy + y * sc; };
+                var css = function(v, a) { return "rgba(" + Math.round(v[0]) + "," + Math.round(v[1]) + "," + Math.round(v[2]) + "," + a + ")"; };
+                var green = lit ? [57, 255, 60] : [110, 70, 170];
+                c.lineJoin = "round"; c.lineCap = "round";
+                // outline: rounded top, straight sides, the curved bottom edge with the two feet
+                c.beginPath();
+                c.moveTo(X(176), Y(1040));
+                c.lineTo(X(176), Y(340));
+                c.quadraticCurveTo(X(176), Y(188), X(330), Y(186));
+                c.quadraticCurveTo(X(625), Y(180), X(918), Y(186));
+                c.quadraticCurveTo(X(1072), Y(190), X(1072), Y(340));
+                c.lineTo(X(1078), Y(1040));
+                c.quadraticCurveTo(X(1062), Y(1062), X(1040), Y(1062));
+                c.quadraticCurveTo(X(1012), Y(1062), X(1000), Y(1030));
+                c.quadraticCurveTo(X(990), Y(1018), X(960), Y(1014));
+                c.quadraticCurveTo(X(625), Y(985), X(290), Y(1014));
+                c.quadraticCurveTo(X(258), Y(1018), X(250), Y(1030));
+                c.quadraticCurveTo(X(238), Y(1062), X(210), Y(1062));
+                c.quadraticCurveTo(X(186), Y(1062), X(176), Y(1040));
+                c.lineWidth = Math.max(1.5, 9 * sc);
+                c.strokeStyle = css(green, 1);
+                c.shadowColor = css(green, 0.9); c.shadowBlur = lit ? 26 * sc : 0;
+                c.stroke();
+                c.lineWidth = Math.max(1, 5 * sc);
+                c.beginPath(); c.arc(X(210), Y(1033), 14 * sc, 0, 2 * Math.PI); c.stroke();
+                c.beginPath(); c.arc(X(1037), Y(1033), 14 * sc, 0, 2 * Math.PI); c.stroke();
+                // the status bar: a purple light pipe with ten LEDs behind it
+                var x0 = 445, x1 = 800, yb = 950, n = 10, segW = (x1 - x0) / n;
+                c.shadowBlur = 0;
+                c.lineWidth = Math.max(2, 34 * sc);
+                c.strokeStyle = lit ? "rgba(140,40,230,0.55)" : "rgba(80,50,130,0.6)";
+                c.beginPath(); c.moveTo(X(x0), Y(yb)); c.lineTo(X(x1), Y(yb)); c.stroke();
+                c.shadowColor = "rgba(176,40,255,0.9)"; c.shadowBlur = lit ? 50 * sc : 0; c.stroke(); c.shadowBlur = 0;
+                for (var i = 0; i < n; i++) {
+                    var col = lit ? led(i, n, t) : [40, 26, 70];
+                    var on = col[0] + col[1] + col[2] > 30;
+                    c.fillStyle = css(on ? col : [24, 14, 40], 1);
+                    c.shadowColor = css(col, 1); c.shadowBlur = lit && on ? 60 * sc : 0;
+                    var sx = X(x0 + i * segW + 3), sw = Math.max(1, (segW - 6) * sc), sy = Y(yb - 13), sh = Math.max(1, 26 * sc);
+                    c.fillRect(sx, sy, sw, sh);
+                }
+                c.shadowBlur = 0;
+            }
+            onPaint: drawStatusArt(getContext("2d"), width, height, t, tile.lit)
         }
 
         // ---- rf92 art: status bar - ten LEDs filling up like the battery bar
@@ -15874,7 +15984,8 @@ Item {
                             LedTile {
                                 title: "STATUS BAR"
                                 glyph: "\u2589"
-                                art: 2
+                                art: slcmDetect.present ? 2 : 4  // rf136: Refloat view: the board's front, live status bar
+                                Layout.preferredHeight: slcmDetect.present ? 1.9 * unit : 3.8 * unit
                                 Layout.columnSpan: 2  // rf98: full width under HEAD/TAIL LIGHTS
                                 lit: swSettings.ledStatusBar
                                 summary: swSettings.ledStatusBar

@@ -356,7 +356,7 @@
           <p id="ledNote" style="font-size:11px;color:var(--text);text-align:center;margin:4px 6px"></p>
           <div class="ledTiles">
             <div class="ledTile wide" data-w="head" style="height:150px"><canvas id="boardArt" style="position:absolute;left:8px;right:8px;top:6px;width:calc(100% - 16px);height:94px"></canvas><b>HEAD/TAIL LIGHTS</b><small id="ltHead"></small><i>&#8250;</i></div>
-            <div class="ledTile wide" data-w="bar" style="height:92px"><span class="bArt"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i></span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
+            <div class="ledTile wide" data-w="bar" style="height:92px"><canvas id="statusArt" style="display:none;position:absolute;left:8px;right:8px;top:6px;width:calc(100% - 16px);height:132px"></canvas><span class="bArt"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i></span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
           </div>
           <div class="ledCard" id="ledsBeepCard" style="display:none"><div class="cardT">BEEPER</div><div class="pills"><div class="pill" id="ledsBeepP"></div><div class="pill on" id="ledsTestBeep">&#9834; TEST BEEP</div></div><p class="ledHint" style="text-align:center">Refloat's beeper: write / power beeps and warnings (battery, temperature, sensors). OFF also mutes the warnings.</p></div>
           <div class="pills" id="ledsWaitBox" style="display:none"><div class="pill on" id="ledsWaitP">&#10003; APPLY WAITING LED CHANGES</div></div>
@@ -375,7 +375,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf130 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf136 · sim</span></div>
     </div>
   </div>
 
@@ -962,6 +962,80 @@ function drawBoardArt(c, w, h, t, lit) {
     drawBoardArt(c, w, h, performance.now() / 1000, cv.parentElement.classList.contains('lit'));
   }
   requestAnimationFrame(boardArtLoop);
+})();
+// rf136: STATUS BAR tile (Refloat view): the board's front with a live status bar
+// playing Refloat's Status Idle animation (or the battery gauge); same maths as
+// statusArt in ui.qml.in
+function stLed(i, n, t) {
+  const mix = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+  const rgb = k => k === 0 ? [0, 0, 0] : rfRgb(k);
+  const hue = h => hsl2rgb(((h % 1) + 1) % 1);
+  if (!(P.rfTimeout > 0)) {
+    const p = (t / 6) % 1, lv = Math.max(0, 1 - p / 0.8), blink = Math.floor(t * 4) % 2 === 0, x = (i + 0.5) / n;
+    if (x > lv) return lv <= 0 && blink ? [120, 0, 20] : [0, 0, 0];
+    const c = lv > 0.5 ? [57, 255, 60] : lv > 0.25 ? [255, 230, 40] : [255, 40, 60];
+    return lv < 0.25 && !blink ? mix(c, [0, 0, 0], 0.7) : c;
+  }
+  const c1 = rgb(P.rfColor1), c2 = rgb(P.rfColor2), ph = t * Math.max(0.1, P.rfSpeed || 1);
+  switch (P.rfMode) {
+    case 1: return mix(c1, c2, (Math.sin(ph * 2 * Math.PI) + 1) / 2);
+    case 2: return mix(c2, c1, Math.pow((Math.sin(ph * 2 * Math.PI) + 1) / 2, 2));
+    case 3: return (ph * 4) % 1 < 0.5 ? c1 : c2;
+    case 4: { const pos = (n - 1) * (1 - Math.abs(((ph * 0.8) % 2) - 1)); return mix(c2, c1, Math.max(0, 1 - Math.abs(i - pos) / 1.6)); }
+    case 5: { const side = i < n / 2, on = Math.floor(ph * 6) % 2 === 0; return side === on ? c1 : c2; }
+    case 6: return hue(ph * 0.25);
+    case 7: return mix(hue(ph * 0.25), [0, 0, 0], (1 - Math.cos(ph * 2 * Math.PI)) * 0.25);
+    case 8: return hue(ph * 0.25 + i / n);
+    default: return c1;
+  }
+}
+function drawStatusArt(c, w, h, t, lit) {
+  c.clearRect(0, 0, w, h);
+  const sc = Math.min(w / 940, h / 920), ox = (w - 940 * sc) / 2 - 155 * sc, oy = (h - 920 * sc) / 2 - 160 * sc;
+  const X = x => ox + x * sc, Y = y => oy + y * sc;
+  const css = (v, a) => 'rgba(' + Math.round(v[0]) + ',' + Math.round(v[1]) + ',' + Math.round(v[2]) + ',' + a + ')';
+  const green = lit ? [57, 255, 60] : [110, 70, 170];
+  c.lineJoin = 'round'; c.lineCap = 'round';
+  c.beginPath();
+  c.moveTo(X(176), Y(1040)); c.lineTo(X(176), Y(340));
+  c.quadraticCurveTo(X(176), Y(188), X(330), Y(186)); c.quadraticCurveTo(X(625), Y(180), X(918), Y(186));
+  c.quadraticCurveTo(X(1072), Y(190), X(1072), Y(340)); c.lineTo(X(1078), Y(1040));
+  c.quadraticCurveTo(X(1062), Y(1062), X(1040), Y(1062)); c.quadraticCurveTo(X(1012), Y(1062), X(1000), Y(1030));
+  c.quadraticCurveTo(X(990), Y(1018), X(960), Y(1014)); c.quadraticCurveTo(X(625), Y(985), X(290), Y(1014));
+  c.quadraticCurveTo(X(258), Y(1018), X(250), Y(1030)); c.quadraticCurveTo(X(238), Y(1062), X(210), Y(1062));
+  c.quadraticCurveTo(X(186), Y(1062), X(176), Y(1040));
+  c.lineWidth = Math.max(1.5, 9 * sc); c.strokeStyle = css(green, 1);
+  c.shadowColor = css(green, 0.9); c.shadowBlur = lit ? 26 * sc : 0; c.stroke();
+  c.lineWidth = Math.max(1, 5 * sc);
+  c.beginPath(); c.arc(X(210), Y(1033), 14 * sc, 0, 2 * Math.PI); c.stroke();
+  c.beginPath(); c.arc(X(1037), Y(1033), 14 * sc, 0, 2 * Math.PI); c.stroke();
+  const x0 = 445, x1 = 800, yb = 950, n = 10, segW = (x1 - x0) / n;
+  c.shadowBlur = 0; c.lineWidth = Math.max(2, 34 * sc);
+  c.strokeStyle = lit ? 'rgba(140,40,230,0.55)' : 'rgba(80,50,130,0.6)';
+  c.beginPath(); c.moveTo(X(x0), Y(yb)); c.lineTo(X(x1), Y(yb)); c.stroke();
+  c.shadowColor = 'rgba(176,40,255,0.9)'; c.shadowBlur = lit ? 50 * sc : 0; c.stroke(); c.shadowBlur = 0;
+  for (let i = 0; i < n; i++) {
+    const col = lit ? stLed(i, n, t) : [40, 26, 70], on = col[0] + col[1] + col[2] > 30;
+    c.fillStyle = css(on ? col : [24, 14, 40], 1); c.shadowColor = css(col, 1); c.shadowBlur = lit && on ? 60 * sc : 0;
+    c.fillRect(X(x0 + i * segW + 3), Y(yb - 13), Math.max(1, (segW - 6) * sc), Math.max(1, 26 * sc));
+  }
+  c.shadowBlur = 0;
+}
+(function statusArtLoop() {
+  const cv = $('statusArt');
+  const refl = (P.simSetup || 'slcm') !== 'slcm';
+  if (cv) {
+    cv.style.display = refl ? '' : 'none';
+    const tile = cv.parentElement; tile.style.height = refl ? '188px' : '92px';
+    tile.querySelector('.bArt').style.display = refl ? 'none' : '';
+    if (refl && cv.offsetParent) {
+      const r = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+      if (cv.width !== Math.round(w * r)) { cv.width = Math.round(w * r); cv.height = Math.round(h * r); }
+      const c = cv.getContext('2d'); c.setTransform(r, 0, 0, r, 0, 0);
+      drawStatusArt(c, w, h, performance.now() / 1000, tile.classList.contains('lit'));
+    }
+  }
+  requestAnimationFrame(statusArtLoop);
 })();
 // rf108: HAPTIC FEEDBACK window (hapticCfg in ui.qml.in) and the controller BEEPER in CONTROL
 if (P.hap === undefined) P.hap = { str: 3, duty: 80, spd: 0, last: 3 };
@@ -1886,7 +1960,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf134';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf136';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -2186,7 +2260,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf135' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf137' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

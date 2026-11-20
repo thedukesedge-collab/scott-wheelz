@@ -1517,3 +1517,13 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   carries "Modified by Refloat rink-mixed (refloatRM), 2026. See
   FORK_NOTES.md." under the original copyright lines (comments only, no
   code change).
+
+### STATUS BAR tile: the board's front with a live status bar (v1.2.3-rf136)
+- Refloat view (no SLCM): the STATUS BAR tile on the LEDS page shows the
+  user's neon drawing of the board's front (Canvas, LedTile art 4) with a
+  ten-LED status bar behind a purple light pipe, playing Refloat's Status
+  Idle animation from the current settings (mode, colors, speed;
+  approximate), or the draining battery gauge when the idle animation is
+  off. Still and dimmed while the status bar is OFF; pauses in the
+  background. SLCM boards keep their tile (art 2).
+- UI only: no package C code, no settings, no board communication changed.
