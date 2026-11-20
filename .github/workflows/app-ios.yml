@@ -1,0 +1,51 @@
+# Re-Float Rink-Mixed iPhone app (same project as the Android app:
+# apps/rinkmixed-android). For now it checks that the iOS app builds (for the
+# iOS Simulator, no signing). TestFlight upload comes once an Apple Developer
+# account and its App Store Connect API key are added as repository secrets.
+name: App (iOS)
+
+on:
+  push:
+    branches: [app-android]
+    paths: ['apps/rinkmixed-android/**', 'tools/simulator/**', '.github/workflows/app-ios.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  APP: apps/rinkmixed-android
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install
+        working-directory: ${{ env.APP }}
+        run: npm install --no-audit --no-fund
+      - name: Protocol tests
+        working-directory: ${{ env.APP }}
+        run: npm test
+      - name: Build web app (simulator UI + app layer)
+        working-directory: ${{ env.APP }}
+        run: npm run www
+      - name: iOS project
+        working-directory: ${{ env.APP }}
+        run: |
+          npx cap add ios
+          PL=ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSBluetoothAlwaysUsageDescription string 'Rink-Mixed connects to your board over Bluetooth.'" "$PL"
+          /usr/libexec/PlistBuddy -c "Add :NSBluetoothPeripheralUsageDescription string 'Rink-Mixed connects to your board over Bluetooth.'" "$PL"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Rink-Mixed" "$PL" || true
+          npx cap sync ios
+      - name: Build (iOS Simulator, unsigned)
+        working-directory: ${{ env.APP }}/ios/App
+        run: |
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -n 40
+          test "${PIPESTATUS[0]}" -eq 0

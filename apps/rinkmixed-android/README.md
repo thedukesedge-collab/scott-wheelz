@@ -1,4 +1,4 @@
-# Rink-Mixed app (Android first)
+# Rink-Mixed app (Android + iPhone)
 
 The phone app for VESC Onewheels running the Re-Float Rink-Mixed package. It is
 the simulator UI (`tools/simulator/index.html`, one source for both) wrapped as
@@ -14,6 +14,11 @@ to the board's VESC Express.
 GitHub Actions (`.github/workflows/app-android.yml`) builds a signed APK on
 every push to the `app-android` branch: release **app-android-latest**,
 `rinkmixed-android.apk`.
+
+iPhone: `.github/workflows/app-ios.yml` checks the iOS app builds (iOS
+Simulator, unsigned) on every push. Installing on an iPhone needs Apple
+signing: TestFlight once an Apple Developer account's App Store Connect API key
+is added as repository secrets.
 
 Locally: `npm install`, `npm test`, `npm run www`, `npx cap add android`,
 `npx cap sync android`, then build in Android Studio.
