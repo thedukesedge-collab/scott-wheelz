@@ -543,6 +543,11 @@ static void status_animate(
     if (leds->status_snoozing && leds->status_snooze >= 4 && strip == &leds->status_strip) {
         LedBar bar = leds->cfg->status_idle;
         bar.mode = (LedAnimMode) (leds->status_snooze - 4);
+        if (leds->snooze_speed > 0) {  // rf114: own colors / speed
+            bar.color1 = (LedColor) leds->snooze_c1;
+            bar.color2 = (LedColor) leds->snooze_c2;
+            bar.speed = leds->snooze_speed * 0.1f;
+        }
         led_strip_animate(leds, strip, &bar, current_time - leds->status_animation_start);
         return;
     }
@@ -568,6 +573,11 @@ static void status_animate(
                 // rf97: riding animation (Status Idle colors / speed, chosen mode)
                 LedBar bar = leds->cfg->status_idle;
                 bar.mode = (LedAnimMode) (leds->ride_mode - 1);
+                if (leds->ride_speed > 0) {  // rf114: own colors / speed
+                    bar.color1 = (LedColor) leds->ride_c1;
+                    bar.color2 = (LedColor) leds->ride_c2;
+                    bar.speed = leds->ride_speed * 0.1f;
+                }
                 led_strip_animate(leds, strip, &bar, current_time - leds->status_animation_start);
             } else {
                 float battery = VESC_IF->mc_get_battery_level(NULL);
@@ -784,6 +794,8 @@ void leds_init(Leds *leds) {
     leds->snooze_dim = false;
     leds->status_snooze = 0;
     leds->status_snoozing = false;
+    leds->ride_c1 = leds->ride_c2 = leds->ride_speed = 0;
+    leds->snooze_c1 = leds->snooze_c2 = leds->snooze_speed = 0;
     leds->ride_mode = 0;
     leds->shutdown_timeout = 0.0f;
     leds->motor_active_time = 0.0f;

@@ -183,6 +183,16 @@ int main(void){
           w11[3] &= ~(0x0Fu << 20); w11[2] |= 2u << 9;
           LcmData l9; memset(&l9,0,sizeof l9); lcm_init(&l9, &hw); lcm_vp_unpack(&l9, w11);
           assert(l9.vp.status_snooze == 2 && l9.vp.color == lcm.vp.color); }
+        /* rf114: riding / snooze colors and speeds (bytes 24-29, word 6) */
+        { uint8_t in30[30]; memcpy(in30, in24, 24); in30[24] = 4; in30[25] = 99; in30[26] = 60; in30[27] = 31; in30[28] = 0; in30[29] = 7;
+          lcm_vp_set(&lcm, in30, 30);
+          assert(lcm.vp.ride_c1 == 4 && lcm.vp.ride_c2 == 31 && lcm.vp.ride_speed == 50 && lcm.vp.snooze_c1 == 31 && lcm.vp.snooze_speed == 7);
+          lcm_vp_set(&lcm, in30, 24); assert(lcm.vp.ride_speed == 50 && lcm.vp.snooze_speed == 7);
+          uint32_t w14[LCM_VP_EEPROM_WORDS]; lcm_vp_pack(&lcm, w14);
+          LcmData l10; memset(&l10,0,sizeof l10); lcm_init(&l10, &hw); lcm_vp_unpack(&l10, w14);
+          assert(memcmp(&l10.vp, &lcm.vp, sizeof lcm.vp) == 0);
+          w14[6] = 0; LcmData l11; memset(&l11,0,sizeof l11); lcm_init(&l11, &hw); lcm_vp_unpack(&l11, w14);
+          assert(l11.vp.ride_speed == 0 && l11.vp.snooze_speed == 0); }
         in24[23] = 2; lcm_vp_set(&lcm, in24, 24);
         lcm_vp_set(&lcm, in24, 23); assert(lcm.vp.status_snooze == 2);
         uint32_t ws[LCM_VP_EEPROM_WORDS]; lcm_vp_pack(&lcm, ws);

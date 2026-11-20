@@ -365,7 +365,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf113 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf114 · sim</span></div>
     </div>
   </div>
 
@@ -406,14 +406,17 @@
         <div id="rfStSnz">
           <div class="secTitle">Snooze</div>
           <div id="stSnzBox"></div>
-          <p class="ledHint">How the status bar looks while the board snoozes; it snoozes together with the head / tail lights (HEAD/TAIL LIGHTS &#8250; SNOOZE BEFORE OFF). BREATHE / DIM / DARK: its brightness; NORMAL: it keeps its idle look; an animation plays in the idle animation's colors and speed.</p>
+          <div class="pills" id="snzModeBox"><div class="pill" id="snzSimple">SIMPLE</div><div class="pill" id="snzAdv">ADVANCED &#8250;</div></div>
+          <div id="snzColSteps"></div>
+          <p class="ledHint">How the status bar looks while the board snoozes; it snoozes together with the head / tail lights (HEAD/TAIL LIGHTS &#8250; SNOOZE BEFORE OFF). BREATHE / DIM / DARK: its brightness; NORMAL: it keeps its idle look; an animation plays in the idle animation's colors and speed (SIMPLE) or its own (ADVANCED).</p>
         </div>
         <div id="rfRide">
           <div class="secTitle">Riding animation</div>
           <div class="animSel" id="rideSel"><span class="stepBtn" data-d="-1">&#9660;</span><div class="stepVal animName" id="ridePreview" data-anim="17" style="flex:1;font-size:16px;text-align:center"></div><span class="stepBtn" data-d="1">&#9650;</span></div>
+          <div id="rideColSteps"></div>
           <div id="rfRideSteps"></div>
           <div class="pills"><div class="pill" id="rfSensPill"></div></div>
-          <p class="ledHint">BATTERY / DUTY: the battery level, then the duty bar from the set duty (NEVER = battery only). Any other animation plays in the idle animation's colors and speed while riding; the duty bar still takes over from the set duty. FOOTPAD SENSORS: show a released sensor while riding. Same as Refloat's Status Duty Threshold and Show Sensor Indicators While Running.</p>
+          <p class="ledHint">BATTERY / DUTY: the battery level, then the duty bar from the set duty (NEVER = battery only). Any other animation has its own colors and speed, set here; the duty bar still takes over from the set duty. FOOTPAD SENSORS: show a released sensor while riding. Same as Refloat's Status Duty Threshold and Show Sensor Indicators While Running.</p>
         </div>
       </div>
       <div class="ledSec" data-s="anim">
@@ -1456,7 +1459,7 @@ function animCol(anim, i, n, t, hueDeg, el_text_off) {
       if (anim === 17 && !P.rideMode) return 'rgba(234,214,255,1)';
       // falls through
     case 16: {  // RGB LIGHTS: the selected Refloat light bar (same maths as 15)
-      const b = anim === 18 ? { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed, mode: (P.stSnz || 0) - 4 } : anim === 17 ? { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed, mode: P.rideMode - 1 } : P.rgb[P.rgbSel || 0], c2 = rfRgb(b.c2), sp = Math.max(0.1, b.speed), md = b.mode, c1k = b.c1 === 0; let c1 = rfRgb(b.c1), has2 = b.c2 !== 0;  // rf91/92
+      const b = anim === 18 ? Object.assign({}, P.snzAdv && P.snz ? P.snz : { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed }, { mode: (P.stSnz || 0) - 4 }) : anim === 17 ? Object.assign({}, P.ride || { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed }, { mode: P.rideMode - 1 }) : P.rgb[P.rgbSel || 0], c2 = rfRgb(b.c2), sp = Math.max(0.1, b.speed), md = b.mode, c1k = b.c1 === 0; let c1 = rfRgb(b.c1), has2 = b.c2 !== 0;  // rf91/92
       const mix = q => [0, 1, 2].map(j => Math.round(c1[j] + (c2[j] - c1[j]) * q));
       if (c1k && (md === 0 || !has2)) return '#5c5470';  // rf92: all black: dim grey
       if (md === 0) return rfCss(c1);
@@ -1605,7 +1608,25 @@ function renderRf() {
   $('rfStSnz').style.display = P.simSetup === 'refloat' ? '' : 'none';
   // rf111: BREATHE / DIM / DARK / NORMAL, then every Refloat animation (4-12)
   // rf112: a labelled row like the SLCM ANIMATIONS rows
-  animRow($('stSnzBox'), 'SNOOZE', () => P.stSnz || 0, 12, v => v >= 4 ? RF_MODES[v - 4] : ['BREATHE', 'DIM', 'DARK', 'NORMAL'][v], 18, v => { P.stSnz = v; save(); renderRf(); });
+  animRow($('stSnzBox'), 'SNOOZE', () => P.stSnz || 0, 12, v => v >= 4 ? RF_MODES[v - 4] : ['BREATHE', 'DIM', 'DARK', 'NORMAL'][v], 18, v => { if (P.snzAdv && oneCol(v - 4) && !oneCol((P.stSnz || 0) - 4)) P.snz.c2 = 0; P.stSnz = v; save(); renderRf(); });
+  // rf114: riding / snooze own colors and speed (snooze: SIMPLE = idle colors, ADVANCED = own)
+  if (!P.ride) P.ride = { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed };
+  if (!P.snz) P.snz = { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed };
+  const colBlock = (box, mode, o, done) => {
+    $(box).innerHTML = ''; if (mode < 0) return;
+    const set = (k, v) => { o[k] = v; save(); done(); };
+    if (mode < 6) cuStep(box, 'COLOR 1', () => o.c1, 0, 29, 1, v => RF_COLORS[v], v => set('c1', rfNext(o.c1, v)), rfTxt);
+    if (mode >= 1 && mode <= 5) { const bg = oneCol(mode); cuStep(box, bg ? 'BACKGROUND' : 'COLOR 2', () => o.c2, 0, 29, 1, v => RF_COLORS[v], v => set('c2', rfNext(o.c2, v)), rfTxt,
+      bg ? { on: o.c2 !== 0, click: () => { if (o.c2) { P.rfBgLast = o.c2; set('c2', 0); } else set('c2', P.rfBgLast || 1); } } : null); }
+    if (mode !== 0) cuStep(box, 'SPEED', () => o.speed, 0.1, 5, 0.1, v => v.toFixed(1) + '/s', v => set('speed', Math.round(v * 10) / 10));
+  };
+  const sv2 = P.stSnz || 0;
+  $('snzModeBox').style.display = sv2 >= 4 ? '' : 'none';
+  $('snzSimple').classList.toggle('on', !P.snzAdv); $('snzAdv').classList.toggle('on', !!P.snzAdv);
+  $('snzSimple').onclick = () => { P.snzAdv = false; save(); renderRf(); };
+  $('snzAdv').onclick = () => { if (!P.snzAdv) P.snz = { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed }; P.snzAdv = true; save(); renderRf(); };
+  colBlock('snzColSteps', sv2 >= 4 && P.snzAdv ? sv2 - 4 : -1, P.snz, renderRf);
+  colBlock('rideColSteps', (P.rideMode || 0) > 0 ? P.rideMode - 1 : -1, P.ride, renderRf);
   // rf97: riding animation (0 = BATTERY / DUTY, else Refloat mode + 1 in the idle colors)
   if (P.rideMode === undefined) P.rideMode = 0;
   $('ridePreview').innerHTML = [...(P.rideMode ? RF_MODES[P.rideMode - 1] : 'BATTERY / DUTY')].map(ch => '<span>' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
@@ -1630,7 +1651,7 @@ function renderRf() {
   $('rfHint').textContent = "Refloat's own Status Idle animation, so it's the same on every controller (Thor, Floatwheel, ...): controller-driven LEDs play it themselves, and for an SLCM light module the package turns it into the closest SLCM animation (from SLCM r19; older builds show the battery). BATTERY = the battery level. START AFTER only applies to controller-driven LEDs, an SLCM starts right away."
     + (slcm && P.ledAnimIdle !== 15 ? ' Right now the SLCM plays ' + animLabel('ledAnimIdle', P.ledAnimIdle) + ' from SLCM EXTRAS \u203A ANIMATIONS instead; change anything here to follow this again.' : '');
 }
-document.querySelectorAll('#rideSel .stepBtn').forEach(x => x.onclick = () => { const v = clamp(P.rideMode + +x.dataset.d, 0, 9); if (v !== P.rideMode) { P.rideMode = v; save(); renderRf(); } });
+document.querySelectorAll('#rideSel .stepBtn').forEach(x => x.onclick = () => { const v = clamp(P.rideMode + +x.dataset.d, 0, 9); if (v !== P.rideMode) { if (P.ride && oneCol(v - 1) && !oneCol(P.rideMode - 1)) P.ride.c2 = 0; P.rideMode = v; save(); renderRf(); } });
 $('rfSensPill').onclick = () => { P.rfSens = !P.rfSens; save(); renderRf(); };
 const ledToggle = k => () => { P[k] = !P[k]; P.ledCfg = true; save(); renderLedsSoft(); };
 const P42A = [170, 156, 144, 135, 128, 120, 112, 104, 96, 84, 50];
@@ -1731,7 +1752,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf113';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf114';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -2031,7 +2052,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf114' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf115' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

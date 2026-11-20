@@ -444,7 +444,7 @@ Item {
 
         function send() {
             if (!swSettings.ledConfigured) return;
-            var data = commands.createData(26, commands.c_LCM_VP_SETTINGS);
+            var data = commands.createData(32, commands.c_LCM_VP_SETTINGS);
             data.setUint8(2, (swSettings.ledHeadlights ? 1 : 0) | (swSettings.ledStatusBar ? 2 : 0) | (swSettings.ledBeep ? 4 : 0)
                 | (swSettings.ledSnoozeStyle === 2 ? 0x20 : 0));  // rf97: DARK snooze
             data.setUint8(3, swSettings.ledHeadlightPct);
@@ -463,6 +463,13 @@ Item {
             data.setUint8(23, swSettings.ledRideMode);  // rf97
             data.setUint8(24, swSettings.ledSnoozeStyle);
             data.setUint8(25, swSettings.ledStatusSnooze);  // rf109
+            // rf114: riding / snooze colors and speed (speed 0 = the idle animation's)
+            data.setUint8(26, Math.max(0, swSettings.rideC1));
+            data.setUint8(27, swSettings.rideC2);
+            data.setUint8(28, swSettings.rideC1 < 0 ? 0 : Math.round(swSettings.rideSpeed * 10));
+            data.setUint8(29, swSettings.snzC1);
+            data.setUint8(30, swSettings.snzC2);
+            data.setUint8(31, swSettings.snzAdvanced ? Math.round(swSettings.snzSpeed * 10) : 0);
             vescCommands.sendCustomAppData(data.buffer);
         }
 
@@ -709,6 +716,12 @@ Item {
             rfDutyTh = c.getParamDouble("leds.status.duty_threshold");
             rfSensors = c.getParamBool("leds.status.show_sensors_while_running");
             ctrlBeep = c.getParamBool("is_beeper_enabled");
+            if (swSettings.rideC1 < 0) {  // rf114: riding starts with the idle colors
+                swSettings.rideC1 = rfColor1; swSettings.rideC2 = rfColor2; swSettings.rideSpeed = rfSpeed;
+            }
+            if (!swSettings.snzAdvanced) {
+                swSettings.snzC1 = rfColor1; swSettings.snzC2 = rfColor2; swSettings.snzSpeed = rfSpeed;
+            }
             rfStatusAvail = c.getParamEnum("hardware.leds.mode") !== 0 && c.getParamInt("hardware.leds.status.count") > 0;
             lcmModule = (c.getParamEnum("hardware.leds.mode") & 2) !== 0;
             rfLoaded = true;
@@ -2478,6 +2491,15 @@ Item {
         property int ledSnoozeMin: 5  // rf100: minutes BEFORE the board powers off (0 = never)
         property int ledRideMode: 0  // rf97: riding status bar: 0 battery / duty, else Refloat mode + 1
         property int ledSnoozeStyle: 0  // rf97: 0 breathe, 1 dim, 2 dark
+        // rf114: own colors / speed for the riding and snooze animations
+        // (rideC1 -1 = not set up yet: copied from the idle animation)
+        property int rideC1: -1
+        property int rideC2: 0
+        property real rideSpeed: 1.0
+        property bool snzAdvanced: false  // SNOOZE ADVANCED: own colors / speed
+        property int snzC1: 4
+        property int snzC2: 0
+        property real snzSpeed: 1.0
         property int ledStatusSnooze: 0  // rf109: status bar while snoozing: 0 breathe, 1 dim, 2 dark, 3 normal; rf111: 4-12 Refloat animation + 4
         property real hapticLast: 3  // rf108: strength brought back by HAPTIC FEEDBACK ON
         property int rfBgLast: 1  // rf101: background color brought back by BACKGROUND ON (WHITE)  // rf86: controller-driven LEDs snooze after this many idle minutes (0 = never)
@@ -4417,6 +4439,53 @@ Item {
             source: anLetters
             radius: 14
             transparentBorder: true
+        }
+    }
+
+    // rf114: COLOR 1 / COLOR 2 (BACKGROUND + ON/OFF for one-color animations)
+    // / SPEED for a Refloat animation, like the Status Idle settings
+    component RfColorsBlock : Column {
+        id: rcb
+        property int mode: 0
+        property int c1: 4
+        property int c2: 0
+        property real speed: 1
+        signal setC1(int v)
+        signal setC2(int v)
+        signal setSpeed(real v)
+        width: parent ? parent.width : 0
+        spacing: 0.14 * unit
+        SwStepper {
+            visible: rcb.mode < 6
+            label: "COLOR 1"
+            valueWidth: 3.2 * unit
+            value: rcb.c1
+            from: 0; to: 29; step: 1
+            valueText: ledSender.rfColors[value]
+            valueColor: ledSender.rfTextColor(value)
+            onMoved: rcb.setC1(ledSender.rfColorNext(value, newValue > value ? 1 : -1))
+        }
+        SwStepper {
+            visible: rcb.mode >= 1 && rcb.mode <= 5
+            label: ledSender.oneColor(rcb.mode) ? "BACKGROUND" : "COLOR 2"
+            toggle: ledSender.oneColor(rcb.mode) ? (rcb.c2 !== 0 ? 1 : 0) : -1
+            onToggleClicked: {
+                if (rcb.c2 !== 0) { swSettings.rfBgLast = rcb.c2; rcb.setC2(0); }
+                else rcb.setC2(swSettings.rfBgLast || 1);
+            }
+            valueWidth: 3.2 * unit
+            value: rcb.c2
+            from: 0; to: 29; step: 1
+            valueText: ledSender.rfColors[value]
+            valueColor: ledSender.rfTextColor(value)
+            onMoved: rcb.setC2(ledSender.rfColorNext(value, newValue > value ? 1 : -1))
+        }
+        SwStepper {
+            visible: rcb.mode !== 0
+            label: "SPEED"
+            value: rcb.speed
+            from: 0.1; to: 5; step: 0.1; decimals: 1; suffix: "/s"
+            onMoved: rcb.setSpeed(Math.round(newValue * 10) / 10)
         }
     }
 
@@ -8313,10 +8382,48 @@ Item {
                             label: "SNOOZE"  // rf112: same look as the SLCM ANIMATIONS rows
                             valueWidth: 3.6 * unit
                             value: swSettings.ledStatusSnooze
-                            rf: ({mode: value >= 4 ? value - 4 : [-2, -3, -4, -1][value], c1: ledSender.rfColor1, c2: ledSender.rfColor2, speed: ledSender.rfSpeed})
+                            rf: ({mode: value >= 4 ? value - 4 : [-2, -3, -4, -1][value],
+                                  c1: swSettings.snzAdvanced ? swSettings.snzC1 : ledSender.rfColor1, c2: swSettings.snzAdvanced ? swSettings.snzC2 : ledSender.rfColor2,
+                                  speed: swSettings.snzAdvanced ? swSettings.snzSpeed : ledSender.rfSpeed})
                             from: 0; to: 3 + ledSender.rfModes.length; step: 1
                             valueText: value >= 4 ? ledSender.rfModes[value - 4] : ["BREATHE", "DIM", "DARK", "NORMAL"][value]
-                            onMoved: { swSettings.ledStatusSnooze = newValue; ledSender.changed(); }
+                            onMoved: {
+                                if (swSettings.snzAdvanced && ledSender.oneColor(newValue - 4) && !ledSender.oneColor(swSettings.ledStatusSnooze - 4)) swSettings.snzC2 = 0;
+                                swSettings.ledStatusSnooze = newValue; ledSender.changed();
+                            }
+                        }
+
+                        // rf114: SIMPLE (the idle animation's colors / speed) or ADVANCED
+                        // (its own colors / speed, like the idle animation)
+                        Row {
+                            visible: ledSender.rfStatusAvail && swSettings.ledStatusSnooze >= 4
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.15 * unit
+                            SwPill {
+                                minWidth: 2.4 * unit
+                                label: "SIMPLE"
+                                lit: !swSettings.snzAdvanced
+                                onClicked: { swSettings.snzAdvanced = false; ledSender.changed(); }
+                            }
+                            SwPill {
+                                minWidth: 2.8 * unit
+                                label: "ADVANCED \u203A"
+                                lit: swSettings.snzAdvanced
+                                onClicked: {
+                                    if (!swSettings.snzAdvanced) {
+                                        swSettings.snzC1 = ledSender.rfColor1; swSettings.snzC2 = ledSender.rfColor2; swSettings.snzSpeed = ledSender.rfSpeed;
+                                    }
+                                    swSettings.snzAdvanced = true; ledSender.changed();
+                                }
+                            }
+                        }
+                        RfColorsBlock {
+                            visible: ledSender.rfStatusAvail && swSettings.ledStatusSnooze >= 4 && swSettings.snzAdvanced
+                            mode: swSettings.ledStatusSnooze - 4
+                            c1: swSettings.snzC1; c2: swSettings.snzC2; speed: swSettings.snzSpeed
+                            onSetC1: function(v) { swSettings.snzC1 = v; ledSender.changed(); }
+                            onSetC2: function(v) { swSettings.snzC2 = v; ledSender.changed(); }
+                            onSetSpeed: function(v) { swSettings.snzSpeed = v; ledSender.changed(); }
                         }
                         SwLText {
                             visible: ledSender.rfStatusAvail
@@ -8325,7 +8432,7 @@ Item {
                             font.pixelSize: fontSizeSmall
                             text: "How the status bar looks while the board snoozes; it snoozes together with the head / tail lights (HEAD/TAIL LIGHTS \u203A SNOOZE BEFORE OFF"
                                 + (swSettings.ledSnoozeMin > 0 && vescAppConfig.offMinutes > swSettings.ledSnoozeMin ? ": at " + (vescAppConfig.offMinutes - swSettings.ledSnoozeMin) + " min idle" : "")
-                                + "). BREATHE / DIM / DARK: its brightness; NORMAL: it keeps its idle look; an animation plays in the idle animation's colors and speed."
+                                + "). BREATHE / DIM / DARK: its brightness; NORMAL: it keeps its idle look; an animation plays in the idle animation's colors and speed (SIMPLE) or its own (ADVANCED)."
                         }
 
                         // rf84: Refloat's riding status bar (Thor etc.; an SLCM
@@ -8338,10 +8445,24 @@ Item {
                             visible: ledSender.rfStatusAvail
                             bigName: true
                             value: swSettings.ledRideMode
-                            rf: ({mode: value - 1, c1: ledSender.rfColor1, c2: ledSender.rfColor2, speed: ledSender.rfSpeed})
+                            rf: ({mode: value - 1, c1: Math.max(0, swSettings.rideC1), c2: swSettings.rideC2, speed: swSettings.rideSpeed})
                             from: 0; to: ledSender.rfModes.length; step: 1
                             valueText: value === 0 ? "BATTERY / DUTY" : ledSender.rfModes[value - 1]
-                            onMoved: { swSettings.ledRideMode = newValue; ledSender.changed(); }
+                            onMoved: {
+                                // rf114: one-color animations start with a BLACK background
+                                if (ledSender.oneColor(newValue - 1) && !ledSender.oneColor(swSettings.ledRideMode - 1)) swSettings.rideC2 = 0;
+                                swSettings.ledRideMode = newValue; ledSender.changed();
+                            }
+                        }
+
+                        // rf114: the same adjustments as the idle animation
+                        RfColorsBlock {
+                            visible: ledSender.rfStatusAvail && swSettings.ledRideMode > 0
+                            mode: swSettings.ledRideMode - 1
+                            c1: Math.max(0, swSettings.rideC1); c2: swSettings.rideC2; speed: swSettings.rideSpeed
+                            onSetC1: function(v) { swSettings.rideC1 = v; ledSender.changed(); }
+                            onSetC2: function(v) { if (swSettings.rideC1 < 0) swSettings.rideC1 = ledSender.rfColor1; swSettings.rideC2 = v; ledSender.changed(); }
+                            onSetSpeed: function(v) { if (swSettings.rideC1 < 0) swSettings.rideC1 = ledSender.rfColor1; swSettings.rideSpeed = v; ledSender.changed(); }
                         }
 
                         SwStepper {
@@ -8367,7 +8488,7 @@ Item {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: "BATTERY / DUTY: the battery level, then the duty bar from the set duty (NEVER = battery only). Any other animation plays in the idle animation's colors and speed while riding; the duty bar still takes over from the set duty. FOOTPAD SENSORS: show a released sensor while riding. "
+                            text: "BATTERY / DUTY: the battery level, then the duty bar from the set duty (NEVER = battery only). Any other animation has its own colors and speed, set here; the duty bar still takes over from the set duty. FOOTPAD SENSORS: show a released sensor while riding. "
                                 + "Same as Refloat's Status Duty Threshold and Show Sensor Indicators While Running."
                         }
                     }

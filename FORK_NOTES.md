@@ -804,6 +804,19 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Riding and snooze animations: own colors / speed (v1.2.3-rf114)
+- Riding animation now has the same adjustments as the idle animation:
+  COLOR 1, COLOR 2 / BACKGROUND (ON / OFF) and SPEED (RfColorsBlock),
+  starting from the idle colors the first time.
+- STATUS BAR > Snooze: SIMPLE (default; the idle animation's colors /
+  speed) or ADVANCED > (its own COLOR 1 / BACKGROUND / SPEED) when an
+  animation is picked.
+- Package: bytes 24-29 of COMMAND_LCM_VP_SETTINGS (ride c1, c2, speed in
+  0.1/s; snooze c1, c2, speed; speed 0 = use the Status Idle colors /
+  speed), stored in a 7th EEPROM word (127; older saves load as 0 =
+  idle colors). leds.c overrides the LedBar colors / speed when set.
+  Unit test covers clamping, keeping on short commands and pack / unpack.
+
 ### Pointing-finger hint hand (v1.2.3-rf113)
 - The swipe-up hint's hand is now a proper pointing hand: index finger
   down, curled fingers, thumb and cuff (Canvas, drawn on a 40 x 56 grid;

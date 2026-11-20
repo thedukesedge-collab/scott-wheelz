@@ -65,7 +65,8 @@ typedef enum {
 #define LCM_VP_SNOOZE_STYLES 3  // rf97: 0 breathe, 1 dim, 2 dark
 // rf109: 0 breathe, 1 dim, 2 dark, 3 normal; rf111: 4-12 = Refloat animation + 4
 #define LCM_VP_STATUS_SNOOZE 13
-#define LCM_VP_EEPROM_WORDS 6  // 80-83 + 125-126 (CUSTOM animation)
+#define LCM_VP_EEPROM_WORDS 7  // 80-83 + 125-126 (CUSTOM animation) + 127 (rf114 colors)
+#define LCM_VP_RF_SPEED_MAX 50  // rf114: speed in 0.1/s (0 = use the Status Idle colors / speed)
 
 typedef struct {
     bool valid;  // set from the app at least once (otherwise nothing is sent)
@@ -89,6 +90,11 @@ typedef struct {
     // 3 keep its normal idle look, rf111: 4-12 a Refloat animation + 4 in the
     // Status Idle colors); same timing as the head / tail lights
     uint8_t status_snooze;
+    // rf114: bytes 24-29: own colors / speed of the riding and snooze status
+    // bar animations (Refloat color index 0-31; speed 1-50 = 0.1-5.0 /s, 0 =
+    // use the Status Idle colors and speed)
+    uint8_t ride_c1, ride_c2, ride_speed;
+    uint8_t snooze_c1, snooze_c2, snooze_speed;
 } LcmVpSettings;
 
 typedef struct {

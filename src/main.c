@@ -1280,6 +1280,12 @@ static void aux_thd(void *arg) {
             (d->lcm.vp.flags & LCM_VP_FLAG_DOZE_DARK) || d->lcm.vp.snooze_style == 2;
         d->leds.snooze_dim = d->lcm.vp.snooze_style == 1;
         d->leds.status_snooze = d->lcm.vp.valid ? d->lcm.vp.status_snooze : 0;
+        d->leds.ride_c1 = d->lcm.vp.ride_c1;  // rf114
+        d->leds.ride_c2 = d->lcm.vp.ride_c2;
+        d->leds.ride_speed = d->lcm.vp.valid ? d->lcm.vp.ride_speed : 0;
+        d->leds.snooze_c1 = d->lcm.vp.snooze_c1;
+        d->leds.snooze_c2 = d->lcm.vp.snooze_c2;
+        d->leds.snooze_speed = d->lcm.vp.valid ? d->lcm.vp.snooze_speed : 0;
         d->leds.ride_mode = d->lcm.vp.valid ? d->lcm.vp.ride_mode : 0;
         // rf88: VESC's power-off timer (reset by motor commands with current:
         // riding, braking a rolling wheel, Refloat's motor tones)

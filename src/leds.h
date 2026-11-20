@@ -101,6 +101,10 @@ typedef struct {
     uint8_t status_snooze;  // rf109: status bar while snoozing: 0 breathe, 1 dim, 2 dark, 3 normal,
                             // rf111: 4-12 Refloat animation + 4 (Status Idle colors)
     bool status_snoozing;  // rf111: snoozing right now (for status_animate)
+    // rf114: own colors / speed (0.1/s) of the riding and snooze animations
+    // (speed 0 = the Status Idle colors / speed)
+    uint8_t ride_c1, ride_c2, ride_speed;
+    uint8_t snooze_c1, snooze_c2, snooze_speed;
     // rf97: riding status bar: 0 = Refloat's battery / duty bar, else the
     // Status Idle colors / speed with Refloat animation ride_mode - 1 (the duty
     // bar still takes over above the duty threshold)
