@@ -1527,3 +1527,15 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   off. Still and dimmed while the status bar is OFF; pauses in the
   background. SLCM boards keep their tile (art 2).
 - UI only: no package C code, no settings, no board communication changed.
+
+### "Scout's Honor" easter egg in the start notice (v1.2.3-rf137)
+- Under the "Before you start" notice (after its checkbox, behind a divider
+  and an "EASTER EGG" label): the Code Compliance Scout portrait (embedded
+  JPEG, 220x269, ~9 KB, centered, neon-green frame) and the Scout's Honor
+  pledge, "Unofficially supervised by the Code Compliance Scout. Trust, but
+  verify.", and a line saying it's a joke: the person pictured hasn't
+  reviewed, approved or certified the package and isn't responsible for it.
+  The notice can scroll now.
+- The notice's own text (settings, Refloat 1.2.3, credits, ride at your
+  own risk) is unchanged. UI only; no firmware, settings or licensing
+  change. Compressed QML ~103 KB of the 128 KB limit (was ~91 KB).
