@@ -630,7 +630,7 @@ Item {
             rgb = r;
             ledCfgWriteTimer.restart();
         }
-        // rf126: RESTORE DEFAULTS: every bar SOLID, headlight / front white, tail light / rear red
+        // rf126: RESTORE DEFAULTS: every bar SOLID, headlight / front white, tail light / rear red; rf127: idle OFF
         function rgbRestore() {
             if (!rgbLoaded) return;
             var r = rgb.slice();
@@ -640,6 +640,12 @@ Item {
                 r[i] = b;
             }
             rgb = r;
+            // rf127: idle (front / rear) off by default
+            var fb = rgbBri(2), rb = rgbBri(3);
+            if (fb > 0) swSettings.rgbIdleLastFront = fb;
+            if (rb > 0) swSettings.rgbIdleLastRear = rb;
+            rgbSetBri(2, 0);
+            rgbSetBri(3, 0);
             ledCfgWriteTimer.restart();
         }
         function rgbSetLifted(on) {
@@ -2545,6 +2551,8 @@ Item {
         property bool snzAdvanced: false  // SNOOZE ADVANCED: own colors / speed
         property bool barAdvanced: false  // rf118: STATUS BAR view (Refloat LEDs)
         property bool rgbAdvanced: false  // rf118: RGB LIGHTS view
+        property int rgbIdleLastFront: 50  // rf127: idle brightness before OFF
+        property int rgbIdleLastRear: 50
         property int snzC1: 4
         property int snzC2: 0
         property real snzSpeed: 1.0
@@ -4474,7 +4482,7 @@ Item {
                     return Qt.rgba(0.92, 0.84, 1, wa);
                 }
                 if ((!an.rf && !ledSender.rfOn) || (an.rf && an.rf.mode < 0))  // battery display
-                    return an.text.indexOf("BATTERY") === 0 ? batteryCol(x, t) : "#ead6ff";
+                    return an.text.indexOf("BATTERY") === 0 ? batteryCol(x, t) : an.text === "OFF" ? "#5c5470" : "#ead6ff";
                 var c1 = ledSender.rfQColor(an.rf ? an.rf.c1 : ledSender.rfColor1), c2 = ledSender.rfQColor(an.rf ? an.rf.c2 : ledSender.rfColor2);
                 var sp = Math.max(0.1, an.rf ? an.rf.speed : ledSender.rfSpeed), md = an.rf ? an.rf.mode : ledSender.rfMode;
                 var mix = function(p) { return Qt.rgba(c1.r + (c2.r - c1.r) * p, c1.g + (c2.g - c1.g) * p, c1.b + (c2.b - c1.b) * p, 1); };
@@ -9213,18 +9221,31 @@ Item {
                                                 width: parent.width; height: 1
                                                 color: Qt.rgba(0.66, 0.33, 1, 0.35)
                                             }
+                                            // rf127: IDLE can be OFF (that light's idle brightness 0)
+                                            readonly property bool idle: modelData[1] === 1
+                                            readonly property bool off: idle && ledSender.rgbLoaded && ledSender.rgbBri(barIdx) === 0
                                             SwStepper {
                                                 width: parent.width
                                                 label: modelData[0]
                                                 valueWidth: 3.6 * unit
-                                                rf: rgbSimpleBar.b
-                                                value: rgbSimpleBar.b.mode || 0
-                                                from: 0; to: ledSender.rfModes.length - 1; step: 1
-                                                valueText: ledSender.rfModes[value] || ""
-                                                onMoved: ledSender.rgbSet(rgbSimpleBar.barIdx, "mode", newValue)  // rf123: with the effect's colors
+                                                rf: rgbSimpleBar.off ? ({mode: -1, c1: 0, c2: 0, speed: 1}) : rgbSimpleBar.b
+                                                value: rgbSimpleBar.off ? -1 : (rgbSimpleBar.b.mode || 0)
+                                                from: rgbSimpleBar.idle ? -1 : 0; to: ledSender.rfModes.length - 1; step: 1
+                                                valueText: value < 0 ? "OFF" : (ledSender.rfModes[value] || "")
+                                                onMoved: {
+                                                    var bi = rgbSimpleBar.barIdx, key = bi === 2 ? "rgbIdleLastFront" : "rgbIdleLastRear";
+                                                    if (newValue < 0) {
+                                                        var cur = ledSender.rgbBri(bi);
+                                                        if (cur > 0) swSettings[key] = cur;
+                                                        ledSender.rgbSetBri(bi, 0);
+                                                        return;
+                                                    }
+                                                    if (rgbSimpleBar.off) ledSender.rgbSetBri(bi, swSettings[key] > 0 ? swSettings[key] : 50);
+                                                    ledSender.rgbSet(bi, "mode", newValue);  // rf123: with the effect's colors
+                                                }
                                             }
                                             SwStepper {
-                                                visible: (rgbSimpleBar.b.mode || 0) < 6
+                                                visible: (rgbSimpleBar.b.mode || 0) < 6 && !rgbSimpleBar.off
                                                 width: parent.width
                                                 label: "COLOR"
                                                 sideArrows: true
@@ -9262,7 +9283,7 @@ Item {
                                 lit: true
                                 onClicked: {
                                     ledSender.rgbRestore();
-                                    VescIf.emitStatusMessage("Headlight solid white, tail light solid red", true);
+                                    VescIf.emitStatusMessage("Riding: solid white headlight, solid red tail light. Idle: off", true);
                                 }
                             }
                             SwLText {
@@ -9271,7 +9292,7 @@ Item {
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: fontSizeSmall
                                 text: "RIDING: while the board is engaged; IDLE: the rest of the time. Each effect starts in its own colors (SOLID white headlight / red tail light, KNIGHT RIDER red, FELONY red / blue, ...). "
-                                    + "RESTORE DEFAULTS: solid white headlight, solid red tail light. ADVANCED: second color / background, speed, tail light brightness and OFF WHEN LIFTED."
+                                    + "IDLE OFF: that light is dark when idle. RESTORE DEFAULTS: solid white headlight and solid red tail light while riding, off when idle. ADVANCED: second color / background, speed, tail light brightness and OFF WHEN LIFTED."
                             }
                         }
 

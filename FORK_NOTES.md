@@ -1447,3 +1447,11 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   (ledSender.rgbRestore).
 - ADVANCED: the idle buttons read HEADLIGHT / TAIL LIGHT as well; the
   LEDS tile shows HEADLIGHT / TAIL.
+
+### RGB LIGHTS: IDLE can be OFF, off by default after RESTORE (v1.2.3-rf127)
+- SIMPLE: the IDLE row of HEADLIGHT / TAIL LIGHT starts with OFF (that
+  light's idle brightness 0 - Refloat's front / rear brightness); picking
+  an effect again brings back the brightness it had (default 50 %).
+- RESTORE DEFAULTS: solid white headlight / solid red tail light while
+  riding, idle OFF.
+- Refloat view only; SLCM screens unchanged.
