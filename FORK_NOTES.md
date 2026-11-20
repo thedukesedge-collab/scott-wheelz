@@ -1488,3 +1488,8 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - Controller beeper: BEEPER card (ON/OFF + TEST BEEP) on the LEDS page in
   the Refloat view; the beeper writes on its own (not held by AUTO APPLY,
   doesn't write waiting LED changes).
+
+### ALL LIGHTS on top, a bit bigger (v1.2.3-rf132)
+- Refloat view: in Lights on the LEDS page, ALL LIGHTS sits above
+  HEAD/TAIL and STATUS and is a bit bigger (SwPill.labelSize). SLCM
+  boards: unchanged.

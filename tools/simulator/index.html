@@ -349,8 +349,9 @@
           <p class="ledHint" style="text-align:center;opacity:.7;margin:2px 0">Simulator only - pretend the board is:</p>
           <div class="pills" id="simSetup"><div class="pill" data-k="slcm">XRV + SLCM</div><div class="pill" data-k="refloat">THOR (REFLOAT LEDS)</div><div class="pill" data-k="none">NO LEDS SET UP</div></div>
           <div id="lightsBox"><div class="secTitle" style="text-align:center;margin-top:6px">Lights</div>
+          <div class="pills" id="lightsTopBox"></div>
           <div class="pills"><div class="pill" id="headPill2">HEAD/TAIL OFF</div><div class="pill" id="statusPill2">STATUS OFF</div></div>
-          <div class="pills"><div class="pill" id="lightsPill" style="min-width:250px;text-align:center">ALL LIGHTS OFF</div></div>
+          <div class="pills" id="lightsBotBox"><div class="pill" id="lightsPill" style="min-width:250px;text-align:center">ALL LIGHTS OFF</div></div>
           <p class="ledHint" id="overrideNote" style="text-align:center;color:#ff8a1f"></p></div>
           <p id="ledNote" style="font-size:11px;color:var(--text);text-align:center;margin:4px 6px"></p>
           <div class="ledTiles">
@@ -1546,6 +1547,10 @@ function renderLedsSoft() {
   $('rgbInHead').style.display = setup === 'refloat' ? '' : 'none';
   $('ledsSnzCard').style.display = setup === 'refloat' ? '' : 'none';
   $('ledsBeepCard').style.display = slcm ? 'none' : '';  // rf131
+  // rf132: Refloat view: ALL LIGHTS on top, a bit bigger; SLCM: as before
+  { const lp = $('lightsPill'), box = slcm ? $('lightsBotBox') : $('lightsTopBox');
+    if (lp.parentNode !== box) box.appendChild(lp);
+    lp.style.minWidth = slcm ? '250px' : '270px'; lp.style.padding = slcm ? '' : '12px 18px'; lp.style.fontSize = slcm ? '' : '15px'; }
   renderApply();
   $('updTileBox').style.display = slcm ? '' : 'none';  // rf130: not in the Refloat view
   $('ltRgb').textContent = 'HEADLIGHT ' + RF_MODES[P.rgb[0].mode] + ' · TAIL ' + RF_MODES[P.rgb[1].mode];
@@ -1873,7 +1878,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf131';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf132';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -2173,7 +2178,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf132' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf133' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

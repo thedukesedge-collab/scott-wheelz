@@ -4093,6 +4093,7 @@ Item {
         property bool lit: false
         property bool enabledLook: true
         property real minWidth: 2.0 * unit
+        property real labelSize: 0.24 * unit  // rf132
         signal clicked()
         // implicit size, so pills also work inside Row/ColumnLayouts
         implicitWidth: Math.max(minWidth, pillText.implicitWidth + 0.6 * unit)
@@ -4112,7 +4113,7 @@ Item {
             text: pill.label
             color: pill.lit || pillArea.pressed ? swTheme.background : swTheme.neonPurple
             font.family: "Exan"
-            font.pixelSize: 0.24 * unit
+            font.pixelSize: pill.labelSize
         }
 
         MouseArea {
@@ -15743,6 +15744,18 @@ Item {
                         // light settings (riding and idle) until switched back on
                         LedHeading { visible: ledSender.quickAvailable; text: "Lights" }
 
+                        // rf132: Refloat view: ALL LIGHTS first, a bit bigger
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            visible: ledSender.quickAvailable && !slcmDetect.present
+                            minWidth: 7.6 * unit
+                            implicitHeight: 0.95 * unit
+                            labelSize: 0.3 * unit
+                            label: ledSender.allOn ? "ALL LIGHTS ON" : "ALL LIGHTS OFF"
+                            lit: ledSender.allOn
+                            onClicked: ledSender.setAll(!ledSender.allOn)
+                        }
+
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter
                             visible: ledSender.quickAvailable
@@ -15767,7 +15780,7 @@ Item {
 
                         SwPill {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            visible: ledSender.quickAvailable
+                            visible: ledSender.quickAvailable && slcmDetect.present  // rf132: SLCM: as before
                             minWidth: 7.4 * unit
                             implicitHeight: 0.75 * unit
                             label: ledSender.allOn ? "ALL LIGHTS ON" : "ALL LIGHTS OFF"
