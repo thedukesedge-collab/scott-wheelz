@@ -804,6 +804,11 @@ Replaces the fixed 1 s max / 1 s cooldown (update 4):
 - tools/lcm_vp_test runs in CI (it broke unnoticed in rf77: the stub had no
   min(); added).
 
+### Pointing-finger hint hand (v1.2.3-rf113)
+- The swipe-up hint's hand is now a proper pointing hand: index finger
+  down, curled fingers, thumb and cuff (Canvas, drawn on a 40 x 56 grid;
+  SVG in the simulator).
+
 ### Snooze controls look like the SLCM ANIMATIONS rows (v1.2.3-rf112)
 - STATUS BAR > Snooze and HEAD/TAIL LIGHTS > SNOOZE LOOK are labelled rows
   with the animated name on the right, the same as the SLCM ANIMATIONS

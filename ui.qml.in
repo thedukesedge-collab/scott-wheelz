@@ -13365,35 +13365,34 @@ Item {
         // the hand: neon outline, pointing down at the handle, bobbing
         Canvas {
             id: sheetHintHand
-            width: 1.0 * unit
-            height: 1.3 * unit
+            width: 0.9 * unit
+            height: 1.26 * unit
             anchors.horizontalCenter: parent.horizontalCenter
             y: sheetHintLabel.height + 0.1 * unit + sheetHint.bob
             onWidthChanged: requestPaint()
+            // rf113: a pointing hand (index finger down, other fingers curled,
+            // thumb, cuff), drawn on a 40 x 56 grid
             onPaint: {
-                var c = getContext("2d"), w = width, h = height;
+                var c = getContext("2d");
                 c.reset();
-                c.strokeStyle = "#39ff7a"; c.lineWidth = Math.max(2, w * 0.07);
+                var k = Math.min(width / 40, height / 56);
+                c.translate((width - 40 * k) / 2, (height - 56 * k) / 2);
+                c.scale(k, k);
+                c.strokeStyle = "#39ff7a"; c.lineWidth = 2.4;
                 c.lineJoin = "round"; c.lineCap = "round";
-                c.shadowColor = "#39ff7a"; c.shadowBlur = w * 0.25;
-                // finger (pointing down)
+                c.shadowColor = "#39ff7a"; c.shadowBlur = 6 * k;
                 c.beginPath();
-                c.moveTo(w * 0.40, h * 0.45); c.lineTo(w * 0.40, h * 0.92);
-                c.arc(w * 0.50, h * 0.92, w * 0.10, Math.PI, 0, true);
-                c.lineTo(w * 0.60, h * 0.45);
-                c.stroke();
-                // fist with knuckles
-                c.beginPath();
-                c.moveTo(w * 0.40, h * 0.45); c.lineTo(w * 0.18, h * 0.42);
-                c.quadraticCurveTo(w * 0.08, h * 0.30, w * 0.16, h * 0.14);
-                c.lineTo(w * 0.80, h * 0.06);
-                c.quadraticCurveTo(w * 0.92, h * 0.10, w * 0.90, h * 0.26);
-                c.lineTo(w * 0.86, h * 0.42);
-                c.quadraticCurveTo(w * 0.80, h * 0.48, w * 0.60, h * 0.45);
-                c.stroke();
-                c.beginPath();
-                c.moveTo(w * 0.62, h * 0.08); c.lineTo(w * 0.64, h * 0.42);
-                c.moveTo(w * 0.42, h * 0.10); c.lineTo(w * 0.42, h * 0.30);
+                // index finger
+                c.moveTo(14, 27); c.lineTo(14, 50); c.arc(18, 50, 4, Math.PI, 0, true); c.lineTo(22, 27);
+                // curled fingers
+                c.moveTo(22, 27); c.lineTo(22, 30); c.quadraticCurveTo(22, 34, 26, 34); c.quadraticCurveTo(30, 34, 30, 30); c.lineTo(30, 27);
+                c.moveTo(30, 26); c.lineTo(30, 28); c.quadraticCurveTo(30, 31.5, 33, 31.5); c.quadraticCurveTo(36, 31.5, 36, 28);
+                // back of the hand
+                c.lineTo(36, 8); c.quadraticCurveTo(36, 5, 33, 5); c.lineTo(12, 5); c.quadraticCurveTo(8, 5, 8, 9); c.lineTo(8, 22);
+                // thumb
+                c.moveTo(8, 18); c.quadraticCurveTo(2.5, 19, 3.5, 24.5); c.quadraticCurveTo(5, 28.5, 14, 27);
+                // cuff
+                c.moveTo(10, 1.5); c.lineTo(34, 1.5);
                 c.stroke();
             }
         }
