@@ -630,6 +630,18 @@ Item {
             rgb = r;
             ledCfgWriteTimer.restart();
         }
+        // rf126: RESTORE DEFAULTS: every bar SOLID, headlight / front white, tail light / rear red
+        function rgbRestore() {
+            if (!rgbLoaded) return;
+            var r = rgb.slice();
+            for (var i = 0; i < 4; i++) {
+                var b = Object.assign({}, r[i]);
+                b.mode = 0; b.c1 = i % 2 === 0 ? 1 : 4; b.c2 = 0;
+                r[i] = b;
+            }
+            rgb = r;
+            ledCfgWriteTimer.restart();
+        }
         function rgbSetLifted(on) {
             if (!rgbLoaded) return;
             rgbLifted = on;
@@ -9174,29 +9186,43 @@ Item {
                             }
                         }
 
-                        // rf118: SIMPLE: one row per light bar (like the SLCM ANIMATIONS
-                        // screen); each keeps its own colors (head white, tail red, ...)
+                        // rf126: SIMPLE: one card per light (HEADLIGHT = Refloat's headlights
+                        // + front bars, TAIL LIGHT = taillights + rear), RIDING and IDLE
+                        // inside, each effect with its COLOR below it
                         Column {
                             width: parent.width
                             spacing: 0.14 * unit
                             visible: !swSettings.rgbAdvanced
                             Repeater {
-                                model: [["Riding", [["HEADLIGHT", 0], ["TAIL LIGHT", 1]]], ["Idle", [["FRONT", 2], ["REAR", 3]]]]
-                                Column {
-                                    id: rgbSimpleGrp
+                                model: [["HEADLIGHT", 0, 2], ["TAIL LIGHT", 1, 3]]
+                                LedCard {
+                                    id: rgbLightCard
                                     width: rgbCol.width
-                                    spacing: 0.14 * unit
-                                    readonly property int briBar: modelData[1][0][1]
-                                    LedHeading { text: modelData[0] }
+                                    title: modelData[0]
+                                    readonly property var bars: [modelData[1], modelData[2]]
                                     Repeater {
-                                        model: modelData[1]
-                                        LedCard {
+                                        model: [["RIDING", 0], ["IDLE", 1]]
+                                        Column {
                                             id: rgbSimpleBar
-                                            width: rgbCol.width
-                                            title: modelData[0]
-                                            readonly property int barIdx: modelData[1]
+                                            width: rgbLightCard.width - 0.3 * unit
+                                            spacing: 0.1 * unit
+                                            readonly property int barIdx: rgbLightCard.bars[modelData[1]]
                                             readonly property var b: ledSender.rgb[barIdx] || ({mode: 0, c1: 1, c2: 0, speed: 1})
-                                            // rf122 / rf123: each light's color, above its animation, left / right arrows
+                                            Rectangle {  // thin divider between RIDING and IDLE
+                                                visible: modelData[1] === 1
+                                                width: parent.width; height: 1
+                                                color: Qt.rgba(0.66, 0.33, 1, 0.35)
+                                            }
+                                            SwStepper {
+                                                width: parent.width
+                                                label: modelData[0]
+                                                valueWidth: 3.6 * unit
+                                                rf: rgbSimpleBar.b
+                                                value: rgbSimpleBar.b.mode || 0
+                                                from: 0; to: ledSender.rfModes.length - 1; step: 1
+                                                valueText: ledSender.rfModes[value] || ""
+                                                onMoved: ledSender.rgbSet(rgbSimpleBar.barIdx, "mode", newValue)  // rf123: with the effect's colors
+                                            }
                                             SwStepper {
                                                 visible: (rgbSimpleBar.b.mode || 0) < 6
                                                 width: parent.width
@@ -9209,31 +9235,34 @@ Item {
                                                 valueColor: ledSender.rfTextColor(value)
                                                 onMoved: ledSender.rgbSet(rgbSimpleBar.barIdx, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                                             }
-                                            SwStepper {
-                                                width: parent.width
-                                                label: "EFFECT"
-                                                valueWidth: 3.6 * unit
-                                                rf: rgbSimpleBar.b
-                                                value: rgbSimpleBar.b.mode || 0
-                                                from: 0; to: ledSender.rfModes.length - 1; step: 1
-                                                valueText: ledSender.rfModes[value] || ""
-                                                onMoved: {
-                                                    ledSender.rgbSet(rgbSimpleBar.barIdx, "mode", newValue);  // rf123: with the effect's colors
-                                                }
-                                            }
                                         }
                                     }
-                                    LedCard {
-                                        width: rgbCol.width
-                                        SwStepper {
-                                            width: parent.width
-                                            label: "BRIGHTNESS"
-                                            valueWidth: 3.6 * unit
-                                            value: ledSender.rgbLoaded ? ledSender.rgbBri(rgbSimpleGrp.briBar) : 0
-                                            from: 0; to: 100; step: 5; suffix: "%"
-                                            onMoved: ledSender.rgbSetBri(rgbSimpleGrp.briBar, newValue)
-                                        }
+                                }
+                            }
+                            LedCard {
+                                width: rgbCol.width
+                                title: "BRIGHTNESS"
+                                Repeater {
+                                    model: [["RIDING", 0], ["IDLE", 2]]
+                                    SwStepper {
+                                        width: rgbCol.width - 0.3 * unit
+                                        label: modelData[0]
+                                        valueWidth: 3.6 * unit
+                                        value: ledSender.rgbLoaded ? ledSender.rgbBri(modelData[1]) : 0
+                                        from: 0; to: 100; step: 5; suffix: "%"
+                                        onMoved: ledSender.rgbSetBri(modelData[1], newValue)
                                     }
+                                }
+                            }
+                            // rf126: back to Refloat's look: solid white headlight, solid red tail light
+                            SwPill {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                minWidth: 4.4 * unit
+                                label: "RESTORE DEFAULTS"
+                                lit: true
+                                onClicked: {
+                                    ledSender.rgbRestore();
+                                    VescIf.emitStatusMessage("Headlight solid white, tail light solid red", true);
                                 }
                             }
                             SwLText {
@@ -9241,8 +9270,8 @@ Item {
                                 width: parent.width
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: fontSizeSmall
-                                text: "RIDING: HEADLIGHT / TAIL LIGHT while the board is engaged; IDLE: FRONT / REAR the rest of the time. COLOR above each light sets its color; each effect starts in its own colors (SOLID white headlight / red tail light, KNIGHT RIDER red, FELONY red / blue, ...). "
-                                    + "ADVANCED: second color / background, speed, tail / rear brightness and OFF WHEN LIFTED."
+                                text: "RIDING: while the board is engaged; IDLE: the rest of the time. Each effect starts in its own colors (SOLID white headlight / red tail light, KNIGHT RIDER red, FELONY red / blue, ...). "
+                                    + "RESTORE DEFAULTS: solid white headlight, solid red tail light. ADVANCED: second color / background, speed, tail light brightness and OFF WHEN LIFTED."
                             }
                         }
 
@@ -9275,7 +9304,7 @@ Item {
                                             SwPill {
                                                 readonly property int bar: rgbGroup.base + (modelData === "HEAD" ? 0 : 1)
                                                 minWidth: 2.0 * unit
-                                                label: rgbGroup.base === 2 ? (modelData === "HEAD" ? "FRONT" : "REAR") : (modelData === "HEAD" ? "HEADLIGHT" : "TAIL LIGHT")
+                                                label: modelData === "HEAD" ? "HEADLIGHT" : "TAIL LIGHT"  // rf126: same names riding and idle
                                                 lit: rgbCol.sel === bar
                                                 onClicked: rgbCol.sel = bar
                                             }
@@ -15693,7 +15722,7 @@ Item {
                                 glyph: "\u25C8"
                                 lit: true
                                 summary: ledSender.rgbLoaded
-                                    ? "HEADLIGHT " + ledSender.rfModes[ledSender.rgb[0].mode] + " \u00B7 FRONT " + ledSender.rfModes[ledSender.rgb[2].mode]
+                                    ? "HEADLIGHT " + ledSender.rfModes[ledSender.rgb[0].mode] + " \u00B7 TAIL " + ledSender.rfModes[ledSender.rgb[1].mode]
                                     : "HEAD / TAIL / FRONT / REAR"
                                 onClicked: ledWindow.show("rgb")
                             }

@@ -89,6 +89,7 @@
   .animSel .stepVal { width: auto; }
   /* rf124: neon cards, every value the same width so the arrows line up */
   .ledCard { border: 2px solid rgba(168,85,255,.55); background: #120a22; border-radius: 12px; padding: 6px 8px; margin: 6px 0; }
+  .ledCard .cardSep { height: 1px; background: rgba(168,85,255,.35); margin: 4px 0; }
   .ledCard .cardT { text-align: center; color: var(--green); font-family: Orbitron, monospace; font-size: 12px; letter-spacing: 1px; margin-bottom: 2px; }
   #barSimple .stepVal, #rgbSimple .stepVal { width: 118px !important; }
   #barSimple .ledHint, #rgbSimple .ledHint { text-align: center; }
@@ -466,14 +467,16 @@
       <div class="ledSec" data-s="rgb">
         <div class="pills"><div class="pill" id="rgbSimpleP">SIMPLE</div><div class="pill" id="rgbAdvP">ADVANCED &#8250;</div></div>
         <div id="rgbSimple">
-          <div class="secTitle">Riding</div><div class="ledCard"><div class="cardT">HEADLIGHT</div><div id="rsHeadC"></div><div id="rsHead"></div></div><div class="ledCard"><div class="cardT">TAIL LIGHT</div><div id="rsTailC"></div><div id="rsTail"></div></div><div class="ledCard"><div id="rsBriR"></div></div>
-          <div class="secTitle">Idle</div><div class="ledCard"><div class="cardT">FRONT</div><div id="rsFrontC"></div><div id="rsFront"></div></div><div class="ledCard"><div class="cardT">REAR</div><div id="rsRearC"></div><div id="rsRear"></div></div><div class="ledCard"><div id="rsBriI"></div></div>
-          <p class="ledHint">RIDING: HEADLIGHT / TAIL LIGHT while the board is engaged; IDLE: FRONT / REAR the rest of the time. COLOR above each light sets its color; each effect starts in its own colors (SOLID white headlight / red tail light, KNIGHT RIDER red, FELONY red / blue, ...). ADVANCED: second color / background, speed, tail / rear brightness and OFF WHEN LIFTED.</p>
+          <div class="ledCard"><div class="cardT">HEADLIGHT</div><div id="rsHead"></div><div id="rsHeadC"></div><div class="cardSep"></div><div id="rsFront"></div><div id="rsFrontC"></div></div>
+          <div class="ledCard"><div class="cardT">TAIL LIGHT</div><div id="rsTail"></div><div id="rsTailC"></div><div class="cardSep"></div><div id="rsRear"></div><div id="rsRearC"></div></div>
+          <div class="ledCard"><div class="cardT">BRIGHTNESS</div><div id="rsBriR"></div><div id="rsBriI"></div></div>
+          <div class="pills"><div class="pill on" id="rgbRestore">RESTORE DEFAULTS</div></div>
+          <p class="ledHint">RIDING: while the board is engaged; IDLE: the rest of the time. Each effect starts in its own colors (SOLID white headlight / red tail light, KNIGHT RIDER red, FELONY red / blue, ...). RESTORE DEFAULTS: solid white headlight, solid red tail light. ADVANCED: second color / background, speed, tail light brightness and OFF WHEN LIFTED.</p>
         </div>
         <div id="rgbAdv">
         <div id="rgbSel">
           <div class="rgbGrp"><span>RIDING</span><div class="pill" data-i="0">HEADLIGHT</div><div class="pill" data-i="1">TAIL LIGHT</div></div>
-          <div class="rgbGrp"><span>IDLE</span><div class="pill" data-i="2">FRONT</div><div class="pill" data-i="3">REAR</div></div>
+          <div class="rgbGrp"><span>IDLE</span><div class="pill" data-i="2">HEADLIGHT</div><div class="pill" data-i="3">TAIL LIGHT</div></div>
         </div>
         <div class="animSel"><span class="stepBtn" data-d="-1">&#9660;</span><div class="stepVal animName" id="rgbPreview" data-anim="16" style="flex:1;font-size:18px;text-align:center"></div><span class="stepBtn" data-d="1">&#9650;</span></div>
         <div id="rgbSteps"></div>
@@ -1534,7 +1537,7 @@ setInterval(() => {
 function renderLedsSoft() {
   const setup = P.simSetup || 'slcm', slcm = setup === 'slcm', lightsOk = setup !== 'none';
   $('rgbTileBox').style.display = setup === 'refloat' ? '' : 'none';
-  $('ltRgb').textContent = 'HEADLIGHT ' + RF_MODES[P.rgb[0].mode] + ' · FRONT ' + RF_MODES[P.rgb[2].mode];
+  $('ltRgb').textContent = 'HEADLIGHT ' + RF_MODES[P.rgb[0].mode] + ' · TAIL ' + RF_MODES[P.rgb[1].mode];
   $('pgLeds').classList.toggle('slcmOn', slcm); $('pgLeds').classList.toggle('slcmOff', !slcm);
   document.querySelectorAll('#simSetup .pill').forEach(x => x.classList.toggle('on', x.dataset.k === setup));
   $('slcmBanner').className = 'fwFit' + (slcm ? ' ok' : '');
@@ -1619,10 +1622,10 @@ function renderRgb() {
   // rf118: SIMPLE (one row per light bar, own colors kept) / ADVANCED
   $('rgbSimple').style.display = P.rgbAdv ? 'none' : ''; $('rgbAdv').style.display = P.rgbAdv ? '' : 'none';
   $('rgbSimpleP').classList.toggle('on', !P.rgbAdv); $('rgbAdvP').classList.toggle('on', !!P.rgbAdv);
-  [['rsHead', 'HEADLIGHT', 0], ['rsTail', 'TAIL LIGHT', 1], ['rsFront', 'FRONT', 2], ['rsRear', 'REAR', 3]].forEach(([id, l, k]) =>
+  [['rsHead', 'RIDING', 0], ['rsTail', 'RIDING', 1], ['rsFront', 'IDLE', 2], ['rsRear', 'IDLE', 3]].forEach(([id, l, k]) =>
     { $(id + 'C').innerHTML = ''; if (P.rgb[k].mode < 6) cuStep(id + 'C', 'COLOR', () => P.rgb[k].c1, 0, 29, 1, v => RF_COLORS[v], v => { P.rgb[k].c1 = rfNext(P.rgb[k].c1, v); save(); renderRgb(); }, rfTxt);   // rf122
-    animRow($(id), 'EFFECT', () => P.rgb[k].mode, 8, v => RF_MODES[v], 20 + k, v => { if (oneCol(v) && !oneCol(P.rgb[k].mode)) P.rgb[k].c2 = 0; if (v !== P.rgb[k].mode) { const d = effCols(v, k); if (d) { P.rgb[k].c1 = d[0]; P.rgb[k].c2 = d[1]; } } P.rgb[k].mode = v; save(); renderRgb(); }); });
-  [['rsBriR', 'ledHeadPct'], ['rsBriI', 'ledHeadIdlePct']].forEach(([id, k]) => { $(id).innerHTML = ''; ledStep($(id), k, 'BRIGHTNESS', 0, 100, 5, v => v + '%'); });
+    animRow($(id), l, () => P.rgb[k].mode, 8, v => RF_MODES[v], 20 + k, v => { if (oneCol(v) && !oneCol(P.rgb[k].mode)) P.rgb[k].c2 = 0; if (v !== P.rgb[k].mode) { const d = effCols(v, k); if (d) { P.rgb[k].c1 = d[0]; P.rgb[k].c2 = d[1]; } } P.rgb[k].mode = v; save(); renderRgb(); }); });
+  [['rsBriR', 'ledHeadPct', 'RIDING'], ['rsBriI', 'ledHeadIdlePct', 'IDLE']].forEach(([id, k, l]) => { $(id).innerHTML = ''; ledStep($(id), k, l, 0, 100, 5, v => v + '%'); });
   const i = P.rgbSel || 0, b = P.rgb[i], box = $('rgbSteps');
   document.querySelectorAll('#rgbSel .pill').forEach(x => x.classList.toggle('on', +x.dataset.i === i));
   $('rgbPreview').innerHTML = [...RF_MODES[b.mode]].map(ch => '<span>' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
@@ -1796,6 +1799,7 @@ $('ledWinDim').onclick = () => { fwForget(); ledWin(null); };
 $('cuOpen').onclick = () => { ledWin('custom'); renderCustom(); };
 $('barSimpleP').onclick = () => { P.barAdv = false; save(); renderRf(); };
 $('barAdvP').onclick = () => { P.barAdv = true; save(); renderRf(); };
+$('rgbRestore').onclick = () => { for (let i = 0; i < 4; i++) Object.assign(P.rgb[i], { mode: 0, c1: i % 2 ? 4 : 1, c2: 0 }); P.ledCfg = true; save(); renderRgb(); renderLedsSoft(); };
 $('rgbSimpleP').onclick = () => { P.rgbAdv = false; save(); renderRgb(); };
 $('rgbAdvP').onclick = () => { P.rgbAdv = true; save(); renderRgb(); };
 $('barAnimOpen').onclick = () => { ledWin('anim'); renderLeds(); };

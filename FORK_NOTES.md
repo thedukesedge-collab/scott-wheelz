@@ -1438,3 +1438,12 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   gauge: full -> empty over ~5 s, green -> yellow -> red, blinking red at
   the end, then refill (AnimName.batteryCol). SLCM screens unchanged
   (BATTERY LEVEL / STANDARD keep their old look).
+
+### RGB LIGHTS SIMPLE: one card per light, RESTORE DEFAULTS (v1.2.3-rf126)
+- HEADLIGHT card = Refloat's headlights (RIDING) + front (IDLE) bars,
+  TAIL LIGHT card = taillights (RIDING) + rear (IDLE); in each, the effect
+  row with its COLOR below it. BRIGHTNESS card: RIDING / IDLE.
+- RESTORE DEFAULTS: every bar SOLID, headlight white, tail light red
+  (ledSender.rgbRestore).
+- ADVANCED: the idle buttons read HEADLIGHT / TAIL LIGHT as well; the
+  LEDS tile shows HEADLIGHT / TAIL.
