@@ -1409,3 +1409,17 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 ### RGB LIGHTS SIMPLE: a COLOR per light (v1.2.3-rf122)
 - Under each light in SIMPLE (HEADLIGHT, TAIL LIGHT, FRONT, REAR) a
   COLOR row (Refloat color 1 of that bar); hidden for the rainbows.
+
+### Effect colors, COLOR rows on top with left / right arrows (v1.2.3-rf123)
+- Picking an effect starts it in its own colors, loosely like the SLCM
+  presets (ledSender.effectColors): SOLID SKY (status bar; RGB: white
+  headlight / front, red tail light / rear), FADE SKY <-> FLAME (COMP.
+  WAVE), PULSE SKY, STROBE WHITE, KNIGHT RIDER RED, FELONY RED / BLUE
+  (THE FUZZ); rainbows unchanged. Status bar idle (Status Idle colors),
+  riding and snooze (their own colors), every RGB light bar; SIMPLE and
+  ADVANCED. Replaces the rf119 / rf120 FELONY / SOLID special cases.
+- STATUS BAR SIMPLE: COLOR on top of the rows; it changes color 1 of
+  idle, riding and snooze (FELONY keeps red / blue).
+- RGB LIGHTS SIMPLE: each light's COLOR above its animation.
+- Refloat color rows (SIMPLE and ADVANCED) use left / right arrows
+  (SwStepper.sideArrows).

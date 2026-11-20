@@ -404,8 +404,8 @@
         <div class="pills"><div class="pill" id="barSimpleP">SIMPLE</div><div class="pill" id="barAdvP">ADVANCED &#8250;</div></div>
         <div id="barSimple">
           <div class="secTitle">Animations</div>
-          <div id="bsIdle"></div><div id="bsRide"></div><div id="bsSnz"></div><div id="bsColor"></div>
-          <p class="ledHint">Refloat's status bar animations for each moment. COLOR is used by all of them. ADVANCED: second color / background, speed, START AFTER, the duty bar, footpad sensors and own colors for riding and snooze.</p>
+          <div id="bsColor"></div><div id="bsIdle"></div><div id="bsRide"></div><div id="bsSnz"></div>
+          <p class="ledHint">Refloat's status bar animations for each moment. Each effect starts in its own colors (KNIGHT RIDER red, FELONY red / blue, STROBE white, ...); COLOR changes them all. ADVANCED: second color / background, speed, START AFTER, the duty bar, footpad sensors and own colors for riding and snooze.</p>
         </div>
         <div id="barAdv">
         <div class="secTitle">Idle animation</div>
@@ -461,9 +461,9 @@
       <div class="ledSec" data-s="rgb">
         <div class="pills"><div class="pill" id="rgbSimpleP">SIMPLE</div><div class="pill" id="rgbAdvP">ADVANCED &#8250;</div></div>
         <div id="rgbSimple">
-          <div class="secTitle">Riding</div><div id="rsHead"></div><div id="rsHeadC"></div><div id="rsTail"></div><div id="rsTailC"></div><div id="rsBriR"></div>
-          <div class="secTitle">Idle</div><div id="rsFront"></div><div id="rsFrontC"></div><div id="rsRear"></div><div id="rsRearC"></div><div id="rsBriI"></div>
-          <p class="ledHint">RIDING: HEADLIGHT / TAIL LIGHT while the board is engaged; IDLE: FRONT / REAR the rest of the time. COLOR under each light sets its color. ADVANCED: second color / background, speed, tail / rear brightness and OFF WHEN LIFTED.</p>
+          <div class="secTitle">Riding</div><div id="rsHeadC"></div><div id="rsHead"></div><div id="rsTailC"></div><div id="rsTail"></div><div id="rsBriR"></div>
+          <div class="secTitle">Idle</div><div id="rsFrontC"></div><div id="rsFront"></div><div id="rsRearC"></div><div id="rsRear"></div><div id="rsBriI"></div>
+          <p class="ledHint">RIDING: HEADLIGHT / TAIL LIGHT while the board is engaged; IDLE: FRONT / REAR the rest of the time. COLOR above each light sets its color; each effect starts in its own colors (SOLID white headlight / red tail light, KNIGHT RIDER red, FELONY red / blue, ...). ADVANCED: second color / background, speed, tail / rear brightness and OFF WHEN LIFTED.</p>
         </div>
         <div id="rgbAdv">
         <div id="rgbSel">
@@ -1362,7 +1362,7 @@ function cuPills(box, labels, cur, fn) { $(box).innerHTML = ''; labels.forEach((
 function cuStep(box, label, get, mn, mx, stp, fmt, set, col, tog) {
   const row = document.createElement('div'); row.className = 'stepRow';
   // rf101: optional ON / OFF switch between the label and the arrows (tog = {on, click})
-  row.innerHTML = '<span class="lbl">' + label + '</span>' + (tog ? '<span class="pill' + (tog.on ? ' on' : '') + '" style="min-width:38px;padding:3px 6px;font-size:10px;text-align:center;margin-right:6px">' + (tog.on ? 'ON' : 'OFF') + '</span>' : '') + '<span class="stepCtl"><span class="stepBtn" data-d="-1">&#9660;</span><span class="stepVal"></span><span class="stepBtn" data-d="1">&#9650;</span></span>';
+  row.innerHTML = '<span class="lbl">' + label + '</span>' + (tog ? '<span class="pill' + (tog.on ? ' on' : '') + '" style="min-width:38px;padding:3px 6px;font-size:10px;text-align:center;margin-right:6px">' + (tog.on ? 'ON' : 'OFF') + '</span>' : '') + '<span class="stepCtl"><span class="stepBtn" data-d="-1">' + (col ? '&#9664;' : '&#9660;') + '</span><span class="stepVal"></span><span class="stepBtn" data-d="1">' + (col ? '&#9654;' : '&#9650;') + '</span></span>';  // rf123: colors: left / right
   row.querySelector('.stepVal').textContent = fmt(get());
   if (col) row.querySelector('.stepVal').style.color = col(get());
   if (tog) row.querySelector('.pill').onclick = tog.click;
@@ -1609,7 +1609,7 @@ function renderRgb() {
   $('rgbSimpleP').classList.toggle('on', !P.rgbAdv); $('rgbAdvP').classList.toggle('on', !!P.rgbAdv);
   [['rsHead', 'HEADLIGHT', 0], ['rsTail', 'TAIL LIGHT', 1], ['rsFront', 'FRONT', 2], ['rsRear', 'REAR', 3]].forEach(([id, l, k]) =>
     { $(id + 'C').innerHTML = ''; if (P.rgb[k].mode < 6) cuStep(id + 'C', 'COLOR', () => P.rgb[k].c1, 0, 29, 1, v => RF_COLORS[v], v => { P.rgb[k].c1 = rfNext(P.rgb[k].c1, v); save(); renderRgb(); }, rfTxt);   // rf122
-    animRow($(id), l, () => P.rgb[k].mode, 8, v => RF_MODES[v], 20 + k, v => { if (oneCol(v) && !oneCol(P.rgb[k].mode)) P.rgb[k].c2 = 0; if (v === 5 && P.rgb[k].mode !== 5) { P.rgb[k].c1 = 4; P.rgb[k].c2 = 25; } P.rgb[k].mode = v; if (v === 0 && k < 2) P.rgb[k].c1 = k === 0 ? 1 : 4;  /* rf120: riding SOLID = white head / red tail */ save(); renderRgb(); }); });
+    animRow($(id), l, () => P.rgb[k].mode, 8, v => RF_MODES[v], 20 + k, v => { if (oneCol(v) && !oneCol(P.rgb[k].mode)) P.rgb[k].c2 = 0; if (v !== P.rgb[k].mode) { const d = effCols(v, k); if (d) { P.rgb[k].c1 = d[0]; P.rgb[k].c2 = d[1]; } } P.rgb[k].mode = v; save(); renderRgb(); }); });
   [['rsBriR', 'ledHeadPct'], ['rsBriI', 'ledHeadIdlePct']].forEach(([id, k]) => { $(id).innerHTML = ''; ledStep($(id), k, 'BRIGHTNESS', 0, 100, 5, v => v + '%'); });
   const i = P.rgbSel || 0, b = P.rgb[i], box = $('rgbSteps');
   document.querySelectorAll('#rgbSel .pill').forEach(x => x.classList.toggle('on', +x.dataset.i === i));
@@ -1630,25 +1630,30 @@ function renderRgb() {
   $('rgbLifted').textContent = 'OFF WHEN LIFTED: ' + (P.rgbLifted ? 'ON' : 'OFF'); $('rgbLifted').classList.toggle('on', P.rgbLifted);
 }
 document.querySelectorAll('#rgbSel .pill').forEach(x => x.onclick = () => { P.rgbSel = +x.dataset.i; save(); renderRgb(); });
-document.querySelectorAll('.animSel:not(#rfSel):not(#rideSel):not(#stSnzSel) .stepBtn').forEach(x => x.onclick = () => { const b = P.rgb[P.rgbSel || 0], v = clamp(b.mode + +x.dataset.d, 0, 8); if (v !== b.mode) { if (oneCol(v) && !oneCol(b.mode)) b.c2 = 0; if (v === 5 && b.mode !== 5) { b.c1 = 4; b.c2 = 25; } b.mode = v; P.ledCfg = true; save(); renderRgb(); renderLedsSoft(); } });
+document.querySelectorAll('.animSel:not(#rfSel):not(#rideSel):not(#stSnzSel) .stepBtn').forEach(x => x.onclick = () => { const b = P.rgb[P.rgbSel || 0], v = clamp(b.mode + +x.dataset.d, 0, 8); if (v !== b.mode) { if (oneCol(v) && !oneCol(b.mode)) b.c2 = 0; { const d = effCols(v, P.rgbSel || 0); if (d) { b.c1 = d[0]; b.c2 = d[1]; } } b.mode = v; P.ledCfg = true; save(); renderRgb(); renderLedsSoft(); } });
 // idle choice: -1 = BATTERY (Refloat idle timeout 0), else the Refloat mode
-document.querySelectorAll('#rfSel .stepBtn').forEach(x => x.onclick = () => { const cur = P.rfTimeout > 0 ? P.rfMode : -1, v = clamp(cur + +x.dataset.d, -1, 8); if (v === cur) return; if (v < 0) P.rfTimeout = 0; else { if (oneCol(v) && !(cur >= 0 && oneCol(cur))) P.rfColor2 = 0; if (v === 5 && cur !== 5) { P.rfColor1 = 4; P.rfColor2 = 25; } P.rfMode = v; if (!(P.rfTimeout > 0)) P.rfTimeout = 10; } P.ledAnimIdle = 15; P.ledCfg = true; save(); renderRf(); renderLedsSoft(); });
+document.querySelectorAll('#rfSel .stepBtn').forEach(x => x.onclick = () => { const cur = P.rfTimeout > 0 ? P.rfMode : -1, v = clamp(cur + +x.dataset.d, -1, 8); if (v === cur) return; if (v < 0) P.rfTimeout = 0; else { if (oneCol(v) && !(cur >= 0 && oneCol(cur))) P.rfColor2 = 0; { const d = effCols(v, -1); if (d) { P.rfColor1 = d[0]; P.rfColor2 = d[1]; } } P.rfMode = v; if (!(P.rfTimeout > 0)) P.rfTimeout = 10; } P.ledAnimIdle = 15; P.ledCfg = true; save(); renderRf(); renderLedsSoft(); });
 $('rgbLifted').onclick = () => { P.rgbLifted = !P.rgbLifted; save(); renderRgb(); };
+// rf123: an effect starts in its own colors, loosely like the SLCM presets (bar -1 = status bar, 0-3 RGB bars)
+function effCols(mode, bar) {
+  if (mode === 0) return bar === 0 || bar === 2 ? [1, 0] : bar === 1 || bar === 3 ? [4, 0] : [22, 0];
+  return [null, [22, 6], [22, 0], [1, 0], [4, 0], [4, 25]][mode] || null;
+}
 function renderRf() {
   // rf118: SIMPLE (rows like the SLCM ANIMATIONS screen, one COLOR) / ADVANCED
   $('barSimple').style.display = P.barAdv ? 'none' : ''; $('barAdv').style.display = P.barAdv ? '' : 'none';
   $('barSimpleP').classList.toggle('on', !P.barAdv); $('barAdvP').classList.toggle('on', !!P.barAdv);
   const thor = P.simSetup === 'refloat';
   animRow($('bsIdle'), 'IDLE', () => P.rfTimeout > 0 ? P.rfMode + 1 : 0, 9, v => v ? RF_MODES[v - 1] : 'BATTERY', 15, v => {
-    if (!v) P.rfTimeout = 0; else { const cur = P.rfTimeout > 0 ? P.rfMode : -1; if (oneCol(v - 1) && !(cur >= 0 && oneCol(cur))) P.rfColor2 = 0; if (v === 6 && cur !== 5) { P.rfColor1 = 4; P.rfColor2 = 25; } P.rfMode = v - 1; if (!(P.rfTimeout > 0)) P.rfTimeout = 10; }
+    if (!v) P.rfTimeout = 0; else { const cur = P.rfTimeout > 0 ? P.rfMode : -1; if (oneCol(v - 1) && !(cur >= 0 && oneCol(cur))) P.rfColor2 = 0; if (cur !== v - 1) { const d = effCols(v - 1, -1); if (d) { P.rfColor1 = d[0]; P.rfColor2 = d[1]; } } P.rfMode = v - 1; if (!(P.rfTimeout > 0)) P.rfTimeout = 10; }
     P.ledCfg = true; save(); renderRf(); renderLedsSoft(); });
   if (thor) {
-    animRow($('bsRide'), 'RIDING', () => P.rideMode || 0, 9, v => v ? RF_MODES[v - 1] : 'BATTERY/DUTY', 17, v => { if (v === 6 && P.rideMode !== 6) P.ride = { c1: 4, c2: 25, speed: P.rfSpeed }; else if (P.rideMode === 6) P.ride = { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed }; P.rideMode = v; save(); renderRf(); });
-    animRow($('bsSnz'), 'SNOOZE', () => P.stSnz || 0, 12, v => v >= 4 ? RF_MODES[v - 4] : ['BREATHE', 'DIM', 'DARK', 'NORMAL'][v], 18, v => { if (v === 9 && P.stSnz !== 9) { P.snz = { c1: 4, c2: 25, speed: P.rfSpeed }; P.snzAdv = true; } else if (P.stSnz === 9) P.snzAdv = false; P.stSnz = v; save(); renderRf(); });
+    animRow($('bsRide'), 'RIDING', () => P.rideMode || 0, 9, v => v ? RF_MODES[v - 1] : 'BATTERY/DUTY', 17, v => { if (v !== P.rideMode) { const d = effCols(v - 1, -1); if (d) P.ride = { c1: d[0], c2: d[1], speed: P.rfSpeed }; } P.rideMode = v; save(); renderRf(); });
+    animRow($('bsSnz'), 'SNOOZE', () => P.stSnz || 0, 12, v => v >= 4 ? RF_MODES[v - 4] : ['BREATHE', 'DIM', 'DARK', 'NORMAL'][v], 18, v => { if (v !== P.stSnz) { const d = effCols(v - 4, -1); if (d) { P.snz = { c1: d[0], c2: d[1], speed: P.rfSpeed }; P.snzAdv = true; } } P.stSnz = v; save(); renderRf(); });
   } else { $('bsRide').innerHTML = ''; $('bsSnz').innerHTML = ''; }
   $('bsColor').innerHTML = '';
   cuStep('bsColor', 'COLOR', () => P.rfColor1, 0, 29, 1, v => RF_COLORS[v], v => {
-    P.rfColor1 = rfNext(P.rfColor1, v); if (P.rideMode !== 6) P.ride = { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed }; if (P.stSnz !== 9) P.snzAdv = false;
+    P.rfColor1 = rfNext(P.rfColor1, v); if (P.ride && P.rideMode !== 6) P.ride.c1 = P.rfColor1; if (P.snzAdv && P.snz && P.stSnz !== 9) P.snz.c1 = P.rfColor1;
     P.ledCfg = true; save(); renderRf(); renderLedsSoft(); }, rfTxt);
   const on = P.rfTimeout > 0, box = $('rfSteps');
   $('rfPreview').innerHTML = [...(on ? RF_MODES[P.rfMode] : 'BATTERY')].map(ch => '<span>' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
@@ -1659,7 +1664,7 @@ function renderRf() {
   $('rfStSnz').style.display = P.simSetup === 'refloat' ? '' : 'none';
   // rf111: BREATHE / DIM / DARK / NORMAL, then every Refloat animation (4-12)
   // rf112: a labelled row like the SLCM ANIMATIONS rows
-  animRow($('stSnzBox'), 'SNOOZE', () => P.stSnz || 0, 12, v => v >= 4 ? RF_MODES[v - 4] : ['BREATHE', 'DIM', 'DARK', 'NORMAL'][v], 18, v => { if (P.snzAdv && oneCol(v - 4) && !oneCol((P.stSnz || 0) - 4)) P.snz.c2 = 0; if (v === 9 && P.stSnz !== 9) { P.snz = { c1: 4, c2: 25, speed: P.rfSpeed }; P.snzAdv = true; } P.stSnz = v; save(); renderRf(); });
+  animRow($('stSnzBox'), 'SNOOZE', () => P.stSnz || 0, 12, v => v >= 4 ? RF_MODES[v - 4] : ['BREATHE', 'DIM', 'DARK', 'NORMAL'][v], 18, v => { if (P.snzAdv && oneCol(v - 4) && !oneCol((P.stSnz || 0) - 4)) P.snz.c2 = 0; if (v !== P.stSnz) { const d = effCols(v - 4, -1); if (d) { P.snz = { c1: d[0], c2: d[1], speed: P.rfSpeed }; P.snzAdv = true; } } P.stSnz = v; save(); renderRf(); });
   // rf114: riding / snooze own colors and speed (snooze: SIMPLE = idle colors, ADVANCED = own)
   if (!P.ride) P.ride = { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed };
   if (!P.snz) P.snz = { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed };
@@ -1702,7 +1707,7 @@ function renderRf() {
   $('rfHint').textContent = "Refloat's own Status Idle animation, so it's the same on every controller (Thor, Floatwheel, ...): controller-driven LEDs play it themselves, and for an SLCM light module the package turns it into the closest SLCM animation (from SLCM r19; older builds show the battery). BATTERY = the battery level. START AFTER only applies to controller-driven LEDs, an SLCM starts right away."
     + (slcm && P.ledAnimIdle !== 15 ? ' Right now the SLCM plays ' + animLabel('ledAnimIdle', P.ledAnimIdle) + ' from SLCM EXTRAS \u203A ANIMATIONS instead; change anything here to follow this again.' : '');
 }
-document.querySelectorAll('#rideSel .stepBtn').forEach(x => x.onclick = () => { const v = clamp(P.rideMode + +x.dataset.d, 0, 9); if (v !== P.rideMode) { if (P.ride && oneCol(v - 1) && !oneCol(P.rideMode - 1)) P.ride.c2 = 0; if (v === 6 && P.rideMode !== 6) P.ride = { c1: 4, c2: 25, speed: P.rfSpeed }; P.rideMode = v; save(); renderRf(); } });
+document.querySelectorAll('#rideSel .stepBtn').forEach(x => x.onclick = () => { const v = clamp(P.rideMode + +x.dataset.d, 0, 9); if (v !== P.rideMode) { if (P.ride && oneCol(v - 1) && !oneCol(P.rideMode - 1)) P.ride.c2 = 0; { const d = effCols(v - 1, -1); if (d) P.ride = { c1: d[0], c2: d[1], speed: P.rfSpeed }; } P.rideMode = v; save(); renderRf(); } });
 $('rfSensPill').onclick = () => { P.rfSens = !P.rfSens; save(); renderRf(); };
 const ledToggle = k => () => { P[k] = !P[k]; P.ledCfg = true; save(); renderLedsSoft(); };
 const P42A = [170, 156, 144, 135, 128, 120, 112, 104, 96, 84, 50];

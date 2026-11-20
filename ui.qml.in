@@ -590,24 +590,41 @@ Item {
         // (color 2 = the background / "off" color): picking one from another
         // kind of animation starts it with a BLACK background (BACKGROUND OFF)
         function oneColor(m) { return m >= 1 && m <= 4; }
-        // rf119: picking FELONY starts it in RED / BLUE (status bar: idle, riding, snooze)
-        readonly property int felonyC1: 4
-        readonly property int felonyC2: 25
-        function felonyRide() {
-            swSettings.rideC1 = felonyC1; swSettings.rideC2 = felonyC2;
+        // rf123: picking an effect starts it in its own colors, loosely like the
+        // SLCM presets: KNIGHT RIDER red, FELONY red / blue (THE FUZZ), STROBE
+        // white, PULSE / SOLID in the SLCM's default color (SKY), FADE sky <->
+        // flame (COMP. WAVE). bar: -1 status bar, 0-3 head / tail / front / rear
+        // (SOLID: white headlight / front, red tail / rear). Rainbows: null.
+        function effectColors(mode, bar) {
+            if (mode === 0) return bar === 0 || bar === 2 ? [1, 0] : bar === 1 || bar === 3 ? [4, 0] : [22, 0];
+            return [null, [22, 6], [22, 0], [1, 0], [4, 0], [4, 25]][mode] || null;
+        }
+        function rideEffect(m) {  // riding status bar: own colors for an effect (m = mode + 1)
+            var d = effectColors(m - 1, -1);
+            if (!d) return;
+            swSettings.rideC1 = d[0]; swSettings.rideC2 = d[1];
             if (swSettings.rideSpeed <= 0) swSettings.rideSpeed = rfSpeed;
         }
-        function felonySnooze() {
-            swSettings.snzC1 = felonyC1; swSettings.snzC2 = felonyC2;
+        function snoozeEffect(v) {  // snooze status bar: own colors for an effect (v = mode + 4)
+            var d = effectColors(v - 4, -1);
+            if (!d) return;
+            swSettings.snzC1 = d[0]; swSettings.snzC2 = d[1];
             if (!swSettings.snzAdvanced) swSettings.snzSpeed = rfSpeed;
             swSettings.snzAdvanced = true;
+        }
+        function idleEffect(m) {  // Status Idle colors for an effect
+            var d = effectColors(m, -1);
+            if (!d) return;
+            rfColor1 = d[0]; rfColor2 = d[1];
         }
         function rgbSet(bar, key, v) {
             if (!rgbLoaded) return;
             var r = rgb.slice();
             var b = Object.assign({}, r[bar]);
-            if (key === "mode" && oneColor(v) && !oneColor(b.mode)) b.c2 = 0;
-            if (key === "mode" && v === 5 && b.mode !== 5) { b.c1 = 4; b.c2 = 25; }  // rf119: FELONY red / blue
+            if (key === "mode" && v !== b.mode) {  // rf123: the effect's own colors
+                var d = effectColors(v, bar);
+                if (d) { b.c1 = d[0]; b.c2 = d[1]; }
+            }
             b[key] = v;
             r[bar] = b;
             rgb = r;
@@ -4482,6 +4499,7 @@ Item {
             from: 0; to: 29; step: 1
             valueText: ledSender.rfColors[value]
             valueColor: ledSender.rfTextColor(value)
+            sideArrows: true
             onMoved: rcb.setC1(ledSender.rfColorNext(value, newValue > value ? 1 : -1))
         }
         SwStepper {
@@ -4497,6 +4515,7 @@ Item {
             from: 0; to: 29; step: 1
             valueText: ledSender.rfColors[value]
             valueColor: ledSender.rfTextColor(value)
+            sideArrows: true
             onMoved: rcb.setC2(ledSender.rfColorNext(value, newValue > value ? 1 : -1))
         }
         SwStepper {
@@ -4527,6 +4546,7 @@ Item {
         // Refloat animation as the value (AnimName anim 15): rfAnim for the
         // Status Idle animation, rf = {mode, c1, c2, speed} for a light bar
         property bool rfAnim: false
+        property bool sideArrows: false  // rf123: left / right arrows (colors)
         property var rf: null
         // the animation itself is the selector: no label, [down] NAME [up]
         // across the full width
@@ -4622,8 +4642,8 @@ Item {
                         // arrow
                         Canvas {
                             anchors.centerIn: parent
-                            width: 0.4 * unit
-                            height: 0.3 * unit
+                            width: stepper.sideArrows ? 0.3 * unit : 0.4 * unit
+                            height: stepper.sideArrows ? 0.4 * unit : 0.3 * unit
                             property bool up: modelData > 0
                             property color col: parent.atLimit ? "#4a2a73" : arrowMouse.pressed ? swTheme.background : swTheme.neonGreen
                             onColChanged: requestPaint()
@@ -4631,7 +4651,10 @@ Item {
                                 var ctx = getContext("2d");
                                 ctx.reset();
                                 ctx.beginPath();
-                                if (up) {
+                                if (stepper.sideArrows) {
+                                    if (up) { ctx.moveTo(0, 0); ctx.lineTo(width, height / 2); ctx.lineTo(0, height); }
+                                    else { ctx.moveTo(width, 0); ctx.lineTo(0, height / 2); ctx.lineTo(width, height); }
+                                } else if (up) {
                                     ctx.moveTo(0, height); ctx.lineTo(width / 2, 0); ctx.lineTo(width, height);
                                 } else {
                                     ctx.moveTo(0, 0); ctx.lineTo(width / 2, height); ctx.lineTo(width, 0);
@@ -8384,6 +8407,23 @@ Item {
                             visible: !ledSender.slcmPresets && !swSettings.barAdvanced
 
                             LedHeading { text: "Animations" }
+                            // one color for all three (rf123: on top, left / right arrows)
+                            SwStepper {
+                                label: "COLOR"
+                                sideArrows: true
+                                valueWidth: 3.2 * unit
+                                value: ledSender.rfColor1
+                                from: 0; to: 29; step: 1
+                                valueText: ledSender.rfColors[value]
+                                valueColor: ledSender.rfTextColor(value)
+                                onMoved: {
+                                    var c = ledSender.rfColorNext(value, newValue > value ? 1 : -1);
+                                    // rf123: the same color 1 for riding / snooze (FELONY keeps red / blue)
+                                    if (swSettings.rideC1 >= 0 && swSettings.ledRideMode !== 6) swSettings.rideC1 = c;
+                                    if (swSettings.snzAdvanced && swSettings.ledStatusSnooze !== 9) swSettings.snzC1 = c;
+                                    ledSender.setRf("rfColor1", c);
+                                }
+                            }
                             SwStepper {
                                 width: parent.width
                                 label: "IDLE"
@@ -8397,7 +8437,7 @@ Item {
                                         ledSender.setRf("rfTimeout", 0);
                                     } else {
                                         if (ledSender.oneColor(newValue) && !(ledSender.rfOn && ledSender.oneColor(ledSender.rfMode))) ledSender.rfColor2 = 0;
-                                        if (newValue === 5 && !(ledSender.rfOn && ledSender.rfMode === 5)) { ledSender.rfColor1 = ledSender.felonyC1; ledSender.rfColor2 = ledSender.felonyC2; }
+                                        if (!(ledSender.rfOn && ledSender.rfMode === newValue)) ledSender.idleEffect(newValue);  // rf123
                                         ledSender.rfMode = newValue;
                                         ledSender.setRf("rfTimeout", ledSender.rfOn ? ledSender.rfTimeout : 10);
                                     }
@@ -8416,8 +8456,7 @@ Item {
                                 valueText: value === 0 ? "BATTERY/DUTY" : ledSender.rfModes[value - 1]
                                 onMoved: {
                                     if (own && ledSender.oneColor(newValue - 1) && !ledSender.oneColor(swSettings.ledRideMode - 1)) swSettings.rideC2 = 0;
-                                    if (newValue === 6 && swSettings.ledRideMode !== 6) ledSender.felonyRide();
-                                    else if (swSettings.ledRideMode === 6 && newValue !== 6) swSettings.rideC1 = -1;  // SIMPLE: back to the COLOR row
+                                    if (newValue !== swSettings.ledRideMode) ledSender.rideEffect(newValue);  // rf123
                                     swSettings.ledRideMode = newValue; ledSender.changed();
                                 }
                             }
@@ -8434,30 +8473,15 @@ Item {
                                 valueText: value >= 4 ? ledSender.rfModes[value - 4] : ["BREATHE", "DIM", "DARK", "NORMAL"][value]
                                 onMoved: {
                                     if (swSettings.snzAdvanced && ledSender.oneColor(newValue - 4) && !ledSender.oneColor(swSettings.ledStatusSnooze - 4)) swSettings.snzC2 = 0;
-                                    if (newValue === 9 && swSettings.ledStatusSnooze !== 9) ledSender.felonySnooze();
-                                    else if (swSettings.ledStatusSnooze === 9 && newValue !== 9) swSettings.snzAdvanced = false;  // SIMPLE: back to the COLOR row
+                                    if (newValue !== swSettings.ledStatusSnooze) ledSender.snoozeEffect(newValue);  // rf123
                                     swSettings.ledStatusSnooze = newValue; ledSender.changed();
-                                }
-                            }
-                            // one color for all three (riding / snooze follow the idle colors again)
-                            SwStepper {
-                                label: "COLOR"
-                                valueWidth: 3.2 * unit
-                                value: ledSender.rfColor1
-                                from: 0; to: 29; step: 1
-                                valueText: ledSender.rfColors[value]
-                                valueColor: ledSender.rfTextColor(value)
-                                onMoved: {
-                                    if (swSettings.ledRideMode !== 6) swSettings.rideC1 = -1;  // FELONY keeps red / blue
-                                    if (swSettings.ledStatusSnooze !== 9) swSettings.snzAdvanced = false;
-                                    ledSender.setRf("rfColor1", ledSender.rfColorNext(value, newValue > value ? 1 : -1));
                                 }
                             }
                             SwLText {
                                 width: parent.width
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: fontSizeSmall
-                                text: "Refloat's status bar animations for each moment. COLOR is used by all of them. "
+                                text: "Refloat's status bar animations for each moment. Each effect starts in its own colors (KNIGHT RIDER red, FELONY red / blue, STROBE white, ...); COLOR changes them all. "
                                     + "ADVANCED: second color / background, speed, START AFTER, the duty bar, footpad sensors and own colors for riding and snooze."
                             }
                         }
@@ -8486,7 +8510,7 @@ Item {
                                 } else {
                                     // rf102: one-color animations start with a BLACK background
                                     if (ledSender.oneColor(newValue) && !(ledSender.rfOn && ledSender.oneColor(ledSender.rfMode))) ledSender.rfColor2 = 0;
-                                    if (newValue === 5 && !(ledSender.rfOn && ledSender.rfMode === 5)) { ledSender.rfColor1 = ledSender.felonyC1; ledSender.rfColor2 = ledSender.felonyC2; }
+                                    if (!(ledSender.rfOn && ledSender.rfMode === newValue)) ledSender.idleEffect(newValue);  // rf123
                                     ledSender.rfMode = newValue;
                                     ledSender.setRf("rfTimeout", ledSender.rfOn ? ledSender.rfTimeout : 10);
                                 }
@@ -8506,6 +8530,7 @@ Item {
                                 from: 0; to: 29; step: 1
                                 valueText: ledSender.rfColors[value]
                                 valueColor: ledSender.rfTextColor(value)
+                                sideArrows: true
                                 onMoved: ledSender.setRf("rfColor1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                             }
                             SwStepper {
@@ -8524,6 +8549,7 @@ Item {
                                 from: 0; to: 29; step: 1
                                 valueText: ledSender.rfColors[value]
                                 valueColor: ledSender.rfTextColor(value)
+                                sideArrows: true
                                 onMoved: ledSender.setRf("rfColor2", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                             }
                             Rectangle {
@@ -8584,7 +8610,7 @@ Item {
                             valueText: value >= 4 ? ledSender.rfModes[value - 4] : ["BREATHE", "DIM", "DARK", "NORMAL"][value]
                             onMoved: {
                                 if (swSettings.snzAdvanced && ledSender.oneColor(newValue - 4) && !ledSender.oneColor(swSettings.ledStatusSnooze - 4)) swSettings.snzC2 = 0;
-                                if (newValue === 9 && swSettings.ledStatusSnooze !== 9) ledSender.felonySnooze();
+                                if (newValue !== swSettings.ledStatusSnooze) ledSender.snoozeEffect(newValue);  // rf123
                                 swSettings.ledStatusSnooze = newValue; ledSender.changed();
                             }
                         }
@@ -8647,7 +8673,7 @@ Item {
                             onMoved: {
                                 // rf114: one-color animations start with a BLACK background
                                 if (ledSender.oneColor(newValue - 1) && !ledSender.oneColor(swSettings.ledRideMode - 1)) swSettings.rideC2 = 0;
-                                if (newValue === 6 && swSettings.ledRideMode !== 6) ledSender.felonyRide();
+                                if (newValue !== swSettings.ledRideMode) ledSender.rideEffect(newValue);  // rf123
                                 swSettings.ledRideMode = newValue; ledSender.changed();
                             }
                         }
@@ -9123,6 +9149,19 @@ Item {
                                             spacing: 0.14 * unit
                                             readonly property int barIdx: modelData[1]
                                             readonly property var b: ledSender.rgb[barIdx] || ({mode: 0, c1: 1, c2: 0, speed: 1})
+                                            // rf122 / rf123: each light's color, above its animation, left / right arrows
+                                            SwStepper {
+                                                visible: (rgbSimpleBar.b.mode || 0) < 6
+                                                width: rgbCol.width
+                                                label: "COLOR"
+                                                sideArrows: true
+                                                valueWidth: 3.2 * unit
+                                                value: rgbSimpleBar.b.c1 || 0
+                                                from: 0; to: 29; step: 1
+                                                valueText: ledSender.rfColors[value]
+                                                valueColor: ledSender.rfTextColor(value)
+                                                onMoved: ledSender.rgbSet(rgbSimpleBar.barIdx, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
+                                            }
                                             SwStepper {
                                                 width: rgbCol.width
                                                 label: modelData[0]
@@ -9132,22 +9171,8 @@ Item {
                                                 from: 0; to: ledSender.rfModes.length - 1; step: 1
                                                 valueText: ledSender.rfModes[value] || ""
                                                 onMoved: {
-                                                    ledSender.rgbSet(rgbSimpleBar.barIdx, "mode", newValue);
-                                                    // rf120: riding SOLID = headlight WHITE / tail light RED
-                                                    if (newValue === 0 && rgbSimpleBar.barIdx < 2) ledSender.rgbSet(rgbSimpleBar.barIdx, "c1", rgbSimpleBar.barIdx === 0 ? 1 : 4);
+                                                    ledSender.rgbSet(rgbSimpleBar.barIdx, "mode", newValue);  // rf123: with the effect's colors
                                                 }
-                                            }
-                                            // rf122: each light's color in SIMPLE too (not for the rainbows)
-                                            SwStepper {
-                                                visible: (rgbSimpleBar.b.mode || 0) < 6
-                                                width: rgbCol.width
-                                                label: "COLOR"
-                                                valueWidth: 3.2 * unit
-                                                value: rgbSimpleBar.b.c1 || 0
-                                                from: 0; to: 29; step: 1
-                                                valueText: ledSender.rfColors[value]
-                                                valueColor: ledSender.rfTextColor(value)
-                                                onMoved: ledSender.rgbSet(rgbSimpleBar.barIdx, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                                             }
                                         }
                                     }
@@ -9163,7 +9188,7 @@ Item {
                                 width: parent.width
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: fontSizeSmall
-                                text: "RIDING: HEADLIGHT / TAIL LIGHT while the board is engaged; IDLE: FRONT / REAR the rest of the time. COLOR under each light sets its color. "
+                                text: "RIDING: HEADLIGHT / TAIL LIGHT while the board is engaged; IDLE: FRONT / REAR the rest of the time. COLOR above each light sets its color; each effect starts in its own colors (SOLID white headlight / red tail light, KNIGHT RIDER red, FELONY red / blue, ...). "
                                     + "ADVANCED: second color / background, speed, tail / rear brightness and OFF WHEN LIFTED."
                             }
                         }
@@ -9224,6 +9249,7 @@ Item {
                                 from: 0; to: 29; step: 1
                                 valueText: ledSender.rfColors[value]
                                 valueColor: ledSender.rfTextColor(value)
+                                sideArrows: true
                                 onMoved: ledSender.rgbSet(rgbCol.sel, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                             }
                             SwStepper {
@@ -9239,6 +9265,7 @@ Item {
                                 from: 0; to: 29; step: 1
                                 valueText: ledSender.rfColors[value]
                                 valueColor: ledSender.rfTextColor(value)
+                                sideArrows: true
                                 onMoved: ledSender.rgbSet(rgbCol.sel, "c2", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                             }
                             SwStepper {
