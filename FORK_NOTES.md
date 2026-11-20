@@ -1508,3 +1508,12 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 ### MIXER: orange BEEP button (v1.2.3-rf134)
 - ♪ BEEP is orange (#ff8a1f, like its timeline marks) so it stands apart
   from LIVE / REC (SwPill.litColor).
+
+### Project standards, GPL notices (v1.2.3-rf135)
+- Official project name: Refloat rink-mixed (refloatRM). CLAUDE.md holds
+  the permanent development standards (attribution, GPL-3.0 compliance,
+  safety, build sign-off) and the project facts.
+- GPL-3.0 section 5a: every upstream Refloat file changed by this fork now
+  carries "Modified by Refloat rink-mixed (refloatRM), 2026. See
+  FORK_NOTES.md." under the original copyright lines (comments only, no
+  code change).
