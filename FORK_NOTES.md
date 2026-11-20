@@ -1405,3 +1405,7 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 ### RGB LIGHTS: HEADLIGHT / TAIL LIGHT names (v1.2.3-rf121)
 - RGB LIGHTS riding rows / buttons read HEADLIGHT and TAIL LIGHT (were
   HEAD / TAIL), also in the hint and the LEDS tile summary.
+
+### RGB LIGHTS SIMPLE: a COLOR per light (v1.2.3-rf122)
+- Under each light in SIMPLE (HEADLIGHT, TAIL LIGHT, FRONT, REAR) a
+  COLOR row (Refloat color 1 of that bar); hidden for the rainbows.

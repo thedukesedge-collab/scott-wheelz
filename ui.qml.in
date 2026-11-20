@@ -9117,18 +9117,37 @@ Item {
                                     LedHeading { text: modelData[0] }
                                     Repeater {
                                         model: modelData[1]
-                                        SwStepper {
+                                        Column {
+                                            id: rgbSimpleBar
                                             width: rgbCol.width
-                                            label: modelData[0]
-                                            valueWidth: 3.6 * unit
-                                            rf: ledSender.rgb[modelData[1]] || ({mode: 0, c1: 1, c2: 0, speed: 1})
-                                            value: (ledSender.rgb[modelData[1]] || {}).mode || 0
-                                            from: 0; to: ledSender.rfModes.length - 1; step: 1
-                                            valueText: ledSender.rfModes[value] || ""
-                                            onMoved: {
-                                                ledSender.rgbSet(modelData[1], "mode", newValue);
-                                                // rf120: riding SOLID = headlight WHITE / tail light RED
-                                                if (newValue === 0 && modelData[1] < 2) ledSender.rgbSet(modelData[1], "c1", modelData[1] === 0 ? 1 : 4);
+                                            spacing: 0.14 * unit
+                                            readonly property int barIdx: modelData[1]
+                                            readonly property var b: ledSender.rgb[barIdx] || ({mode: 0, c1: 1, c2: 0, speed: 1})
+                                            SwStepper {
+                                                width: rgbCol.width
+                                                label: modelData[0]
+                                                valueWidth: 3.6 * unit
+                                                rf: rgbSimpleBar.b
+                                                value: rgbSimpleBar.b.mode || 0
+                                                from: 0; to: ledSender.rfModes.length - 1; step: 1
+                                                valueText: ledSender.rfModes[value] || ""
+                                                onMoved: {
+                                                    ledSender.rgbSet(rgbSimpleBar.barIdx, "mode", newValue);
+                                                    // rf120: riding SOLID = headlight WHITE / tail light RED
+                                                    if (newValue === 0 && rgbSimpleBar.barIdx < 2) ledSender.rgbSet(rgbSimpleBar.barIdx, "c1", rgbSimpleBar.barIdx === 0 ? 1 : 4);
+                                                }
+                                            }
+                                            // rf122: each light's color in SIMPLE too (not for the rainbows)
+                                            SwStepper {
+                                                visible: (rgbSimpleBar.b.mode || 0) < 6
+                                                width: rgbCol.width
+                                                label: "COLOR"
+                                                valueWidth: 3.2 * unit
+                                                value: rgbSimpleBar.b.c1 || 0
+                                                from: 0; to: 29; step: 1
+                                                valueText: ledSender.rfColors[value]
+                                                valueColor: ledSender.rfTextColor(value)
+                                                onMoved: ledSender.rgbSet(rgbSimpleBar.barIdx, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                                             }
                                         }
                                     }
@@ -9144,8 +9163,8 @@ Item {
                                 width: parent.width
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: fontSizeSmall
-                                text: "RIDING: HEADLIGHT / TAIL LIGHT while the board is engaged; IDLE: FRONT / REAR the rest of the time. Each keeps its own colors. "
-                                    + "ADVANCED: colors, speed, tail / rear brightness and OFF WHEN LIFTED."
+                                text: "RIDING: HEADLIGHT / TAIL LIGHT while the board is engaged; IDLE: FRONT / REAR the rest of the time. COLOR under each light sets its color. "
+                                    + "ADVANCED: second color / background, speed, tail / rear brightness and OFF WHEN LIFTED."
                             }
                         }
 
