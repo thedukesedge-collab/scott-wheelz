@@ -8194,7 +8194,7 @@ Item {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         property string section: "head"
-        readonly property var titles: ({"head": "HEAD/TAIL LIGHTS", "bar": "STATUS BAR", "anim": "STATUS BAR ANIMATIONS", "sound": "BEEPER", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "custom": "CUSTOM ANIMATION", "updates": "UPDATES", "rgb": "RGB LIGHTS"})
+        readonly property var titles: ({"head": "HEAD/TAIL LIGHTS", "bar": "STATUS BAR", "anim": "STATUS BAR ANIMATIONS", "sound": "BEEPER", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "custom": "CUSTOM ANIMATION", "updates": "UPDATES", "rgb": "HEAD/TAIL LIGHTS"})
 
         function show(which) {
             section = which;
@@ -8315,7 +8315,247 @@ Item {
                             onClicked: ledSender.setHead(!swSettings.ledHeadlights)
                         }
 
+                        // rf128: HEAD/TAIL LIGHTS and RGB LIGHTS merged for controller-driven RGB
+                        // LEDs: the effect cards, brightness and RESTORE live in this window
+                        // Re-Float Rink-Mixed: RGB LIGHTS - Refloat's own light bar
+                        // animations (Refloat Cfg > LEDs), for RGB strips (Thor...)
+                        Column {
+                            id: rgbCol
+                            width: parent.width
+                            spacing: 0.14 * unit
+                            visible: ledSender.rgbAvail  // rf128: inside HEAD/TAIL LIGHTS
+                            property int sel: 0
+                            readonly property var bar: ledSender.rgb[sel] || ({})
+
+                            Row {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                spacing: 0.15 * unit
+                                SwPill {
+                                    minWidth: 2.4 * unit
+                                    label: "SIMPLE"
+                                    lit: !swSettings.rgbAdvanced
+                                    onClicked: swSettings.rgbAdvanced = false
+                                }
+                                SwPill {
+                                    minWidth: 2.8 * unit
+                                    label: "ADVANCED ›"
+                                    lit: swSettings.rgbAdvanced
+                                    onClicked: swSettings.rgbAdvanced = true
+                                }
+                            }
+
+                            // rf126: SIMPLE: one card per light (HEADLIGHT = Refloat's headlights
+                            // + front bars, TAIL LIGHT = taillights + rear), RIDING and IDLE
+                            // inside, each effect with its COLOR below it
+                            Column {
+                                width: parent.width
+                                spacing: 0.14 * unit
+                                visible: !swSettings.rgbAdvanced
+                                Repeater {
+                                    model: [["HEADLIGHT", 0, 2], ["TAIL LIGHT", 1, 3]]
+                                    LedCard {
+                                        id: rgbLightCard
+                                        width: rgbCol.width
+                                        title: modelData[0]
+                                        readonly property var bars: [modelData[1], modelData[2]]
+                                        Repeater {
+                                            model: [["RIDING", 0], ["IDLE", 1]]
+                                            Column {
+                                                id: rgbSimpleBar
+                                                width: rgbLightCard.width - 0.3 * unit
+                                                spacing: 0.1 * unit
+                                                readonly property int barIdx: rgbLightCard.bars[modelData[1]]
+                                                readonly property var b: ledSender.rgb[barIdx] || ({mode: 0, c1: 1, c2: 0, speed: 1})
+                                                Rectangle {  // thin divider between RIDING and IDLE
+                                                    visible: modelData[1] === 1
+                                                    width: parent.width; height: 1
+                                                    color: Qt.rgba(0.66, 0.33, 1, 0.35)
+                                                }
+                                                // rf127: IDLE can be OFF (that light's idle brightness 0)
+                                                readonly property bool idle: modelData[1] === 1
+                                                readonly property bool off: idle && ledSender.rgbLoaded && ledSender.rgbBri(barIdx) === 0
+                                                SwStepper {
+                                                    width: parent.width
+                                                    label: modelData[0]
+                                                    valueWidth: 3.6 * unit
+                                                    rf: rgbSimpleBar.off ? ({mode: -1, c1: 0, c2: 0, speed: 1}) : rgbSimpleBar.b
+                                                    value: rgbSimpleBar.off ? -1 : (rgbSimpleBar.b.mode || 0)
+                                                    from: rgbSimpleBar.idle ? -1 : 0; to: ledSender.rfModes.length - 1; step: 1
+                                                    valueText: value < 0 ? "OFF" : (ledSender.rfModes[value] || "")
+                                                    onMoved: {
+                                                        var bi = rgbSimpleBar.barIdx, key = bi === 2 ? "rgbIdleLastFront" : "rgbIdleLastRear";
+                                                        if (newValue < 0) {
+                                                            var cur = ledSender.rgbBri(bi);
+                                                            if (cur > 0) swSettings[key] = cur;
+                                                            ledSender.rgbSetBri(bi, 0);
+                                                            return;
+                                                        }
+                                                        if (rgbSimpleBar.off) ledSender.rgbSetBri(bi, swSettings[key] > 0 ? swSettings[key] : 50);
+                                                        ledSender.rgbSet(bi, "mode", newValue);  // rf123: with the effect's colors
+                                                    }
+                                                }
+                                                SwStepper {
+                                                    visible: (rgbSimpleBar.b.mode || 0) < 6 && !rgbSimpleBar.off
+                                                    width: parent.width
+                                                    label: "COLOR"
+                                                    sideArrows: true
+                                                    valueWidth: 3.6 * unit
+                                                    value: rgbSimpleBar.b.c1 || 0
+                                                    from: 0; to: 29; step: 1
+                                                    valueText: ledSender.rfColors[value]
+                                                    valueColor: ledSender.rfTextColor(value)
+                                                    onMoved: ledSender.rgbSet(rgbSimpleBar.barIdx, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                LedCard {
+                                    width: rgbCol.width
+                                    title: "BRIGHTNESS"
+                                    Repeater {
+                                        model: [["RIDING", 0], ["IDLE", 2]]
+                                        SwStepper {
+                                            width: rgbCol.width - 0.3 * unit
+                                            label: modelData[0]
+                                            valueWidth: 3.6 * unit
+                                            value: ledSender.rgbLoaded ? ledSender.rgbBri(modelData[1]) : 0
+                                            from: 0; to: 100; step: 5; suffix: "%"
+                                            onMoved: ledSender.rgbSetBri(modelData[1], newValue)
+                                        }
+                                    }
+                                }
+                                // rf126: back to Refloat's look: solid white headlight, solid red tail light
+                                SwPill {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    minWidth: 4.4 * unit
+                                    label: "RESTORE DEFAULTS"
+                                    lit: true
+                                    onClicked: {
+                                        ledSender.rgbRestore();
+                                        VescIf.emitStatusMessage("Riding: solid white headlight, solid red tail light. Idle: off", true);
+                                    }
+                                }
+                                SwLText {
+                                    horizontalAlignment: Text.AlignHCenter
+                                    width: parent.width
+                                    wrapMode: Text.WordWrap
+                                    font.pixelSize: fontSizeSmall
+                                    text: "RIDING: while the board is engaged; IDLE: the rest of the time. Each effect starts in its own colors (SOLID white headlight / red tail light, KNIGHT RIDER red, FELONY red / blue, ...). "
+                                        + "IDLE OFF: that light is dark when idle. RESTORE DEFAULTS: solid white headlight and solid red tail light while riding, off when idle. ADVANCED: second color / background, speed, tail light brightness and OFF WHEN LIFTED."
+                                }
+                            }
+
+                            Column {
+                                width: parent.width
+                                spacing: 0.14 * unit
+                                visible: swSettings.rgbAdvanced
+
+                                // RIDING (engaged, headlights on) = Refloat's
+                                // headlights / taillights bars; IDLE = front / rear
+                                Repeater {
+                                    model: [["RIDING", 0], ["IDLE", 2]]
+                                    Item {
+                                        id: rgbGroup
+                                        width: rgbCol.width
+                                        height: 0.8 * unit
+                                        SwNeonLabel {
+                                            anchors.left: parent.left
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: parent.width - 4.6 * unit
+                                            font.pixelSize: 0.28 * unit
+                                            text: modelData[0]
+                                        }
+                                        Row {
+                                            anchors.right: parent.right
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            spacing: 0.15 * unit
+                                            Repeater {
+                                                model: ["HEAD", "TAIL"]
+                                                SwPill {
+                                                    readonly property int bar: rgbGroup.base + (modelData === "HEAD" ? 0 : 1)
+                                                    minWidth: 2.0 * unit
+                                                    label: modelData === "HEAD" ? "HEADLIGHT" : "TAIL LIGHT"  // rf126: same names riding and idle
+                                                    lit: rgbCol.sel === bar
+                                                    onClicked: rgbCol.sel = bar
+                                                }
+                                            }
+                                        }
+                                        readonly property int base: modelData[1]
+                                    }
+                                }
+
+                                // the animation preview is the selector
+                                SwStepper {
+                                    bigName: true
+                                    rf: rgbCol.bar
+                                    value: rgbCol.bar.mode || 0
+                                    from: 0; to: ledSender.rfModes.length - 1; step: 1
+                                    valueText: ledSender.rfModes[value] || ""
+                                    onMoved: ledSender.rgbSet(rgbCol.sel, "mode", newValue)
+                                }
+                                SwStepper {
+                                    visible: (rgbCol.bar.mode || 0) < 6
+                                    label: "COLOR 1"
+                                    valueWidth: 3.2 * unit
+                                    value: rgbCol.bar.c1 || 0
+                                    from: 0; to: 29; step: 1
+                                    valueText: ledSender.rfColors[value]
+                                    valueColor: ledSender.rfTextColor(value)
+                                    sideArrows: true
+                                    onMoved: ledSender.rgbSet(rgbCol.sel, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
+                                }
+                                SwStepper {
+                                    visible: rgbCol.bar.mode >= 1 && rgbCol.bar.mode <= 5  // rf91, see Status Idle
+                                    label: ledSender.oneColor(rgbCol.bar.mode) ? "BACKGROUND" : "COLOR 2"
+                                    toggle: ledSender.oneColor(rgbCol.bar.mode) ? ((rgbCol.bar.c2 || 0) !== 0 ? 1 : 0) : -1  // rf101
+                                    onToggleClicked: {
+                                        if ((rgbCol.bar.c2 || 0) !== 0) { swSettings.rfBgLast = rgbCol.bar.c2; ledSender.rgbSet(rgbCol.sel, "c2", 0); }
+                                        else ledSender.rgbSet(rgbCol.sel, "c2", swSettings.rfBgLast || 1);
+                                    }
+                                    valueWidth: 3.2 * unit
+                                    value: rgbCol.bar.c2 || 0
+                                    from: 0; to: 29; step: 1
+                                    valueText: ledSender.rfColors[value]
+                                    valueColor: ledSender.rfTextColor(value)
+                                    sideArrows: true
+                                    onMoved: ledSender.rgbSet(rgbCol.sel, "c2", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
+                                }
+                                SwStepper {
+                                    visible: (rgbCol.bar.mode || 0) !== 0
+                                    label: "SPEED"
+                                    value: rgbCol.bar.speed || 1
+                                    from: 0.1; to: 5; step: 0.1; decimals: 1; suffix: "/s"
+                                    onMoved: ledSender.rgbSet(rgbCol.sel, "speed", newValue)
+                                }
+                                SwStepper {
+                                    label: "BRIGHTNESS"
+                                    value: ledSender.rgbLoaded ? ledSender.rgbBri(rgbCol.sel) : 0
+                                    from: 0; to: 100; step: 5; suffix: "%"
+                                    onMoved: ledSender.rgbSetBri(rgbCol.sel, newValue)
+                                }
+
+                                SwPill {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    minWidth: 4.4 * unit
+                                    label: ledSender.rgbLifted ? "OFF WHEN LIFTED: ON" : "OFF WHEN LIFTED: OFF"
+                                    lit: ledSender.rgbLifted
+                                    onClicked: ledSender.rgbSetLifted(!ledSender.rgbLifted)
+                                }
+
+                            }
+
+                            SwLText {
+                                width: parent.width
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: fontSizeSmall
+                                text: "Refloat's LED settings (Refloat Cfg \u203A LEDs), linked both ways."
+                            }
+                        }
+
                         SwStepper {
+                            visible: !ledSender.rgbAvail  // rf128: in the BRIGHTNESS card
                             label: "RIDING"
                             value: swSettings.ledHeadlightPct
                             from: 0; to: 100; step: 5
@@ -8324,6 +8564,7 @@ Item {
                         }
 
                         SwStepper {
+                            visible: !ledSender.rgbAvail  // rf128: in the BRIGHTNESS card
                             label: "IDLE"
                             value: swSettings.ledHeadlightIdlePct
                             from: 0; to: 100; step: 5
@@ -8333,61 +8574,66 @@ Item {
 
                         // rf86: snooze for controller-driven LEDs (head/tail and status
                         // bar), kept by the package; an SLCM snoozes by itself
-                        LedHeading { text: "Snooze" }
-
-                        // rf100: how many minutes BEFORE the board powers off the
-                        // snooze starts (default 5; 0 = never), head/tail and status bar
-                        SwStepper {
-                            visible: ledSender.rgbAvail || ledSender.rfStatusAvail
-                            label: "SNOOZE BEFORE OFF"
-                            valueWidth: 2.1 * unit
-                            value: swSettings.ledSnoozeMin === 255 ? 5 : swSettings.ledSnoozeMin
-                            from: 0; to: vescAppConfig.offMinutes >= 2 ? Math.min(60, Math.ceil(vescAppConfig.offMinutes) - 1) : 60; step: 1
-                            valueText: value === 0 ? "NEVER" : value + " min"
-                            onMoved: { swSettings.ledSnoozeMin = newValue; ledSender.changed(); }
-                        }
-
-                        // rf97 / rf112: how the head / tail lights look while snoozing, as a
-                        // row like the SLCM ANIMATIONS (DIM only for controller-driven LEDs)
-                        SwStepper {
-                            id: htSnoozeLook
-                            readonly property bool ctl: ledSender.rgbAvail || ledSender.rfStatusAvail
+                        // rf128: snooze in its own card (like the other light settings)
+                        LedCard {
                             width: parent.width
-                            label: "SNOOZE LOOK"
-                            valueWidth: 3.6 * unit
-                            value: !ctl && swSettings.ledSnoozeStyle === 1 ? 0 : swSettings.ledSnoozeStyle
-                            rf: ({mode: [-2, -3, -4][value], c1: 1, c2: 0, speed: 1})
-                            from: 0; to: 2; step: 1
-                            valueText: ["BREATHE", "DIM", "DARK"][value]
-                            onMoved: {
-                                var v = newValue;
-                                if (!ctl && v === 1) v = value === 0 ? 2 : 0;  // an SLCM: breathe or dark
-                                swSettings.ledSnoozeStyle = v;
-                                swSettings.ledDozeBreath = v !== 2;
-                                ledSender.changed();
+                            title: "SNOOZE"
+
+                            // rf100: how many minutes BEFORE the board powers off the
+                            // snooze starts (default 5; 0 = never), head/tail and status bar
+                            SwStepper {
+                                visible: ledSender.rgbAvail || ledSender.rfStatusAvail
+                                width: parent.width
+                                label: "BEFORE OFF"
+                                valueWidth: 3.6 * unit
+                                value: swSettings.ledSnoozeMin === 255 ? 5 : swSettings.ledSnoozeMin
+                                from: 0; to: vescAppConfig.offMinutes >= 2 ? Math.min(60, Math.ceil(vescAppConfig.offMinutes) - 1) : 60; step: 1
+                                valueText: value === 0 ? "NEVER" : value + " min"
+                                onMoved: { swSettings.ledSnoozeMin = newValue; ledSender.changed(); }
+                            }
+
+                            // rf97 / rf112: how the head / tail lights look while snoozing, as a
+                            // row like the SLCM ANIMATIONS (DIM only for controller-driven LEDs)
+                            SwStepper {
+                                id: htSnoozeLook
+                                readonly property bool ctl: ledSender.rgbAvail || ledSender.rfStatusAvail
+                                width: parent.width
+                                label: "LOOK"
+                                valueWidth: 3.6 * unit
+                                value: !ctl && swSettings.ledSnoozeStyle === 1 ? 0 : swSettings.ledSnoozeStyle
+                                rf: ({mode: [-2, -3, -4][value], c1: 1, c2: 0, speed: 1})
+                                from: 0; to: 2; step: 1
+                                valueText: ["BREATHE", "DIM", "DARK"][value]
+                                onMoved: {
+                                    var v = newValue;
+                                    if (!ctl && v === 1) v = value === 0 ? 2 : 0;  // an SLCM: breathe or dark
+                                    swSettings.ledSnoozeStyle = v;
+                                    swSettings.ledDozeBreath = v !== 2;
+                                    ledSender.changed();
+                                }
+                            }
+
+                            SwLText {
+                                visible: (ledSender.rgbAvail || ledSender.rfStatusAvail) && vescAppConfig.offMinutes > 0
+                                width: parent.width
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: fontSizeSmall
+                                color: swTheme.neonGreen
+                                readonly property real snzBefore: swSettings.ledSnoozeMin === 255 ? 5 : swSettings.ledSnoozeMin
+                                text: "Board powers off after " + (vescAppConfig.offMinutes < 1 ? "10 s" : vescAppConfig.offMinutes >= 60 ? (vescAppConfig.offMinutes / 60) + " h" : vescAppConfig.offMinutes + " min")
+                                    + " idling (VESC Shutdown Mode)"
+                                    + (snzBefore > 0 && vescAppConfig.offMinutes > snzBefore ? ", so the lights snooze at " + (vescAppConfig.offMinutes - snzBefore) + " min." : ".")
+                                    + " They blink twice every 15 s in the last minute."
                             }
                         }
 
                         SwLText {
-                            visible: (ledSender.rgbAvail || ledSender.rfStatusAvail) && vescAppConfig.offMinutes > 0
-                            width: parent.width
-                            horizontalAlignment: Text.AlignHCenter
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: fontSizeSmall
-                            color: swTheme.neonGreen
-                            readonly property real snzBefore: swSettings.ledSnoozeMin === 255 ? 5 : swSettings.ledSnoozeMin
-                            text: "Board powers off after " + (vescAppConfig.offMinutes < 1 ? "10 s" : vescAppConfig.offMinutes >= 60 ? (vescAppConfig.offMinutes / 60) + " h" : vescAppConfig.offMinutes + " min")
-                                + " idling (VESC Shutdown Mode)"
-                                + (snzBefore > 0 && vescAppConfig.offMinutes > snzBefore ? ", so the lights snooze at " + (vescAppConfig.offMinutes - snzBefore) + " min." : ".")
-                                + " They blink twice every 15 s in the last minute."
-                        }
-
-                        SwLText {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: "RIDING: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. "
-                                + "Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). "
+                            text: (ledSender.rgbAvail ? "HEAD/TAIL LIGHTS OFF = always off. " : "RIDING: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. "
+                                + "Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). ")
                                 + "SNOOZE uses the same idle clock as VESC's power-off: riding or rolling the wheel restarts it (footpads and lifting don't), and wakes the lights. "
                                 + "SNOOZE sets how many minutes before the board powers off the head/tail lights and status bar start snoozing (default 5; without a power-off timer: after 10 min). BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes on its own timer; this is for controller-driven LEDs (e.g. Thor)."
                         }
@@ -9164,243 +9410,6 @@ Item {
                             minWidth: 3.4 * unit
                             label: "ADVANCED \u203A"
                             onClicked: batteryAdvanced.open()
-                        }
-                    }
-
-                    // Re-Float Rink-Mixed: RGB LIGHTS - Refloat's own light bar
-                    // animations (Refloat Cfg > LEDs), for RGB strips (Thor...)
-                    Column {
-                        id: rgbCol
-                        width: parent.width
-                        spacing: 0.14 * unit
-                        visible: ledWindow.section === "rgb"
-                        property int sel: 0
-                        readonly property var bar: ledSender.rgb[sel] || ({})
-
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 0.15 * unit
-                            SwPill {
-                                minWidth: 2.4 * unit
-                                label: "SIMPLE"
-                                lit: !swSettings.rgbAdvanced
-                                onClicked: swSettings.rgbAdvanced = false
-                            }
-                            SwPill {
-                                minWidth: 2.8 * unit
-                                label: "ADVANCED ›"
-                                lit: swSettings.rgbAdvanced
-                                onClicked: swSettings.rgbAdvanced = true
-                            }
-                        }
-
-                        // rf126: SIMPLE: one card per light (HEADLIGHT = Refloat's headlights
-                        // + front bars, TAIL LIGHT = taillights + rear), RIDING and IDLE
-                        // inside, each effect with its COLOR below it
-                        Column {
-                            width: parent.width
-                            spacing: 0.14 * unit
-                            visible: !swSettings.rgbAdvanced
-                            Repeater {
-                                model: [["HEADLIGHT", 0, 2], ["TAIL LIGHT", 1, 3]]
-                                LedCard {
-                                    id: rgbLightCard
-                                    width: rgbCol.width
-                                    title: modelData[0]
-                                    readonly property var bars: [modelData[1], modelData[2]]
-                                    Repeater {
-                                        model: [["RIDING", 0], ["IDLE", 1]]
-                                        Column {
-                                            id: rgbSimpleBar
-                                            width: rgbLightCard.width - 0.3 * unit
-                                            spacing: 0.1 * unit
-                                            readonly property int barIdx: rgbLightCard.bars[modelData[1]]
-                                            readonly property var b: ledSender.rgb[barIdx] || ({mode: 0, c1: 1, c2: 0, speed: 1})
-                                            Rectangle {  // thin divider between RIDING and IDLE
-                                                visible: modelData[1] === 1
-                                                width: parent.width; height: 1
-                                                color: Qt.rgba(0.66, 0.33, 1, 0.35)
-                                            }
-                                            // rf127: IDLE can be OFF (that light's idle brightness 0)
-                                            readonly property bool idle: modelData[1] === 1
-                                            readonly property bool off: idle && ledSender.rgbLoaded && ledSender.rgbBri(barIdx) === 0
-                                            SwStepper {
-                                                width: parent.width
-                                                label: modelData[0]
-                                                valueWidth: 3.6 * unit
-                                                rf: rgbSimpleBar.off ? ({mode: -1, c1: 0, c2: 0, speed: 1}) : rgbSimpleBar.b
-                                                value: rgbSimpleBar.off ? -1 : (rgbSimpleBar.b.mode || 0)
-                                                from: rgbSimpleBar.idle ? -1 : 0; to: ledSender.rfModes.length - 1; step: 1
-                                                valueText: value < 0 ? "OFF" : (ledSender.rfModes[value] || "")
-                                                onMoved: {
-                                                    var bi = rgbSimpleBar.barIdx, key = bi === 2 ? "rgbIdleLastFront" : "rgbIdleLastRear";
-                                                    if (newValue < 0) {
-                                                        var cur = ledSender.rgbBri(bi);
-                                                        if (cur > 0) swSettings[key] = cur;
-                                                        ledSender.rgbSetBri(bi, 0);
-                                                        return;
-                                                    }
-                                                    if (rgbSimpleBar.off) ledSender.rgbSetBri(bi, swSettings[key] > 0 ? swSettings[key] : 50);
-                                                    ledSender.rgbSet(bi, "mode", newValue);  // rf123: with the effect's colors
-                                                }
-                                            }
-                                            SwStepper {
-                                                visible: (rgbSimpleBar.b.mode || 0) < 6 && !rgbSimpleBar.off
-                                                width: parent.width
-                                                label: "COLOR"
-                                                sideArrows: true
-                                                valueWidth: 3.6 * unit
-                                                value: rgbSimpleBar.b.c1 || 0
-                                                from: 0; to: 29; step: 1
-                                                valueText: ledSender.rfColors[value]
-                                                valueColor: ledSender.rfTextColor(value)
-                                                onMoved: ledSender.rgbSet(rgbSimpleBar.barIdx, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            LedCard {
-                                width: rgbCol.width
-                                title: "BRIGHTNESS"
-                                Repeater {
-                                    model: [["RIDING", 0], ["IDLE", 2]]
-                                    SwStepper {
-                                        width: rgbCol.width - 0.3 * unit
-                                        label: modelData[0]
-                                        valueWidth: 3.6 * unit
-                                        value: ledSender.rgbLoaded ? ledSender.rgbBri(modelData[1]) : 0
-                                        from: 0; to: 100; step: 5; suffix: "%"
-                                        onMoved: ledSender.rgbSetBri(modelData[1], newValue)
-                                    }
-                                }
-                            }
-                            // rf126: back to Refloat's look: solid white headlight, solid red tail light
-                            SwPill {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                minWidth: 4.4 * unit
-                                label: "RESTORE DEFAULTS"
-                                lit: true
-                                onClicked: {
-                                    ledSender.rgbRestore();
-                                    VescIf.emitStatusMessage("Riding: solid white headlight, solid red tail light. Idle: off", true);
-                                }
-                            }
-                            SwLText {
-                                horizontalAlignment: Text.AlignHCenter
-                                width: parent.width
-                                wrapMode: Text.WordWrap
-                                font.pixelSize: fontSizeSmall
-                                text: "RIDING: while the board is engaged; IDLE: the rest of the time. Each effect starts in its own colors (SOLID white headlight / red tail light, KNIGHT RIDER red, FELONY red / blue, ...). "
-                                    + "IDLE OFF: that light is dark when idle. RESTORE DEFAULTS: solid white headlight and solid red tail light while riding, off when idle. ADVANCED: second color / background, speed, tail light brightness and OFF WHEN LIFTED."
-                            }
-                        }
-
-                        Column {
-                            width: parent.width
-                            spacing: 0.14 * unit
-                            visible: swSettings.rgbAdvanced
-
-                            // RIDING (engaged, headlights on) = Refloat's
-                            // headlights / taillights bars; IDLE = front / rear
-                            Repeater {
-                                model: [["RIDING", 0], ["IDLE", 2]]
-                                Item {
-                                    id: rgbGroup
-                                    width: rgbCol.width
-                                    height: 0.8 * unit
-                                    SwNeonLabel {
-                                        anchors.left: parent.left
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        width: parent.width - 4.6 * unit
-                                        font.pixelSize: 0.28 * unit
-                                        text: modelData[0]
-                                    }
-                                    Row {
-                                        anchors.right: parent.right
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        spacing: 0.15 * unit
-                                        Repeater {
-                                            model: ["HEAD", "TAIL"]
-                                            SwPill {
-                                                readonly property int bar: rgbGroup.base + (modelData === "HEAD" ? 0 : 1)
-                                                minWidth: 2.0 * unit
-                                                label: modelData === "HEAD" ? "HEADLIGHT" : "TAIL LIGHT"  // rf126: same names riding and idle
-                                                lit: rgbCol.sel === bar
-                                                onClicked: rgbCol.sel = bar
-                                            }
-                                        }
-                                    }
-                                    readonly property int base: modelData[1]
-                                }
-                            }
-
-                            // the animation preview is the selector
-                            SwStepper {
-                                bigName: true
-                                rf: rgbCol.bar
-                                value: rgbCol.bar.mode || 0
-                                from: 0; to: ledSender.rfModes.length - 1; step: 1
-                                valueText: ledSender.rfModes[value] || ""
-                                onMoved: ledSender.rgbSet(rgbCol.sel, "mode", newValue)
-                            }
-                            SwStepper {
-                                visible: (rgbCol.bar.mode || 0) < 6
-                                label: "COLOR 1"
-                                valueWidth: 3.2 * unit
-                                value: rgbCol.bar.c1 || 0
-                                from: 0; to: 29; step: 1
-                                valueText: ledSender.rfColors[value]
-                                valueColor: ledSender.rfTextColor(value)
-                                sideArrows: true
-                                onMoved: ledSender.rgbSet(rgbCol.sel, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
-                            }
-                            SwStepper {
-                                visible: rgbCol.bar.mode >= 1 && rgbCol.bar.mode <= 5  // rf91, see Status Idle
-                                label: ledSender.oneColor(rgbCol.bar.mode) ? "BACKGROUND" : "COLOR 2"
-                                toggle: ledSender.oneColor(rgbCol.bar.mode) ? ((rgbCol.bar.c2 || 0) !== 0 ? 1 : 0) : -1  // rf101
-                                onToggleClicked: {
-                                    if ((rgbCol.bar.c2 || 0) !== 0) { swSettings.rfBgLast = rgbCol.bar.c2; ledSender.rgbSet(rgbCol.sel, "c2", 0); }
-                                    else ledSender.rgbSet(rgbCol.sel, "c2", swSettings.rfBgLast || 1);
-                                }
-                                valueWidth: 3.2 * unit
-                                value: rgbCol.bar.c2 || 0
-                                from: 0; to: 29; step: 1
-                                valueText: ledSender.rfColors[value]
-                                valueColor: ledSender.rfTextColor(value)
-                                sideArrows: true
-                                onMoved: ledSender.rgbSet(rgbCol.sel, "c2", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
-                            }
-                            SwStepper {
-                                visible: (rgbCol.bar.mode || 0) !== 0
-                                label: "SPEED"
-                                value: rgbCol.bar.speed || 1
-                                from: 0.1; to: 5; step: 0.1; decimals: 1; suffix: "/s"
-                                onMoved: ledSender.rgbSet(rgbCol.sel, "speed", newValue)
-                            }
-                            SwStepper {
-                                label: "BRIGHTNESS"
-                                value: ledSender.rgbLoaded ? ledSender.rgbBri(rgbCol.sel) : 0
-                                from: 0; to: 100; step: 5; suffix: "%"
-                                onMoved: ledSender.rgbSetBri(rgbCol.sel, newValue)
-                            }
-
-                            SwPill {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                minWidth: 4.4 * unit
-                                label: ledSender.rgbLifted ? "OFF WHEN LIFTED: ON" : "OFF WHEN LIFTED: OFF"
-                                lit: ledSender.rgbLifted
-                                onClicked: ledSender.rgbSetLifted(!ledSender.rgbLifted)
-                            }
-
-                        }
-
-                        SwLText {
-                            width: parent.width
-                            horizontalAlignment: Text.AlignHCenter
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: fontSizeSmall
-                            text: "Refloat's LED settings (Refloat Cfg \u203A LEDs), linked both ways."
                         }
                     }
 
@@ -11759,7 +11768,7 @@ Item {
             ["▶", "PLAY & SAVE", "MIXER › PLAY / SAVE", "PLAY to hear it back, SAVE to keep it, DONE to make it the melody your board plays when it boots."],
             ["♥", "MY MELODIES", "MIXER › MY MELODIES", "All your saved tunes in one place. Tap one to make it your boot melody, ✎ to edit it on the tiles, ⧉ to copy, ✕ to delete. DEFAULT MELODY brings the original back; MELODY VOLUME sets how loud."],
             ["◢", "BOARD STYLE", "BOARD STYLE TAB", "Pick rails, tire and colors so the board on screen looks like yours."],
-            ["◉", "LIGHTS", "LEDS TAB", "HEAD/TAIL LIGHTS: RIDING and IDLE levels, SNOOZE before the board powers off. STATUS BAR: idle and riding animations. RGB LIGHTS for controller-driven LEDs (Thor), linked with Refloat's settings."],
+            ["◉", "LIGHTS", "LEDS TAB", "HEAD/TAIL LIGHTS: riding and idle effects, colors and brightness (RGB LEDs like Thor), SNOOZE before the board powers off. STATUS BAR: idle and riding animations. All linked with Refloat's settings."],
             ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
             ["♬", "BEEPER", "LEDS › BEEPER", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
             ["↻", "UPDATES", "LEDS › UPDATES", "Check for new package and SLCM releases from GitHub, download and flash in a few taps. Floatwheel, XRV, Pint V and GTV light modules with SLCM update over Bluetooth."],
@@ -15728,24 +15737,6 @@ Item {
                                     ? "ON \u00B7 RIDE " + swSettings.ledStatusRidePct + "% \u00B7 " + (ledSender.slcmPresets ? "IDLE " + ledSender.animLabel(0, swSettings.ledAnimIdle === 128 ? 15 : swSettings.ledAnimIdle) : ledSender.rfSummary)
                                     : "OFF"
                                 onClicked: ledWindow.show("bar")
-                            }
-                        }
-
-                        // RGB LIGHTS: Refloat's own light animations, only when
-                        // controller-driven LEDs are set up (RGB strips, e.g. Thor)
-                        GridLayout {
-                            visible: ledSender.rgbAvail
-                            width: parent.width
-                            columns: 1
-                            LedTile {
-                                Layout.fillWidth: true
-                                title: "RGB LIGHTS"
-                                glyph: "\u25C8"
-                                lit: true
-                                summary: ledSender.rgbLoaded
-                                    ? "HEADLIGHT " + ledSender.rfModes[ledSender.rgb[0].mode] + " \u00B7 TAIL " + ledSender.rfModes[ledSender.rgb[1].mode]
-                                    : "HEAD / TAIL / FRONT / REAR"
-                                onClicked: ledWindow.show("rgb")
                             }
                         }
 

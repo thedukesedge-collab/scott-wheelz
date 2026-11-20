@@ -1455,3 +1455,12 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - RESTORE DEFAULTS: solid white headlight / solid red tail light while
   riding, idle OFF.
 - Refloat view only; SLCM screens unchanged.
+
+### HEAD/TAIL LIGHTS and RGB LIGHTS merged (v1.2.3-rf128)
+- Controller-driven RGB LEDs (Thor): one HEAD/TAIL LIGHTS window with the
+  ON/OFF switch, SIMPLE / ADVANCED, the HEADLIGHT / TAIL LIGHT cards,
+  BRIGHTNESS card, RESTORE DEFAULTS, then a SNOOZE card (BEFORE OFF, LOOK,
+  power-off note). The RGB LIGHTS tile is gone; the old RIDING / IDLE
+  brightness rows are hidden there (the BRIGHTNESS card has them).
+- Refloat boards without RGB strips: the same window without the effect
+  cards (brightness rows + snooze card). SLCM boards: unchanged.
