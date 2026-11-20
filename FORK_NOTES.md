@@ -1389,3 +1389,11 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   pills read FRONT / REAR.
 - "IN MOTION" renamed "RIDING" (HEAD/TAIL LIGHTS, RGB LIGHTS, tour).
 - All values stay Refloat's own settings; SLCM boards unchanged.
+
+### FELONY starts in red / blue (v1.2.3-rf119)
+- Picking FELONY (SIMPLE or ADVANCED) sets its colors to RED / BLUE:
+  status bar idle (Status Idle color 1 / 2), riding and snooze (their own
+  colors; snooze switches to its ADVANCED colors) and every RGB light bar.
+  Colors can still be changed in ADVANCED afterwards.
+- SIMPLE: COLOR leaves a FELONY riding / snooze alone; leaving FELONY
+  there goes back to the shared COLOR.

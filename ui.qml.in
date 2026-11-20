@@ -590,11 +590,24 @@ Item {
         // (color 2 = the background / "off" color): picking one from another
         // kind of animation starts it with a BLACK background (BACKGROUND OFF)
         function oneColor(m) { return m >= 1 && m <= 4; }
+        // rf119: picking FELONY starts it in RED / BLUE (status bar: idle, riding, snooze)
+        readonly property int felonyC1: 4
+        readonly property int felonyC2: 25
+        function felonyRide() {
+            swSettings.rideC1 = felonyC1; swSettings.rideC2 = felonyC2;
+            if (swSettings.rideSpeed <= 0) swSettings.rideSpeed = rfSpeed;
+        }
+        function felonySnooze() {
+            swSettings.snzC1 = felonyC1; swSettings.snzC2 = felonyC2;
+            if (!swSettings.snzAdvanced) swSettings.snzSpeed = rfSpeed;
+            swSettings.snzAdvanced = true;
+        }
         function rgbSet(bar, key, v) {
             if (!rgbLoaded) return;
             var r = rgb.slice();
             var b = Object.assign({}, r[bar]);
             if (key === "mode" && oneColor(v) && !oneColor(b.mode)) b.c2 = 0;
+            if (key === "mode" && v === 5 && b.mode !== 5) { b.c1 = 4; b.c2 = 25; }  // rf119: FELONY red / blue
             b[key] = v;
             r[bar] = b;
             rgb = r;
@@ -8384,6 +8397,7 @@ Item {
                                         ledSender.setRf("rfTimeout", 0);
                                     } else {
                                         if (ledSender.oneColor(newValue) && !(ledSender.rfOn && ledSender.oneColor(ledSender.rfMode))) ledSender.rfColor2 = 0;
+                                        if (newValue === 5 && !(ledSender.rfOn && ledSender.rfMode === 5)) { ledSender.rfColor1 = ledSender.felonyC1; ledSender.rfColor2 = ledSender.felonyC2; }
                                         ledSender.rfMode = newValue;
                                         ledSender.setRf("rfTimeout", ledSender.rfOn ? ledSender.rfTimeout : 10);
                                     }
@@ -8402,6 +8416,8 @@ Item {
                                 valueText: value === 0 ? "BATTERY/DUTY" : ledSender.rfModes[value - 1]
                                 onMoved: {
                                     if (own && ledSender.oneColor(newValue - 1) && !ledSender.oneColor(swSettings.ledRideMode - 1)) swSettings.rideC2 = 0;
+                                    if (newValue === 6 && swSettings.ledRideMode !== 6) ledSender.felonyRide();
+                                    else if (swSettings.ledRideMode === 6 && newValue !== 6) swSettings.rideC1 = -1;  // SIMPLE: back to the COLOR row
                                     swSettings.ledRideMode = newValue; ledSender.changed();
                                 }
                             }
@@ -8418,6 +8434,8 @@ Item {
                                 valueText: value >= 4 ? ledSender.rfModes[value - 4] : ["BREATHE", "DIM", "DARK", "NORMAL"][value]
                                 onMoved: {
                                     if (swSettings.snzAdvanced && ledSender.oneColor(newValue - 4) && !ledSender.oneColor(swSettings.ledStatusSnooze - 4)) swSettings.snzC2 = 0;
+                                    if (newValue === 9 && swSettings.ledStatusSnooze !== 9) ledSender.felonySnooze();
+                                    else if (swSettings.ledStatusSnooze === 9 && newValue !== 9) swSettings.snzAdvanced = false;  // SIMPLE: back to the COLOR row
                                     swSettings.ledStatusSnooze = newValue; ledSender.changed();
                                 }
                             }
@@ -8430,8 +8448,8 @@ Item {
                                 valueText: ledSender.rfColors[value]
                                 valueColor: ledSender.rfTextColor(value)
                                 onMoved: {
-                                    swSettings.rideC1 = -1;
-                                    swSettings.snzAdvanced = false;
+                                    if (swSettings.ledRideMode !== 6) swSettings.rideC1 = -1;  // FELONY keeps red / blue
+                                    if (swSettings.ledStatusSnooze !== 9) swSettings.snzAdvanced = false;
                                     ledSender.setRf("rfColor1", ledSender.rfColorNext(value, newValue > value ? 1 : -1));
                                 }
                             }
@@ -8468,6 +8486,7 @@ Item {
                                 } else {
                                     // rf102: one-color animations start with a BLACK background
                                     if (ledSender.oneColor(newValue) && !(ledSender.rfOn && ledSender.oneColor(ledSender.rfMode))) ledSender.rfColor2 = 0;
+                                    if (newValue === 5 && !(ledSender.rfOn && ledSender.rfMode === 5)) { ledSender.rfColor1 = ledSender.felonyC1; ledSender.rfColor2 = ledSender.felonyC2; }
                                     ledSender.rfMode = newValue;
                                     ledSender.setRf("rfTimeout", ledSender.rfOn ? ledSender.rfTimeout : 10);
                                 }
@@ -8565,6 +8584,7 @@ Item {
                             valueText: value >= 4 ? ledSender.rfModes[value - 4] : ["BREATHE", "DIM", "DARK", "NORMAL"][value]
                             onMoved: {
                                 if (swSettings.snzAdvanced && ledSender.oneColor(newValue - 4) && !ledSender.oneColor(swSettings.ledStatusSnooze - 4)) swSettings.snzC2 = 0;
+                                if (newValue === 9 && swSettings.ledStatusSnooze !== 9) ledSender.felonySnooze();
                                 swSettings.ledStatusSnooze = newValue; ledSender.changed();
                             }
                         }
@@ -8627,6 +8647,7 @@ Item {
                             onMoved: {
                                 // rf114: one-color animations start with a BLACK background
                                 if (ledSender.oneColor(newValue - 1) && !ledSender.oneColor(swSettings.ledRideMode - 1)) swSettings.rideC2 = 0;
+                                if (newValue === 6 && swSettings.ledRideMode !== 6) ledSender.felonyRide();
                                 swSettings.ledRideMode = newValue; ledSender.changed();
                             }
                         }
