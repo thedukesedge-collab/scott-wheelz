@@ -85,6 +85,8 @@ void haptic_feedback_init(HapticFeedback *hf) {
     hf->horn_mode = HORN_MODE_BOTH;
     hf->horn_custom = false;
     hf->melody_active = false;
+    hf->melody_beep_step = 0;
+    hf->beep_request = false;
     hf->live_hz = 0;
     hf->live_start = 0;
     hf->live_playing = false;
@@ -127,7 +129,7 @@ void haptic_feedback_play_melody(
         if (len < 0.04f) {
             break;
         }
-        hf->melody_freq[n] = melody_level_hz(level);
+        hf->melody_freq[n] = level == MELODY_BEEP_LEVEL ? MELODY_BEEP_HZ : melody_level_hz(level);
         hf->melody_len[n] = len;
         total += len;
         ++n;
@@ -136,6 +138,7 @@ void haptic_feedback_play_melody(
         return;
     }
     hf->melody_count = n;
+    hf->melody_beep_step = 0;
     // boot melody volume goes down to 0.25 V (app level 1)
     hf->melody_volume = clampf(volume, 0.2f, 6.0f);
     hf->melody_start = time->now;
@@ -374,6 +377,15 @@ void haptic_feedback_update(
             hf->can_change_type = true;
         } else {
             uint16_t hz = hf->melody_freq[step];
+            // rf133: a beep step: ask main for one controller beep (once per
+            // step), the motor stays quiet
+            if (hz == MELODY_BEEP_HZ) {
+                if (hf->melody_beep_step != step + 1) {
+                    hf->melody_beep_step = step + 1;
+                    hf->beep_request = true;
+                }
+                hz = 0;
+            }
             // short gap at the end of each note so repeated pitches are heard
             bool gap = hf->melody_gaps && age > hf->melody_len[step] - 0.03f;
             if (hz == 0 || gap) {

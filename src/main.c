@@ -834,6 +834,15 @@ static void refloat_thd(void *arg) {
             &d->time
         );
 
+        // rf133: a beep step in a melody (READY only, like the melody itself):
+        // one short beep on the controller beeper (beep_alert: silent when off)
+        if (d->haptic_feedback.beep_request) {
+            d->haptic_feedback.beep_request = false;
+            if (d->state.state != STATE_RUNNING) {
+                beep_alert(d, 1, false);
+            }
+        }
+
         // Re-RinkFloat: if an external beeper is installed and enabled
         // (Servo/PPM pin), it sounds together with the horn. Real alerts keep
         // control of the beeper: beep_on/off(force = false) don't interrupt a

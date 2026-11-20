@@ -325,7 +325,7 @@
           <div style="text-align:center;margin:18px 0 6px"><span id="msLink" style="font-size:11px;color:#5c5470;cursor:pointer"></span></div>
         </div>
         <div class="page" id="pgMixer">
-          <div style="display:flex;align-items:center;gap:8px"><div class="pill" id="mxPlay">LIVE</div><div class="pill" id="mxRec">&#9679; REC</div><span style="flex:1"></span><span class="neonL" id="mxHint" style="font-size:10px">TAP TO PLAY</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><div class="pill" id="mxPlay">LIVE</div><div class="pill" id="mxRec">&#9679; REC</div><div class="pill on" id="mxBeep">&#9834; BEEP</div><span style="flex:1"></span><span class="neonL" id="mxHint" style="font-size:10px">TAP TO PLAY</span></div>
           <div class="recOnly" id="padLine" style="position:relative;height:24px;background:#140a26;border:1px solid #3d2266;border-radius:4px;overflow:hidden"></div>
           <div id="padTiles" style="flex:1;min-height:0;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:1fr 1fr;gap:8px"></div>
           <div class="pills recOnly"><div class="pill" id="padClear">CLEAR</div><div class="pill" id="padPlay">PLAY</div><div class="pill" id="padSave">SAVE</div><div class="pill on" id="padDone">DONE</div></div>
@@ -1274,7 +1274,7 @@ const NOTE_HZ = [330, 349, 392, 440, 494, 523, 587, 659, 698, 784], NOTE_NAMES =
 const noteHz = l => NOTE_HZ[Math.max(1, Math.min(10, l)) - 1];
 const REC_MS = 4000, PAD_NOTE_MS = 2000, MAX_ENTRIES = 64, SAVED_MAX = 12;
 const padTotal = () => P.rec.reduce((a, n) => a + n[1], 0);
-const tileCol = l => { const f = (l - 1) / 9; return 'rgb(' + Math.round(177 * (1 - f) + 57 * f) + ',' + Math.round(76 * (1 - f) + 255 * f) + ',' + Math.round(255 * (1 - f) + 122 * f) + ')'; };
+const tileCol = l => l === 11 ? '#ff8a1f' : (l => { const f = (l - 1) / 9; return 'rgb(' + Math.round(177 * (1 - f) + 57 * f) + ',' + Math.round(76 * (1 - f) + 255 * f) + ',' + Math.round(255 * (1 - f) + 122 * f) + ')'; })(l);
 let hold = null, liveOsc = null, mxRec = false, armed = false, take = null, playT0 = 0;
 function liveStart(level) {
   if (toneRest) return;
@@ -1308,7 +1308,7 @@ function renderPad() {
   padBlocks().forEach(([l, s, e]) => {
     const b = document.createElement('div'), w = Math.max(3, W * (e - s) / REC_MS - 1);
     b.style.cssText = 'position:absolute;top:2px;bottom:2px;border-radius:3px;font:700 10px Orbitron,monospace;color:#05060d;display:flex;align-items:center;justify-content:center;background:' + tileCol(l) + ';left:' + (W * s / REC_MS) + 'px;width:' + w + 'px';
-    b.textContent = w > 14 ? NOTE_NAMES[l - 1][0] : ''; line.appendChild(b);
+    b.textContent = w > 14 ? (l === 11 ? '\u266A' : NOTE_NAMES[l - 1][0]) : ''; line.appendChild(b);
   });
   const ph = take ? Date.now() - take.t0 : playT0 ? Date.now() - playT0 : -1;
   if (ph >= 0) { const h = document.createElement('div'); h.style.cssText = 'position:absolute;top:0;bottom:0;width:2px;background:' + (take ? '#ff4d6d' : 'var(--green)') + ';left:' + (W * Math.min(1, ph / REC_MS) - 1) + 'px'; line.appendChild(h); }
@@ -1349,6 +1349,14 @@ function padRelease() {
   if (take) { const s = hold.t - take.t0, e = Math.min(Date.now() - take.t0, s + PAD_NOTE_MS, REC_MS); if (e - s >= 40) take.ev.push([hold.l, s, e]); }
   hold = null; renderPad();
 }
+// rf133: controller beep; in REC it goes into the take (level 11)
+$('mxBeep').onclick = () => {
+  padRelease();
+  if (mxRec && armed && !take) { take = { t0: Date.now(), ev: [] }; playT0 = 0; requestAnimationFrame(takeTick); }
+  if (take) { const s = Date.now() - take.t0, e = Math.min(s + 200, REC_MS); if (e - s >= 40) take.ev.push([11, s, e]); }
+  toast(P.ctrlBeep === false ? 'Controller beeper is off (LEDS › BEEPER): the beep is silent' : 'Beep!');
+  renderPad();
+};
 function mxMode(rec) { padRelease(); take = null; mxRec = rec; armed = rec && !P.rec.length; renderPad(); }
 $('mxPlay').onclick = () => mxMode(false);
 $('mxRec').onclick = () => mxMode(true);
@@ -1878,7 +1886,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf132';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf133';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -2178,7 +2186,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf133' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf134' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });

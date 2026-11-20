@@ -46,6 +46,10 @@ typedef enum {
 #define MELODY_MAX_LENGTH 4.0f  // whole melody incl. rests (s), = recording window
 #define MELODY_MAX_NOTE 2.0f  // one note / one held tile (s); rests are not capped
 #define MELODY_UNIT 0.02f  // note length unit (s)
+// rf133: pitch level 11 = a short beep on the controller's own beeper (Refloat's,
+// Servo/PPM) instead of a motor tone; silent when the beeper is off
+#define MELODY_BEEP_LEVEL 11
+#define MELODY_BEEP_HZ 1
 // Re-Float Rink-Mixed: boot melody volume (beep V), kept well under the
 // horn's 4 V on purpose; the app's 1-10 maps to 0.25-2.5 V
 #define BOOT_MELODY_MAX_V 2.5f
@@ -95,9 +99,11 @@ typedef struct {
     volatile bool melody_active;
     volatile time_t melody_start;
     volatile float melody_volume;  // V
-    uint16_t melody_freq[MELODY_MAX_NOTES];  // Hz, 0 = rest
+    uint16_t melody_freq[MELODY_MAX_NOTES];  // Hz, 0 = rest, MELODY_BEEP_HZ = controller beep
     float melody_len[MELODY_MAX_NOTES];  // s
     volatile uint8_t melody_count;
+    uint8_t melody_beep_step;  // rf133: last step that asked for a controller beep (+1)
+    bool beep_request;  // rf133: main sounds one short controller beep, then clears it
     bool melody_gaps;  // short gap between notes (custom melodies, not the default)
     volatile uint16_t live_hz;
     volatile time_t live_timer;

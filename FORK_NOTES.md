@@ -1493,3 +1493,14 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - Refloat view: in Lights on the LEDS page, ALL LIGHTS sits above
   HEAD/TAIL and STATUS and is a bit bigger (SwPill.labelSize). SLCM
   boards: unchanged.
+
+### MIXER: BEEP button, recordable controller beep (v1.2.3-rf133)
+- MIXER: ♪ BEEP next to ● REC sounds the controller's own beeper (Refloat's
+  beeper on Servo/PPM, COMMAND_LCM_TEST_BEEP [2]=1; ignored while riding).
+  In REC it is placed in the take like a tile tap (200 ms, orange ♪ on
+  the timeline).
+- Melody format: pitch level 11 = controller beep (MELODY_BEEP_LEVEL). On
+  playback (TEST, saved melodies, boot melody; READY only) that step keeps
+  the motor quiet and main sounds one short beep_alert (silent when the
+  beeper is off, never while running). Old melodies are unchanged.
+- Package only; VESC firmware unchanged.

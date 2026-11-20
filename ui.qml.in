@@ -309,7 +309,7 @@ Item {
             lastMelody = swSettings.melodyRec;
             var data = commands.createData(2 + 2 * n.length, commands.c_MELODY_SET);
             for (var i = 0; i < n.length; i++) {
-                data.setUint8(2 + 2 * i, Math.max(0, Math.min(10, n[i][0])));
+                data.setUint8(2 + 2 * i, Math.max(0, Math.min(11, n[i][0])));  // rf133: 11 = controller beep
                 data.setUint8(3 + 2 * i, Math.max(2, Math.min(100, Math.round(n[i][1] / 20))));
             }
             vescCommands.sendCustomAppData(data.buffer);
@@ -2573,7 +2573,7 @@ Item {
         property bool hornAdvanced: false
         property bool hornBootMelody: true    // 3 rising notes at power-up
         property bool hornBootCustom: false   // play the custom melody at boot instead
-        property string melodyRec: "[[1,500],[2,500],[3,500]]"  // custom melody: [pitch 1-10, ms]
+        property string melodyRec: "[[1,500],[2,500],[3,500]]"  // custom melody: [pitch 1-10 (11 = controller beep), ms]
         property string savedMelodies: "[]"  // saved melodies: [{name, notes}]
         // light module (SLCM build) - defaults match ALCM's own
         property bool ledConfigured: false  // set once the LEDS tab is used
@@ -11856,7 +11856,7 @@ Item {
             ["≡", "PULL-UP SHEET", "SWIPE UP", "Drag the sheet up for TUNES, CONTROL, MIXER, DATA, BOARD STYLE and LEDS. Tap anywhere on the main view to put it away."],
             ["♫", "HORN", "HOME + CONTROL", "Hold HORN to beep through the motor, no extra hardware. Sound and volume (10/10 = 4 V) in CONTROL › HORN SETTINGS. It stays well within safe, low motor current."],
             ["♪", "THE MIXER", "MIXER TAB", "Your board is an instrument. Ten neon tiles, ten notes, played right through the motor. Tap and hold a tile in LIVE to jam."],
-            ["●", "RECORD A MELODY", "MIXER › REC", "Hit REC, then play your tune on the tiles: recording starts with your first note. The timeline fills as you go; CLEAR to start over."],
+            ["●", "RECORD A MELODY", "MIXER › REC", "Hit REC, then play your tune on the tiles: recording starts with your first note. \u266A BEEP adds a controller beep. The timeline fills as you go; CLEAR to start over."],
             ["▶", "PLAY & SAVE", "MIXER › PLAY / SAVE", "PLAY to hear it back, SAVE to keep it, DONE to make it the melody your board plays when it boots."],
             ["♥", "MY MELODIES", "MIXER › MY MELODIES", "All your saved tunes in one place. Tap one to make it your boot melody, ✎ to edit it on the tiles, ⧉ to copy, ✕ to delete. DEFAULT MELODY brings the original back; MELODY VOLUME sets how loud."],
             ["◢", "BOARD STYLE", "BOARD STYLE TAB", "Pick rails, tire and colors so the board on screen looks like yours."],
@@ -14975,7 +14975,37 @@ Item {
 
                     readonly property var noteNames: ["E4", "F4", "G4", "A4", "B4", "C5", "D5", "E5", "F5", "G5"]
 
+                    readonly property int beepLevel: 11  // rf133: a controller beep step
+                    readonly property int beepMs: 200
+
+                    // rf133: BEEP: the controller's own beeper now; in REC it's also
+                    // placed in the take like a tile tap (the board beeps there on playback)
+                    function beep() {
+                        release();
+                        if (recording && armed && !capturing) {
+                            capturing = true;
+                            recStart = Date.now();
+                            recMs = 0;
+                            events = [];
+                            playMs = -1;
+                            recTimer.start();
+                        }
+                        if (capturing) {
+                            var s = Date.now() - recStart;
+                            var e = Math.min(s + beepMs, windowMs);
+                            if (e - s >= 40) {
+                                var ev = events.slice();
+                                ev.push([beepLevel, s, e]);
+                                events = ev;
+                            }
+                        }
+                        ledSender.testCtrlBeep();
+                        if (!ledSender.ctrlBeep)
+                            VescIf.emitStatusMessage("Controller beeper is off (LEDS \u203A BEEPER): the beep is silent", false);
+                    }
+
                     function tileColor(level) {
+                        if (level === beepLevel) return "#ff8a1f";  // rf133: beep step
                         // purple (low) -> green (high)
                         var f = (level - 1) / 9;
                         return Qt.rgba(0.69 * (1 - f) + 0.22 * f, 0.30 * (1 - f) + 1.0 * f, 1.0 * (1 - f) + 0.48 * f, 1);
@@ -15151,6 +15181,13 @@ Item {
                                 onClicked: melodyPad.setRec(true)
                             }
 
+                            // rf133: the controller beeper; recorded in REC
+                            SwPill {
+                                label: "\u266A BEEP"
+                                lit: true
+                                onClicked: melodyPad.beep()
+                            }
+
                             Item { Layout.fillWidth: true }
 
                             SwNeonLabel {
@@ -15210,7 +15247,7 @@ Item {
                                         Text {
                                             anchors.centerIn: parent
                                             visible: parent.width > 0.4 * unit
-                                            text: melodyPad.noteNames[modelData[0] - 1].charAt(0)
+                                            text: modelData[0] === melodyPad.beepLevel ? "\u266A" : melodyPad.noteNames[modelData[0] - 1].charAt(0)
                                             color: swTheme.background
                                             font.family: "Exan"
                                             font.pixelSize: 0.22 * unit
