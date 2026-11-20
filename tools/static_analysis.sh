@@ -10,7 +10,7 @@
 set -e
 LIB=$(pwd)/vesc_pkg_lib
 CHECKS='-*,clang-analyzer-*,bugprone-*,-bugprone-easily-swappable-parameters,-bugprone-narrowing-conversions,-bugprone-implicit-widening-of-multiplication-result,-bugprone-reserved-identifier,-bugprone-assignment-in-if-condition,-clang-analyzer-security.insecureAPI.*'
-FLAGS="-std=gnu99 -DIS_VESC_LIB -Isrc -Isrc/conf -I$LIB -I$LIB/utils -Wno-unknown-attributes"
+FLAGS="-std=gnu99 -DIS_VESC_LIB -Isrc -Isrc/conf -I$LIB -I$LIB/utils -I$LIB/stdperiph_stm32f4/CMSIS/include -I$LIB/stdperiph_stm32f4/CMSIS/ST -I$LIB/stdperiph_stm32f4/inc -Wno-unknown-attributes"
 
 # files added or changed by refloatRM (vs Refloat v1.2.3)
 OURS="main.c haptic_feedback.c lcm.c lcm_fw.c leds.c imu.c state.c remote.c battery_curve.c"
