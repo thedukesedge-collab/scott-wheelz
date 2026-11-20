@@ -2501,6 +2501,8 @@ Item {
         property int rideC2: 0
         property real rideSpeed: 1.0
         property bool snzAdvanced: false  // SNOOZE ADVANCED: own colors / speed
+        property bool barAdvanced: false  // rf118: STATUS BAR view (Refloat LEDs)
+        property bool rgbAdvanced: false  // rf118: RGB LIGHTS view
         property int snzC1: 4
         property int snzC2: 0
         property real snzSpeed: 1.0
@@ -8215,7 +8217,7 @@ Item {
                         }
 
                         SwStepper {
-                            label: "IN MOTION"
+                            label: "RIDING"
                             value: swSettings.ledHeadlightPct
                             from: 0; to: 100; step: 5
                             valueText: value === 0 ? "OFF" : value + "%"
@@ -8285,8 +8287,8 @@ Item {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: "IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. "
-                                + "Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). "
+                            text: "RIDING: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. "
+                                + "Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). "
                                 + "SNOOZE uses the same idle clock as VESC's power-off: riding or rolling the wheel restarts it (footpads and lifting don't), and wakes the lights. "
                                 + "SNOOZE sets how many minutes before the board powers off the head/tail lights and status bar start snoozing (default 5; without a power-off timer: after 10 min). BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes on its own timer; this is for controller-driven LEDs (e.g. Thor)."
                         }
@@ -8342,10 +8344,110 @@ Item {
                             }
                         }
 
+                        // rf118: SIMPLE (one row per moment, like the SLCM ANIMATIONS
+                        // screen, one COLOR) / ADVANCED (every Refloat setting) for
+                        // controller-driven LEDs
+                        Row {
+                            visible: !ledSender.slcmPresets
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.15 * unit
+                            SwPill {
+                                minWidth: 2.4 * unit
+                                label: "SIMPLE"
+                                lit: !swSettings.barAdvanced
+                                onClicked: swSettings.barAdvanced = false
+                            }
+                            SwPill {
+                                minWidth: 2.8 * unit
+                                label: "ADVANCED ›"
+                                lit: swSettings.barAdvanced
+                                onClicked: swSettings.barAdvanced = true
+                            }
+                        }
+
                         Column {
                             width: parent.width
                             spacing: 0.14 * unit
-                            visible: !ledSender.slcmPresets
+                            visible: !ledSender.slcmPresets && !swSettings.barAdvanced
+
+                            LedHeading { text: "Animations" }
+                            SwStepper {
+                                width: parent.width
+                                label: "IDLE"
+                                valueWidth: 3.6 * unit
+                                value: ledSender.rfOn ? ledSender.rfMode : -1
+                                rf: ({mode: value, c1: ledSender.rfColor1, c2: ledSender.rfColor2, speed: ledSender.rfSpeed})
+                                from: -1; to: ledSender.rfModes.length - 1; step: 1
+                                valueText: value < 0 ? "BATTERY" : ledSender.rfModes[value]
+                                onMoved: {
+                                    if (newValue < 0) {
+                                        ledSender.setRf("rfTimeout", 0);
+                                    } else {
+                                        if (ledSender.oneColor(newValue) && !(ledSender.rfOn && ledSender.oneColor(ledSender.rfMode))) ledSender.rfColor2 = 0;
+                                        ledSender.rfMode = newValue;
+                                        ledSender.setRf("rfTimeout", ledSender.rfOn ? ledSender.rfTimeout : 10);
+                                    }
+                                }
+                            }
+                            SwStepper {
+                                visible: ledSender.rfStatusAvail
+                                width: parent.width
+                                label: "RIDING"
+                                valueWidth: 3.6 * unit
+                                value: swSettings.ledRideMode
+                                readonly property bool own: swSettings.rideC1 >= 0
+                                rf: ({mode: value - 1, c1: own ? swSettings.rideC1 : ledSender.rfColor1, c2: own ? swSettings.rideC2 : ledSender.rfColor2,
+                                      speed: own ? swSettings.rideSpeed : ledSender.rfSpeed})
+                                from: 0; to: ledSender.rfModes.length; step: 1
+                                valueText: value === 0 ? "BATTERY/DUTY" : ledSender.rfModes[value - 1]
+                                onMoved: {
+                                    if (own && ledSender.oneColor(newValue - 1) && !ledSender.oneColor(swSettings.ledRideMode - 1)) swSettings.rideC2 = 0;
+                                    swSettings.ledRideMode = newValue; ledSender.changed();
+                                }
+                            }
+                            SwStepper {
+                                visible: ledSender.rfStatusAvail
+                                width: parent.width
+                                label: "SNOOZE"
+                                valueWidth: 3.6 * unit
+                                value: swSettings.ledStatusSnooze
+                                rf: ({mode: value >= 4 ? value - 4 : [-2, -3, -4, -1][value],
+                                      c1: swSettings.snzAdvanced ? swSettings.snzC1 : ledSender.rfColor1, c2: swSettings.snzAdvanced ? swSettings.snzC2 : ledSender.rfColor2,
+                                      speed: swSettings.snzAdvanced ? swSettings.snzSpeed : ledSender.rfSpeed})
+                                from: 0; to: 3 + ledSender.rfModes.length; step: 1
+                                valueText: value >= 4 ? ledSender.rfModes[value - 4] : ["BREATHE", "DIM", "DARK", "NORMAL"][value]
+                                onMoved: {
+                                    if (swSettings.snzAdvanced && ledSender.oneColor(newValue - 4) && !ledSender.oneColor(swSettings.ledStatusSnooze - 4)) swSettings.snzC2 = 0;
+                                    swSettings.ledStatusSnooze = newValue; ledSender.changed();
+                                }
+                            }
+                            // one color for all three (riding / snooze follow the idle colors again)
+                            SwStepper {
+                                label: "COLOR"
+                                valueWidth: 3.2 * unit
+                                value: ledSender.rfColor1
+                                from: 0; to: 29; step: 1
+                                valueText: ledSender.rfColors[value]
+                                valueColor: ledSender.rfTextColor(value)
+                                onMoved: {
+                                    swSettings.rideC1 = -1;
+                                    swSettings.snzAdvanced = false;
+                                    ledSender.setRf("rfColor1", ledSender.rfColorNext(value, newValue > value ? 1 : -1));
+                                }
+                            }
+                            SwLText {
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: fontSizeSmall
+                                text: "Refloat's status bar animations for each moment. COLOR is used by all of them. "
+                                    + "ADVANCED: second color / background, speed, START AFTER, the duty bar, footpad sensors and own colors for riding and snooze."
+                            }
+                        }
+
+                        Column {
+                            width: parent.width
+                            spacing: 0.14 * unit
+                            visible: !ledSender.slcmPresets && swSettings.barAdvanced
 
                         // rf72: Refloat's Status Idle animation - one setting for
                         // every controller (controller-driven LEDs play it, an SLCM gets it
@@ -8443,7 +8545,6 @@ Item {
                                 + (slcmDetect.present && !ledSender.idleFollows
                                     ? " Right now the SLCM plays " + ledSender.animLabel(0, swSettings.ledAnimIdle) + " from SLCM EXTRAS \u203A ANIMATIONS instead; change anything here to follow this again."
                                     : "")
-                        }
                         }
 
                         // rf109: the status bar's own snooze look (same timing as the
@@ -8565,6 +8666,7 @@ Item {
                             font.pixelSize: fontSizeSmall
                             text: "BATTERY / DUTY: the battery level, then the duty bar from the set duty (NEVER = battery only). Any other animation has its own colors and speed, set here; the duty bar still takes over from the set duty. FOOTPAD SENSORS: show a released sensor while riding. "
                                 + "Same as Refloat's Status Duty Threshold and Show Sensor Indicators While Running."
+                        }
                         }
                     }
                     Column {
@@ -8961,94 +9063,162 @@ Item {
                         property int sel: 0
                         readonly property var bar: ledSender.rgb[sel] || ({})
 
-                        // IN MOTION (engaged, headlights on) = Refloat's
-                        // headlights / taillights bars; IDLE = front / rear
-                        Repeater {
-                            model: [["IN MOTION", 0], ["IDLE", 2]]
-                            Item {
-                                id: rgbGroup
-                                width: rgbCol.width
-                                height: 0.8 * unit
-                                SwNeonLabel {
-                                    anchors.left: parent.left
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: parent.width - 4.6 * unit
-                                    font.pixelSize: 0.28 * unit
-                                    text: modelData[0]
-                                }
-                                Row {
-                                    anchors.right: parent.right
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    spacing: 0.15 * unit
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.15 * unit
+                            SwPill {
+                                minWidth: 2.4 * unit
+                                label: "SIMPLE"
+                                lit: !swSettings.rgbAdvanced
+                                onClicked: swSettings.rgbAdvanced = false
+                            }
+                            SwPill {
+                                minWidth: 2.8 * unit
+                                label: "ADVANCED ›"
+                                lit: swSettings.rgbAdvanced
+                                onClicked: swSettings.rgbAdvanced = true
+                            }
+                        }
+
+                        // rf118: SIMPLE: one row per light bar (like the SLCM ANIMATIONS
+                        // screen); each keeps its own colors (head white, tail red, ...)
+                        Column {
+                            width: parent.width
+                            spacing: 0.14 * unit
+                            visible: !swSettings.rgbAdvanced
+                            Repeater {
+                                model: [["Riding", [["HEAD", 0], ["TAIL", 1]]], ["Idle", [["FRONT", 2], ["REAR", 3]]]]
+                                Column {
+                                    id: rgbSimpleGrp
+                                    width: rgbCol.width
+                                    spacing: 0.14 * unit
+                                    readonly property int briBar: modelData[1][0][1]
+                                    LedHeading { text: modelData[0] }
                                     Repeater {
-                                        model: ["HEAD", "TAIL"]
-                                        SwPill {
-                                            readonly property int bar: rgbGroup.base + (modelData === "HEAD" ? 0 : 1)
-                                            minWidth: 2.0 * unit
-                                            label: modelData
-                                            lit: rgbCol.sel === bar
-                                            onClicked: rgbCol.sel = bar
+                                        model: modelData[1]
+                                        SwStepper {
+                                            width: rgbCol.width
+                                            label: modelData[0]
+                                            valueWidth: 3.6 * unit
+                                            rf: ledSender.rgb[modelData[1]] || ({mode: 0, c1: 1, c2: 0, speed: 1})
+                                            value: (ledSender.rgb[modelData[1]] || {}).mode || 0
+                                            from: 0; to: ledSender.rfModes.length - 1; step: 1
+                                            valueText: ledSender.rfModes[value] || ""
+                                            onMoved: ledSender.rgbSet(modelData[1], "mode", newValue)
                                         }
                                     }
+                                    SwStepper {
+                                        label: "BRIGHTNESS"
+                                        value: ledSender.rgbLoaded ? ledSender.rgbBri(rgbSimpleGrp.briBar) : 0
+                                        from: 0; to: 100; step: 5; suffix: "%"
+                                        onMoved: ledSender.rgbSetBri(rgbSimpleGrp.briBar, newValue)
+                                    }
                                 }
-                                readonly property int base: modelData[1]
+                            }
+                            SwLText {
+                                width: parent.width
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: fontSizeSmall
+                                text: "RIDING: HEAD / TAIL while the board is engaged; IDLE: FRONT / REAR the rest of the time. Each keeps its own colors. "
+                                    + "ADVANCED: colors, speed, tail / rear brightness and OFF WHEN LIFTED."
                             }
                         }
 
-                        // the animation preview is the selector
-                        SwStepper {
-                            bigName: true
-                            rf: rgbCol.bar
-                            value: rgbCol.bar.mode || 0
-                            from: 0; to: ledSender.rfModes.length - 1; step: 1
-                            valueText: ledSender.rfModes[value] || ""
-                            onMoved: ledSender.rgbSet(rgbCol.sel, "mode", newValue)
-                        }
-                        SwStepper {
-                            visible: (rgbCol.bar.mode || 0) < 6
-                            label: "COLOR 1"
-                            valueWidth: 3.2 * unit
-                            value: rgbCol.bar.c1 || 0
-                            from: 0; to: 29; step: 1
-                            valueText: ledSender.rfColors[value]
-                            valueColor: ledSender.rfTextColor(value)
-                            onMoved: ledSender.rgbSet(rgbCol.sel, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
-                        }
-                        SwStepper {
-                            visible: rgbCol.bar.mode >= 1 && rgbCol.bar.mode <= 5  // rf91, see Status Idle
-                            label: ledSender.oneColor(rgbCol.bar.mode) ? "BACKGROUND" : "COLOR 2"
-                            toggle: ledSender.oneColor(rgbCol.bar.mode) ? ((rgbCol.bar.c2 || 0) !== 0 ? 1 : 0) : -1  // rf101
-                            onToggleClicked: {
-                                if ((rgbCol.bar.c2 || 0) !== 0) { swSettings.rfBgLast = rgbCol.bar.c2; ledSender.rgbSet(rgbCol.sel, "c2", 0); }
-                                else ledSender.rgbSet(rgbCol.sel, "c2", swSettings.rfBgLast || 1);
-                            }
-                            valueWidth: 3.2 * unit
-                            value: rgbCol.bar.c2 || 0
-                            from: 0; to: 29; step: 1
-                            valueText: ledSender.rfColors[value]
-                            valueColor: ledSender.rfTextColor(value)
-                            onMoved: ledSender.rgbSet(rgbCol.sel, "c2", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
-                        }
-                        SwStepper {
-                            visible: (rgbCol.bar.mode || 0) !== 0
-                            label: "SPEED"
-                            value: rgbCol.bar.speed || 1
-                            from: 0.1; to: 5; step: 0.1; decimals: 1; suffix: "/s"
-                            onMoved: ledSender.rgbSet(rgbCol.sel, "speed", newValue)
-                        }
-                        SwStepper {
-                            label: "BRIGHTNESS"
-                            value: ledSender.rgbLoaded ? ledSender.rgbBri(rgbCol.sel) : 0
-                            from: 0; to: 100; step: 5; suffix: "%"
-                            onMoved: ledSender.rgbSetBri(rgbCol.sel, newValue)
-                        }
+                        Column {
+                            width: parent.width
+                            spacing: 0.14 * unit
+                            visible: swSettings.rgbAdvanced
 
-                        SwPill {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            minWidth: 4.4 * unit
-                            label: ledSender.rgbLifted ? "OFF WHEN LIFTED: ON" : "OFF WHEN LIFTED: OFF"
-                            lit: ledSender.rgbLifted
-                            onClicked: ledSender.rgbSetLifted(!ledSender.rgbLifted)
+                            // RIDING (engaged, headlights on) = Refloat's
+                            // headlights / taillights bars; IDLE = front / rear
+                            Repeater {
+                                model: [["RIDING", 0], ["IDLE", 2]]
+                                Item {
+                                    id: rgbGroup
+                                    width: rgbCol.width
+                                    height: 0.8 * unit
+                                    SwNeonLabel {
+                                        anchors.left: parent.left
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: parent.width - 4.6 * unit
+                                        font.pixelSize: 0.28 * unit
+                                        text: modelData[0]
+                                    }
+                                    Row {
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 0.15 * unit
+                                        Repeater {
+                                            model: ["HEAD", "TAIL"]
+                                            SwPill {
+                                                readonly property int bar: rgbGroup.base + (modelData === "HEAD" ? 0 : 1)
+                                                minWidth: 2.0 * unit
+                                                label: rgbGroup.base === 2 ? (modelData === "HEAD" ? "FRONT" : "REAR") : modelData
+                                                lit: rgbCol.sel === bar
+                                                onClicked: rgbCol.sel = bar
+                                            }
+                                        }
+                                    }
+                                    readonly property int base: modelData[1]
+                                }
+                            }
+
+                            // the animation preview is the selector
+                            SwStepper {
+                                bigName: true
+                                rf: rgbCol.bar
+                                value: rgbCol.bar.mode || 0
+                                from: 0; to: ledSender.rfModes.length - 1; step: 1
+                                valueText: ledSender.rfModes[value] || ""
+                                onMoved: ledSender.rgbSet(rgbCol.sel, "mode", newValue)
+                            }
+                            SwStepper {
+                                visible: (rgbCol.bar.mode || 0) < 6
+                                label: "COLOR 1"
+                                valueWidth: 3.2 * unit
+                                value: rgbCol.bar.c1 || 0
+                                from: 0; to: 29; step: 1
+                                valueText: ledSender.rfColors[value]
+                                valueColor: ledSender.rfTextColor(value)
+                                onMoved: ledSender.rgbSet(rgbCol.sel, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
+                            }
+                            SwStepper {
+                                visible: rgbCol.bar.mode >= 1 && rgbCol.bar.mode <= 5  // rf91, see Status Idle
+                                label: ledSender.oneColor(rgbCol.bar.mode) ? "BACKGROUND" : "COLOR 2"
+                                toggle: ledSender.oneColor(rgbCol.bar.mode) ? ((rgbCol.bar.c2 || 0) !== 0 ? 1 : 0) : -1  // rf101
+                                onToggleClicked: {
+                                    if ((rgbCol.bar.c2 || 0) !== 0) { swSettings.rfBgLast = rgbCol.bar.c2; ledSender.rgbSet(rgbCol.sel, "c2", 0); }
+                                    else ledSender.rgbSet(rgbCol.sel, "c2", swSettings.rfBgLast || 1);
+                                }
+                                valueWidth: 3.2 * unit
+                                value: rgbCol.bar.c2 || 0
+                                from: 0; to: 29; step: 1
+                                valueText: ledSender.rfColors[value]
+                                valueColor: ledSender.rfTextColor(value)
+                                onMoved: ledSender.rgbSet(rgbCol.sel, "c2", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
+                            }
+                            SwStepper {
+                                visible: (rgbCol.bar.mode || 0) !== 0
+                                label: "SPEED"
+                                value: rgbCol.bar.speed || 1
+                                from: 0.1; to: 5; step: 0.1; decimals: 1; suffix: "/s"
+                                onMoved: ledSender.rgbSet(rgbCol.sel, "speed", newValue)
+                            }
+                            SwStepper {
+                                label: "BRIGHTNESS"
+                                value: ledSender.rgbLoaded ? ledSender.rgbBri(rgbCol.sel) : 0
+                                from: 0; to: 100; step: 5; suffix: "%"
+                                onMoved: ledSender.rgbSetBri(rgbCol.sel, newValue)
+                            }
+
+                            SwPill {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                minWidth: 4.4 * unit
+                                label: ledSender.rgbLifted ? "OFF WHEN LIFTED: ON" : "OFF WHEN LIFTED: OFF"
+                                lit: ledSender.rgbLifted
+                                onClicked: ledSender.rgbSetLifted(!ledSender.rgbLifted)
+                            }
+
                         }
 
                         SwLText {
@@ -11415,7 +11585,7 @@ Item {
             ["▶", "PLAY & SAVE", "MIXER › PLAY / SAVE", "PLAY to hear it back, SAVE to keep it, DONE to make it the melody your board plays when it boots."],
             ["♥", "MY MELODIES", "MIXER › MY MELODIES", "All your saved tunes in one place. Tap one to make it your boot melody, ✎ to edit it on the tiles, ⧉ to copy, ✕ to delete. DEFAULT MELODY brings the original back; MELODY VOLUME sets how loud."],
             ["◢", "BOARD STYLE", "BOARD STYLE TAB", "Pick rails, tire and colors so the board on screen looks like yours."],
-            ["◉", "LIGHTS", "LEDS TAB", "HEAD/TAIL LIGHTS: IN MOTION and IDLE levels, SNOOZE before the board powers off. STATUS BAR: idle and riding animations. RGB LIGHTS for controller-driven LEDs (Thor), linked with Refloat's settings."],
+            ["◉", "LIGHTS", "LEDS TAB", "HEAD/TAIL LIGHTS: RIDING and IDLE levels, SNOOZE before the board powers off. STATUS BAR: idle and riding animations. RGB LIGHTS for controller-driven LEDs (Thor), linked with Refloat's settings."],
             ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
             ["♬", "BEEPER", "LEDS › BEEPER", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
             ["↻", "UPDATES", "LEDS › UPDATES", "Check for new package and SLCM releases from GitHub, download and flash in a few taps. Floatwheel, XRV, Pint V and GTV light modules with SLCM update over Bluetooth."],
@@ -15370,7 +15540,7 @@ Item {
                                 Layout.preferredHeight: 3.0 * unit
                                 lit: swSettings.ledHeadlights
                                 summary: swSettings.ledHeadlights
-                                    ? "ON \u00B7 " + (ledSender.slcmPresets ? "RIDE " : "MOTION ") + swSettings.ledHeadlightPct + "% \u00B7 IDLE " + swSettings.ledHeadlightIdlePct + "%"
+                                    ? "ON \u00B7 " + "RIDE " + swSettings.ledHeadlightPct + "% \u00B7 IDLE " + swSettings.ledHeadlightIdlePct + "%"
                                     : "OFF"
                                 onClicked: ledWindow.show("head")
                             }

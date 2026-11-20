@@ -1373,3 +1373,19 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   Saved settings are kept as they are.
 - STATUS BAR tile on an SLCM board shows the SLCM IDLE preset.
 - Controller-driven LEDs (Thor) unchanged.
+
+### SIMPLE / ADVANCED for Refloat's LEDs, RIDING naming (v1.2.3-rf118)
+- STATUS BAR (controller-driven LEDs): SIMPLE (default) = one row per
+  moment like the SLCM ANIMATIONS screen, with Refloat's animation names
+  drawn as the animation: IDLE (BATTERY + Refloat modes), RIDING
+  (BATTERY/DUTY + modes), SNOOZE (BREATHE / DIM / DARK / NORMAL + modes),
+  and one COLOR for all of them (sets Status Idle color 1; riding and
+  snooze follow the idle colors again). ADVANCED = the full screen as
+  before. swSettings.barAdvanced.
+- RGB LIGHTS: SIMPLE (default) = HEAD / TAIL (riding) and FRONT / REAR
+  (idle) animation rows, each keeping its own colors, plus riding / idle
+  brightness; ADVANCED = the full screen (colors, speed, tail / rear
+  brightness, OFF WHEN LIFTED). swSettings.rgbAdvanced. The IDLE group
+  pills read FRONT / REAR.
+- "IN MOTION" renamed "RIDING" (HEAD/TAIL LIGHTS, RGB LIGHTS, tour).
+- All values stay Refloat's own settings; SLCM boards unchanged.

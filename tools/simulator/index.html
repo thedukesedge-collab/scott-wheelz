@@ -393,7 +393,7 @@
         <div class="secTitle" id="headSnzTitle">Snooze</div>
         <div id="ledBreathBox"></div><div class="pills"><div class="pill" id="ledBreathPill" style="display:none"></div></div>
         <p class="ledHint" id="headHintSlcm">HEADLIGHTS OFF is fully off (riding and idle). RIDING LIGHTS apply while the board is engaged, RUNNING LIGHTS the rest of the time; 0% = off. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). SNOOZE BREATHING: the head and tail lights slowly breathe while the board snoozes (SLCM); off = dark in snooze.</p>
-        <p class="ledHint" id="headHintRf">IN MOTION: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. Same as Refloat's Headlight Brightness (in motion) and Front Brightness (idle). SNOOZE uses the same idle clock as VESC's power-off: riding or rolling the wheel restarts it (footpads and lifting don't), and wakes the lights. SNOOZE sets how many minutes before the board powers off the head/tail lights and status bar start snoozing (default 5). BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes by itself; this is for controller-driven LEDs (e.g. Thor).</p>
+        <p class="ledHint" id="headHintRf">RIDING: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). SNOOZE uses the same idle clock as VESC's power-off: riding or rolling the wheel restarts it (footpads and lifting don't), and wakes the lights. SNOOZE sets how many minutes before the board powers off the head/tail lights and status bar start snoozing (default 5). BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes by itself; this is for controller-driven LEDs (e.g. Thor).</p>
       </div>
       <div class="ledSec" data-s="bar">
         <div class="pills"><div class="pill" id="ledBarPill"></div></div>
@@ -401,6 +401,13 @@
         <p class="ledHint">Same as Refloat's Status Idle Brightness (idle) and Status Brightness (riding).</p>
         <div id="barSlcm"><div class="pills"><div class="pill on" id="barAnimOpen">ANIMATIONS &#8250;</div></div></div>
         <div id="barRf">
+        <div class="pills"><div class="pill" id="barSimpleP">SIMPLE</div><div class="pill" id="barAdvP">ADVANCED &#8250;</div></div>
+        <div id="barSimple">
+          <div class="secTitle">Animations</div>
+          <div id="bsIdle"></div><div id="bsRide"></div><div id="bsSnz"></div><div id="bsColor"></div>
+          <p class="ledHint">Refloat's status bar animations for each moment. COLOR is used by all of them. ADVANCED: second color / background, speed, START AFTER, the duty bar, footpad sensors and own colors for riding and snooze.</p>
+        </div>
+        <div id="barAdv">
         <div class="secTitle">Idle animation</div>
         <div class="animSel" id="rfSel"><span class="stepBtn" data-d="-1">&#9660;</span><div class="stepVal animName" id="rfPreview" data-anim="15" style="flex:1;font-size:18px;text-align:center"></div><span class="stepBtn" data-d="1">&#9650;</span></div>
         <div id="rfSteps"></div>
@@ -420,6 +427,7 @@
           <div id="rfRideSteps"></div>
           <div class="pills"><div class="pill" id="rfSensPill"></div></div>
           <p class="ledHint">BATTERY / DUTY: the battery level, then the duty bar from the set duty (NEVER = battery only). Any other animation has its own colors and speed, set here; the duty bar still takes over from the set duty. FOOTPAD SENSORS: show a released sensor while riding. Same as Refloat's Status Duty Threshold and Show Sensor Indicators While Running.</p>
+        </div>
         </div>
         </div>
       </div>
@@ -451,13 +459,21 @@
         <div class="pills"><div class="pill" id="batAdvOpen">ADVANCED &#8250;</div></div>
       </div>
       <div class="ledSec" data-s="rgb">
+        <div class="pills"><div class="pill" id="rgbSimpleP">SIMPLE</div><div class="pill" id="rgbAdvP">ADVANCED &#8250;</div></div>
+        <div id="rgbSimple">
+          <div class="secTitle">Riding</div><div id="rsHead"></div><div id="rsTail"></div><div id="rsBriR"></div>
+          <div class="secTitle">Idle</div><div id="rsFront"></div><div id="rsRear"></div><div id="rsBriI"></div>
+          <p class="ledHint">RIDING: HEAD / TAIL while the board is engaged; IDLE: FRONT / REAR the rest of the time. Each keeps its own colors. ADVANCED: colors, speed, tail / rear brightness and OFF WHEN LIFTED.</p>
+        </div>
+        <div id="rgbAdv">
         <div id="rgbSel">
-          <div class="rgbGrp"><span>IN MOTION</span><div class="pill" data-i="0">HEAD</div><div class="pill" data-i="1">TAIL</div></div>
-          <div class="rgbGrp"><span>IDLE</span><div class="pill" data-i="2">HEAD</div><div class="pill" data-i="3">TAIL</div></div>
+          <div class="rgbGrp"><span>RIDING</span><div class="pill" data-i="0">HEAD</div><div class="pill" data-i="1">TAIL</div></div>
+          <div class="rgbGrp"><span>IDLE</span><div class="pill" data-i="2">FRONT</div><div class="pill" data-i="3">REAR</div></div>
         </div>
         <div class="animSel"><span class="stepBtn" data-d="-1">&#9660;</span><div class="stepVal animName" id="rgbPreview" data-anim="16" style="flex:1;font-size:18px;text-align:center"></div><span class="stepBtn" data-d="1">&#9650;</span></div>
         <div id="rgbSteps"></div>
         <div class="pills"><div class="pill" id="rgbLifted"></div></div>
+        </div>
         <p class="ledHint" style="text-align:center">Refloat's LED settings (Refloat Cfg &#8250; LEDs), linked both ways.</p>
       </div>
       <div class="ledSec" data-s="updates">
@@ -789,7 +805,7 @@ const TOUR = [
   ["▶", "PLAY & SAVE", "MIXER › PLAY / SAVE", "PLAY to hear it back, SAVE to keep it, DONE to make it the melody your board plays when it boots."],
   ["♥", "MY MELODIES", "MIXER › MY MELODIES", "All your saved tunes in one place. Tap one to make it your boot melody, ✎ to edit it on the tiles, ⧉ to copy, ✕ to delete. DEFAULT MELODY brings the original back; MELODY VOLUME sets how loud."],
   ["◢", "BOARD STYLE", "BOARD STYLE TAB", "Pick rails, tire and colors so the board on screen looks like yours."],
-  ["◉", "LIGHTS", "LEDS TAB", "HEAD/TAIL LIGHTS: IN MOTION and IDLE levels, SNOOZE before the board powers off. STATUS BAR: idle and riding animations. RGB LIGHTS for controller-driven LEDs (Thor), linked with Refloat's settings."],
+  ["◉", "LIGHTS", "LEDS TAB", "HEAD/TAIL LIGHTS: RIDING and IDLE levels, SNOOZE before the board powers off. STATUS BAR: idle and riding animations. RGB LIGHTS for controller-driven LEDs (Thor), linked with Refloat's settings."],
   ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
   ["♬", "BEEPER", "LEDS › BEEPER", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
   ["↻", "UPDATES", "LEDS › UPDATES", "Check for new package and SLCM releases from GitHub, download and flash in a few taps. Floatwheel, XRV, Pint V and GTV light modules with SLCM update over Bluetooth."],
@@ -1462,8 +1478,9 @@ function animCol(anim, i, n, t, hueDeg, el_text_off) {
     case 17:  // rf97: riding animation (idle colors, P.rideMode - 1; 0 = battery)
       if (anim === 17 && !P.rideMode) return 'rgba(234,214,255,1)';
       // falls through
+    case 20: case 21: case 22: case 23:  // rf118: RGB LIGHTS SIMPLE rows (bar anim - 20)
     case 16: {  // RGB LIGHTS: the selected Refloat light bar (same maths as 15)
-      const b = anim === 18 ? Object.assign({}, P.snzAdv && P.snz ? P.snz : { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed }, { mode: (P.stSnz || 0) - 4 }) : anim === 17 ? Object.assign({}, P.ride || { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed }, { mode: P.rideMode - 1 }) : P.rgb[P.rgbSel || 0], c2 = rfRgb(b.c2), sp = Math.max(0.1, b.speed), md = b.mode, c1k = b.c1 === 0; let c1 = rfRgb(b.c1), has2 = b.c2 !== 0;  // rf91/92
+      const b = anim >= 20 ? P.rgb[anim - 20] : anim === 18 ? Object.assign({}, P.snzAdv && P.snz ? P.snz : { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed }, { mode: (P.stSnz || 0) - 4 }) : anim === 17 ? Object.assign({}, P.ride || { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed }, { mode: P.rideMode - 1 }) : P.rgb[P.rgbSel || 0], c2 = rfRgb(b.c2), sp = Math.max(0.1, b.speed), md = b.mode, c1k = b.c1 === 0; let c1 = rfRgb(b.c1), has2 = b.c2 !== 0;  // rf91/92
       const mix = q => [0, 1, 2].map(j => Math.round(c1[j] + (c2[j] - c1[j]) * q));
       if (c1k && (md === 0 || !has2)) return '#5c5470';  // rf92: all black: dim grey
       if (md === 0) return rfCss(c1);
@@ -1539,7 +1556,7 @@ function renderLedsSoft() {
   pill('ledHeadPill', P.ledHead, (P.simSetup || 'slcm') === 'slcm' ? 'HEADLIGHTS' : 'HEAD/TAIL LIGHTS'); pill('ledBreathPill', P.ledBreath !== false, 'SNOOZE BREATHING'); pill('ledBarPill', P.ledBar, 'STATUS BAR'); pill('ledBeepPill', P.ledBeep, 'LCM BEEPER');
   $('ledSwatch').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
   $('ltSw').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
-  $('ltHead').textContent = P.ledHead ? 'ON · ' + ((P.simSetup || 'slcm') === 'slcm' ? 'RIDE ' : 'MOTION ') + P.ledHeadPct + '% · IDLE ' + P.ledHeadIdlePct + '%' : 'OFF';
+  $('ltHead').textContent = P.ledHead ? 'ON · ' + 'RIDE ' + P.ledHeadPct + '% · IDLE ' + P.ledHeadIdlePct + '%' : 'OFF';
   const sb = (P.simSetup || 'slcm') === 'slcm';  // rf117: SLCM: brightness here, presets in ANIMATIONS
   $('barSlcm').style.display = sb ? '' : 'none'; $('barRf').style.display = sb ? 'none' : '';
   $('ltBar').textContent = P.ledBar ? 'ON · RIDE ' + P.ledRidePct + '% · ' + (sb ? 'IDLE ' + animLabel('ledAnimIdle', P.ledAnimIdle) : P.rfTimeout > 0 ? 'IDLE: ' + RF_MODES[P.rfMode] : 'IDLE: BATTERY') : 'OFF';
@@ -1563,7 +1580,7 @@ function renderLedsSoft() {
 function renderLeds() {
   const pct = v => v + '%';
   $('ledHeadSteps').innerHTML = ''; const su = (P.simSetup || 'slcm') === 'slcm';  // rf116: SLCM wording as before
-  ledStep($('ledHeadSteps'), 'ledHeadPct', su ? 'RIDING LIGHTS' : 'IN MOTION', 0, 100, 5, v => v ? v + '%' : 'OFF'); ledStep($('ledHeadSteps'), 'ledHeadIdlePct', su ? 'RUNNING LIGHTS (IDLE)' : 'IDLE', 0, 100, 5, v => v ? v + '%' : 'OFF');
+  ledStep($('ledHeadSteps'), 'ledHeadPct', su ? 'RIDING LIGHTS' : 'RIDING', 0, 100, 5, v => v ? v + '%' : 'OFF'); ledStep($('ledHeadSteps'), 'ledHeadIdlePct', su ? 'RUNNING LIGHTS (IDLE)' : 'IDLE', 0, 100, 5, v => v ? v + '%' : 'OFF');
   // rf86: snooze for controller-driven LEDs (THOR pretend option)
   if (P.ledSnoozeMin === undefined || P.ledSnoozeMin < 0 || !P.snz100) { P.ledSnoozeMin = 5; P.snz100 = true; }  // rf100: minutes before power-off
   // rf88: pretend VESC Shutdown Mode = off after 10 min: snooze stays below it
@@ -1587,6 +1604,12 @@ function renderLeds() {
 // light bars - HEAD / TAIL with the headlights on, FRONT / REAR (running
 // lights) with them off. Only with controller-driven LEDs (THOR pretend option).
 function renderRgb() {
+  // rf118: SIMPLE (one row per light bar, own colors kept) / ADVANCED
+  $('rgbSimple').style.display = P.rgbAdv ? 'none' : ''; $('rgbAdv').style.display = P.rgbAdv ? '' : 'none';
+  $('rgbSimpleP').classList.toggle('on', !P.rgbAdv); $('rgbAdvP').classList.toggle('on', !!P.rgbAdv);
+  [['rsHead', 'HEAD', 0], ['rsTail', 'TAIL', 1], ['rsFront', 'FRONT', 2], ['rsRear', 'REAR', 3]].forEach(([id, l, k]) =>
+    animRow($(id), l, () => P.rgb[k].mode, 8, v => RF_MODES[v], 20 + k, v => { if (oneCol(v) && !oneCol(P.rgb[k].mode)) P.rgb[k].c2 = 0; P.rgb[k].mode = v; save(); renderRgb(); }));
+  [['rsBriR', 'ledHeadPct'], ['rsBriI', 'ledHeadIdlePct']].forEach(([id, k]) => { $(id).innerHTML = ''; ledStep($(id), k, 'BRIGHTNESS', 0, 100, 5, v => v + '%'); });
   const i = P.rgbSel || 0, b = P.rgb[i], box = $('rgbSteps');
   document.querySelectorAll('#rgbSel .pill').forEach(x => x.classList.toggle('on', +x.dataset.i === i));
   $('rgbPreview').innerHTML = [...RF_MODES[b.mode]].map(ch => '<span>' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
@@ -1611,6 +1634,21 @@ document.querySelectorAll('.animSel:not(#rfSel):not(#rideSel):not(#stSnzSel) .st
 document.querySelectorAll('#rfSel .stepBtn').forEach(x => x.onclick = () => { const cur = P.rfTimeout > 0 ? P.rfMode : -1, v = clamp(cur + +x.dataset.d, -1, 8); if (v === cur) return; if (v < 0) P.rfTimeout = 0; else { if (oneCol(v) && !(cur >= 0 && oneCol(cur))) P.rfColor2 = 0; P.rfMode = v; if (!(P.rfTimeout > 0)) P.rfTimeout = 10; } P.ledAnimIdle = 15; P.ledCfg = true; save(); renderRf(); renderLedsSoft(); });
 $('rgbLifted').onclick = () => { P.rgbLifted = !P.rgbLifted; save(); renderRgb(); };
 function renderRf() {
+  // rf118: SIMPLE (rows like the SLCM ANIMATIONS screen, one COLOR) / ADVANCED
+  $('barSimple').style.display = P.barAdv ? 'none' : ''; $('barAdv').style.display = P.barAdv ? '' : 'none';
+  $('barSimpleP').classList.toggle('on', !P.barAdv); $('barAdvP').classList.toggle('on', !!P.barAdv);
+  const thor = P.simSetup === 'refloat';
+  animRow($('bsIdle'), 'IDLE', () => P.rfTimeout > 0 ? P.rfMode + 1 : 0, 9, v => v ? RF_MODES[v - 1] : 'BATTERY', 15, v => {
+    if (!v) P.rfTimeout = 0; else { const cur = P.rfTimeout > 0 ? P.rfMode : -1; if (oneCol(v - 1) && !(cur >= 0 && oneCol(cur))) P.rfColor2 = 0; P.rfMode = v - 1; if (!(P.rfTimeout > 0)) P.rfTimeout = 10; }
+    P.ledCfg = true; save(); renderRf(); renderLedsSoft(); });
+  if (thor) {
+    animRow($('bsRide'), 'RIDING', () => P.rideMode || 0, 9, v => v ? RF_MODES[v - 1] : 'BATTERY/DUTY', 17, v => { P.rideMode = v; save(); renderRf(); });
+    animRow($('bsSnz'), 'SNOOZE', () => P.stSnz || 0, 12, v => v >= 4 ? RF_MODES[v - 4] : ['BREATHE', 'DIM', 'DARK', 'NORMAL'][v], 18, v => { P.stSnz = v; save(); renderRf(); });
+  } else { $('bsRide').innerHTML = ''; $('bsSnz').innerHTML = ''; }
+  $('bsColor').innerHTML = '';
+  cuStep('bsColor', 'COLOR', () => P.rfColor1, 0, 29, 1, v => RF_COLORS[v], v => {
+    P.rfColor1 = rfNext(P.rfColor1, v); P.ride = { c1: P.rfColor1, c2: P.rfColor2, speed: P.rfSpeed }; P.snzAdv = false;
+    P.ledCfg = true; save(); renderRf(); renderLedsSoft(); }, rfTxt);
   const on = P.rfTimeout > 0, box = $('rfSteps');
   $('rfPreview').innerHTML = [...(on ? RF_MODES[P.rfMode] : 'BATTERY')].map(ch => '<span>' + (ch === ' ' ? '&nbsp;' : ch) + '</span>').join('');
   document.querySelectorAll('#rfSel .stepBtn').forEach(b => b.classList.toggle('lim', +b.dataset.d < 0 ? !on : on && P.rfMode >= 8));
@@ -1738,6 +1776,10 @@ document.querySelectorAll('.ledTile').forEach(t => t.onclick = () => ledWin(t.da
 $('ledWinBack').onclick = () => { if (document.querySelector('.ledSec.on[data-s="custom"]')) { ledWin('anim'); renderLeds(); return; } fwForget(); ledWin(null); };
 $('ledWinDim').onclick = () => { fwForget(); ledWin(null); };
 $('cuOpen').onclick = () => { ledWin('custom'); renderCustom(); };
+$('barSimpleP').onclick = () => { P.barAdv = false; save(); renderRf(); };
+$('barAdvP').onclick = () => { P.barAdv = true; save(); renderRf(); };
+$('rgbSimpleP').onclick = () => { P.rgbAdv = false; save(); renderRgb(); };
+$('rgbAdvP').onclick = () => { P.rgbAdv = true; save(); renderRgb(); };
 $('barAnimOpen').onclick = () => { ledWin('anim'); renderLeds(); };
 $('ledBreathPill').onclick = () => { P.ledBreath = P.ledBreath === false; P.snzStyle = P.ledBreath ? 0 : 2; P.ledCfg = true; save(); renderLedsSoft(); };
 $('ctrlBeepPill').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); renderLedsSoft(); renderCtl(); };
