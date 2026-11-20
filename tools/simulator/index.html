@@ -87,6 +87,11 @@
   .pills { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
   .animSel { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px; }
   .animSel .stepVal { width: auto; }
+  /* rf124: neon cards, every value the same width so the arrows line up */
+  .ledCard { border: 2px solid rgba(168,85,255,.55); background: #120a22; border-radius: 12px; padding: 6px 8px; margin: 6px 0; }
+  .ledCard .cardT { text-align: center; color: var(--green); font-family: Orbitron, monospace; font-size: 12px; letter-spacing: 1px; margin-bottom: 2px; }
+  #barSimple .stepVal, #rgbSimple .stepVal { width: 118px !important; }
+  #barSimple .ledHint, #rgbSimple .ledHint { text-align: center; }
   .pill { border: 2px solid var(--purple); color: var(--purple); border-radius: 999px; padding: 6px 14px; font-family: Orbitron, monospace; font-size: 11px; cursor: pointer; }
   #lcmTools { position: relative; width: max-content; margin: 0 auto; padding: 6px 10px; font-size: 10px; letter-spacing: .5px; color: #5c5470; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; }
   #lcmTools i { position: absolute; left: 10px; bottom: 2px; height: 2px; width: 0; background: var(--green); }
@@ -404,7 +409,7 @@
         <div class="pills"><div class="pill" id="barSimpleP">SIMPLE</div><div class="pill" id="barAdvP">ADVANCED &#8250;</div></div>
         <div id="barSimple">
           <div class="secTitle">Animations</div>
-          <div id="bsColor"></div><div id="bsIdle"></div><div id="bsRide"></div><div id="bsSnz"></div>
+          <div class="ledCard"><div id="bsColor"></div><div id="bsIdle"></div><div id="bsRide"></div><div id="bsSnz"></div></div>
           <p class="ledHint">Refloat's status bar animations for each moment. Each effect starts in its own colors (KNIGHT RIDER red, FELONY red / blue, STROBE white, ...); COLOR changes them all. ADVANCED: second color / background, speed, START AFTER, the duty bar, footpad sensors and own colors for riding and snooze.</p>
         </div>
         <div id="barAdv">
@@ -461,8 +466,8 @@
       <div class="ledSec" data-s="rgb">
         <div class="pills"><div class="pill" id="rgbSimpleP">SIMPLE</div><div class="pill" id="rgbAdvP">ADVANCED &#8250;</div></div>
         <div id="rgbSimple">
-          <div class="secTitle">Riding</div><div id="rsHeadC"></div><div id="rsHead"></div><div id="rsTailC"></div><div id="rsTail"></div><div id="rsBriR"></div>
-          <div class="secTitle">Idle</div><div id="rsFrontC"></div><div id="rsFront"></div><div id="rsRearC"></div><div id="rsRear"></div><div id="rsBriI"></div>
+          <div class="secTitle">Riding</div><div class="ledCard"><div class="cardT">HEADLIGHT</div><div id="rsHeadC"></div><div id="rsHead"></div></div><div class="ledCard"><div class="cardT">TAIL LIGHT</div><div id="rsTailC"></div><div id="rsTail"></div></div><div class="ledCard"><div id="rsBriR"></div></div>
+          <div class="secTitle">Idle</div><div class="ledCard"><div class="cardT">FRONT</div><div id="rsFrontC"></div><div id="rsFront"></div></div><div class="ledCard"><div class="cardT">REAR</div><div id="rsRearC"></div><div id="rsRear"></div></div><div class="ledCard"><div id="rsBriI"></div></div>
           <p class="ledHint">RIDING: HEADLIGHT / TAIL LIGHT while the board is engaged; IDLE: FRONT / REAR the rest of the time. COLOR above each light sets its color; each effect starts in its own colors (SOLID white headlight / red tail light, KNIGHT RIDER red, FELONY red / blue, ...). ADVANCED: second color / background, speed, tail / rear brightness and OFF WHEN LIFTED.</p>
         </div>
         <div id="rgbAdv">
@@ -1609,7 +1614,7 @@ function renderRgb() {
   $('rgbSimpleP').classList.toggle('on', !P.rgbAdv); $('rgbAdvP').classList.toggle('on', !!P.rgbAdv);
   [['rsHead', 'HEADLIGHT', 0], ['rsTail', 'TAIL LIGHT', 1], ['rsFront', 'FRONT', 2], ['rsRear', 'REAR', 3]].forEach(([id, l, k]) =>
     { $(id + 'C').innerHTML = ''; if (P.rgb[k].mode < 6) cuStep(id + 'C', 'COLOR', () => P.rgb[k].c1, 0, 29, 1, v => RF_COLORS[v], v => { P.rgb[k].c1 = rfNext(P.rgb[k].c1, v); save(); renderRgb(); }, rfTxt);   // rf122
-    animRow($(id), l, () => P.rgb[k].mode, 8, v => RF_MODES[v], 20 + k, v => { if (oneCol(v) && !oneCol(P.rgb[k].mode)) P.rgb[k].c2 = 0; if (v !== P.rgb[k].mode) { const d = effCols(v, k); if (d) { P.rgb[k].c1 = d[0]; P.rgb[k].c2 = d[1]; } } P.rgb[k].mode = v; save(); renderRgb(); }); });
+    animRow($(id), 'EFFECT', () => P.rgb[k].mode, 8, v => RF_MODES[v], 20 + k, v => { if (oneCol(v) && !oneCol(P.rgb[k].mode)) P.rgb[k].c2 = 0; if (v !== P.rgb[k].mode) { const d = effCols(v, k); if (d) { P.rgb[k].c1 = d[0]; P.rgb[k].c2 = d[1]; } } P.rgb[k].mode = v; save(); renderRgb(); }); });
   [['rsBriR', 'ledHeadPct'], ['rsBriI', 'ledHeadIdlePct']].forEach(([id, k]) => { $(id).innerHTML = ''; ledStep($(id), k, 'BRIGHTNESS', 0, 100, 5, v => v + '%'); });
   const i = P.rgbSel || 0, b = P.rgb[i], box = $('rgbSteps');
   document.querySelectorAll('#rgbSel .pill').forEach(x => x.classList.toggle('on', +x.dataset.i === i));

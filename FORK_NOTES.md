@@ -1423,3 +1423,11 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - RGB LIGHTS SIMPLE: each light's COLOR above its animation.
 - Refloat color rows (SIMPLE and ADVANCED) use left / right arrows
   (SwStepper.sideArrows).
+
+### Tidy SIMPLE screens: neon cards, lined-up arrows (v1.2.3-rf124)
+- New LedCard (rounded neon card with a centered title).
+- RGB LIGHTS SIMPLE: each light in its own card (HEADLIGHT, TAIL LIGHT,
+  FRONT, REAR) with COLOR and EFFECT rows; brightness in a card too.
+- STATUS BAR SIMPLE: COLOR / IDLE / RIDING / SNOOZE in one card.
+- Every row in these screens has the same value width, so the arrows line
+  up; the hints are centered.

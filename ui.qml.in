@@ -4112,6 +4112,36 @@ Item {
         color: swTheme.neonGreen
     }
 
+    // rf124: a rounded neon card with a centered title, for one light / group
+    component LedCard : Rectangle {
+        id: ledCard
+        property string title
+        default property alias content: cardCol.data
+        width: parent ? parent.width : 0
+        height: cardCol.implicitHeight + 0.3 * unit
+        radius: 0.18 * unit
+        color: "#120a22"
+        border.color: Qt.rgba(0.66, 0.33, 1, 0.55)
+        border.width: 2
+        Column {
+            id: cardCol
+            x: 0.15 * unit
+            y: 0.15 * unit
+            width: parent.width - 0.3 * unit
+            spacing: 0.1 * unit
+            Text {
+                visible: ledCard.title !== ""
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: ledCard.title
+                color: swTheme.neonGreen
+                font.family: "Exan"
+                font.pixelSize: 0.28 * unit
+                font.letterSpacing: 0.03 * unit
+            }
+        }
+    }
+
     // Re-RinkFloat: LEDS tab tile - opens a full-screen settings window
     component LedTile : Rectangle {
         id: tile
@@ -8407,77 +8437,81 @@ Item {
                             visible: !ledSender.slcmPresets && !swSettings.barAdvanced
 
                             LedHeading { text: "Animations" }
-                            // one color for all three (rf123: on top, left / right arrows)
-                            SwStepper {
-                                label: "COLOR"
-                                sideArrows: true
-                                valueWidth: 3.2 * unit
-                                value: ledSender.rfColor1
-                                from: 0; to: 29; step: 1
-                                valueText: ledSender.rfColors[value]
-                                valueColor: ledSender.rfTextColor(value)
-                                onMoved: {
-                                    var c = ledSender.rfColorNext(value, newValue > value ? 1 : -1);
-                                    // rf123: the same color 1 for riding / snooze (FELONY keeps red / blue)
-                                    if (swSettings.rideC1 >= 0 && swSettings.ledRideMode !== 6) swSettings.rideC1 = c;
-                                    if (swSettings.snzAdvanced && swSettings.ledStatusSnooze !== 9) swSettings.snzC1 = c;
-                                    ledSender.setRf("rfColor1", c);
+                            LedCard {
+                                // one color for all three (rf123: on top, left / right arrows)
+                                SwStepper {
+                                    width: parent.width
+                                    label: "COLOR"
+                                    sideArrows: true
+                                    valueWidth: 3.6 * unit
+                                    value: ledSender.rfColor1
+                                    from: 0; to: 29; step: 1
+                                    valueText: ledSender.rfColors[value]
+                                    valueColor: ledSender.rfTextColor(value)
+                                    onMoved: {
+                                        var c = ledSender.rfColorNext(value, newValue > value ? 1 : -1);
+                                        // rf123: the same color 1 for riding / snooze (FELONY keeps red / blue)
+                                        if (swSettings.rideC1 >= 0 && swSettings.ledRideMode !== 6) swSettings.rideC1 = c;
+                                        if (swSettings.snzAdvanced && swSettings.ledStatusSnooze !== 9) swSettings.snzC1 = c;
+                                        ledSender.setRf("rfColor1", c);
+                                    }
                                 }
-                            }
-                            SwStepper {
-                                width: parent.width
-                                label: "IDLE"
-                                valueWidth: 3.6 * unit
-                                value: ledSender.rfOn ? ledSender.rfMode : -1
-                                rf: ({mode: value, c1: ledSender.rfColor1, c2: ledSender.rfColor2, speed: ledSender.rfSpeed})
-                                from: -1; to: ledSender.rfModes.length - 1; step: 1
-                                valueText: value < 0 ? "BATTERY" : ledSender.rfModes[value]
-                                onMoved: {
-                                    if (newValue < 0) {
-                                        ledSender.setRf("rfTimeout", 0);
-                                    } else {
-                                        if (ledSender.oneColor(newValue) && !(ledSender.rfOn && ledSender.oneColor(ledSender.rfMode))) ledSender.rfColor2 = 0;
-                                        if (!(ledSender.rfOn && ledSender.rfMode === newValue)) ledSender.idleEffect(newValue);  // rf123
-                                        ledSender.rfMode = newValue;
-                                        ledSender.setRf("rfTimeout", ledSender.rfOn ? ledSender.rfTimeout : 10);
+                                SwStepper {
+                                    width: parent.width
+                                    label: "IDLE"
+                                    valueWidth: 3.6 * unit
+                                    value: ledSender.rfOn ? ledSender.rfMode : -1
+                                    rf: ({mode: value, c1: ledSender.rfColor1, c2: ledSender.rfColor2, speed: ledSender.rfSpeed})
+                                    from: -1; to: ledSender.rfModes.length - 1; step: 1
+                                    valueText: value < 0 ? "BATTERY" : ledSender.rfModes[value]
+                                    onMoved: {
+                                        if (newValue < 0) {
+                                            ledSender.setRf("rfTimeout", 0);
+                                        } else {
+                                            if (ledSender.oneColor(newValue) && !(ledSender.rfOn && ledSender.oneColor(ledSender.rfMode))) ledSender.rfColor2 = 0;
+                                            if (!(ledSender.rfOn && ledSender.rfMode === newValue)) ledSender.idleEffect(newValue);  // rf123
+                                            ledSender.rfMode = newValue;
+                                            ledSender.setRf("rfTimeout", ledSender.rfOn ? ledSender.rfTimeout : 10);
+                                        }
+                                    }
+                                }
+                                SwStepper {
+                                    visible: ledSender.rfStatusAvail
+                                    width: parent.width
+                                    label: "RIDING"
+                                    valueWidth: 3.6 * unit
+                                    value: swSettings.ledRideMode
+                                    readonly property bool own: swSettings.rideC1 >= 0
+                                    rf: ({mode: value - 1, c1: own ? swSettings.rideC1 : ledSender.rfColor1, c2: own ? swSettings.rideC2 : ledSender.rfColor2,
+                                          speed: own ? swSettings.rideSpeed : ledSender.rfSpeed})
+                                    from: 0; to: ledSender.rfModes.length; step: 1
+                                    valueText: value === 0 ? "BATTERY/DUTY" : ledSender.rfModes[value - 1]
+                                    onMoved: {
+                                        if (own && ledSender.oneColor(newValue - 1) && !ledSender.oneColor(swSettings.ledRideMode - 1)) swSettings.rideC2 = 0;
+                                        if (newValue !== swSettings.ledRideMode) ledSender.rideEffect(newValue);  // rf123
+                                        swSettings.ledRideMode = newValue; ledSender.changed();
+                                    }
+                                }
+                                SwStepper {
+                                    visible: ledSender.rfStatusAvail
+                                    width: parent.width
+                                    label: "SNOOZE"
+                                    valueWidth: 3.6 * unit
+                                    value: swSettings.ledStatusSnooze
+                                    rf: ({mode: value >= 4 ? value - 4 : [-2, -3, -4, -1][value],
+                                          c1: swSettings.snzAdvanced ? swSettings.snzC1 : ledSender.rfColor1, c2: swSettings.snzAdvanced ? swSettings.snzC2 : ledSender.rfColor2,
+                                          speed: swSettings.snzAdvanced ? swSettings.snzSpeed : ledSender.rfSpeed})
+                                    from: 0; to: 3 + ledSender.rfModes.length; step: 1
+                                    valueText: value >= 4 ? ledSender.rfModes[value - 4] : ["BREATHE", "DIM", "DARK", "NORMAL"][value]
+                                    onMoved: {
+                                        if (swSettings.snzAdvanced && ledSender.oneColor(newValue - 4) && !ledSender.oneColor(swSettings.ledStatusSnooze - 4)) swSettings.snzC2 = 0;
+                                        if (newValue !== swSettings.ledStatusSnooze) ledSender.snoozeEffect(newValue);  // rf123
+                                        swSettings.ledStatusSnooze = newValue; ledSender.changed();
                                     }
                                 }
                             }
-                            SwStepper {
-                                visible: ledSender.rfStatusAvail
-                                width: parent.width
-                                label: "RIDING"
-                                valueWidth: 3.6 * unit
-                                value: swSettings.ledRideMode
-                                readonly property bool own: swSettings.rideC1 >= 0
-                                rf: ({mode: value - 1, c1: own ? swSettings.rideC1 : ledSender.rfColor1, c2: own ? swSettings.rideC2 : ledSender.rfColor2,
-                                      speed: own ? swSettings.rideSpeed : ledSender.rfSpeed})
-                                from: 0; to: ledSender.rfModes.length; step: 1
-                                valueText: value === 0 ? "BATTERY/DUTY" : ledSender.rfModes[value - 1]
-                                onMoved: {
-                                    if (own && ledSender.oneColor(newValue - 1) && !ledSender.oneColor(swSettings.ledRideMode - 1)) swSettings.rideC2 = 0;
-                                    if (newValue !== swSettings.ledRideMode) ledSender.rideEffect(newValue);  // rf123
-                                    swSettings.ledRideMode = newValue; ledSender.changed();
-                                }
-                            }
-                            SwStepper {
-                                visible: ledSender.rfStatusAvail
-                                width: parent.width
-                                label: "SNOOZE"
-                                valueWidth: 3.6 * unit
-                                value: swSettings.ledStatusSnooze
-                                rf: ({mode: value >= 4 ? value - 4 : [-2, -3, -4, -1][value],
-                                      c1: swSettings.snzAdvanced ? swSettings.snzC1 : ledSender.rfColor1, c2: swSettings.snzAdvanced ? swSettings.snzC2 : ledSender.rfColor2,
-                                      speed: swSettings.snzAdvanced ? swSettings.snzSpeed : ledSender.rfSpeed})
-                                from: 0; to: 3 + ledSender.rfModes.length; step: 1
-                                valueText: value >= 4 ? ledSender.rfModes[value - 4] : ["BREATHE", "DIM", "DARK", "NORMAL"][value]
-                                onMoved: {
-                                    if (swSettings.snzAdvanced && ledSender.oneColor(newValue - 4) && !ledSender.oneColor(swSettings.ledStatusSnooze - 4)) swSettings.snzC2 = 0;
-                                    if (newValue !== swSettings.ledStatusSnooze) ledSender.snoozeEffect(newValue);  // rf123
-                                    swSettings.ledStatusSnooze = newValue; ledSender.changed();
-                                }
-                            }
                             SwLText {
+                                horizontalAlignment: Text.AlignHCenter
                                 width: parent.width
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: fontSizeSmall
@@ -9143,19 +9177,19 @@ Item {
                                     LedHeading { text: modelData[0] }
                                     Repeater {
                                         model: modelData[1]
-                                        Column {
+                                        LedCard {
                                             id: rgbSimpleBar
                                             width: rgbCol.width
-                                            spacing: 0.14 * unit
+                                            title: modelData[0]
                                             readonly property int barIdx: modelData[1]
                                             readonly property var b: ledSender.rgb[barIdx] || ({mode: 0, c1: 1, c2: 0, speed: 1})
                                             // rf122 / rf123: each light's color, above its animation, left / right arrows
                                             SwStepper {
                                                 visible: (rgbSimpleBar.b.mode || 0) < 6
-                                                width: rgbCol.width
+                                                width: parent.width
                                                 label: "COLOR"
                                                 sideArrows: true
-                                                valueWidth: 3.2 * unit
+                                                valueWidth: 3.6 * unit
                                                 value: rgbSimpleBar.b.c1 || 0
                                                 from: 0; to: 29; step: 1
                                                 valueText: ledSender.rfColors[value]
@@ -9163,8 +9197,8 @@ Item {
                                                 onMoved: ledSender.rgbSet(rgbSimpleBar.barIdx, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                                             }
                                             SwStepper {
-                                                width: rgbCol.width
-                                                label: modelData[0]
+                                                width: parent.width
+                                                label: "EFFECT"
                                                 valueWidth: 3.6 * unit
                                                 rf: rgbSimpleBar.b
                                                 value: rgbSimpleBar.b.mode || 0
@@ -9176,15 +9210,21 @@ Item {
                                             }
                                         }
                                     }
-                                    SwStepper {
-                                        label: "BRIGHTNESS"
-                                        value: ledSender.rgbLoaded ? ledSender.rgbBri(rgbSimpleGrp.briBar) : 0
-                                        from: 0; to: 100; step: 5; suffix: "%"
-                                        onMoved: ledSender.rgbSetBri(rgbSimpleGrp.briBar, newValue)
+                                    LedCard {
+                                        width: rgbCol.width
+                                        SwStepper {
+                                            width: parent.width
+                                            label: "BRIGHTNESS"
+                                            valueWidth: 3.6 * unit
+                                            value: ledSender.rgbLoaded ? ledSender.rgbBri(rgbSimpleGrp.briBar) : 0
+                                            from: 0; to: 100; step: 5; suffix: "%"
+                                            onMoved: ledSender.rgbSetBri(rgbSimpleGrp.briBar, newValue)
+                                        }
                                     }
                                 }
                             }
                             SwLText {
+                                horizontalAlignment: Text.AlignHCenter
                                 width: parent.width
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: fontSizeSmall
