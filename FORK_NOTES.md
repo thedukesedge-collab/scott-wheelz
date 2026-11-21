@@ -1625,3 +1625,13 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   and page 2 are unchanged; tapping the version line still reopens it.
   UI only. The portrait remains in older commits and builds (history is not
   rewritten).
+
+### More credit to Refloat (v1.2.3-rf146)
+- New first line on the start notice (neon green, centered): "None of this
+  would be possible without all the hard work Lukáš Hrázký (lukash) and the
+  Refloat community have put into Refloat. Thank you!" The existing credits
+  paragraph (Refloat and Float authors) stays.
+- The same line in the VESC Tool package description (package_README.md) and
+  the repository README credits.
+- Tour WELCOME page: "Built on Refloat 1.2.3 by Lukáš Hrázký (lukash) and the
+  Refloat community, reimagined with ...". UI text only.

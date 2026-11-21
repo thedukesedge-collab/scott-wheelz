@@ -4,6 +4,8 @@
 
 **Re-Float Rink-Mixed is a vibe-coded fork of [Refloat](https://github.com/lukash/refloat) 1.2.3.** All the changes below were made with an AI coding assistant on top of Refloat. All credit for the package itself goes to **Lukáš Hrázký (lukash)**, the author of Refloat, and to the original Float authors (Mitch Lustig, Dado Mista, Nico Aleman, based on work by Benjamin Vedder). Licensed under GPL-3.0. Not an official Refloat release, so please don't report Re-Float Rink-Mixed issues to the Refloat project.
 
+*None of this would be possible without all the hard work Lukáš Hrázký (lukash) and the Refloat community have put into Refloat. Thank you!*
+
 ## New in Re-Float Rink-Mixed
 - **Haptic horn**: a big HORN bar on the main screen. Works out of the box: if your Haptic Feedback strengths are lower (Refloat's default Vibrate Strength is 0), the horn uses its own minimums (beep 2.5 V, vibrate 8 A); higher settings are kept. Hold or tap it: full haptics while riding (up to 3 s per press), tone only when idle (up to 2 s). A heat budget allows repeated taps as long as it stays safe. Real pushback and alerts always override it. If the app disconnects, the horn stops within 0.5 s.
 - **TILT slider** on the main screen: +-4 deg remote tilt that springs back to 0 when released. The package hard-caps remote tilt at +-4 deg.
