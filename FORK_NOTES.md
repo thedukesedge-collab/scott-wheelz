@@ -1578,3 +1578,22 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - NOTES (after ♪ BEEP) shows the note names on the tiles again (E4 ... G5,
   as before rf85); tap again for blank tiles. Remembered
   (swSettings.mixerNotes, default off). UI only.
+
+### Start notice page 2: BACK TO REFLOAT 1.2.3 (v1.2.3-rf143)
+- The "Before you start" notice has two pages: NEXT › leads to a "don't
+  trust the AI code" picture (240x240 JPEG, 11.7 KB, embedded) with
+  CONTINUE WITH refloatRM, ↶ BACK TO REFLOAT 1.2.3 and ‹ BACK.
+- BACK TO REFLOAT 1.2.3 opens a confirm window (board connected and
+  stopped, back up the Refloat Cfg, tune carries over, LCM firmware not
+  changed, how to come back). INSTALL 1.2.3 downloads the official,
+  unmodified Refloat 1.2.3 package, mirrored byte-for-byte from
+  lukash/refloat by refloat-stock.yml to release `refloat-stock`, and only
+  accepts it if the size (97317) and SHA-256 (87110e8f…5daf) match. The
+  board must be connected and not running both before the download and
+  right before installing. The install is VESC Tool's own
+  CodeLoader.installVescPackage (the same as the Packages page). Nothing is
+  written to the board until the file passes its checks.
+- CI: new step fails the build if the Refloat settings signature ever
+  differs from stock 1.2.3's config_signature.txt, because the tune only
+  carries over while the two match. src/conf is unchanged from v1.2.3.
+- No firmware (C) changes. QML only, plus CI.

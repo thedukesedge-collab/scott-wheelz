@@ -7996,22 +7996,191 @@ Item {
         }
     }
 
+    // rf143: BACK TO REFLOAT 1.2.3 (page 2 of the start notice). Installs the
+    // official, unmodified Refloat 1.2.3 package, mirrored byte-for-byte from
+    // lukash/refloat's v1.2.3 release by .github/workflows/refloat-stock.yml.
+    // Only that exact file is accepted (size + SHA-256), only with the board
+    // connected and stopped, and only after the rider confirms. It uses VESC
+    // Tool's own installer (CodeLoader.installVescPackage), the same one the
+    // Packages page uses. The LCM firmware and the VESC firmware are not touched.
+    QtObject {
+        id: stockRevert
+        readonly property string url: "https://github.com/thedukesedge-collab/scott-wheelz/releases/download/refloat-stock/refloat-1.2.3.vescpkg"
+        readonly property string sha: "87110e8f044787daf5730b7b7ded99f5c2e4b7adc03caaf6bf37c0685f9aa135"
+        readonly property int size: 97317
+        property int phase: 0  // 0 ready, 1 downloading, 2 installing, 3 stopped with a message
+        property string msg: ""
+        property var xhr: null
+        property Timer timeout: Timer {
+            interval: 60000
+            onTriggered: { stockRevert.cancel(); stockRevert.fail("The download timed out. Nothing was changed."); }
+        }
+
+        function blocker() {
+            if (!VescIf.isPortConnected()) return "Connect to the board first.";
+            if (mainItem.boardRunning) return "Stop the board first.";
+            return "";
+        }
+        function reset() { if (phase !== 2) { phase = 0; msg = ""; } }
+        function fail(m) { phase = 3; msg = m; }
+        function cancel() {
+            timeout.stop();
+            if (xhr) { var r = xhr; xhr = null; r.abort(); }
+            if (phase === 1) { phase = 0; msg = ""; }
+        }
+        function start() {
+            var b = blocker();
+            if (b) { fail(b); return; }
+            phase = 1;
+            msg = "Downloading Refloat 1.2.3...";
+            var r = new XMLHttpRequest();
+            xhr = r;
+            r.open("GET", url, true);
+            r.responseType = "arraybuffer";
+            r.onreadystatechange = function() {
+                if (r.readyState !== XMLHttpRequest.DONE || xhr !== r) return;
+                xhr = null;
+                timeout.stop();
+                if (r.status !== 200 || !r.response) {
+                    fail("Download failed (" + (r.status === 0 ? "no connection" : "HTTP " + r.status) + "). Nothing was changed.");
+                    return;
+                }
+                var u = new Uint8Array(r.response);
+                if (u.length !== size || sha256(u) !== sha) {
+                    fail("The download didn't match the official Refloat 1.2.3 file. Nothing was changed.");
+                    return;
+                }
+                phase = 2;
+                msg = "Installing... keep the board connected.";
+                var data = r.response;
+                Qt.callLater(function() { stockRevert.install(data); });
+            };
+            timeout.restart();
+            r.send();
+        }
+        function install(data) {
+            var b = blocker();  // checked again right before anything is written
+            if (b) { fail(b + " Nothing was changed."); return; }
+            var ok = false;
+            try { ok = packageLoader.installVescPackage(data); } catch (e) { ok = false; }
+            // on success VESC Tool reloads and this screen is replaced by Refloat's
+            if (!ok) fail("The install didn't finish. Before riding, install Refloat 1.2.3 (or refloatRM) from VESC Tool › Packages.");
+        }
+        // plain SHA-256 over a Uint8Array, returns lowercase hex
+        function sha256(m) {
+            function rr(x, n) { return (x >>> n) | (x << (32 - n)); }
+            var K = [], H = [], p = 2, i, j, t;
+            while (K.length < 64) {
+                for (j = 2; j * j <= p; j++) if (p % j === 0) break;
+                if (j * j > p) {
+                    if (H.length < 8) H.push((Math.pow(p, 1 / 2) % 1) * 4294967296 | 0);
+                    K.push((Math.pow(p, 1 / 3) % 1) * 4294967296 | 0);
+                }
+                p++;
+            }
+            var l = m.length, n = ((l + 72) >> 6) << 6, b = new Uint8Array(n), w = [];
+            b.set(m);
+            b[l] = 0x80;
+            var bits = l * 8;
+            b[n - 5] = Math.floor(bits / 4294967296) & 255;
+            b[n - 4] = (bits >>> 24) & 255; b[n - 3] = (bits >>> 16) & 255; b[n - 2] = (bits >>> 8) & 255; b[n - 1] = bits & 255;
+            for (i = 0; i < n; i += 64) {
+                for (t = 0; t < 64; t++) {
+                    if (t < 16) {
+                        w[t] = b[i + 4 * t] << 24 | b[i + 4 * t + 1] << 16 | b[i + 4 * t + 2] << 8 | b[i + 4 * t + 3];
+                    } else {
+                        var x = w[t - 15], y = w[t - 2];
+                        w[t] = (w[t - 16] + (rr(x, 7) ^ rr(x, 18) ^ (x >>> 3)) + w[t - 7] + (rr(y, 17) ^ rr(y, 19) ^ (y >>> 10))) | 0;
+                    }
+                }
+                var a = H[0], c1 = H[1], c2 = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+                for (t = 0; t < 64; t++) {
+                    var t1 = (h + (rr(e, 6) ^ rr(e, 11) ^ rr(e, 25)) + ((e & f) ^ (~e & g)) + K[t] + w[t]) | 0;
+                    var t2 = ((rr(a, 2) ^ rr(a, 13) ^ rr(a, 22)) + ((a & c1) ^ (a & c2) ^ (c1 & c2))) | 0;
+                    h = g; g = f; f = e; e = (d + t1) | 0; d = c2; c2 = c1; c1 = a; a = (t1 + t2) | 0;
+                }
+                H[0] = (H[0] + a) | 0; H[1] = (H[1] + c1) | 0; H[2] = (H[2] + c2) | 0; H[3] = (H[3] + d) | 0;
+                H[4] = (H[4] + e) | 0; H[5] = (H[5] + f) | 0; H[6] = (H[6] + g) | 0; H[7] = (H[7] + h) | 0;
+            }
+            var s = "";
+            for (i = 0; i < 8; i++) s += ("0000000" + (H[i] >>> 0).toString(16)).slice(-8);
+            return s;
+        }
+    }
+
+    BaseDialog {
+        id: revertDialog
+        parent: ApplicationWindow.overlay
+        title: "Back to Refloat 1.2.3"
+        standardButtons: Dialog.NoButton
+        closePolicy: Popup.NoAutoClose
+        onOpened: stockRevert.reset()
+
+        Column {
+            width: revertDialog.availableWidth
+            spacing: 0.3 * unit
+
+            NText {
+                width: parent.width
+                font.pointSize: 12
+                wrapMode: Text.WordWrap
+                text: "This swaps refloatRM for the official, unmodified Refloat 1.2.3 package.\n\n"
+                    + "• The board must be connected and stopped.\n"
+                    + "• Save a backup of your Refloat Cfg in VESC Tool first.\n"
+                    + "• Your tune carries over. refloatRM's extras go away.\n"
+                    + "• Your LCM firmware is not changed.\n"
+                    + "• To come back, install refloatRM's .vescpkg again."
+            }
+            Text {
+                visible: stockRevert.msg !== ""
+                width: parent.width
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+                text: stockRevert.msg
+                color: stockRevert.phase === 3 ? "#ff8a1f" : swTheme.neonGreen
+                font.pixelSize: fontSizeSmall
+            }
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 0.3 * unit
+                NeonButton {
+                    text: "Cancel"
+                    enabled: stockRevert.phase !== 2
+                    onClicked: { stockRevert.cancel(); revertDialog.close(); }
+                }
+                NeonButton {
+                    text: stockRevert.phase === 3 ? "Try again" : "Install 1.2.3"
+                    lit: true
+                    enabled: stockRevert.phase === 0 || stockRevert.phase === 3
+                    onClicked: stockRevert.start()
+                }
+            }
+        }
+    }
+
     // rf93: shown each time the package UI opens, until "don't show again"
     BaseDialog {
         id: disclaimerDialog
         parent: ApplicationWindow.overlay
         title: "Before you start"
-        standardButtons: Dialog.Ok
+        standardButtons: Dialog.NoButton
         closePolicy: Popup.NoAutoClose
+        property int page: 0  // rf143: 0 the notice, 1 "don't trust the AI code"
 
-        onOpened: { disclaimerHide.checked = false; standardButton(Dialog.Ok).text = "Got it"; }
-        onAccepted: {
+        onOpened: { page = 0; disclaimerHide.checked = false; }
+        function finish() {
             if (disclaimerHide.checked) swSettings.hideDisclaimerVer = "{{VERSION}}";
+            close();
             if (!swSettings.tourSeen) rinkTour.open();
         }
 
+        Column {
+            width: disclaimerDialog.availableWidth
+            spacing: 0.3 * unit
+
         // rf137: scrolls now that the Scout's Honor easter egg sits under the notice
         Flickable {
+            visible: disclaimerDialog.page === 0
             width: disclaimerDialog.availableWidth
             height: Math.min(disclaimerCol.implicitHeight, (disclaimerDialog.parent ? disclaimerDialog.parent.height : 800) * 0.6)
             contentHeight: disclaimerCol.implicitHeight
@@ -8100,6 +8269,89 @@ Item {
                 color: "#8a7aa8"
                 font.pixelSize: fontSizeSmall * 0.85
                 text: "Just a joke: the Scout hasn't reviewed, approved or certified this package and isn't responsible for it."
+            }
+        }
+        }
+
+        // rf143: page 2 - the way back to stock Refloat 1.2.3
+        Column {
+            visible: disclaimerDialog.page === 1
+            width: parent.width
+            spacing: 0.25 * unit
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.min(parent.width * 0.72, 4.2 * unit)
+                height: width
+                radius: 0.18 * unit
+                color: "black"
+                border.color: swTheme.neonGreen
+                border.width: 2
+                clip: true
+                Image {
+                    anchors.fill: parent
+                    anchors.margins: 2
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    asynchronous: true
+                    source: disclaimerDialog.page === 1 ? "data:image/jpeg;base64,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" : ""
+                }
+            }
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                color: "#ead6ff"
+                font.pixelSize: fontSizeSmall
+                textFormat: Text.StyledText
+                text: "Not sure about AI-written code? Fair enough.<br>Stock <b>Refloat 1.2.3</b> is one tap away. Your tune carries over."
+            }
+        }
+
+        Column {
+            width: parent.width
+            spacing: 0.2 * unit
+            NeonButton {
+                visible: disclaimerDialog.page === 0
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "Next \u203A"
+                lit: true
+                onClicked: disclaimerDialog.page = 1
+            }
+            NeonButton {
+                visible: disclaimerDialog.page === 1
+                width: parent.width
+                text: "Continue with refloatRM"
+                lit: true
+                onClicked: disclaimerDialog.finish()
+            }
+            Rectangle {
+                visible: disclaimerDialog.page === 1
+                width: parent.width
+                height: 0.8 * unit
+                radius: height / 2
+                color: backArea.pressed ? "#ff8a1f" : "transparent"
+                border.color: "#ff8a1f"
+                border.width: 2
+                Text {
+                    anchors.centerIn: parent
+                    text: "\u21B6 BACK TO REFLOAT 1.2.3"
+                    color: backArea.pressed ? swTheme.background : "#ff8a1f"
+                    font.family: "Exan"
+                    font.pixelSize: 0.24 * unit
+                }
+                MouseArea {
+                    id: backArea
+                    anchors.fill: parent
+                    onClicked: revertDialog.open()
+                }
+            }
+            Text {
+                visible: disclaimerDialog.page === 1
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "\u2039 BACK"
+                color: "#8a7aa8"
+                font.pixelSize: fontSizeSmall
+                MouseArea { anchors.fill: parent; anchors.margins: -0.2 * unit; onClicked: disclaimerDialog.page = 0 }
             }
         }
         }

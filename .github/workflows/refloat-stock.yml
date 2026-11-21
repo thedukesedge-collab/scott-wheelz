@@ -7,7 +7,7 @@ on:
     inputs:
       tag:
         description: 'Refloat release tag'
-        default: 'v1.2.1'
+        default: 'v1.2.3'
 
 jobs:
   fetch:
@@ -16,7 +16,7 @@ jobs:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: ${{ inputs.tag || 'v1.2.1' }}
+      TAG: ${{ inputs.tag || 'v1.2.3' }}
     steps:
       - uses: actions/checkout@v4
       - name: List upstream releases

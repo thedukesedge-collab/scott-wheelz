@@ -53,6 +53,20 @@ jobs:
           [ -d /tmp/upstream ] || git clone -q --depth 1 --branch v1.2.3 https://github.com/lukash/refloat /tmp/upstream
           sh tools/static_analysis.sh /tmp/upstream/src
 
+      # rf143: BACK TO REFLOAT 1.2.3 promises the rider's tune carries over.
+      # That holds only while our Refloat settings signature equals stock
+      # 1.2.3's, so the build fails if it ever drifts (e.g. a settings.xml edit).
+      - name: Settings signature matches stock Refloat 1.2.3
+        if: steps.build.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          OURS=$(sed -n 's/^#define .\+_SIGNATURE\W\+\([0-9]*\)/\1/p' src/conf/confparser.h)
+          gh release download v1.2.3 -R lukash/refloat -p config_signature.txt -O /tmp/stock_sig.txt
+          STOCK=$(tr -d '[:space:]' < /tmp/stock_sig.txt)
+          echo "refloatRM: $OURS  stock 1.2.3: $STOCK"
+          [ -n "$OURS" ] && [ "$OURS" = "$STOCK" ] || { echo "::error::Settings signature differs from stock 1.2.3: BACK TO REFLOAT 1.2.3 would reset riders' tunes"; exit 1; }
+
       - name: Upload Package
         if: always() && steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
