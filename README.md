@@ -4,6 +4,7 @@
 
 **Refloat Glow is an independent, unofficial modification of [Refloat](https://github.com/lukash/refloat) v1.2.3**, the VESC package for self-balancing skateboards by Lukáš Hrázký (lukash). It adds a Neon Future app UI, a motor horn and melodies, controller- and LCM-driven lights, and an optional light module firmware. The balance and motor-control code is Refloat's, unchanged.
 
+- **An unofficial side project, built for fun**, to make a few things simpler, like the LED controls.
 - **Not an official Refloat release**, and not endorsed by or affiliated with the Refloat developers. Please don't report Refloat Glow issues to the Refloat project; open them here.
 - **Credit:** None of this would be possible without all the hard work Lukáš Hrázký (lukash) and the Refloat community have put into Refloat. Thank you! Refloat by Lukáš Hrázký; Float by Mitch Lustig, Dado Mista and Nico Aleman, based on work by Benjamin Vedder. The light module firmware in `lcm/alcm` is [ALCM](https://github.com/MrTheConductor/alcm) by Mitchell White. Third-party code: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 - **License:** GNU GPL v3.0 or later, the same as Refloat ([LICENSE](LICENSE)). Every build names the commit it was built from, and its full source is in this repository.

@@ -8208,7 +8208,8 @@ Item {
                 width: parent.width
                 font.pointSize: 12
                 wrapMode: Text.WordWrap
-                text: "Everything in Refloat Glow works off your current Refloat settings: tunes, lights, sounds and the rest read and write Refloat's own configuration.\n\n"
+                text: "Refloat Glow is an unofficial side project, built for fun, to make a few things simpler, like the LED controls. It's not an official Refloat release.\n\n"
+                    + "Everything in Refloat Glow works off your current Refloat settings: tunes, lights, sounds and the rest read and write Refloat's own configuration.\n\n"
                     + "To use its features properly you need a working board that is set up and rides correctly on Refloat, and working LEDs for the light features.\n\n"
                     + "Based on Refloat 1.2.3. Later Refloat versions are known to ride quite differently, so if you're coming back from a newer version your board will likely feel noticeably different.\n\n"
                     + "All credit goes to Lukáš Hrázký (lukash), the author of Refloat, and to the original Float package authors (Mitch Lustig, Dado Mista, Nico Aleman). I take zero credit for any of it.\n\n"

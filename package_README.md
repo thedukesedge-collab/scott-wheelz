@@ -4,6 +4,8 @@
 
 **Refloat Glow is a vibe-coded fork of [Refloat](https://github.com/lukash/refloat) 1.2.3.** All the changes below were made with an AI coding assistant on top of Refloat. All credit for the package itself goes to **Lukáš Hrázký (lukash)**, the author of Refloat, and to the original Float authors (Mitch Lustig, Dado Mista, Nico Aleman, based on work by Benjamin Vedder). Licensed under GPL-3.0. Not an official Refloat release, so please don't report Refloat Glow issues to the Refloat project.
 
+*Refloat Glow is an unofficial side project, built for fun, to make a few things simpler, like the LED controls. It's not an official Refloat release.*
+
 *None of this would be possible without all the hard work Lukáš Hrázký (lukash) and the Refloat community have put into Refloat. Thank you!*
 
 ## New in Refloat Glow

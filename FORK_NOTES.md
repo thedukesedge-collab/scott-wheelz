@@ -1652,3 +1652,9 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - The package name is only a label (saved tunes record it; VESC Tool's store
   lookup); installing over an older build works as before. No firmware
   logic changes.
+
+### "Unofficial side project" line (v1.2.3-rf148)
+- Start notice (after the thank-you line), package README and repository
+  README: "Refloat Glow is an unofficial side project, built for fun, to make
+  a few things simpler, like the LED controls. It's not an official Refloat
+  release." UI text only.
