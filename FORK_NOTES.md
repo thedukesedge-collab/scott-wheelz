@@ -1617,3 +1617,11 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   merges on a branch, contributing back through a clean fork).
 - Upstream Refloat history (through v1.2.3, 800a46b) joined into main with
   a merge that changes no files, so lukash's commits are in our history.
+
+### Scout's Honor easter egg removed (v1.2.3-rf145)
+- The Scout's Honor block (portrait, pledge and joke note under the start
+  notice, added in rf137-rf139) is gone from the package and the simulator,
+  at the user's request. The notice text, "Don't show this again", NEXT ›
+  and page 2 are unchanged; tapping the version line still reopens it.
+  UI only. The portrait remains in older commits and builds (history is not
+  rewritten).
