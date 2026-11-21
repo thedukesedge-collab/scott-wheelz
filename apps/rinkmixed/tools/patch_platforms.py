@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
 """Run after `flutter create .` in CI: Bluetooth permissions, names, icons-free tweaks."""
 import pathlib, re, sys
 

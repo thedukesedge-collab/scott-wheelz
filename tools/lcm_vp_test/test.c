@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>

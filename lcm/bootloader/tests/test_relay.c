@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+
 /*
  * End-to-end host test: phone -> VP package (the real src/lcm_fw.c) -> LCM
  * bootloader (the real bootloader.c), over simulated BLE and UART links.

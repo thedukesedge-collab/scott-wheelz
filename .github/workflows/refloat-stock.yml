@@ -32,6 +32,6 @@ jobs:
           NAME="refloat-${TAG#v}.vescpkg"
           cp dl/*.vescpkg "$NAME"
           gh release view refloat-stock >/dev/null 2>&1 || gh release create refloat-stock --prerelease \
-            --title "Stock Refloat (unmodified)" --notes "Official Refloat packages from lukash/refloat, unmodified." --target "$GITHUB_SHA"
+            --title "Stock Refloat (unmodified)" --notes "Official Refloat packages from lukash/refloat, unmodified (byte-for-byte copies of the upstream release files). Refloat is by Lukas Hrazky and contributors, licensed GPL-3.0-or-later; source and license: https://github.com/lukash/refloat. Mirrored here by refloatRM, which is not affiliated with the Refloat project." --target "$GITHUB_SHA"
           gh release upload refloat-stock "$NAME" --clobber
           echo "SHA256: $(sha256sum "$NAME")"

@@ -200,6 +200,11 @@ Do not begin changing safety-critical firmware behavior as part of this naming a
   - QML Settings category `scottWheelz` (renaming wipes every user's saved app
     settings).
   - Historical entries in FORK_NOTES.md.
+- Git history: upstream Refloat history through v1.2.3 is joined into `main`
+  (merge -s ours, rf144). Remote `upstream` = lukash/refloat with
+  `tagOpt --no-tags`. NEVER push upstream tags (v1.2.3, v1.3.x...) here: they
+  would trigger release workflows. See RELEASING.md "Working with upstream".
+- Third-party code and its review status: THIRD_PARTY_NOTICES.md.
 - Changelog: FORK_NOTES.md (one entry per release, `v1.2.3-rfN`); version in
   `version`. Releases: RELEASING.md (tagged releases only after review).
 - Files changed from upstream carry the line

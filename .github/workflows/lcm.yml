@@ -93,7 +93,7 @@ jobs:
           gh release create lcm-dev $F/SLCM.hex $F/ALCM_VP.hex $F/ALCM_VP_app.bin \
             --prerelease --latest=false --target "$GITHUB_SHA" \
             --title "DEV LCM firmware (${GITHUB_SHA::7}) - bench testing only, NOT for riding" \
-            --notes "Untested SLCM build from ${GITHUB_SHA::7}. Riders: use SLCM.hex from the lcm-latest release."
+            --notes "Untested SLCM build from ${GITHUB_SHA::7}. Riders: use SLCM.hex from the lcm-latest release. Light firmware: ALCM by Mitchell White (GPL-3.0) with refloatRM changes; contains ARM CMSIS (BSD-3-Clause). refloatRM is an unofficial modification of Refloat by Lukas Hrazky, not affiliated with or endorsed by the Refloat developers. License: GPL-3.0-or-later (LICENSE); full source of this build: https://github.com/thedukesedge-collab/scott-wheelz/tree/${GITHUB_SHA}; third-party notices: THIRD_PARTY_NOTICES.md."
 
       - name: Publish LCM rider release (tag v<version>)
         if: success() && startsWith(github.ref, 'refs/tags/v')
@@ -125,6 +125,6 @@ jobs:
           # lcm-latest (linked from the app) = the SLCM of the latest rider release
           gh release view lcm-latest >/dev/null 2>&1 || gh release create lcm-latest --prerelease --latest=false \
             --title "LCM firmware (SLCM)" --notes "SLCM" --target "$GITHUB_SHA"
-          gh release edit lcm-latest --notes "SLCM (ALCM v0.1.1 + VP light control) from Re-Float Rink-Mixed $VER (${GITHUB_SHA::7}). SLCM.hex = bootloader + light firmware: flash ONCE with the ST-Link (battery disconnected), after that update from the app (LEDS > LCM firmware tools). ALCM_VP.hex = the same light firmware without the bootloader (ST-Link only, not recommended). ALCM_VP_app.bin = the update image. See lcm/bootloader/README.md."
+          gh release edit lcm-latest --notes "SLCM (ALCM v0.1.1 + VP light control) from Re-Float Rink-Mixed $VER (${GITHUB_SHA::7}). SLCM.hex = bootloader + light firmware: flash ONCE with the ST-Link (battery disconnected), after that update from the app (LEDS > LCM firmware tools). ALCM_VP.hex = the same light firmware without the bootloader (ST-Link only, not recommended). ALCM_VP_app.bin = the update image. See lcm/bootloader/README.md. Light firmware: ALCM by Mitchell White (GPL-3.0) with refloatRM changes; contains ARM CMSIS (BSD-3-Clause). refloatRM is an unofficial modification of Refloat by Lukas Hrazky, not affiliated with or endorsed by the Refloat developers. License: GPL-3.0-or-later (LICENSE); full source of this build: https://github.com/thedukesedge-collab/scott-wheelz/tree/${GITHUB_SHA}; third-party notices: THIRD_PARTY_NOTICES.md."
           gh release upload lcm-latest $F/ALCM_VP.hex $F/SLCM.hex $F/ALCM_VP_app.bin --clobber
           gh release delete-asset lcm-latest ALCM_VP_BL_full.hex -y 2>/dev/null || true

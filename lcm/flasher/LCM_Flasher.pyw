@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
 """
 LCM Flasher - pick a .hex file and flash it to the LCM over ST-Link.
 

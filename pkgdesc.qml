@@ -1,3 +1,6 @@
+// Part of the Refloat VESC package (GPL-3.0-or-later, see LICENSE).
+// Modified by Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+
 import QtQuick 2.15
 
 Item {

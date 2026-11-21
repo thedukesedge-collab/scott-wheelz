@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
 // CI: runs the app's own parseHex()/crc16() (pulled out of ui.qml.in) in node.
 const fs = require('fs');
 const qml = fs.readFileSync(process.argv[2], 'utf8');

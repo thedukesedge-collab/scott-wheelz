@@ -1597,3 +1597,23 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   differs from stock 1.2.3's config_signature.txt, because the tune only
   carries over while the two match. src/conf is unchanged from v1.2.3.
 - No firmware (C) changes. QML only, plus CI.
+
+### Repository: attribution, license notices, upstream history (v1.2.3-rf144)
+- README.md opens with what refloatRM is (an unofficial Refloat
+  modification, not affiliated with the Refloat developers), credits,
+  license, AI-assisted note, download channels and a safety warning;
+  Refloat's own README follows unchanged. CONTRIBUTING.md got a one-line
+  note on where refloatRM issues go.
+- License notices (comments only, no code change): the "Modified by refloatRM"
+  line on lisp/package.lisp, lisp/bms.lisp and pkgdesc.qml; SPDX
+  GPL-3.0-or-later headers on 28 refloatRM-written files (src/battery_curve,
+  src/lcm_fw, the LCM bootloader, the flasher, tests and tools).
+- New THIRD_PARTY_NOTICES.md (ALCM, ARM CMSIS license text, HK32 library,
+  flasher and app dependencies; open items marked NEEDS REVIEW).
+- Release notes (dev, LCM, rider, stock mirror) now state the license, the
+  non-affiliation and link the exact source commit. Text only.
+- RELEASING.md: lcm-latest status, licensing checks before tagging, and how
+  to work with upstream (remote setup, never push upstream tags, upstream
+  merges on a branch, contributing back through a clean fork).
+- Upstream Refloat history (through v1.2.3, 800a46b) joined into main with
+  a merge that changes no files, so lukash's commits are in our history.

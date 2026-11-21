@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
 # Host test of the light module (ALCM VP) settings in src/lcm.c: clamping,
 # EEPROM pack/unpack, and the exact LCM poll reply bytes ALCM reads.
 # lcm.c/lcm.h are copied next to small stub headers, since quoted includes

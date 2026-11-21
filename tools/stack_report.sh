@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
 # Re-Float Rink-Mixed (rf75): stack-usage report for the package.
 #
 # A stack overflow on one of the controller's threads is a silent crash, and

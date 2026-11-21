@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+
 /*
  * Host simulation of the LCM hardware for the bootloader tests: 16 KB
  * flash (128-byte pages, NOR semantics: erase to 0xFF, programming only

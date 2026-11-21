@@ -1,3 +1,6 @@
+; Part of the Refloat VESC package (GPL-3.0-or-later, see LICENSE).
+; Modified by Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+
 (defun bms-loop () {
     (var v-cell-support (eq (first (trap (get-bms-val 'bms-v-cell-min))) 'exit-ok))
     (var err-print-time nil)

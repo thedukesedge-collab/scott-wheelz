@@ -1,4 +1,4 @@
-# Releasing Re-Float Rink-Mixed
+# Releasing Refloat rink-mixed (refloatRM)
 
 Riders only get **tagged releases**. Nothing pushed to `main` reaches a rider
 by itself.
@@ -7,6 +7,14 @@ by itself.
 |---|---|---|
 | Push to `main` | `dev-build` (package) and `lcm-dev` (SLCM) pre-releases | Bench testing only, wheel off the ground |
 | Tag `v<version>`, e.g. `v1.2.3-rf77` | Release `v1.2.3-rf77` (marked Latest) and `lcm-latest` | Riders |
+
+`lcm-latest` is the rider channel for the light module firmware: the tag
+flow (lcm.yml) replaces its files on every rider release. The copy there now
+(from 1805792, Nov 17) predates the tag flow and has not been through the
+bench checklist; it will be replaced by the first rider release.
+
+Until the first `v1.2.3-rfN` tag exists, the rider link below and the app's
+UPDATES check have no release to point to (GitHub answers 404).
 
 Every tagged release stays on GitHub, so the previous build is always one tap
 away if a new one misbehaves.
@@ -60,3 +68,38 @@ Light module (only if `lcm/` changed):
       beeping, the board does not power itself off, lights recover when the
       link is back.
 - [ ] Idle auto-shutdown still works with the link up (leave it ~10 min).
+
+## Licensing in every release
+- The release notes say refloatRM is an unofficial Refloat modification
+  under GPL-3.0-or-later, link the exact source commit, and point to
+  THIRD_PARTY_NOTICES.md (built into the workflows and tools/release_notes.md).
+- Before tagging, check THIRD_PARTY_NOTICES.md: nothing new without a
+  license, and no NEEDS REVIEW item that affects the files being released.
+
+## Working with upstream Refloat
+Our `main` contains Refloat's full history: upstream v1.2.3 (800a46b) was
+joined in with a merge that changed no files (`git merge -s ours`), so
+lukash's commits and authorship show in `git log`, and Git knows exactly
+which upstream version we are based on.
+
+One-time setup in a clone:
+
+    git remote add upstream https://github.com/lukash/refloat
+    git config remote.upstream.tagOpt --no-tags
+    git fetch upstream
+
+- **Never push upstream's tags to this repository** (`git push --tags`, or
+  pushing `v1.2.3` etc.). A tag like `v1.3.1` would start the old upstream
+  `create_release.yml` and our rider release job. Push branches by name,
+  e.g. `git push origin main`.
+- See what upstream changed since our base:
+  `git log --oneline v1.2.3..upstream/main` (or `..<tag>` after
+  `git fetch upstream tag <tag>`).
+- Bring in upstream changes on a branch (e.g. `upstream-1.3.1`), never
+  straight on `main`: `git merge <upstream tag>`, resolve, then run the full
+  CI and the bench checklist. Safety-critical files (balance, motor,
+  footpad, state) take upstream's version unless there is a reviewed reason.
+- Contributing back to Refloat: use a separate, clean fork of
+  lukash/refloat (GitHub "Fork"), branch from upstream `main`, port one
+  isolated change per pull request, open an issue first to ask if it's
+  wanted, follow Refloat's CONTRIBUTING.md, and say it was AI-assisted.

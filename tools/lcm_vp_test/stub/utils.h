@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+
 #pragma once
 void log_error(const char *f, ...);
 void fatal_error_terminate(void);

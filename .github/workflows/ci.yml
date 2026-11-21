@@ -90,7 +90,7 @@ jobs:
           gh release create dev-build refloatrm-dev.vescpkg \
             --prerelease --latest=false \
             --title "DEV build $(cat version) (${GITHUB_SHA::7}) - bench testing only, NOT for riding" \
-            --notes "Untested development build of Re-Float Rink-Mixed $(cat version) from commit ${GITHUB_SHA::7}. For bench testing with the wheel off the ground only. Riders: use the latest release (Releases > Latest)." \
+            --notes "Untested development build of Re-Float Rink-Mixed $(cat version) from commit ${GITHUB_SHA::7}. For bench testing with the wheel off the ground only. Riders: use the latest release (Releases > Latest). refloatRM is an unofficial modification of Refloat by Lukas Hrazky, not affiliated with or endorsed by the Refloat developers. License: GPL-3.0-or-later (LICENSE); full source of this build: https://github.com/thedukesedge-collab/scott-wheelz/tree/${GITHUB_SHA}; third-party notices: THIRD_PARTY_NOTICES.md." \
             --target "$GITHUB_SHA"
 
       - name: Publish rider release (tag v<version>)

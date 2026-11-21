@@ -8,3 +8,5 @@ Files:
 - `ALCM_VP_app.bin`: the light module update image.
 
 This release went through the bench checklist in RELEASING.md before it was tagged. Untested builds from the main branch are on the "dev-build" / "lcm-dev" pre-releases and are not for riding.
+
+**License and source.** refloatRM is an unofficial modification of [Refloat](https://github.com/lukash/refloat) and is not affiliated with or endorsed by the Refloat developers. It is licensed under the GNU GPL v3.0 or later ([LICENSE](https://github.com/thedukesedge-collab/scott-wheelz/blob/main/LICENSE)). The complete source for this release is the tagged commit (the "Source code" downloads below). The light module firmware is ALCM by Mitchell White (GPL-3.0) with refloatRM changes, and contains ARM CMSIS (BSD-3-Clause). See [THIRD_PARTY_NOTICES.md](https://github.com/thedukesedge-collab/scott-wheelz/blob/main/THIRD_PARTY_NOTICES.md). Provided without warranty.

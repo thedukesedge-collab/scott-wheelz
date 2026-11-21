@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
 // Re-Float Rink-Mixed: battery % for the LCM status bar from a per-cell
 // voltage curve chosen in the app (presets from floatwheel's own tables, or
 // a custom one). Computed here and sent to the LCM in the VP block, so the

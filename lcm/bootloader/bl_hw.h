@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+
 /*
  * LCM bootloader: hardware access. On the LCM these are register-level
  * inline functions (no vendor library, no interrupts); for the host tests
