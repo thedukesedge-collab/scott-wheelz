@@ -1,4 +1,4 @@
-# Releasing Refloat rink-mixed (refloatRM)
+# Releasing Refloat Glow
 
 Riders only get **tagged releases**. Nothing pushed to `main` reaches a rider
 by itself.
@@ -70,7 +70,7 @@ Light module (only if `lcm/` changed):
 - [ ] Idle auto-shutdown still works with the link up (leave it ~10 min).
 
 ## Licensing in every release
-- The release notes say refloatRM is an unofficial Refloat modification
+- The release notes say Refloat Glow is an unofficial Refloat modification
   under GPL-3.0-or-later, link the exact source commit, and point to
   THIRD_PARTY_NOTICES.md (built into the workflows and tools/release_notes.md).
 - Before tagging, check THIRD_PARTY_NOTICES.md: nothing new without a

@@ -1,5 +1,5 @@
 ; Part of the Refloat VESC package (GPL-3.0-or-later, see LICENSE).
-; Modified by Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+; Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
 
 (defun bms-loop () {
     (var v-cell-support (eq (first (trap (get-bms-val 'bms-v-cell-min))) 'exit-ok))
@@ -42,7 +42,7 @@
         (if (and (eq (first res) 'exit-error)
                  (or (not err-print-time) (>= (secs-since err-print-time) 5))) {
             (setq err-print-time (systime))
-            (print (str-merge "[rinkfloat] BMS loop error: " (to-str (second res))))
+            (print (str-merge "[Refloat Glow] BMS loop error: " (to-str (second res))))
         })
 
         (sleep 0.2)

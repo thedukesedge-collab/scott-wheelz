@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+# Part of Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
 # Host tests of the LCM bootloader logic (bootloader.c with -DBL_HOST), and
 # the end-to-end relay test with the package's real src/lcm_fw.c.
 set -e

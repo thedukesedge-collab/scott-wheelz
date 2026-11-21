@@ -1,6 +1,6 @@
 // Copyright 2022 Benjamin Vedder <benjamin@vedder.se>
 // Copyright 2024 Lukas Hrazky
-// Modified by Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+// Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
 //
 // This file is part of the Refloat VESC package.
 //
@@ -1009,7 +1009,7 @@ Item {
                 : fit === "newer" ? "Your LCM runs SLCM " + verText(lcmVer) + ", newer than the " + verText(refVer) + " in the downloaded release (" + relTag + "). Flashing it would downgrade the LCM."
                 : fit === "other" ? "Your LCM runs a different SLCM build (" + verText(lcmVer) + ") from the downloaded release's (" + verText(refVer) + ", " + relTag + "), for example a custom build."
                 : "")
-            : fit === "same" ? "Your LCM runs SLCM " + verText(lcmVer) + ", the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed " + pkgVersion + "). Nothing to update. You can still reflash it if you want."
+            : fit === "same" ? "Your LCM runs SLCM " + verText(lcmVer) + ", the exact LCM firmware built and tested with this package (Refloat Glow " + pkgVersion + "). Nothing to update. You can still reflash it if you want."
             : fit === "older" ? "Your LCM runs SLCM " + verText(lcmVer) + ". This package (" + pkgVersion + ") carries " + verText(pkgVer) + ", the LCM firmware built and tested with it. Updating is recommended so the LCM and package stay matched."
             : fit === "newer" ? "Your LCM runs SLCM " + verText(lcmVer) + ", newer than the " + verText(pkgVer) + " this package (" + pkgVersion + ") carries. Best fit: update the VESC package to the latest build so they match. Flashing from this package would downgrade the LCM."
             : fit === "other" ? "Your LCM runs a different SLCM build (" + verText(lcmVer) + ") than the one made for this package (" + verText(pkgVer) + "), for example a custom build. Flashing this package's build is recommended for the best fit."
@@ -8064,7 +8064,7 @@ Item {
             var ok = false;
             try { ok = packageLoader.installVescPackage(data); } catch (e) { ok = false; }
             // on success VESC Tool reloads and this screen is replaced by Refloat's
-            if (!ok) fail("The install didn't finish. Before riding, install Refloat 1.2.3 (or refloatRM) from VESC Tool › Packages.");
+            if (!ok) fail("The install didn't finish. Before riding, install Refloat 1.2.3 (or Refloat Glow) from VESC Tool › Packages.");
         }
         // plain SHA-256 over a Uint8Array, returns lowercase hex
         function sha256(m) {
@@ -8124,12 +8124,12 @@ Item {
                 width: parent.width
                 font.pointSize: 12
                 wrapMode: Text.WordWrap
-                text: "This swaps refloatRM for the official, unmodified Refloat 1.2.3 package.\n\n"
+                text: "This swaps Refloat Glow for the official, unmodified Refloat 1.2.3 package.\n\n"
                     + "• The board must be connected and stopped.\n"
                     + "• Save a backup of your Refloat Cfg in VESC Tool first.\n"
-                    + "• Your tune carries over. refloatRM's extras go away.\n"
+                    + "• Your tune carries over. Refloat Glow's extras go away.\n"
                     + "• Your LCM firmware is not changed.\n"
-                    + "• To come back, install refloatRM's .vescpkg again."
+                    + "• To come back, install the Refloat Glow .vescpkg again."
             }
             Text {
                 visible: stockRevert.msg !== ""
@@ -8208,7 +8208,7 @@ Item {
                 width: parent.width
                 font.pointSize: 12
                 wrapMode: Text.WordWrap
-                text: "Everything in Re-Float Rink-Mixed works off your current Refloat settings: tunes, lights, sounds and the rest read and write Refloat's own configuration.\n\n"
+                text: "Everything in Refloat Glow works off your current Refloat settings: tunes, lights, sounds and the rest read and write Refloat's own configuration.\n\n"
                     + "To use its features properly you need a working board that is set up and rides correctly on Refloat, and working LEDs for the light features.\n\n"
                     + "Based on Refloat 1.2.3. Later Refloat versions are known to ride quite differently, so if you're coming back from a newer version your board will likely feel noticeably different.\n\n"
                     + "All credit goes to Lukáš Hrázký (lukash), the author of Refloat, and to the original Float package authors (Mitch Lustig, Dado Mista, Nico Aleman). I take zero credit for any of it.\n\n"
@@ -8271,7 +8271,7 @@ Item {
             NeonButton {
                 visible: disclaimerDialog.page === 1
                 width: parent.width
-                text: "Continue with refloatRM"
+                text: "Continue with Refloat Glow"
                 lit: true
                 onClicked: disclaimerDialog.finish()
             }
@@ -9915,7 +9915,7 @@ Item {
                                 wrapMode: Text.WordWrap
                                 color: "#ead6ff"
                                 font.pixelSize: fontSizeSmall
-                                text: "This package: Re-Float Rink-Mixed " + lcmFw.pkgVersion + "\n"
+                                text: "This package: Refloat Glow " + lcmFw.pkgVersion + "\n"
                                     + "Light module: " + (lcmFw.hasBootloader ? "SLCM " + lcmFw.verText(lcmFw.lcmVer)
                                         : (lcmFw.nameKnown ? (lcmFw.lcmName !== "" ? "“" + lcmFw.lcmName + "” (not updatable from the app)" : "no SLCM detected")
                                         : "not asked yet"))
@@ -12239,7 +12239,7 @@ Item {
 
         // [glyph, title, where, text]
         readonly property var pages: [
-            ["✦", "RE:FLOAT RINK-MIXED", "WELCOME", "Built on Refloat 1.2.3 by Lukáš Hrázký (lukash) and the Refloat community, reimagined with a Neon Future style theme and a bunch of extra features. Swipe through what's new; it takes a minute."],
+            ["✦", "REFLOAT GLOW", "WELCOME", "Built on Refloat 1.2.3 by Lukáš Hrázký (lukash) and the Refloat community, reimagined with a Neon Future style theme and a bunch of extra features. Swipe through what's new; it takes a minute."],
             ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and MAX SPEED / DUTY right there."],
             ["≡", "PULL-UP SHEET", "SWIPE UP", "Drag the sheet up for TUNES, CONTROL, MIXER, DATA, BOARD STYLE and LEDS. Tap anywhere on the main view to put it away."],
             ["♫", "HORN", "HOME + CONTROL", "Hold HORN to beep through the motor, no extra hardware. Sound and volume (10/10 = 4 V) in CONTROL › HORN SETTINGS. It stays well within safe, low motor current."],
@@ -12274,7 +12274,7 @@ Item {
                 anchors.topMargin: 0.3 * unit
                 anchors.horizontalCenter: parent.horizontalCenter
                 textFormat: Text.StyledText
-                text: "<font color='#b14cff'>RE:</font><font color='#ead6ff'>FLOAT</font> <font color='#7a3fc0'>—</font> <font color='#39ff7a'>RINK-MIXED</font>"
+                text: "<font color='#b14cff'>RE</font><font color='#ead6ff'>FLOAT</font> <font color='#7a3fc0'>—</font> <font color='#39ff7a'>GLOW</font>"
                 font.family: "Exan"
                 font.pixelSize: 0.28 * unit
             }
@@ -16509,8 +16509,8 @@ Item {
                 font.letterSpacing: 0.03 * unit
                 horizontalAlignment: Text.AlignHCenter
                 textFormat: Text.StyledText
-                text: '<font color="#b14cff">RE:</font><font color="#ead6ff">FLOAT</font>'
-                      + '<font color="#7a3fc0"> — </font><font color="#39ff7a">RINK-MIXED</font>'
+                text: '<font color="#b14cff">RE</font><font color="#ead6ff">FLOAT</font>'
+                      + '<font color="#7a3fc0"> — </font><font color="#39ff7a">GLOW</font>'
                       + '<font color="#7d68ab">  {{VERSION}}</font>'
                 // rf141: tap to read the "Before you start" notice again (and
                 // what's at the bottom of it)

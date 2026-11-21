@@ -14,7 +14,7 @@ all: refloatrm.vescpkg
 
 refloatrm.vescpkg: src lisp/package.lisp package_README-gen.md ui.qml
 ifeq ($(OLDVT), 1)
-	"$(VESC_TOOL)" --buildPkg "refloatrm.vescpkg:lisp/package.lisp:ui.qml:0:package_README-gen.md:Re-Float Rink-Mixed"
+	"$(VESC_TOOL)" --buildPkg "refloatrm.vescpkg:lisp/package.lisp:ui.qml:0:package_README-gen.md:Refloat Glow"
 else
 	"$(VESC_TOOL)" --buildPkgFromDesc pkgdesc.qml
 endif

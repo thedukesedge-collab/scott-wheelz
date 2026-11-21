@@ -1,4 +1,4 @@
-> **refloatRM note:** this is Refloat's contributing guide, kept unchanged. For **refloatRM**, open issues and pull requests in this repository. To contribute to Refloat itself, go to [lukash/refloat](https://github.com/lukash/refloat).
+> **Refloat Glow note:** this is Refloat's contributing guide, kept unchanged. For **Refloat Glow**, open issues and pull requests in this repository. To contribute to Refloat itself, go to [lukash/refloat](https://github.com/lukash/refloat).
 
 # Contributing
 Bugfix Pull Requests are always welcome. If you want to implement a feature, it is advised get in touch first, to make sure your feature is in line with the direction Refloat development is heading.

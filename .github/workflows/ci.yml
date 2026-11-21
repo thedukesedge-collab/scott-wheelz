@@ -45,7 +45,7 @@ jobs:
           git clone -q --depth 1 --branch v1.2.3 https://github.com/lukash/refloat /tmp/upstream
           nix shell nixpkgs/nixos-24.11#gcc-arm-embedded-13 -c sh tools/stack_report.sh /tmp/upstream/src
 
-      # refloatRM: static analysis (clang-tidy: clang static analyzer +
+      # Refloat Glow: static analysis (clang-tidy: clang static analyzer +
       # bug-prone patterns); fails on findings in files changed by the fork
       - name: Static analysis
         if: steps.build.outcome == 'success'
@@ -64,7 +64,7 @@ jobs:
           OURS=$(sed -n 's/^#define .\+_SIGNATURE\W\+\([0-9]*\)/\1/p' src/conf/confparser.h)
           gh release download v1.2.3 -R lukash/refloat -p config_signature.txt -O /tmp/stock_sig.txt
           STOCK=$(tr -d '[:space:]' < /tmp/stock_sig.txt)
-          echo "refloatRM: $OURS  stock 1.2.3: $STOCK"
+          echo "Refloat Glow: $OURS  stock 1.2.3: $STOCK"
           [ -n "$OURS" ] && [ "$OURS" = "$STOCK" ] || { echo "::error::Settings signature differs from stock 1.2.3: BACK TO REFLOAT 1.2.3 would reset riders' tunes"; exit 1; }
 
       - name: Upload Package
@@ -90,7 +90,7 @@ jobs:
           gh release create dev-build refloatrm-dev.vescpkg \
             --prerelease --latest=false \
             --title "DEV build $(cat version) (${GITHUB_SHA::7}) - bench testing only, NOT for riding" \
-            --notes "Untested development build of Re-Float Rink-Mixed $(cat version) from commit ${GITHUB_SHA::7}. For bench testing with the wheel off the ground only. Riders: use the latest release (Releases > Latest). refloatRM is an unofficial modification of Refloat by Lukas Hrazky, not affiliated with or endorsed by the Refloat developers. License: GPL-3.0-or-later (LICENSE); full source of this build: https://github.com/thedukesedge-collab/scott-wheelz/tree/${GITHUB_SHA}; third-party notices: THIRD_PARTY_NOTICES.md." \
+            --notes "Untested development build of Refloat Glow $(cat version) from commit ${GITHUB_SHA::7}. For bench testing with the wheel off the ground only. Riders: use the latest release (Releases > Latest). Refloat Glow is an unofficial modification of Refloat by Lukas Hrazky, not affiliated with or endorsed by the Refloat developers. License: GPL-3.0-or-later (LICENSE); full source of this build: https://github.com/thedukesedge-collab/scott-wheelz/tree/${GITHUB_SHA}; third-party notices: THIRD_PARTY_NOTICES.md." \
             --target "$GITHUB_SHA"
 
       - name: Publish rider release (tag v<version>)
@@ -108,7 +108,7 @@ jobs:
           for i in 1 2 3 4 5; do
             gh release view "$TAG" >/dev/null 2>&1 || \
               gh release create "$TAG" --verify-tag --latest \
-                --title "Re-Float Rink-Mixed $VER" \
+                --title "Refloat Glow $VER" \
                 --notes-file tools/release_notes.md && break
             sleep 15
           done

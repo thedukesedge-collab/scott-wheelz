@@ -9,7 +9,7 @@
 
 `alcm/` is [ALCM](https://github.com/MrTheConductor/alcm) v0.1.1 by
 Mitchell White (GPL-3.0), the light control module firmware for the
-HK32F030M-based LCM, with Re-Float Rink-Mixed changes (`VP_LIGHT_CONTROL`):
+HK32F030M-based LCM, with Refloat Glow changes (`VP_LIGHT_CONTROL`):
 
 - **All light settings come from VP** (the VESC package): headlights on/off
   and brightness, status bar on/off and brightness (separate idle / riding

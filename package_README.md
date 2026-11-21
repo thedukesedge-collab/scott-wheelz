@@ -1,12 +1,12 @@
-# Re-Float Rink-Mixed  (RE:FLOAT — RINK-MIXED)
+# Refloat Glow
 
-*A custom Refloat remix* (formerly Re-RinkFloat)
+*A custom Refloat remix* (formerly Re-Float Rink-Mixed / Re-RinkFloat)
 
-**Re-Float Rink-Mixed is a vibe-coded fork of [Refloat](https://github.com/lukash/refloat) 1.2.3.** All the changes below were made with an AI coding assistant on top of Refloat. All credit for the package itself goes to **Lukáš Hrázký (lukash)**, the author of Refloat, and to the original Float authors (Mitch Lustig, Dado Mista, Nico Aleman, based on work by Benjamin Vedder). Licensed under GPL-3.0. Not an official Refloat release, so please don't report Re-Float Rink-Mixed issues to the Refloat project.
+**Refloat Glow is a vibe-coded fork of [Refloat](https://github.com/lukash/refloat) 1.2.3.** All the changes below were made with an AI coding assistant on top of Refloat. All credit for the package itself goes to **Lukáš Hrázký (lukash)**, the author of Refloat, and to the original Float authors (Mitch Lustig, Dado Mista, Nico Aleman, based on work by Benjamin Vedder). Licensed under GPL-3.0. Not an official Refloat release, so please don't report Refloat Glow issues to the Refloat project.
 
 *None of this would be possible without all the hard work Lukáš Hrázký (lukash) and the Refloat community have put into Refloat. Thank you!*
 
-## New in Re-Float Rink-Mixed
+## New in Refloat Glow
 - **Haptic horn**: a big HORN bar on the main screen. Works out of the box: if your Haptic Feedback strengths are lower (Refloat's default Vibrate Strength is 0), the horn uses its own minimums (beep 2.5 V, vibrate 8 A); higher settings are kept. Hold or tap it: full haptics while riding (up to 3 s per press), tone only when idle (up to 2 s). A heat budget allows repeated taps as long as it stays safe. Real pushback and alerts always override it. If the app disconnects, the horn stops within 0.5 s.
 - **TILT slider** on the main screen: +-4 deg remote tilt that springs back to 0 when released. The package hard-caps remote tilt at +-4 deg.
 - **Neon Future main screen**: neon green/purple digital theme, segmented speedometer (reads any speed, gauge to 40 mph) with a duty ring, TOP SPEED / MAX DUTY ride peaks (free spin filtered out), TRIP / LIFE inside the dial, a battery bar that fades from green to red, and a full-screen layout. Tap the engine icon for °C / °F.
@@ -55,11 +55,11 @@ On 6.05+ firmware, the package should ride well without the need to configure an
 ## Credits
 Refloat author: Lukáš Hrázký (lukash). All credit for Refloat goes to him.
 
-Re-Float Rink-Mixed changes: vibe-coded with an AI coding assistant.
+Refloat Glow changes: vibe-coded with an AI coding assistant.
 
 Original Float package authors: Mitch Lustig, Dado Mista, Nico Aleman
 
 ## Downloads and Changelogs
 Refloat: [https://github.com/lukash/refloat/releases](https://github.com/lukash/refloat/releases)
 
-Re-Float Rink-Mixed: [https://github.com/thedukesedge-collab/scott-wheelz](https://github.com/thedukesedge-collab/scott-wheelz)
+Refloat Glow: [https://github.com/thedukesedge-collab/scott-wheelz](https://github.com/thedukesedge-collab/scott-wheelz)

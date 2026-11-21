@@ -1,5 +1,5 @@
 ; Part of the Refloat VESC package (GPL-3.0-or-later, see LICENSE).
-; Modified by Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+; Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
 
 (import "src/package_lib.bin" 'package-lib)
 (load-native-lib package-lib)
@@ -13,8 +13,8 @@
         (progn
             (import "bms.lisp" 'bms)
             (read-eval-program bms)
-            (spawn "Re-RinkFloat BMS" 50 bms-loop)
+            (spawn "Refloat Glow BMS" 50 bms-loop)
         )
-        (print "[rinkfloat] BMS Integration: Unsupported firmware version, 6.05+ required.")
+        (print "[Refloat Glow] BMS Integration: Unsupported firmware version, 6.05+ required.")
     )
 )

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+// Part of Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
 // Re-Float Rink-Mixed: battery curve for the LCM status bar. See
 // battery_curve.h. GPL-3.0-or-later.
 

@@ -1,25 +1,25 @@
-REFLOAT RINK-MIXED (refloatRM)
+REFLOAT GLOW
 
 Permanent Project Instructions & Development Standards
 
-Effective immediately, the official name of this project is Refloat rink-mixed, abbreviated refloatRM.
+The official name of this project is Refloat Glow (renamed by the user on 2026-11-21; it was Refloat rink-mixed, abbreviated refloatRM, and before that “Scott Wheels” / Scott Wheelz).
 
-This replaces all previous references to “Scott Wheels” as the project name.
+This replaces all previous project names. Download file names (`refloatrm.vescpkg`, `refloatrm-dev.vescpkg`) keep the old abbreviation so existing links and the in-app update check keep working.
 
 These instructions apply to all future development, modifications, firmware builds, documentation, testing, and releases.
 
 1. Project Identity & Attribution
 
-refloatRM is an independently developed modification of the open-source Refloat firmware.
+Refloat Glow is an independently developed modification of the open-source Refloat firmware.
 
-The goal of refloatRM is to expand Refloat’s functionality while respecting the original developers, preserving its core functionality, and maintaining a safe and reliable riding experience.
+The goal of Refloat Glow is to expand Refloat’s functionality while respecting the original developers, preserving its core functionality, and maintaining a safe and reliable riding experience.
 
 For all future builds:
 
-* Use “Refloat rink-mixed” as the full project name and “refloatRM” as the abbreviation.
+* Use “Refloat Glow” as the project name (no abbreviation).
 * Preserve original Refloat author credits, copyright notices, and license information.
-* Clearly distinguish original Refloat functionality from refloatRM modifications.
-* Do not imply that refloatRM is officially supported or endorsed by the original Refloat developers.
+* Clearly distinguish original Refloat functionality from Refloat Glow modifications.
+* Do not imply that Refloat Glow is officially supported or endorsed by the original Refloat developers.
 * Do not remove credit from any upstream contributors.
 * Maintain a changelog documenting meaningful modifications.
 * Preserve existing functionality unless changes are explicitly authorized.
@@ -49,7 +49,7 @@ If a potential licensing issue is identified, flag it immediately and prevent th
 
 3. Firmware Safety & Reliability
 
-refloatRM controls self-balancing electric vehicles. Rider safety is the highest development priority.
+Refloat Glow controls self-balancing electric vehicles. Rider safety is the highest development priority.
 
 Mandatory safety rules:
 
@@ -105,7 +105,7 @@ When information is missing, classify the relevant check as NOT VERIFIED.
 
 At the conclusion of EVERY firmware build, modification, or development session, provide the following report:
 
-REFLOAT RINK-MIXED (refloatRM) — BUILD SIGN-OFF
+REFLOAT GLOW — BUILD SIGN-OFF
 
 Project information
 
@@ -152,9 +152,9 @@ Do not label any item VERIFIED without supporting evidence.
 
 Include the following statement at the conclusion of every build sign-off:
 
-“Refloat rink-mixed (refloatRM) is an independently developed modification of the open-source Refloat firmware.
+“Refloat Glow is an independently developed modification of the open-source Refloat firmware.
 
-Original Refloat developers and contributors retain their respective copyright and attribution rights. refloatRM is not an official Refloat release and is not endorsed by or affiliated with its original developers unless expressly stated.
+Original Refloat developers and contributors retain their respective copyright and attribution rights. Refloat Glow is not an official Refloat release and is not endorsed by or affiliated with its original developers unless expressly stated.
 
 This project is intended to comply with the GNU GPL v3.0 license and all applicable third-party licenses. Distribution of modified firmware must include required notices and access to corresponding source code in accordance with those licenses.
 
@@ -166,7 +166,7 @@ This software is provided without warranty to the extent permitted by applicable
 
 7. Permanent Enforcement
 
-These standards must remain active throughout all future refloatRM development.
+These standards must remain active throughout all future Refloat Glow development.
 
 Do not silently remove, bypass, or weaken these requirements.
 
@@ -177,7 +177,7 @@ Maintain these instructions in the project’s persistent configuration, prefera
 Your first action after receiving this prompt:
 
 1. Review the current project structure and identify all existing references to “Scott Wheels.”
-2. Update project-facing references to “Refloat rink-mixed” or “refloatRM” where appropriate, without modifying historical attribution, third-party notices, or upstream copyright records.
+2. Update project-facing references to “Refloat Glow” where appropriate, without modifying historical attribution, third-party notices, or upstream copyright records.
 3. Identify the upstream Refloat revision and licensing files.
 4. Review existing build sign-off requirements and incorporate the new sections without deleting unrelated requirements.
 5. Report any compliance gaps or safety concerns.
@@ -189,9 +189,11 @@ Do not begin changing safety-critical firmware behavior as part of this naming a
 
 ## Project facts (keep current)
 
-- Name: **Refloat rink-mixed (refloatRM)**. Earlier names: "Scott Wheelz" (until
-  v1.2.3-rf1), Rink-Float, Re-RinkFloat, "Re-Float Rink-Mixed" (current UI /
-  package display name: `package_name`, the UI title "RE:FLOAT — RINK-MIXED").
+- Name: **Refloat Glow** (since v1.2.3-rf147; package_name, UI title
+  "REFLOAT — GLOW"). Earlier names: "Scott Wheelz" (until v1.2.3-rf1),
+  Rink-Float, Re-RinkFloat, Re-Float Rink-Mixed, Refloat rink-mixed (refloatRM).
+  The user asked to drop "rink" from the name. Old names stay in FORK_NOTES.md
+  history and in old code comments.
 - Upstream: Refloat **v1.2.3**, commit **800a46b** (https://github.com/lukash/refloat),
   GPL-3.0-or-later (`LICENSE`). Refloat author: Lukáš Hrázký (lukash); Float
   authors: Mitch Lustig, Dado Mista, Nico Aleman, based on work by Benjamin Vedder.
@@ -200,6 +202,8 @@ Do not begin changing safety-critical firmware behavior as part of this naming a
   - QML Settings category `scottWheelz` (renaming wipes every user's saved app
     settings).
   - Historical entries in FORK_NOTES.md.
+  - Download file names `refloatrm.vescpkg` / `refloatrm-dev.vescpkg` (links,
+    in-app update check).
 - Git history: upstream Refloat history through v1.2.3 is joined into `main`
   (merge -s ours, rf144). Remote `upstream` = lukash/refloat with
   `tagOpt --no-tags`. NEVER push upstream tags (v1.2.3, v1.3.x...) here: they
@@ -208,7 +212,7 @@ Do not begin changing safety-critical firmware behavior as part of this naming a
 - Changelog: FORK_NOTES.md (one entry per release, `v1.2.3-rfN`); version in
   `version`. Releases: RELEASING.md (tagged releases only after review).
 - Files changed from upstream carry the line
-  `Modified by Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.`
+  `Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.`
   (GPL-3.0 section 5a). New files: SPDX / GPL-3.0-or-later header.
 - Safety-critical upstream code NOT modified (verify with
   `git diff v1.2.3 -- src/<file>`): balance_filter, motor_control, pid, atr,

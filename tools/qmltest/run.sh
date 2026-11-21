@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+# Part of Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
 # Re-RinkFloat: load ui.qml in qmlscene with stub VESC Tool modules and print
 # every QML warning/error. Usage: tools/qmltest/run.sh <commit>...
 set -u

@@ -1,7 +1,7 @@
 // Copyright 2019 - 2022 Mitch Lustig
 // Copyright 2022 Benjamin Vedder <benjamin@vedder.se>
 // Copyright 2024 Lukas Hrazky
-// Modified by Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+// Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
 //
 // This file is part of the Refloat VESC package.
 //

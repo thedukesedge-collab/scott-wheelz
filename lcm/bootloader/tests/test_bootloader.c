@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Part of Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+// Part of Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
 
 /*
  * Host tests for the LCM bootloader (bootloader.c built with -DBL_HOST).

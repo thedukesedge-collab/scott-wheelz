@@ -1635,3 +1635,20 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   the repository README credits.
 - Tour WELCOME page: "Built on Refloat 1.2.3 by Lukáš Hrázký (lukash) and the
   Refloat community, reimagined with ...". UI text only.
+
+### Renamed to Refloat Glow (v1.2.3-rf147)
+- The project is now **Refloat Glow** (the user dropped "rink" from the
+  name). Package name (package_name, pkgdesc.qml, Makefile), the UI title
+  ("REFLOAT — GLOW"), the start notice and page 2, the tour WELCOME page,
+  the update windows, the simulator, README / package README, RELEASING.md,
+  THIRD_PARTY_NOTICES.md, release-note text, and the "Modified by" notices
+  in file headers ("Refloat Glow (formerly Refloat rink-mixed)").
+- Lisp console messages say "[Refloat Glow]"; the BMS thread is named
+  "Refloat Glow BMS" (same length as before).
+- Kept on purpose: the GitHub repo name, the download file names
+  refloatrm.vescpkg / refloatrm-dev.vescpkg (links and the in-app update
+  check), the QML settings category scottWheelz (saved app settings), old
+  names in this changelog and in older code comments.
+- The package name is only a label (saved tunes record it; VESC Tool's store
+  lookup); installing over an older build works as before. No firmware
+  logic changes.

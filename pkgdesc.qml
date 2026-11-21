@@ -1,10 +1,10 @@
 // Part of the Refloat VESC package (GPL-3.0-or-later, see LICENSE).
-// Modified by Refloat rink-mixed (refloatRM), 2026. See FORK_NOTES.md.
+// Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
 
 import QtQuick 2.15
 
 Item {
-    property string pkgName: "Re-Float Rink-Mixed"
+    property string pkgName: "Refloat Glow"
     property string pkgDescriptionMd: "package_README-gen.md"
     property string pkgLisp: "lisp/package.lisp"
     property string pkgQml: "ui.qml"

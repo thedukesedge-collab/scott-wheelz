@@ -1,6 +1,6 @@
 # Third-party notices
 
-refloatRM is licensed under the GNU GPL v3.0 or later ([LICENSE](LICENSE)).
+Refloat Glow is licensed under the GNU GPL v3.0 or later ([LICENSE](LICENSE)).
 It contains or builds with the third-party code listed below. Each part keeps
 its own copyright and license. "Status" is our own review status, not legal
 advice. Anything marked **NEEDS REVIEW** has not been fully checked yet.
@@ -17,7 +17,7 @@ advice. Anything marked **NEEDS REVIEW** has not been fully checked yet.
 | Component | Where | Copyright | License | Status |
 |---|---|---|---|---|
 | ALCM v0.1.1 | `lcm/alcm/` | Mitchell White | GPL-3.0 ([lcm/alcm/LICENSE](lcm/alcm/LICENSE)) | OK |
-| refloatRM bootloader | `lcm/bootloader/` | refloatRM | GPL-3.0-or-later | OK |
+| Refloat Glow bootloader | `lcm/bootloader/` | Refloat Glow | GPL-3.0-or-later | OK |
 | ARM CMSIS | `lcm/alcm/Library/.../CMSIS/` | ARM Limited | BSD-3-Clause, notice below | OK, GPL-compatible. The notice must go with binary releases. |
 | HK32F030M standard peripheral library | `lcm/alcm/Library/HK32F030Mxx_Library_V1.1.6/HK32F030M/HK32F030M_Lib/` | Shenzhen Hangshun Chip Technology (HK) | **No license text in the files** | **NEEDS REVIEW.** It is shipped the same way by upstream ALCM. Its redistribution terms are not confirmed. |
 
