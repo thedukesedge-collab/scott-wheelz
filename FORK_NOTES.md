@@ -1573,3 +1573,8 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - Tapping the RE:FLOAT — RINK-MIXED version line at the bottom of the
   screen opens the "Before you start" notice again (Scout's Honor at its
   bottom), also after "Don't show this again". UI only.
+
+### MIXER: NOTES pill (v1.2.3-rf142)
+- NOTES (after ♪ BEEP) shows the note names on the tiles again (E4 ... G5,
+  as before rf85); tap again for blank tiles. Remembered
+  (swSettings.mixerNotes, default off). UI only.

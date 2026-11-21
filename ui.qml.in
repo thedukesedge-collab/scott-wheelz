@@ -2613,6 +2613,7 @@ Item {
         property bool barAdvanced: false  // rf118: STATUS BAR view (Refloat LEDs)
         property bool rgbAdvanced: false  // rf118: RGB LIGHTS view
         property bool ledAutoApply: true  // rf131: LED changes go to the board right away
+        property bool mixerNotes: false  // rf142: MIXER tiles show their note names
         property int rgbIdleLastFront: 50  // rf127: idle brightness before OFF
         property int rgbIdleLastRear: 50
         property int snzC1: 4
@@ -15373,6 +15374,13 @@ Item {
                                 onClicked: melodyPad.beep()
                             }
 
+                            // rf142: note names on the tiles (as before rf85), on / off
+                            SwPill {
+                                label: "NOTES"
+                                lit: swSettings.mixerNotes
+                                onClicked: swSettings.mixerNotes = !swSettings.mixerNotes
+                            }
+
                             Item { Layout.fillWidth: true }
 
                             SwNeonLabel {
@@ -15472,7 +15480,16 @@ Item {
                                     color: held ? melodyPad.tileColor(level) : "#140a26"
                                     border.color: melodyPad.tileColor(level)
                                     border.width: 3
-                                    // rf85: blank tiles (same notes and colors, no note names)
+                                    // rf85: blank tiles; rf142: NOTES shows the note names again
+                                    Text {
+                                        visible: swSettings.mixerNotes
+                                        anchors.centerIn: parent
+                                        text: melodyPad.noteNames[parent.level - 1].charAt(0) + "<font size=\"2\">" + melodyPad.noteNames[parent.level - 1].charAt(1) + "</font>"
+                                        textFormat: Text.StyledText
+                                        color: parent.held ? swTheme.background : melodyPad.tileColor(parent.level)
+                                        font.family: "Exan"
+                                        font.pixelSize: 0.5 * unit
+                                    }
 
                                     MouseArea {
                                         anchors.fill: parent

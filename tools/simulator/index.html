@@ -325,7 +325,7 @@
           <div style="text-align:center;margin:18px 0 6px"><span id="msLink" style="font-size:11px;color:#5c5470;cursor:pointer"></span></div>
         </div>
         <div class="page" id="pgMixer">
-          <div style="display:flex;align-items:center;gap:8px"><div class="pill" id="mxPlay">LIVE</div><div class="pill" id="mxRec">&#9679; REC</div><div class="pill on" id="mxBeep" style="background:#ff8a1f;border-color:#ff8a1f;box-shadow:0 0 10px rgba(255,138,31,.55)">&#9834; BEEP</div><span style="flex:1"></span><span class="neonL" id="mxHint" style="font-size:10px">TAP TO PLAY</span></div>
+          <div style="display:flex;align-items:center;gap:8px"><div class="pill" id="mxPlay">LIVE</div><div class="pill" id="mxRec">&#9679; REC</div><div class="pill" id="mxNotes">NOTES</div><div class="pill on" id="mxBeep" style="background:#ff8a1f;border-color:#ff8a1f;box-shadow:0 0 10px rgba(255,138,31,.55)">&#9834; BEEP</div><span style="flex:1"></span><span class="neonL" id="mxHint" style="font-size:10px">TAP TO PLAY</span></div>
           <div class="recOnly" id="padLine" style="position:relative;height:24px;background:#140a26;border:1px solid #3d2266;border-radius:4px;overflow:hidden"></div>
           <div id="padTiles" style="flex:1;min-height:0;display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:1fr 1fr;gap:8px"></div>
           <div class="pills recOnly"><div class="pill" id="padClear">CLEAR</div><div class="pill" id="padPlay">PLAY</div><div class="pill" id="padSave">SAVE</div><div class="pill on" id="padDone">DONE</div></div>
@@ -375,7 +375,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf141 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE:</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">RINK-MIXED</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf142 · sim</span></div>
     </div>
   </div>
 
@@ -1399,7 +1399,12 @@ function renderPad() {
   document.querySelectorAll('#padTiles .tile').forEach(t => {
     const l = +t.dataset.l, on = hold && hold.l === l;
     t.style.background = on ? tileCol(l) : '#140a26'; t.style.color = on ? '#05060d' : tileCol(l);
+    // rf142: NOTES shows the note names on the tiles
+    const nm = NOTE_NAMES[l - 1], want = P.mixerNotes ? nm[0] + '<small>' + nm[1] + '</small>' : '';
+    if (t.innerHTML !== want) t.innerHTML = want;
+    t.style.font = '700 24px Orbitron, monospace'; t.style.display = 'flex'; t.style.alignItems = 'center'; t.style.justifyContent = 'center';
   });
+  $('mxNotes').classList.toggle('on', !!P.mixerNotes);
   const idle = S.mode === 'ready' ? '' : ' (The board plays notes only when idle.)';
   $('padHint').textContent = (take ? 'Recording... tap the tiles. It stops by itself at 4 s.' : armed ? 'Your first tap starts a 4 s recording. Gaps between taps are kept; each note stops at 2 s.' : 'PLAY to hear it, SAVE to keep it, DONE to use it at boot. CLEAR to record again.') + idle;
   $('mxHint').textContent = !mxRec ? (S.mode === 'ready' ? 'TAP TO PLAY' : 'BOARD PLAYS WHEN IDLE') : take ? '● REC  ' + (Math.min(REC_MS, Date.now() - take.t0) / 1000).toFixed(1) + ' / 4.0 s' : armed ? 'TAP A TILE TO START' : (padTotal() / 1000).toFixed(1) + ' s MELODY';
@@ -1433,6 +1438,8 @@ function padRelease() {
   hold = null; renderPad();
 }
 // rf133: controller beep; in REC it goes into the take (level 11)
+$('mxBeep').after($('mxNotes'));  // same order as the package: LIVE, REC, BEEP, NOTES
+$('mxNotes').onclick = () => { P.mixerNotes = !P.mixerNotes; save(); renderPad(); };
 $('mxBeep').onclick = () => {
   padRelease();
   if (mxRec && armed && !take) { take = { t0: Date.now(), ev: [] }; playT0 = 0; requestAnimationFrame(takeTick); }
@@ -1969,7 +1976,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf141';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf142';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Re-Float Rink-Mixed ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -2269,7 +2276,7 @@ function updCheck() {
   setTimeout(() => {
     if (k === 'offline') return done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.');
     if (k === 'none') return done(null, 'No rider release has been published yet.');
-    const v = k === 'newer' ? '1.2.3-rf142' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
+    const v = k === 'newer' ? '1.2.3-rf143' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Re-Float Rink-Mixed ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
       pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Re-Float Rink-Mixed rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });
