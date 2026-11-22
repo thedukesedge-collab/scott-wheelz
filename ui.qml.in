@@ -8857,6 +8857,7 @@ Item {
                                         id: rgbLightCard
                                         width: rgbCol.width
                                         title: modelData[0]
+                                        onHeightChanged: console.log("RGBDBG card", modelData[0], "h", height, "children", children.length)
                                         readonly property var bars: [modelData[1], modelData[2]]
                                         Repeater {
                                             model: [["RIDING", 0], ["IDLE", 1]]
@@ -8864,6 +8865,8 @@ Item {
                                                 id: rgbSimpleBar
                                                 width: rgbLightCard.width - 0.3 * unit
                                                 spacing: 0.1 * unit
+                                                onHeightChanged: console.log("RGBDBG bar", modelData[0], "h", height, "ih", implicitHeight, "y", y, "parent", parent, "pvis", parent ? parent.visible : "-")
+                                                Component.onCompleted: console.log("RGBDBG bar done", modelData[0], "h", height, "ih", implicitHeight, "parent", parent, "children", children.length)
                                                 readonly property int barIdx: rgbLightCard.bars[modelData[1]]
                                                 readonly property var b: ledSender.rgb[barIdx] || ({mode: 0, c1: 1, c2: 0, speed: 1})
                                                 Rectangle {  // thin divider between RIDING and IDLE
