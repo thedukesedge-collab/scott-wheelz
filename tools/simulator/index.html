@@ -375,7 +375,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf150 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf151 · sim</span></div>
     </div>
   </div>
 
@@ -1784,7 +1784,7 @@ function renderRgb() {
   if (b.mode < 6) st('c1', 'COLOR 1', 0, 29, 1, v => RF_COLORS[v]);
   if (b.mode >= 1 && b.mode <= 5) {  // rf91; rf101: BACKGROUND ON / OFF
     const bg = oneCol(b.mode);
-    cuStep('rgbSteps', bg ? 'BACKGROUND' : 'COLOR 2', () => b.c2, 0, 29, 1, v => RF_COLORS[v], v => { b.c2 = rfNext(b.c2, v); P.ledCfg = true; save(); renderRgb(); renderLedsSoft(); }, rfTxt,
+    cuStep('rgbSteps', b.mode === 4 ? 'BACKGROUND' : 'COLOR 2', () => b.c2, 0, 29, 1, v => RF_COLORS[v], v => { b.c2 = rfNext(b.c2, v); P.ledCfg = true; save(); renderRgb(); renderLedsSoft(); }, rfTxt,
       bg ? { on: b.c2 !== 0, click: () => { if (b.c2) { P.rfBgLast = b.c2; b.c2 = 0; } else b.c2 = P.rfBgLast || 1; save(); renderRgb(); } } : null);
   }
   if (b.mode !== 0) st('speed', 'SPEED', 0.1, 5, 0.1, v => v.toFixed(1) + '/s');
@@ -1836,7 +1836,7 @@ function renderRf() {
     $(box).innerHTML = ''; if (mode < 0) return;
     const set = (k, v) => { o[k] = v; save(); done(); };
     if (mode < 6) cuStep(box, 'COLOR 1', () => o.c1, 0, 29, 1, v => RF_COLORS[v], v => set('c1', rfNext(o.c1, v)), rfTxt);
-    if (mode >= 1 && mode <= 5) { const bg = oneCol(mode); cuStep(box, bg ? 'BACKGROUND' : 'COLOR 2', () => o.c2, 0, 29, 1, v => RF_COLORS[v], v => set('c2', rfNext(o.c2, v)), rfTxt,
+    if (mode >= 1 && mode <= 5) { const bg = oneCol(mode); cuStep(box, mode === 4 ? 'BACKGROUND' : 'COLOR 2', () => o.c2, 0, 29, 1, v => RF_COLORS[v], v => set('c2', rfNext(o.c2, v)), rfTxt,
       bg ? { on: o.c2 !== 0, click: () => { if (o.c2) { P.rfBgLast = o.c2; set('c2', 0); } else set('c2', P.rfBgLast || 1); } } : null); }
     if (mode !== 0) cuStep(box, 'SPEED', () => o.speed, 0.1, 5, 0.1, v => v.toFixed(1) + '/s', v => set('speed', Math.round(v * 10) / 10));
   };
@@ -1860,7 +1860,7 @@ function renderRf() {
     if (P.rfMode < 6) st('rfColor1', 'COLOR 1', 0, 29, 1, v => RF_COLORS[v]);
     if (P.rfMode >= 1 && P.rfMode <= 5) {  // rf91; rf101: BACKGROUND ON / OFF
       const bg = oneCol(P.rfMode);
-      cuStep('rfSteps', bg ? 'BACKGROUND' : 'COLOR 2', () => P.rfColor2, 0, 29, 1, v => RF_COLORS[v], v => { P.rfColor2 = rfNext(P.rfColor2, v); P.ledAnimIdle = 15; P.ledCfg = true; save(); renderRf(); renderLedsSoft(); }, rfTxt,
+      cuStep('rfSteps', P.rfMode === 4 ? 'BACKGROUND' : 'COLOR 2', () => P.rfColor2, 0, 29, 1, v => RF_COLORS[v], v => { P.rfColor2 = rfNext(P.rfColor2, v); P.ledAnimIdle = 15; P.ledCfg = true; save(); renderRf(); renderLedsSoft(); }, rfTxt,
         bg ? { on: P.rfColor2 !== 0, click: () => { if (P.rfColor2) { P.rfBgLast = P.rfColor2; P.rfColor2 = 0; } else P.rfColor2 = P.rfBgLast || 1; save(); renderRf(); } } : null);
     }
     if (P.rfMode !== 0) st('rfSpeed', 'SPEED', 0.1, 5, 0.1, v => v.toFixed(1) + '/s');
@@ -2004,7 +2004,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf150';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf151';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

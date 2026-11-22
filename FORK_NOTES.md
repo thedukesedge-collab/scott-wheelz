@@ -1701,3 +1701,9 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   with Refloat Glow in docs, comments and file notices (comments only in
   C / Lisp). Identifiers (rinkmixed app id, file names, settings
   category) kept on purpose.
+
+### COLOR 2 for FADE / PULSE / STROBE (v1.2.3-rf151)
+- Refloat LED view (HEAD/TAIL ADVANCED, STATUS BAR): the second color of
+  FADE, PULSE and STROBE is now labelled COLOR 2 instead of BACKGROUND.
+  Same setting and same ON / OFF switch (OFF = black), only the label.
+  KNIGHT RIDER keeps BACKGROUND. UI only; SLCM side unchanged.

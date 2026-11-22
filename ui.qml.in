@@ -4742,7 +4742,7 @@ Item {
         }
         SwStepper {
             visible: rcb.mode >= 1 && rcb.mode <= 5
-            label: ledSender.oneColor(rcb.mode) ? "BACKGROUND" : "COLOR 2"
+            label: rcb.mode === 4 ? "BACKGROUND" : "COLOR 2"  // rf151: FADE / PULSE / STROBE say COLOR 2
             toggle: ledSender.oneColor(rcb.mode) ? (rcb.c2 !== 0 ? 1 : 0) : -1
             onToggleClicked: {
                 if (rcb.c2 !== 0) { swSettings.rfBgLast = rcb.c2; rcb.setC2(0); }
@@ -9050,7 +9050,7 @@ Item {
                                 }
                                 SwStepper {
                                     visible: rgbCol.bar.mode >= 1 && rgbCol.bar.mode <= 5  // rf91, see Status Idle
-                                    label: ledSender.oneColor(rgbCol.bar.mode) ? "BACKGROUND" : "COLOR 2"
+                                    label: rgbCol.bar.mode === 4 ? "BACKGROUND" : "COLOR 2"  // rf151
                                     toggle: ledSender.oneColor(rgbCol.bar.mode) ? ((rgbCol.bar.c2 || 0) !== 0 ? 1 : 0) : -1  // rf101
                                     onToggleClicked: {
                                         if ((rgbCol.bar.c2 || 0) !== 0) { swSettings.rfBgLast = rgbCol.bar.c2; ledSender.rgbSet(rgbCol.sel, "c2", 0); }
