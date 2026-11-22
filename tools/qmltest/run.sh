@@ -159,7 +159,7 @@ for c in "$@"; do
     case $shot in
       0) act="" ;;
       1|2|3) act="bottomSheet.open(); bottomStackTabs.currentIndex = 2; swSettings.mixerLabels = $((shot - 1));" ;;
-      4|5) act="ledSender.rgbAvail = true; ledSender.rfStatusAvail = true; ledSender.rgbLoaded = true; ledSender.rgb = [{mode: 0, c1: 1, c2: 0, speed: 1, bri: 1}, {mode: 0, c1: 4, c2: 0, speed: 1, bri: 1}, {mode: 1, c1: 1, c2: 0, speed: 1, bri: 0.5}, {mode: 0, c1: 4, c2: 0, speed: 1, bri: 0.5}]; swSettings.rgbAdvanced = $([ $shot = 5 ] && echo true || echo false); bottomSheet.open(); bottomStackTabs.currentIndex = 5; if (ledWindow.section !== 'head' || !ledWindow.visible) ledWindow.show('head');" ;;
+      4|5) act="ledSender.rgbAvail = true; ledSender.rfStatusAvail = true; ledSender.rgbLoaded = true; ledSender.rgb = [{mode: $([ $shot = 5 ] && echo 2 || echo 0), c1: 1, c2: 0, speed: 1, bri: 1}, {mode: 0, c1: 4, c2: 0, speed: 1, bri: 1}, {mode: 1, c1: 1, c2: 0, speed: 1, bri: 0.5}, {mode: 0, c1: 4, c2: 0, speed: 1, bri: 0.5}]; swSettings.rgbAdvanced = $([ $shot = 5 ] && echo true || echo false); bottomSheet.open(); bottomStackTabs.currentIndex = 5; if (ledWindow.section !== 'head' || !ledWindow.visible) ledWindow.show('head');" ;;
       6) act="ledSender.rgbAvail = true; ledSender.rfStatusAvail = true; bottomSheet.open(); bottomStackTabs.currentIndex = 5; ledWindow.show('bar');" ;;
     esac
     git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Refloat Glow/g; s/{{VERSION}}/test/g; s/{{LCM_FW_JSON}}/null/g" \
