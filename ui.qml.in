@@ -12383,10 +12383,127 @@ Item {
         anchors.fill: parent
         z: 95
         visible: false
-        color: "#E6050210"
+        // rf166: dims everything except the spotlight (four panels below)
+        color: hasSpot ? "transparent" : "#E6050210"
 
-        function open() { tourSwipe.currentIndex = 0; visible = true; }
-        function close() { visible = false; swSettings.tourSeen = true; }
+        // rf166: the Onboarding Tour walks through the real interface: it opens
+        // the SUW on the right tab, scrolls the control into view and puts a
+        // neon spotlight on it. Strictly visual: the whole screen stays covered
+        // by the blocking MouseArea, nothing is pressed, no setting or board
+        // command is sent. The SUW and its tab are put back on close.
+        property real savedFrac: 0
+        property int savedTab: 0
+        property var spot: null  // {x, y, w, h} in rinkTour coordinates
+        readonly property bool hasSpot: visible && spot !== null
+        property bool realTarget: false  // the page's own control (not the LEDS tab fallback)
+
+        // per page: [SUW tab (-1 = SUW down), [targets, first visible wins]]
+        function steps(i) {
+            switch (i) {
+            case 1: return [-1, [speedo]];
+            case 2: return [0, [bottomStackTabs]];
+            case 3: return [-1, [hornFrame]];
+            case 4: return [2, [mixerGrid]];
+            case 5: return [2, [mixerModeRow]];
+            case 6: return [2, [mixerActRow, mixerModeRow]];
+            case 7: return [1, [ctlMelodyRow]];
+            case 8: return [4, [styleTabPage]];
+            case 9: return [5, [ledMainTiles]];
+            case 10: return [5, [slcmBattTile]];
+            case 11: return [5, [ledBeepCard, slcmBeepTile]];
+            case 12: return [5, [slcmUpdTile]];
+            default: return [-1, []];
+            }
+        }
+        function shown(it) {
+            for (var p = it; p; p = p.parent) {
+                if (!p.visible) return false;
+                if (p === mainItem) return it.width > 0 && it.height > 0;
+            }
+            return false;
+        }
+        property var target: null
+        function apply(i) {
+            var st = steps(i);
+            if (st[0] < 0) {
+                bottomSheet.fraction = 0;
+            } else {
+                bottomStackTabs.currentIndex = st[0];
+                bottomSheet.fraction = 1;
+            }
+            target = null;
+            realTarget = false;
+            spot = null;
+            settleTimer.restart();
+        }
+        function pick() {
+            var st = steps(tourSwipe.currentIndex);
+            for (var k = 0; k < st[1].length; k++) {
+                if (st[1][k] && shown(st[1][k])) { realTarget = true; return st[1][k]; }
+            }
+            realTarget = false;
+            // not on this board (e.g. SLCM-only tiles): point at the LEDS tab itself
+            return st[0] === 5 ? bottomStackTabs.itemAt(5) : null;
+        }
+        function scrollIntoView(it) {
+            for (var p = it.parent; p && p !== mainItem; p = p.parent) {
+                if (p.contentY !== undefined && p.contentHeight !== undefined && p.contentItem !== undefined) {
+                    var y = it.mapToItem(p.contentItem, 0, 0).y;
+                    var maxY = Math.max(0, p.contentHeight - p.height);
+                    var want = y + it.height <= p.contentY + p.height && y >= p.contentY ? p.contentY
+                        : Math.max(0, Math.min(maxY, y - 0.2 * unit));
+                    p.contentY = want;
+                    return;
+                }
+            }
+        }
+        Timer {
+            id: settleTimer  // after the SUW has slid open
+            interval: 300
+            onTriggered: {
+                rinkTour.target = rinkTour.pick();
+                if (rinkTour.target) rinkTour.scrollIntoView(rinkTour.target);
+            }
+        }
+        Timer {
+            interval: 50
+            repeat: true
+            running: rinkTour.visible
+            onTriggered: {
+                var t = rinkTour.target;
+                if (!t || !rinkTour.shown(t)) { rinkTour.spot = null; return; }
+                var p = t.mapToItem(rinkTour, 0, 0);
+                var m = 0.12 * unit;
+                // keep the spot inside the SUW's visible part when the control sits in it
+                var x0 = p.x - m, y0 = p.y - m, x1 = p.x + t.width + m, y1 = p.y + t.height + m;
+                if (bottomSheet.fraction > 0.5 && t !== bottomStackTabs) {
+                    var sTop = bottomSheet.mapToItem(rinkTour, 0, 0).y;
+                    if (y0 < sTop && y1 > sTop) y0 = sTop + 2;
+                    y1 = Math.min(y1, rinkTour.height - 2);
+                }
+                x0 = Math.max(2, x0); x1 = Math.min(rinkTour.width - 2, x1);
+                if (y1 - y0 < 4) { rinkTour.spot = null; return; }
+                var s = rinkTour.spot;
+                if (!s || Math.abs(s.x - x0) > 0.5 || Math.abs(s.y - y0) > 0.5 || Math.abs(s.w - (x1 - x0)) > 0.5 || Math.abs(s.h - (y1 - y0)) > 0.5)
+                    rinkTour.spot = {x: x0, y: y0, w: x1 - x0, h: y1 - y0};
+            }
+        }
+
+        function open() {
+            savedFrac = bottomSheet.fraction;
+            savedTab = bottomStackTabs.currentIndex;
+            tourSwipe.currentIndex = 0;
+            visible = true;
+            apply(0);
+        }
+        function close() {
+            visible = false;
+            spot = null;
+            target = null;
+            bottomStackTabs.currentIndex = savedTab;
+            bottomSheet.fraction = savedFrac;
+            swSettings.tourSeen = true;
+        }
 
         // [glyph, title, where, text, demo]  rf165: optional demo ("updates" = a
         // non-interactive picture of the real UPDATES section, "credit" = a
@@ -12399,7 +12516,7 @@ Item {
             ["♪", "THE MIXER", "MIXER TAB", "Your board is an instrument. Ten neon tiles, ten notes, played right through the motor. Tap and hold a tile in LIVE to jam."],
             ["●", "RECORD A MELODY", "MIXER › REC", "Hit REC, then play your tune on the tiles: recording starts with your first note. \u266A BEEP adds a controller beep. The timeline fills as you go; CLEAR to start over."],
             ["▶", "PLAY & SAVE", "MIXER › PLAY / SAVE", "PLAY to hear it back, SAVE to keep it, DONE to make it the melody your board plays when it boots."],
-            ["♥", "MY MELODIES", "MIXER › MY MELODIES", "All your saved tunes in one place. Tap one to make it your boot melody, ✎ to edit it on the tiles, ⧉ to copy, ✕ to delete. DEFAULT MELODY brings the original back; MELODY VOLUME sets how loud."],
+            ["♥", "MY MELODIES", "CONTROL › MY MELODIES", "All your saved tunes in one place. Tap one to make it your boot melody, ✎ to edit it on the tiles, ⧉ to copy, ✕ to delete. DEFAULT MELODY brings the original back; MELODY VOLUME sets how loud."],
             ["◢", "BOARD STYLE", "BOARD STYLE TAB", "Pick rails, tire and colors so the board on screen looks like yours."],
             ["◉", "LIGHTS", "LEDS TAB", "HEAD/TAIL LIGHTS: riding and idle effects, colors and brightness (RGB LEDs like Thor), SNOOZE before the board powers off. STATUS BAR: idle and riding animations. All linked with Refloat's settings."],
             ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
@@ -12409,13 +12526,77 @@ Item {
             ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "Underneath the new interface, Refloat Glow retains Refloat 1.2.3's core riding behavior, including balance, pushback, footpad handling and alerts. Most additions focus on customization, lighting and sounds. Optional settings such as MAX SPEED can change how your board behaves, so review them carefully."]
         ]
 
-        MouseArea { anchors.fill: parent }  // block the screen behind
+        MouseArea { anchors.fill: parent }  // block the screen behind (spotlight included)
+
+        // rf166: the spotlight: dark all around, a neon frame on the control
+        Item {
+            visible: rinkTour.hasSpot
+            anchors.fill: parent
+            readonly property var s: rinkTour.spot || {x: 0, y: 0, w: 0, h: 0}
+            readonly property color dim: "#D9050210"
+            Rectangle { x: 0; y: 0; width: parent.width; height: parent.s.y; color: parent.dim }
+            Rectangle { x: 0; y: parent.s.y + parent.s.h; width: parent.width; height: Math.max(0, parent.height - y); color: parent.dim }
+            Rectangle { x: 0; y: parent.s.y; width: parent.s.x; height: parent.s.h; color: parent.dim }
+            Rectangle { x: parent.s.x + parent.s.w; y: parent.s.y; width: Math.max(0, parent.width - x); height: parent.s.h; color: parent.dim }
+            Rectangle {
+                id: spotFrame
+                x: parent.s.x; y: parent.s.y; width: parent.s.w; height: parent.s.h
+                radius: 0.18 * unit
+                color: "transparent"
+                border.color: swTheme.neonGreen
+                border.width: 3
+                SequentialAnimation on opacity {
+                    running: rinkTour.hasSpot
+                    loops: Animation.Infinite
+                    NumberAnimation { from: 1.0; to: 0.35; duration: 650; easing.type: Easing.InOutSine }
+                    NumberAnimation { from: 0.35; to: 1.0; duration: 650; easing.type: Easing.InOutSine }
+                }
+            }
+            RectangularGlow {
+                anchors.fill: spotFrame
+                glowRadius: 0.15 * unit
+                spread: 0.1
+                cornerRadius: spotFrame.radius + glowRadius
+                color: swTheme.neonGreen
+                opacity: 0.35 * spotFrame.opacity
+                z: -1
+            }
+        }
 
         Rectangle {
             id: tourCard
-            anchors.centerIn: parent
+            // rf166: with a spotlight the card is shorter and sits on the other half
+            readonly property bool spotBelow: rinkTour.hasSpot && rinkTour.spot.y + rinkTour.spot.h / 2 > parent.height / 2
+            anchors.horizontalCenter: parent.horizontalCenter
             width: Math.min(parent.width - 0.6 * unit, 9 * unit)
-            height: Math.min(parent.height - 1.2 * unit, 11 * unit)
+            height: rinkTour.hasSpot ? Math.min(parent.height * 0.5, 8.5 * unit, Math.max(5.5 * unit, (spotBelow ? rinkTour.spot.y : parent.height - rinkTour.spot.y - rinkTour.spot.h) - 0.8 * unit))
+                : Math.min(parent.height - 1.2 * unit, 11 * unit)
+            y: !rinkTour.hasSpot ? (parent.height - height) / 2
+                : spotBelow ? Math.max(0.3 * unit, Math.min(rinkTour.spot.y - height - 0.45 * unit, 0.6 * unit))
+                : Math.min(parent.height - height - 0.3 * unit, Math.max(rinkTour.spot.y + rinkTour.spot.h + 0.45 * unit, parent.height - height - 0.6 * unit))
+            Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+            Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+
+            // pointer toward the spotlight
+            Canvas {
+                visible: rinkTour.hasSpot
+                width: 0.5 * unit
+                height: 0.32 * unit
+                x: rinkTour.hasSpot ? Math.max(0.4 * unit, Math.min(tourCard.width - width - 0.4 * unit, rinkTour.spot.x + rinkTour.spot.w / 2 - tourCard.x - width / 2)) : 0
+                y: tourCard.spotBelow ? tourCard.height - 1 : -height + 1
+                property bool down: tourCard.spotBelow
+                onDownChanged: requestPaint()
+                onPaint: {
+                    var c = getContext("2d");
+                    c.reset();
+                    c.beginPath();
+                    if (down) { c.moveTo(0, 0); c.lineTo(width, 0); c.lineTo(width / 2, height); }
+                    else { c.moveTo(0, height); c.lineTo(width, height); c.lineTo(width / 2, 0); }
+                    c.closePath();
+                    c.fillStyle = swTheme.neonPurple;
+                    c.fill();
+                }
+            }
             radius: 0.35 * unit
             color: "#0b0718"
             border.color: swTheme.neonPurple
@@ -12441,6 +12622,7 @@ Item {
                 anchors.bottom: tourDots.top
                 anchors.margins: 0.3 * unit
                 clip: true
+                onCurrentIndexChanged: if (rinkTour.visible) rinkTour.apply(currentIndex)
 
                 Repeater {
                     model: rinkTour.pages
@@ -12464,7 +12646,7 @@ Item {
 
                             Item {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                width: tourPage.demo === "updates" ? 1.5 * unit : 2.2 * unit
+                                width: rinkTour.hasSpot ? 1.1 * unit : tourPage.demo === "updates" ? 1.5 * unit : 2.2 * unit
                                 height: width
                                 Rectangle {
                                     id: tourRing
@@ -12487,7 +12669,7 @@ Item {
                                     anchors.centerIn: parent
                                     text: modelData[0]
                                     color: "#d6ffe4"
-                                    font.pixelSize: (tourPage.demo === "updates" ? 0.65 : 0.95) * unit
+                                    font.pixelSize: (rinkTour.hasSpot ? 0.48 : tourPage.demo === "updates" ? 0.65 : 0.95) * unit
                                 }
                                 Glow {
                                     anchors.fill: tourGlyph
@@ -12546,7 +12728,7 @@ Item {
                             // rf165: UPDATES - a picture of the real section, nothing pressable.
                             // Same names as the LEDS tab; the real one keeps every check.
                             Column {
-                                visible: tourPage.demo === "updates"
+                                visible: tourPage.demo === "updates" && !(tourPage.current && rinkTour.realTarget)
                                 width: parent.width
                                 spacing: 0.15 * unit
                                 Text {
@@ -15576,6 +15758,7 @@ Item {
                         }
 
                         Row {
+                            id: ctlMelodyRow  // rf166: Onboarding Tour target
                             anchors.horizontalCenter: parent.horizontalCenter
                             spacing: 0.2 * unit
 
@@ -15962,6 +16145,7 @@ Item {
 
                         // mode: LIVE (play only) or REC (record the boot melody)
                         RowLayout {
+                            id: mixerModeRow  // rf166: Onboarding Tour target
                             Layout.fillWidth: true
                             spacing: 0.15 * unit
 
@@ -16081,6 +16265,7 @@ Item {
 
                         // tiles: notes E4 (low) ... G5 (high), two rows for thumbs
                         GridLayout {
+                            id: mixerGrid  // rf166: Onboarding Tour target
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             columns: 5
@@ -16122,6 +16307,7 @@ Item {
                         }
 
                         Row {
+                            id: mixerActRow  // rf166: Onboarding Tour target
                             visible: melodyPad.recording
                             Layout.alignment: Qt.AlignHCenter
                             spacing: 0.12 * unit
@@ -16408,6 +16594,7 @@ Item {
 
                 // Refloat Glow: Board Style - looks of the side / front views only
                 ScrollView {
+                    id: styleTabPage  // rf166: Onboarding Tour target
                     Layout.fillHeight: true
                     Layout.fillWidth: true
                     contentWidth: availableWidth
@@ -16673,6 +16860,7 @@ Item {
 
                         // Each tile opens its settings in a full-screen window
                         GridLayout {
+                            id: ledMainTiles  // rf166: Onboarding Tour target
                             width: parent.width
                             columns: 2
                             rowSpacing: 0.18 * unit
@@ -16778,6 +16966,7 @@ Item {
                         // rf131: the controller beeper (Refloat's) in the Refloat view
                         // (rf153: compact - no title, one short line; under SNOOZE)
                         LedCard {
+                            id: ledBeepCard  // rf166: Onboarding Tour target
                             visible: !slcmDetect.present
                             width: parent.width
                             Row {
@@ -16892,6 +17081,7 @@ Item {
                                 onClicked: ledWindow.show("anim")
                             }
                             LedTile {
+                                id: slcmBeepTile  // rf166: Onboarding Tour target
                                 title: "BEEPER"
                                 glyph: "\u266A"
                                 lit: ledSender.ctrlBeep || swSettings.ledBeep
@@ -16899,6 +17089,7 @@ Item {
                                 onClicked: ledWindow.show("sound")
                             }
                             LedTile {
+                                id: slcmBattTile  // rf166: Onboarding Tour target
                                 title: "BATTERY GAUGE"
                                 glyph: "\u25AE"
                                 lit: swSettings.batCurveOn
@@ -16920,6 +17111,7 @@ Item {
                             columnSpacing: 0.18 * unit
 
                             LedTile {
+                                id: slcmUpdTile  // rf166: Onboarding Tour target
                                 Layout.columnSpan: 2
                                 title: "UPDATES"
                                 glyph: "\u21BB"

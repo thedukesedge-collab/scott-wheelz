@@ -1828,3 +1828,28 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
     like MAX SPEED change how the board behaves). Still the last page with
     DONE; warning icon kept.
 - Each tour page scrolls if it doesn't fit (small phones). UI only.
+
+### Onboarding Tour walks through the real interface (v1.2.3-rf166)
+- Terms from now on: "Onboarding Tour" (the guided slides, `rinkTour`)
+  and "SUW" (the Swipe-Up Window, `bottomSheet`).
+- Each Onboarding Tour page now shows its feature in the real app: it
+  opens the SUW on the right tab, scrolls the control into view and puts a
+  pulsing neon spotlight on it, with the rest of the screen dimmed. The
+  card moves to the other half of the screen and points at the control.
+  - HOME SCREEN: the speedo. PULL-UP SHEET: the SUW tab bar. HORN: the
+    HORN bar. THE MIXER: the tiles. RECORD A MELODY: LIVE / REC / BEEP.
+    PLAY & SAVE: CLEAR / PLAY / SAVE / DONE (shown in REC mode), else REC.
+    MY MELODIES: the MY MELODIES / RECORD row in CONTROL. BOARD STYLE: the
+    tab. LIGHTS: HEAD/TAIL LIGHTS + STATUS BAR tiles. BATTERY GAUGE,
+    BEEPER, UPDATES: their LEDS tiles / cards; when a board doesn't have
+    one (e.g. SLCM-only tiles on a Refloat-LED board) the LEDS tab itself
+    is spotlighted, and UPDATES keeps its picture of the section.
+  - WELCOME, CREDIT WHERE IT'S DUE and SAME RIDE stay centered cards (SUW
+    down).
+- Strictly visual: the whole screen stays covered by the tour's blocking
+  layer (spotlight included), nothing is pressed, no setting is written and
+  no board command is sent. The SUW position and tab are put back when the
+  tour closes. The SUW itself is unchanged.
+- Fix: MY MELODIES page said "MIXER › MY MELODIES"; the button is in
+  CONTROL ("CONTROL › MY MELODIES").
+- Ids added to the controls the tour points at (no behaviour change).

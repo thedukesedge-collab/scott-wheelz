@@ -152,7 +152,7 @@ mkdir -p /tmp/shots
 # shots: 0 home, 1-3 MIXER (BLANK / NOTES / 123), 4 LEDS > HEAD/TAIL LIGHTS
 # SIMPLE, 5 the same ADVANCED, 6 LEDS > STATUS BAR (Refloat LED view)
 for c in "$@"; do
-  for shot in 0 1 2 3 4 5 6 7 8 9 10 11; do
+  for shot in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do
     echo "=================== $c (shot $shot)"
     mkdir -p ~/.config/QtProject
     printf "[uiHints]\nstatusText=true\nplotCursor=true\ndrGeneral=true\ndrStartStop=true\ndrDownload=true\n" > ~/.config/QtProject/qmlscene.conf
@@ -165,7 +165,10 @@ for c in "$@"; do
       8) act="snoozeHelp.open();" ;;
       9) act="fatalHelp.open();" ;;
       10) act="disclaimerDialog.open();" ;;
-      11) act="rinkTour.visible = true; tourSwipe.currentIndex = 12;" ;;
+      11) act="if (!rinkTour.visible) { rinkTour.open(); tourSwipe.currentIndex = 4; }" ;;
+      12) act="if (!rinkTour.visible) { rinkTour.open(); tourSwipe.currentIndex = 11; }" ;;
+      13) act="if (!rinkTour.visible) { rinkTour.open(); tourSwipe.currentIndex = 3; }" ;;
+      14) act="if (!rinkTour.visible) { rinkTour.open(); tourSwipe.currentIndex = 12; }" ;;
     esac
     git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Refloat Glow/g; s/{{VERSION}}/test/g; s/{{LCM_FW_JSON}}/null/g" \
       | sed "s/category: \"scottWheelz\"/category: \"scottWheelzTest$shot\"/" \
@@ -173,7 +176,7 @@ for c in "$@"; do
 import os, sys
 s = sys.stdin.read()
 i = s.rstrip().rfind('}')
-t = '    Timer { interval: 400; repeat: true; running: true; onTriggered: { try { if (typeof mainItem.startNoticeDone !== \"undefined\") mainItem.startNoticeDone = true; if (typeof disclaimerDialog !== \"undefined\") disclaimerDialog.close(); if (typeof rinkTour !== \"undefined\") rinkTour.close(); } catch (e) {} ' + os.environ['ACT'] + ' } }\n'
+t = '    Timer { interval: 400; repeat: true; running: true; onTriggered: { try { if (typeof mainItem.startNoticeDone !== \"undefined\") mainItem.startNoticeDone = true; if (typeof disclaimerDialog !== \"undefined\") disclaimerDialog.close(); ' + ('' if 'rinkTour' in os.environ['ACT'] else 'if (typeof rinkTour !== \"undefined\" && rinkTour.visible) rinkTour.close(); ') + '} catch (e) {} ' + os.environ['ACT'] + ' } }\n'
 sys.stdout.write(s[:i] + t + s[i:])" \
       | python3 rjsmin.py > /tmp/ui.qml
     QML2_IMPORT_PATH=$stubs QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout 30 \

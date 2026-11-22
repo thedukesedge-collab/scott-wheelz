@@ -231,6 +231,10 @@ Do not begin changing safety-critical firmware behavior as part of this naming a
 - After every update send only: the simulator link, the dev .vescpkg link and a
   brief description of the changes. No screenshots (user, 2026-11-21).
 - Neon Future theme for everything new; short, simple UI wording.
+- Terms (user, 2026-11-22): "SUW" = Swipe-Up Window, the bottom panel with
+  TUNES / CONTROL / MIXER / DATA / BOARD STYLE / LEDS (`bottomSheet`).
+  "Onboarding Tour" = the multi-slide guided walkthrough (`rinkTour`, BACK /
+  NEXT / SKIP, dots, Replay Tour). Never "start-up wizard".
 - Piggyback on Refloat's own settings instead of reinventing them.
 - Don't touch the balance code; config writes only when the board is stopped.
 - New LED features only in the Refloat (controller-driven LED) view; the SLCM
