@@ -8873,61 +8873,61 @@ Item {
                     }
                 }
 
-                // rf167: written out (a LedCard as a Repeater delegate loses its layout)
+                // rf167: no extra properties on a LedCard instance: with one, its
+                // children skip the card's content column (same as the rf150 head/tail bug)
                 LedCard {
                     id: pbHvCard
                     width: parent.width
-                    readonly property string k: "tiltback_hv"
                     SwCardHead { title: "HIGH VOLTAGE"; helpText: "Pushback when the battery voltage goes above this, most often when braking or going downhill on a full battery (it can make the tail drag, take care). On VESC firmware 6.05+ it's a per-cell value (Refloat's default 4.30 V); on 6.02 it's the pack total. ANGLE is how far the nose lifts, RATE how fast." }
                     SwStepper {
                         width: parent.width
                         label: "AT"
-                        value: pushbackCfg.val(pbHvCard.k)
+                        value: pushbackCfg.val("tiltback_hv")
                         from: 0; to: 150; step: 0.05; decimals: 2; suffix: " V"
-                        onMoved: pushbackCfg.set(pbHvCard.k, newValue)
+                        onMoved: pushbackCfg.set("tiltback_hv", newValue)
                     }
                     SwStepper {
                         width: parent.width
                         label: "ANGLE"
-                        value: pushbackCfg.val(pbHvCard.k + "_angle")
+                        value: pushbackCfg.val("tiltback_hv_angle")
                         from: 0; to: 30; step: 1; decimals: 1; suffix: "\u00B0"
-                        onMoved: pushbackCfg.set(pbHvCard.k + "_angle", newValue)
+                        onMoved: pushbackCfg.set("tiltback_hv_angle", newValue)
                     }
                     SwStepper {
                         width: parent.width
                         label: "RATE"
-                        value: pushbackCfg.val(pbHvCard.k + "_speed")
+                        value: pushbackCfg.val("tiltback_hv_speed")
                         from: 0; to: 30; step: 0.5; decimals: 1; suffix: "\u00B0/s"
-                        onMoved: pushbackCfg.set(pbHvCard.k + "_speed", newValue)
+                        onMoved: pushbackCfg.set("tiltback_hv_speed", newValue)
                     }
                 }
 
-                // rf167: written out (a LedCard as a Repeater delegate loses its layout)
+                // rf167: no extra properties on a LedCard instance: with one, its
+                // children skip the card's content column (same as the rf150 head/tail bug)
                 LedCard {
                     id: pbLvCard
                     width: parent.width
-                    readonly property string k: "tiltback_lv"
                     SwCardHead { title: "LOW VOLTAGE"; helpText: "Pushback when the battery voltage drops below this, telling you to slow down before the pack sags too far. On VESC firmware 6.05+ it's a per-cell value (Refloat's default 3.00 V); on 6.02 it's the pack total. Make sure it is above your battery's real cut-off. ANGLE is how far the nose lifts, RATE how fast." }
                     SwStepper {
                         width: parent.width
                         label: "AT"
-                        value: pushbackCfg.val(pbLvCard.k)
+                        value: pushbackCfg.val("tiltback_lv")
                         from: 0; to: 150; step: 0.05; decimals: 2; suffix: " V"
-                        onMoved: pushbackCfg.set(pbLvCard.k, newValue)
+                        onMoved: pushbackCfg.set("tiltback_lv", newValue)
                     }
                     SwStepper {
                         width: parent.width
                         label: "ANGLE"
-                        value: pushbackCfg.val(pbLvCard.k + "_angle")
+                        value: pushbackCfg.val("tiltback_lv_angle")
                         from: 0; to: 30; step: 1; decimals: 1; suffix: "\u00B0"
-                        onMoved: pushbackCfg.set(pbLvCard.k + "_angle", newValue)
+                        onMoved: pushbackCfg.set("tiltback_lv_angle", newValue)
                     }
                     SwStepper {
                         width: parent.width
                         label: "RATE"
-                        value: pushbackCfg.val(pbLvCard.k + "_speed")
+                        value: pushbackCfg.val("tiltback_lv_speed")
                         from: 0; to: 30; step: 0.5; decimals: 1; suffix: "\u00B0/s"
-                        onMoved: pushbackCfg.set(pbLvCard.k + "_speed", newValue)
+                        onMoved: pushbackCfg.set("tiltback_lv_speed", newValue)
                     }
                 }
 
