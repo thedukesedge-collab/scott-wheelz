@@ -13995,6 +13995,30 @@ Item {
                     valueText: toFixed1Zero(swSettings.peakDuty * 100) + "%"
                 }
 
+                // rf169: no max speed limit: a small purple note in the same spot
+                // (the original rf96 badge shape); amber + big when a limit is set
+                Rectangle {
+                    visible: !maxSpeed.shown && maxSpeed.ready && state.pkgState !== state.s_Connecting
+                    z: 3
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: -0.08 * unit
+                    width: noLimitBadge.implicitWidth + 0.3 * unit
+                    height: noLimitBadge.implicitHeight + 0.1 * unit
+                    radius: height / 2
+                    color: "#0b0718"
+                    border.color: swTheme.neonPurple
+                    border.width: 1
+                    Text {
+                        id: noLimitBadge
+                        anchors.centerIn: parent
+                        color: swTheme.neonPurple
+                        font.family: "Exan"
+                        font.pixelSize: 0.2 * unit
+                        text: "MAX SPEED LIMIT: OFF"
+                    }
+                }
+
                 // rf96: a max speed limit is set (MAX SPEED in CONTROL): always
                 // shown at the top of the speedo, between the peaks
                 Rectangle {

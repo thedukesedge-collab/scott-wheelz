@@ -1902,3 +1902,10 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   out on every NEXT between pages with a control (12 of 12); after, 0
   (it only clears when moving to a centred page). CI load test pages
   through the tour every ~190 ms and logs spotlight drops (TOURDROPS).
+
+### "MAX SPEED LIMIT: OFF" note on the home screen (v1.2.3-rf169)
+- With no max speed limit set (MAX SPEED in CONTROL), a small purple
+  "MAX SPEED LIMIT: OFF" pill sits at the top of the speedo, in the same
+  spot and the original (rf96) badge shape. With a limit set, the big
+  amber "⚠ MAX 25 MPH" badge shows instead (unchanged). Hidden while
+  connecting / before the motor config is read. UI only.
