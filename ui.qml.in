@@ -8856,17 +8856,35 @@ Item {
                                     LedCard {
                                         id: rgbLightCard
                                         width: rgbCol.width
-                                        title: modelData[0]
-                                        onHeightChanged: console.log("RGBDBG card", modelData[0], "h", height, "children", children.length)
+                                        // rf150: own content column. As a Repeater delegate, LedCard's
+                                        // default content alias didn't apply: the RIDING / IDLE rows
+                                        // were parented to the card itself and drawn on top of each
+                                        // other. The body is positioned and sized explicitly instead.
+                                        title: ""
+                                        height: rgbCardBody.y + rgbCardBody.height + 0.15 * unit
                                         readonly property var bars: [modelData[1], modelData[2]]
+                                        Column {
+                                            id: rgbCardBody
+                                            parent: rgbLightCard
+                                            x: 0.15 * unit
+                                            y: 0.15 * unit
+                                            width: rgbLightCard.width - 0.3 * unit
+                                            spacing: 0.1 * unit
+                                            Text {
+                                                width: parent.width
+                                                horizontalAlignment: Text.AlignHCenter
+                                                text: modelData[0]
+                                                color: swTheme.neonGreen
+                                                font.family: "Exan"
+                                                font.pixelSize: 0.28 * unit
+                                                font.letterSpacing: 0.03 * unit
+                                            }
                                         Repeater {
                                             model: [["RIDING", 0], ["IDLE", 1]]
                                             Column {
                                                 id: rgbSimpleBar
-                                                width: rgbLightCard.width - 0.3 * unit
+                                                width: rgbCardBody.width
                                                 spacing: 0.1 * unit
-                                                onHeightChanged: console.log("RGBDBG bar", modelData[0], "h", height, "ih", implicitHeight, "y", y, "parent", parent, "pvis", parent ? parent.visible : "-")
-                                                Component.onCompleted: console.log("RGBDBG bar done", modelData[0], "h", height, "ih", implicitHeight, "parent", parent, "children", children.length)
                                                 readonly property int barIdx: rgbLightCard.bars[modelData[1]]
                                                 readonly property var b: ledSender.rgb[barIdx] || ({mode: 0, c1: 1, c2: 0, speed: 1})
                                                 Rectangle {  // thin divider between RIDING and IDLE
@@ -8910,6 +8928,7 @@ Item {
                                                     onMoved: ledSender.rgbSet(rgbSimpleBar.barIdx, "c1", ledSender.rfColorNext(value, newValue > value ? 1 : -1))
                                                 }
                                             }
+                                        }
                                         }
                                     }
                                 }
@@ -14375,7 +14394,9 @@ Item {
     }
 
     // Refloat Glow (rf81): with the sheet (SUW) up, a tap anywhere on
-    // the main view above it just puts it down (that tap does nothing else)
+    // the main view above it just puts it down (that tap does nothing else).
+    // rf150: except the HORN button: it still works with the sheet up, so horn
+    // settings can be tried right away (the sheet stays up).
     MouseArea {
         anchors.left: root.left
         anchors.right: root.right
@@ -14383,6 +14404,15 @@ Item {
         anchors.bottom: bottomSheet.top
         z: 5
         enabled: bottomSheet.fraction > 0.5 && !bottomSheet.dragging
+        onPressed: function (mouse) {
+            if (hornFrame.visible) {
+                var p = mapToItem(hornFrame, mouse.x, mouse.y);
+                if (p.x >= 0 && p.y >= 0 && p.x < hornFrame.width && p.y < hornFrame.height) {
+                    mouse.accepted = false;  // goes on to the HORN button below
+                    return;
+                }
+            }
+        }
         onClicked: bottomSheet.setFraction(0)
     }
 

@@ -1683,3 +1683,21 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   123 (tiles numbered 1-10). Saved in the app (mixerLabels; the rf142
   NOTES on/off setting is no longer used, so everyone starts on BLANK).
   UI only.
+
+### Layout fixes, start notice timing, HORN with the sheet up (v1.2.3-rf150)
+- LEDS › HEAD/TAIL LIGHTS (simple view): the RIDING / IDLE rows of the
+  HEADLIGHT and TAIL LIGHT cards were drawn on top of each other (the rows
+  sat outside the card's layout). Each card now has its own content
+  column. UI only.
+- MIXER: the header row (4 pills + hint) is narrower so all five tile
+  columns fit a phone again (broken since rf142). Tiles unchanged.
+- The start notice ("before you start") now opens only once the Refloat
+  Glow page is actually on screen, not right after install.
+- With the sheet (SUW) up, a tap on the home screen still puts it down,
+  except on the HORN button: it sounds the horn as usual and the sheet
+  stays up, so horn settings can be tried right away. Same horn limits as
+  before (commands.sendHorn, per-press timer, budget).
+- Old project names ("Rink-Float", "Re-Float Rink-Mixed", ...) replaced
+  with Refloat Glow in docs, comments and file notices (comments only in
+  C / Lisp). Identifiers (rinkmixed app id, file names, settings
+  category) kept on purpose.
