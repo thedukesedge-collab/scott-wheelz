@@ -151,7 +151,7 @@ for c in "$@"; do
 import os, sys
 s = sys.stdin.read()
 i = s.rstrip().rfind('}')
-t = '    Timer { interval: 1200; running: true; onTriggered: { bottomStackTabs.currentIndex = 1; ' + os.environ['OPEN'] + ' } }\n'
+t = '    Timer { interval: 1200; running: true; onTriggered: { welcomeDialog.close(); bottomStackTabs.currentIndex = 1; ' + os.environ['OPEN'] + ' } }\n'
 sys.stdout.write(s[:i] + t + s[i:])" \
       | python3 rjsmin.py > /tmp/ui.qml
     QML2_IMPORT_PATH=$stubs QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout 30 \
