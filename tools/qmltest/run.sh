@@ -168,7 +168,7 @@ for c in "$@"; do
 import os, sys
 s = sys.stdin.read()
 i = s.rstrip().rfind('}')
-t = '    Timer { interval: 400; repeat: true; running: true; onTriggered: { try { if (typeof disclaimerDialog !== \"undefined\") disclaimerDialog.close(); if (typeof rinkTour !== \"undefined\") rinkTour.close(); } catch (e) {} ' + os.environ['ACT'] + ' } }\n'
+t = '    Timer { interval: 400; repeat: true; running: true; onTriggered: { try { if (typeof mainItem.startNoticeDone !== \"undefined\") mainItem.startNoticeDone = true; if (typeof disclaimerDialog !== \"undefined\") disclaimerDialog.close(); if (typeof rinkTour !== \"undefined\") rinkTour.close(); } catch (e) {} ' + os.environ['ACT'] + ' } }\n'
 sys.stdout.write(s[:i] + t + s[i:])" \
       | python3 rjsmin.py > /tmp/ui.qml
     QML2_IMPORT_PATH=$stubs QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout 30 \
