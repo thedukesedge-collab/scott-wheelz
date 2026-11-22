@@ -1806,10 +1806,3 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   https://riddimrider.one/donate/ (Refloat's donation page, lukash) in the
   external browser (Qt.openUrlExternally). No reminders, no extra popups;
   the rest of the notice, its scrolling and NEXT are unchanged. UI only.
-
-### Start notice picture: "vibe code" + pixel sunglasses (v1.2.3-rf163)
-- Page 2 picture of BEFORE YOU START: the green "AI code" now reads
-  "vibe code" (same green, heavy italic, inside the same purple frame) and
-  the man wears classic pixel "deal with it" sunglasses. Nothing else in
-  the picture or the page changed. Still a 240 x 240 JPEG (14.7 KB, was
-  11.7 KB). UI only.
