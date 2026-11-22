@@ -319,7 +319,7 @@
         <div class="page on" id="pgTunes"><div class="pills" style="justify-content:flex-end;margin:0 0 6px"><div class="pill" id="taOpen">TUNE ARCHIVE &#8615;</div></div><div class="tunes" id="tunes"></div></div>
         <div class="page" id="pgControl">
           <div class="secTitle">Move</div>
-          <div class="pills" style="margin-top:6px"><div class="pill" id="hapOpen">HAPTIC FEEDBACK &#8250;</div><div class="pill" id="ctlBeep"></div></div>
+          <div class="pills" style="margin-top:6px"><div class="pill" id="ctlBeep"></div></div>
           <p class="ledHint" style="text-align:center">BEEPER OFF mutes the controller's beeper: the beep when settings are written, at power on / off, and its warning beeps (Refloat's Enable Beeper on Servo/PPM).</p>
           <div id="moveBox"><div class="neonL" id="fwdL">FWD</div><div id="moveTrack"><div class="bar"></div><div id="moveKnob"></div></div><div class="neonL" id="revL">REV</div></div>
           <div style="display:none"><div class="secTitle neonL" style="font-size:16px;margin-top:14px">FREE-SPIN LIMITER</div>
@@ -397,7 +397,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf166 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf167 · sim</span></div>
     </div>
   </div>
 
@@ -848,6 +848,7 @@ const TOUR = [
   ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and MAX SPEED / DUTY right there."],
   ["≡", "PULL-UP SHEET", "SWIPE UP", "Drag the sheet up for TUNES, CONTROL, MIXER, DATA, BOARD STYLE and LEDS. Tap anywhere on the main view (except HORN) to put it away."],
   ["♫", "HORN", "HOME + CONTROL", "Hold HORN to beep through the motor, no extra hardware. Sound and volume (10/10 = 4 V) in CONTROL › HORN SETTINGS. It stays well within safe, low motor current."],
+  ["⚙", "RIDE SETTINGS", "SETTINGS › RIDE", "Tap the gear, then RIDE. HAPTIC FEEDBACK: the warning tone at your duty or speed. PUSHBACK: when and how much the nose lifts (duty, speed, battery voltage). Both are Refloat's own settings and only save while the board is stopped.", "ride"],
   ["♪", "THE MIXER", "MIXER TAB", "Your board is an instrument. Ten neon tiles, ten notes, played right through the motor. Tap and hold a tile in LIVE to jam."],
   ["●", "RECORD A MELODY", "MIXER › REC", "Hit REC, then play your tune on the tiles: recording starts with your first note. The timeline fills as you go; CLEAR to start over."],
   ["▶", "PLAY & SAVE", "MIXER › PLAY / SAVE", "PLAY to hear it back, SAVE to keep it, DONE to make it the melody your board plays when it boots."],
@@ -877,10 +878,12 @@ function tourShowDemo() {
       + '<div class="lanes"><div class="lane" style="border-color:var(--green)"><b style="color:var(--green)">PACKAGE</b><i>DOWNLOAD PACKAGE</i>then install it in VESC Tool (VESC Packages)</div>'
       + '<div class="lane"><b>LIGHT MODULE</b><i>FLASH UPDATE</i>SLCM over Bluetooth, board at rest</div></div>'
       + '<div class="note">Shown when an SLCM light module is connected. Only tagged releases; the tour never downloads or flashes anything.</div>'
+    : demo === 'ride' ? '<div class="path" style="margin-top:4px"><span style="opacity:.6">SETUP · PREFERENCES ·</span> <span style="color:var(--green)">RIDE</span></div>'
+      + '<div class="chk" style="margin-bottom:6px">HAPTIC FEEDBACK ›</div><div class="chk">PUSHBACK ›</div>'
     : demo === 'credit' ? '<div class="note" style="font-family:Orbitron,monospace">Refloat · GPL-3.0 · github.com/lukash/refloat</div>' : '';
 }
 // rf166: each page opens the SUW on the right tab and spotlights the real control (visual only)
-const TOUR_STEPS = [null, [-1, ['speedoWrap']], [0, ['tabs']], [-1, ['horn']], [2, ['padTiles']], [2, [() => $('mxRec').parentElement]],
+const TOUR_STEPS = [null, [-1, ['speedoWrap']], [0, ['tabs']], [-1, ['horn']], [-1, ['btnSettings']], [2, ['padTiles']], [2, [() => $('mxRec').parentElement]],
   [2, [() => $('padPlay').parentElement, () => $('mxRec').parentElement]], [1, [() => $('myMelOpen').parentElement]], [4, ['pgStyle']],
   [5, [() => $('ltHead').closest('.ledTiles')]], [5, [() => $('ltBat').closest('.ledTile')]], [5, ['ledsBeepCard', () => $('ltSound').closest('.ledTile')]],
   [5, [() => $('ltUpd').closest('.ledTile')]], null, null];
@@ -1148,7 +1151,6 @@ function drawStatusArt(c, w, h, t, lit) {
 // rf108: HAPTIC FEEDBACK window (hapticCfg in ui.qml.in) and the controller BEEPER in CONTROL
 if (P.hap === undefined) P.hap = { str: 3, duty: 80, spd: 0, last: 3 };
 function renderCtl() {
-  $('hapOpen').classList.toggle('on', P.hap.str > 0);
   $('ctlBeep').textContent = 'BEEPER ' + (P.ctrlBeep !== false ? 'ON' : 'OFF'); $('ctlBeep').classList.toggle('on', P.ctrlBeep !== false);
 }
 $('ctlBeep').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); renderCtl(); renderLedsSoft(); };
@@ -1173,11 +1175,53 @@ function hapticWin() {
   $('hapOn').onclick = () => { const h = P.hap; if (h.str > 0) { h.last = h.str; h.str = 0; } else h.str = h.last || 3; save(); r(); };
   r();
 }
-$('hapOpen').onclick = hapticWin;
+// rf167: Settings › RIDE › PUSHBACK (pushbackCfg in ui.qml.in): Refloat's pushback settings, Refloat defaults here
+if (P.pb === undefined) P.pb = { dutyAng: 5, dutyRate: 3, hv: 4.3, hvAng: 8, hvRate: 1, lv: 3, lvAng: 10, lvRate: 1, ret: 1, cAng: 0, cErpm: 500, vRate: 0.3, vMax: 0, vErpm: 0, adv: false };
+function pushbackWin() {
+  const b = P.pb, h = P.hap;
+  const head = (t, help) => '<div style="position:relative;text-align:center;font:12px Orbitron,monospace;color:var(--green);margin:4px 0">' + t
+    + '<span class="pbQ" style="position:absolute;right:2px;top:-2px;width:20px;height:20px;line-height:17px;border:2px solid var(--purple);border-radius:50%;color:var(--green);font-size:12px;cursor:pointer;box-sizing:border-box">?</span></div>'
+    + '<p class="pbH" style="display:none;font-size:12px;color:#ead6ff;line-height:1.4;margin:0 0 6px">' + help + '</p>';
+  modal('<h3>PUSHBACK</h3><div style="max-height:60vh;overflow:auto"><p class="ledHint" style="text-align:center">Pushback lifts the nose to tell you to slow down. These are Refloat\'s own settings (VESC Tool › Refloat Cfg). Changes save automatically while the board is stopped.</p>'
+    + '<div class="ledCard">' + head('DUTY &amp; SPEED', 'Duty pushback starts at AT DUTY (100% = off). VESC\'s real maximum is about 95%: reaching it means a nosedive. Speed pushback starts at AT SPEED (0 = off). Both lift the nose to ANGLE at RATE; a fast rate can be dangerous. The same AT DUTY / AT SPEED are used by Haptic Feedback.') + '<div id="pbDuty"></div></div>'
+    + '<div class="ledCard">' + head('HIGH VOLTAGE', 'Pushback when the battery voltage goes above this, mostly when braking or going downhill on a full battery. Per cell on VESC 6.05+ (default 4.30 V), the pack total on 6.02.') + '<div id="pbHv"></div></div>'
+    + '<div class="ledCard">' + head('LOW VOLTAGE', 'Pushback when the battery voltage drops below this. Per cell on VESC 6.05+ (default 3.00 V), the pack total on 6.02. Keep it above your battery\'s real cut-off.') + '<div id="pbLv"></div></div>'
+    + '<div class="ledCard">' + head('RETURN', 'How fast the nose comes back to level after a pushback ends.') + '<div id="pbRet"></div></div>'
+    + '<div class="pills"><div class="pill" id="pbAdv"></div></div>'
+    + '<div id="pbAdvBox"><div class="ledCard">' + head('CONSTANT TILTBACK', 'A fixed nose angle added above a minimum ERPM (negative = nose down). Not for tilted rails: use the IMU calibration for that.') + '<div id="pbConst"></div></div>'
+    + '<div class="ledCard">' + head('VARIABLE TILTBACK', 'Above START ERPM the nose angle moves toward TARGET at RATE degrees per 1000 ERPM. Adds to Constant Tiltback; alert pushbacks are not affected.') + '<div id="pbVar"></div></div></div>'
+    + '<p class="ledHint" id="pbSaved" style="text-align:center;color:var(--green)"></p></div>'
+    + '<div class="btns"><button class="pri" data-close>CLOSE</button></div>');
+  document.querySelectorAll('#modalBox .pbQ').forEach(q => q.onclick = () => { const p = q.parentElement.nextElementSibling; p.style.display = p.style.display === 'none' ? '' : 'none'; });
+  const saved = () => { save(); $('pbSaved').textContent = '\u2714 Saved (simulated; the app reads it back from the board)'; r(); };
+  const f1 = (v, u) => v.toFixed(1) + u, mph = () => Math.round(h.spd * 0.621371);
+  const r = () => {
+    ['pbDuty', 'pbHv', 'pbLv', 'pbRet', 'pbConst', 'pbVar'].forEach(id => $(id).innerHTML = '');
+    cuStep('pbDuty', 'AT DUTY', () => h.duty, 50, 100, 1, v => v >= 100 ? 'OFF' : v + '%', v => { h.duty = v; saved(); });
+    cuStep('pbDuty', 'AT SPEED', mph, 0, 62, 1, v => v ? v + ' mph' : 'OFF', v => { h.spd = Math.round(v / 0.621371); saved(); });
+    cuStep('pbDuty', 'ANGLE', () => b.dutyAng, 0, 30, 1, v => f1(v, '°'), v => { b.dutyAng = v; saved(); });
+    cuStep('pbDuty', 'RATE', () => b.dutyRate, 0, 30, 0.5, v => f1(v, '°/s'), v => { b.dutyRate = v; saved(); });
+    [['pbHv', 'hv'], ['pbLv', 'lv']].forEach(([box, k]) => {
+      cuStep(box, 'AT', () => b[k], 0, 150, 0.05, v => v.toFixed(2) + ' V', v => { b[k] = Math.round(v * 100) / 100; saved(); });
+      cuStep(box, 'ANGLE', () => b[k + 'Ang'], 0, 30, 1, v => f1(v, '°'), v => { b[k + 'Ang'] = v; saved(); });
+      cuStep(box, 'RATE', () => b[k + 'Rate'], 0, 30, 0.5, v => f1(v, '°/s'), v => { b[k + 'Rate'] = v; saved(); });
+    });
+    cuStep('pbRet', 'RETURN RATE', () => b.ret, 0, 10, 0.5, v => f1(v, '°/s'), v => { b.ret = v; saved(); });
+    cuStep('pbConst', 'ANGLE', () => b.cAng, -10, 10, 0.2, v => f1(v, '°'), v => { b.cAng = Math.round(v * 10) / 10; saved(); });
+    cuStep('pbConst', 'ABOVE ERPM', () => b.cErpm, 200, 100000, 50, v => String(v), v => { b.cErpm = v; saved(); });
+    cuStep('pbVar', 'RATE', () => b.vRate, 0, 5, 0.05, v => v.toFixed(2) + '°/k', v => { b.vRate = Math.round(v * 100) / 100; saved(); });
+    cuStep('pbVar', 'TARGET', () => b.vMax, -10, 10, 0.2, v => f1(v, '°'), v => { b.vMax = Math.round(v * 10) / 10; saved(); });
+    cuStep('pbVar', 'START ERPM', () => b.vErpm, 0, 100000, 50, v => String(v), v => { b.vErpm = v; saved(); });
+    $('pbAdv').textContent = b.adv ? 'HIDE ADVANCED' : 'SHOW ADVANCED'; $('pbAdv').classList.toggle('on', !!b.adv);
+    $('pbAdvBox').style.display = b.adv ? '' : 'none';
+  };
+  $('pbAdv').onclick = () => { b.adv = !b.adv; save(); r(); };
+  r();
+}
 renderCtl();
 $('btnSettings').onclick = () => {
   const sw = (id, on, l) => '<div class="row"><div class="l">' + l + '</div><div class="sw' + (on ? ' on' : '') + '" data-sw="' + id + '"></div></div>';
-  modal('<h3>SETTINGS</h3><div class="tabs"><div class="pill on" data-tab="0">SETUP</div><div class="pill" data-tab="1">PREFERENCES</div></div>'
+  modal('<h3>SETTINGS</h3><div class="tabs"><div class="pill on" data-tab="0">SETUP</div><div class="pill" data-tab="1">PREFERENCES</div><div class="pill" data-tab="2">RIDE</div></div>'
     + '<div data-pg="0" style="max-height:52vh;overflow:auto">'
     + '<div class="card"><b>PACKAGE</b><p>Before running the motor wizard, disable the package so the two don\'t fight over the motor. Re-enable it after configuring your motor.</p><div style="text-align:center"><span class="nb" data-t="Package disabled (simulated)">DISABLE PACKAGE</span></div></div>'
     + '<div class="card"><b>HANDTEST</b><p>After setup, turn on Handtest and engage the board by hand to check it balances the right way. Motor currents are limited to a safe level.</p><div style="text-align:center"><span class="nb" data-t="Handtest on (simulated)">HANDTEST ON</span></div></div>'
@@ -1189,6 +1233,9 @@ $('btnSettings').onclick = () => {
     + '<div class="card"><b>DASHBOARD</b><div class="row"><div class="l">Speed dial max (' + 'mph)</div><input type="number" id="mDial" min="10" max="200" style="width:80px"></div>' + sw('a', true, 'Show battery voltage') + sw('b', false, 'Battery voltage per cell') + sw('c', true, 'Log scale for the battery current bar') + '</div>'
     + '<div class="card"><b>TUNES</b>' + sw('d', false, 'Show changed options count') + '</div>'
     + '<div class="card"><b>DATA &amp; APP</b>' + sw('e', true, 'Show Welcome dialog') + sw('f', true, 'Check for new package versions') + '<div style="text-align:center;margin-top:6px"><span class="nb" id="mTour">SHOW TIPS &amp; TRICKS</span></div></div></div>'
+    + '<div data-pg="2" style="display:none;max-height:52vh;overflow:auto">'
+    + '<div class="card"><b>HAPTIC FEEDBACK</b><p>A warning tone you feel and hear through the motor at the duty or speed you set (Refloat\'s Haptic Feedback).</p><div style="text-align:center"><span class="nb" id="mHap"></span></div></div>'
+    + '<div class="card"><b>PUSHBACK</b><p>When and how much the nose lifts to tell you to slow down: duty, speed, high and low battery voltage (Refloat\'s Pushback settings).</p><div style="text-align:center"><span class="nb" id="mPb">PUSHBACK SETTINGS ›</span></div></div></div>'
     + '<div class="btns"><button class="pri" data-ok>CLOSE</button></div>', () => { P.dialMax = clamp(+$('mDial').value || 40, 10, 200); save(); });
   $('mDial').value = P.dialMax;
   $('mDial').readOnly = true; $('mDial').style.color = 'var(--green)'; $('mDial').style.fontFamily = 'Orbitron,monospace';
@@ -1196,6 +1243,8 @@ $('btnSettings').onclick = () => {
   document.querySelectorAll('#modalBox [data-tab]').forEach(t => t.onclick = () => { document.querySelectorAll('#modalBox [data-tab]').forEach(x => x.classList.toggle('on', x === t)); document.querySelectorAll('#modalBox [data-pg]').forEach(g => g.style.display = g.dataset.pg === t.dataset.tab ? '' : 'none'); });
   document.querySelectorAll('#modalBox [data-sw]').forEach(x => x.onclick = () => x.classList.toggle('on'));
   $('mTour').onclick = () => { $('modal').classList.remove('on'); tourOpen(); };
+  $('mHap').textContent = 'HAPTIC FEEDBACK: ' + (P.hap.str > 0 ? 'ON' : 'OFF') + ' ›';  // rf167: moved here from CONTROL
+  $('mHap').onclick = hapticWin; $('mPb').onclick = pushbackWin;
   document.querySelectorAll('#modalBox [data-t]').forEach(x => x.onclick = () => toast(x.dataset.t));
 };
 
@@ -2101,7 +2150,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf166';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf167';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

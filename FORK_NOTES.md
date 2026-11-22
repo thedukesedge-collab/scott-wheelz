@@ -1853,3 +1853,33 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - Fix: MY MELODIES page said "MIXER › MY MELODIES"; the button is in
   CONTROL ("CONTROL › MY MELODIES").
 - Ids added to the controls the tour points at (no behaviour change).
+
+### Settings › RIDE: HAPTIC FEEDBACK moved here, new PUSHBACK page (v1.2.3-rf167)
+- Settings (gear) has a third tab, RIDE, with HAPTIC FEEDBACK and
+  PUSHBACK. The HAPTIC FEEDBACK button is gone from SUW › CONTROL (BEEPER
+  stays there). The haptic window itself is unchanged (STRENGTH, AT DUTY,
+  AT SPEED in 1 mph steps with tap-to-type).
+- PUSHBACK window: Refloat 1.2.3's own settings (Refloat Cfg), with
+  Refloat's ranges and steps, no new behaviour:
+  - DUTY & SPEED: AT DUTY (tiltback_duty, 50-100 %, 100 = off, same as
+    haptic), AT SPEED (tiltback_speed, 1 mph steps / tap to type, 0 = off),
+    ANGLE (tiltback_duty_angle 0-30°), RATE (tiltback_duty_speed 0-30 °/s);
+    red note above 85 % duty.
+  - HIGH VOLTAGE / LOW VOLTAGE: AT (tiltback_hv / _lv 0-150 V, 0.05 steps,
+    per cell on VESC 6.05+), ANGLE, RATE.
+  - RETURN RATE (tiltback_return_speed 0-10 °/s).
+  - SHOW ADVANCED: CONSTANT TILTBACK (angle -10..10°, above ERPM 200-100000)
+    and VARIABLE TILTBACK (rate 0-5 °/1000 ERPM, target -10..10°, start
+    ERPM 0-100000); ERPMs can be typed on the number pad.
+  - Each card has a (?) with Refloat's explanation in plain words.
+- Values are read from the board's Refloat config when the window opens;
+  changes are written 1.5 s after the last tap, only while the board is
+  stopped (they wait otherwise), then confirmed: after the board ACKs the
+  write the app reads the config back and compares ("Saved and confirmed
+  on the board" / a warning naming any field that differs, or "Couldn't
+  confirm" after 5 s). The haptic window uses the same confirmation.
+- Number pad: accepts as many digits as the field's maximum needs (ERPM).
+- Onboarding Tour: new RIDE SETTINGS page after HORN: spotlights the gear
+  and shows a picture of Settings › RIDE (Settings is a window above the
+  tour, so it isn't opened; nothing is applied). Tour steps are now looked
+  up by page title. 16 pages.

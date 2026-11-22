@@ -4215,6 +4215,54 @@ Item {
     }
 
     // rf124: a rounded neon card with a centered title, for one light / group
+    // rf167: a small (?) that opens a plain explanation window (infoHelp)
+    component SwHelpDot : Rectangle {
+        property string helpTitle: ""
+        property string helpText: ""
+        width: 0.5 * unit
+        height: width
+        radius: width / 2
+        color: helpDotArea.pressed ? swTheme.neonPurple : "transparent"
+        border.color: swTheme.neonPurple
+        border.width: 2
+        Text {
+            anchors.centerIn: parent
+            text: "?"
+            color: helpDotArea.pressed ? swTheme.background : swTheme.neonGreen
+            font.family: "Exan"
+            font.pixelSize: 0.28 * unit
+        }
+        MouseArea {
+            id: helpDotArea
+            anchors.fill: parent
+            anchors.margins: -0.2 * unit
+            onClicked: infoHelp.show(parent.helpTitle, parent.helpText)
+        }
+    }
+
+    // rf167: a card heading with an optional (?) on the right
+    component SwCardHead : Item {
+        property string title: ""
+        property string helpText: ""
+        width: parent ? parent.width : 0
+        height: 0.5 * unit
+        Text {
+            anchors.centerIn: parent
+            text: parent.title
+            color: swTheme.neonGreen
+            font.family: "Exan"
+            font.pixelSize: 0.26 * unit
+            font.letterSpacing: 0.03 * unit
+        }
+        SwHelpDot {
+            visible: parent.helpText !== ""
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            helpTitle: parent.title
+            helpText: parent.helpText
+        }
+    }
+
     component LedCard : Rectangle {
         id: ledCard
         property string title
@@ -7621,9 +7669,9 @@ Item {
                 onCurrentIndexChanged: settingsStackLayout.currentIndex = currentIndex
 
                 Repeater {
-                    model: ["SETUP", "PREFERENCES"]
+                    model: ["SETUP", "PREFERENCES", "RIDE"]  // rf167: RIDE = haptic feedback + pushback
                     SwPill {
-                        minWidth: 3.0 * unit
+                        minWidth: 2.5 * unit
                         label: modelData
                         lit: settingsTabBar.currentIndex === index
                         onClicked: settingsTabBar.currentIndex = index
@@ -7894,6 +7942,49 @@ Item {
                                     settingsDialog.close();
                                     rinkTour.open();  // rf87: Neon Future tour of the Refloat Glow features
                                 }
+                            }
+                        }
+
+                        Item { Layout.fillWidth: true; height: 0.2 * unit }
+                    }
+                }
+
+                // rf167: RIDE - Refloat's own haptic feedback and pushback settings
+                ScrollView {
+                    id: settingsRidePage
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    contentWidth: availableWidth
+                    clip: true
+
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 0.25 * unit
+
+                        SettingsCard {
+                            id: settingsHapticCard  // Onboarding Tour target
+                            title: "HAPTIC FEEDBACK"
+                            SetupDescription {
+                                text: "A warning tone you feel and hear through the motor at the duty or speed you set (Refloat's Haptic Feedback)."
+                            }
+                            NeonButton {
+                                Layout.alignment: Qt.AlignHCenter
+                                lit: hapticCfg.on
+                                text: hapticCfg.on ? "Haptic feedback: ON ›" : "Haptic feedback: OFF ›"
+                                onClicked: hapticCfg.openWindow()
+                            }
+                        }
+
+                        SettingsCard {
+                            id: settingsPushbackCard  // Onboarding Tour target
+                            title: "PUSHBACK"
+                            SetupDescription {
+                                text: "When and how much the nose lifts to tell you to slow down: duty, speed, high and low battery voltage (Refloat's Pushback settings)."
+                            }
+                            NeonButton {
+                                Layout.alignment: Qt.AlignHCenter
+                                text: "Pushback settings ›"
+                                onClicked: pushbackCfg.openWindow()
                             }
                         }
 
@@ -8463,7 +8554,10 @@ Item {
             if (Math.abs(c.getParamDouble("haptic.duty.strength") - strength) > 0.001) { c.updateParamDouble("haptic.duty.strength", strength); dirty = true; }
             if (Math.abs(c.getParamDouble("tiltback_duty") - duty) > 0.0005) { c.updateParamDouble("tiltback_duty", duty); dirty = true; }
             if (c.getParamInt("tiltback_speed") !== speedKmh) { c.updateParamInt("tiltback_speed", speedKmh); dirty = true; }
-            if (dirty) packageConfig.writeConfig();
+            if (dirty) {
+                packageConfig.writeConfig();
+                cfgVerify.start({"haptic.duty.strength": strength, "tiltback_duty": duty, "tiltback_speed": speedKmh});  // rf167
+            }
         }
         property Timer writeTimer: Timer { id: hapticWriteTimer; interval: 1500; onTriggered: hapticCfg.write() }
     }
@@ -8532,6 +8626,376 @@ Item {
                 font.pixelSize: fontSizeSmall
                 color: "#ff2b4f"
                 text: "Duty above about 85% leaves little margin before the motor runs out of power: keep AT DUTY where your pushback was if you're not sure."
+            }
+            SwLText {  // rf167: read back from the board after each save
+                visible: cfgVerify.text !== ""
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                font.pixelSize: fontSizeSmall
+                color: cfgVerify.ok ? swTheme.neonGreen : "#FFB300"
+                text: cfgVerify.text
+            }
+        }
+    }
+
+    // rf167: after a Refloat config write: wait for the board's ACK, read the
+    // config back (VESC Tool loads it into the same ConfigParams) and compare
+    QtObject {
+        id: cfgVerify
+        property var expected: null
+        property int phase: 0  // 0 idle, 1 waiting for ACK, 2 waiting for the read-back
+        property bool ok: false
+        property string text: ""
+        function start(map) {
+            expected = map;
+            phase = 1;
+            ok = false;
+            text = "Saving to the board\u2026";
+            cfgVerifyTimeout.restart();
+        }
+        function check() {
+            if (phase !== 2 || !packageConfig.checkConfig()) return;
+            phase = 0;
+            cfgVerifyTimeout.stop();
+            var bad = [];
+            for (var k in expected) {
+                var got = packageConfig.getParamValue(k);
+                if (got === null || Math.abs(got - expected[k]) > 0.002) bad.push(k);
+            }
+            ok = bad.length === 0;
+            text = ok ? "\u2714 Saved and confirmed on the board"
+                : "\u26A0 The board reports different values (" + bad.join(", ") + "). Check Refloat Cfg in VESC Tool.";
+            VescIf.emitStatusMessage(text, ok);
+        }
+        property Connections conns: Connections {
+            target: vescCommands
+            function onCustomConfigAckReceived(confId) {
+                if (cfgVerify.phase === 1 && confId === 0) {
+                    cfgVerify.phase = 2;
+                    vescCommands.customConfigGet(0, false);
+                }
+            }
+            function onCustomConfigRx(confInd, data) {
+                if (cfgVerify.phase === 2 && confInd === 0) Qt.callLater(cfgVerify.check);
+            }
+        }
+        property Timer timeout: Timer {
+            id: cfgVerifyTimeout
+            interval: 5000
+            onTriggered: {
+                if (cfgVerify.phase === 0) return;
+                cfgVerify.phase = 0;
+                cfgVerify.ok = false;
+                cfgVerify.text = "\u26A0 Couldn't confirm the save. Check Refloat Cfg in VESC Tool.";
+            }
+        }
+    }
+
+    // rf167: plain explanation window for the (?) buttons
+    BaseDialog {
+        id: infoHelp
+        parent: ApplicationWindow.overlay
+        title: ""
+        standardButtons: Dialog.NoButton
+        property string body: ""
+        function show(t, b) { title = t; body = b; open(); }
+        footer: Item {
+            implicitHeight: 1.2 * unit
+            SwPill {
+                anchors.centerIn: parent
+                minWidth: 3.0 * unit
+                label: "GOT IT"
+                onClicked: infoHelp.close()
+            }
+        }
+        Text {
+            width: infoHelp.availableWidth
+            wrapMode: Text.WordWrap
+            color: "#ead6ff"
+            font.pixelSize: 0.3 * unit
+            lineHeight: 1.15
+            text: infoHelp.body
+        }
+    }
+
+    // rf167: Settings › RIDE › PUSHBACK - Refloat 1.2.3's own pushback /
+    // tiltback settings (Refloat Cfg), with Refloat's ranges and steps. Read
+    // from the board's config when the window opens, written only while the
+    // board is stopped, then read back to confirm. No new behaviour.
+    QtObject {
+        id: pushbackCfg
+        property bool loaded: false
+        property var v: ({})
+        // name: [type, min, max]  (Refloat's settings.xml limits)
+        readonly property var spec: ({
+            "tiltback_duty": ["d", 0, 1], "tiltback_duty_angle": ["d", 0, 30], "tiltback_duty_speed": ["d", 0, 30],
+            "tiltback_speed": ["i", 0, 100],
+            "tiltback_hv": ["d", 0, 150], "tiltback_hv_angle": ["d", 0, 30], "tiltback_hv_speed": ["d", 0, 30],
+            "tiltback_lv": ["d", 0, 150], "tiltback_lv_angle": ["d", 0, 30], "tiltback_lv_speed": ["d", 0, 30],
+            "tiltback_return_speed": ["d", 0, 10],
+            "tiltback_constant": ["d", -10, 10], "tiltback_constant_erpm": ["i", 200, 100000],
+            "tiltback_variable": ["d", 0, 5], "tiltback_variable_max": ["d", -10, 10], "tiltback_variable_erpm": ["i", 0, 100000]
+        })
+        function load() {
+            if (!packageConfig.checkConfig()) return false;
+            var c = packageConfig.pkgConfig, o = {};
+            for (var k in spec) o[k] = spec[k][0] === "i" ? c.getParamInt(k) : c.getParamDouble(k);
+            v = o;
+            loaded = true;
+            return true;
+        }
+        function val(k) { return v[k] !== undefined ? v[k] : 0; }
+        function openWindow() {
+            if (!load()) { VescIf.emitStatusMessage("Refloat's settings aren't loaded yet", false); return; }
+            pushbackWindow.open();
+        }
+        function set(k, x) {
+            if (!loaded || !spec[k]) return;
+            x = Math.max(spec[k][1], Math.min(spec[k][2], x));
+            if (spec[k][0] === "i") x = Math.round(x);
+            var o = {};
+            for (var n in v) o[n] = v[n];
+            o[k] = x;
+            v = o;  // a new object so the bindings update
+            pushbackWriteTimer.restart();
+        }
+        function write() {
+            if (!packageConfig.checkConfig() || !loaded) return;
+            if (mainItem.boardRunning) { pushbackWriteTimer.restart(); return; }  // never mid-ride
+            var c = packageConfig.pkgConfig, dirty = {}, any = false;
+            for (var k in spec) {
+                if (spec[k][0] === "i") {
+                    if (c.getParamInt(k) !== v[k]) { c.updateParamInt(k, v[k]); dirty[k] = v[k]; any = true; }
+                } else if (Math.abs(c.getParamDouble(k) - v[k]) > 0.0005) {
+                    c.updateParamDouble(k, v[k]); dirty[k] = v[k]; any = true;
+                }
+            }
+            if (any) {
+                packageConfig.writeConfig();
+                cfgVerify.start(dirty);
+            }
+        }
+        property Timer writeTimer: Timer { id: pushbackWriteTimer; interval: 1500; onTriggered: pushbackCfg.write() }
+    }
+
+    BaseDialog {
+        id: pushbackWindow
+        parent: ApplicationWindow.overlay
+        title: "Pushback"
+        implicitHeight: fullHeight
+        standardButtons: Dialog.NoButton
+        property bool advanced: false
+        footer: Item {
+            implicitHeight: 1.2 * unit
+            SwPill {
+                anchors.centerIn: parent
+                minWidth: 3.0 * unit
+                label: "CLOSE"
+                onClicked: pushbackWindow.close()
+            }
+        }
+
+        ScrollView {
+            anchors.fill: parent
+            contentWidth: availableWidth
+            clip: true
+
+            Column {
+                width: pushbackWindow.availableWidth
+                spacing: 0.2 * unit
+
+                SwLText {
+                    width: parent.width
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: fontSizeSmall
+                    text: "Pushback lifts the nose to tell you to slow down. These are Refloat's own settings (VESC Tool \u203A Refloat Cfg). Changes save automatically while the board is stopped."
+                }
+                SwLText {
+                    visible: mainItem.boardRunning
+                    width: parent.width
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: fontSizeSmall
+                    color: "#FFB300"
+                    text: "The board is running: changes wait until it stops."
+                }
+
+                LedCard {
+                    width: parent.width
+                    SwCardHead {
+                        title: "DUTY & SPEED"
+                        helpText: "Duty pushback starts when the motor's duty cycle reaches AT DUTY (100% = off). VESC's real maximum is about 95%: reaching it means a nosedive, so pushback must come well before that.\n\nSpeed pushback starts at AT SPEED (0 = off).\n\nBoth lift the nose to ANGLE, tilting at RATE. A fast rate can be dangerous. The same AT DUTY / AT SPEED values are used by Haptic Feedback."
+                    }
+                    SwStepper {
+                        width: parent.width
+                        label: "AT DUTY"
+                        value: Math.round(pushbackCfg.val("tiltback_duty") * 100)
+                        from: 50; to: 100; step: 1
+                        valueText: value >= 100 ? "OFF" : value + "%"
+                        onMoved: pushbackCfg.set("tiltback_duty", newValue / 100)
+                    }
+                    SwStepper {
+                        id: pbSpeedStep
+                        width: parent.width
+                        label: "AT SPEED"
+                        readonly property real f: vescConfig.imperialFactor > 0 ? vescConfig.imperialFactor : 1
+                        value: Math.round(pushbackCfg.val("tiltback_speed") * f)
+                        from: 0; to: Math.round(100 * f); step: 1
+                        editable: true
+                        valueText: value === 0 ? "OFF" : value + " " + vescConfig.speedUnit
+                        onMoved: pushbackCfg.set("tiltback_speed", Math.round(newValue / f))
+                        onValueClicked: numPad.edit("AT SPEED (0 = OFF)", value, 0, to, vescConfig.speedUnit,
+                            function (x) { pushbackCfg.set("tiltback_speed", Math.round(x / pbSpeedStep.f)); })
+                    }
+                    SwStepper {
+                        width: parent.width
+                        label: "ANGLE"
+                        value: pushbackCfg.val("tiltback_duty_angle")
+                        from: 0; to: 30; step: 1; decimals: 1; suffix: "\u00B0"
+                        onMoved: pushbackCfg.set("tiltback_duty_angle", newValue)
+                    }
+                    SwStepper {
+                        width: parent.width
+                        label: "RATE"
+                        value: pushbackCfg.val("tiltback_duty_speed")
+                        from: 0; to: 30; step: 0.5; decimals: 1; suffix: "\u00B0/s"
+                        onMoved: pushbackCfg.set("tiltback_duty_speed", newValue)
+                    }
+                    Text {
+                        visible: pushbackCfg.val("tiltback_duty") > 0.85 && pushbackCfg.val("tiltback_duty") < 1
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        font.pixelSize: fontSizeSmall
+                        color: "#ff2b4f"
+                        text: "Duty above about 85% leaves little margin before the motor runs out of power."
+                    }
+                }
+
+                Repeater {
+                    model: [["HIGH VOLTAGE", "tiltback_hv", "Pushback when the battery voltage goes above this, most often when braking or going downhill on a full battery (it can make the tail drag, take care). On VESC firmware 6.05+ it's a per-cell value (Refloat's default 4.30 V); on 6.02 it's the pack total. ANGLE is how far the nose lifts, RATE how fast."],
+                            ["LOW VOLTAGE", "tiltback_lv", "Pushback when the battery voltage drops below this, telling you to slow down before the pack sags too far. On VESC firmware 6.05+ it's a per-cell value (Refloat's default 3.00 V); on 6.02 it's the pack total. Make sure it is above your battery's real cut-off. ANGLE is how far the nose lifts, RATE how fast."]]
+                    LedCard {
+                        id: pbVoltCard
+                        width: parent.width
+                        readonly property string k: modelData[1]
+                        SwCardHead { title: modelData[0]; helpText: modelData[2] }
+                        SwStepper {
+                            width: parent.width
+                            label: "AT"
+                            value: pushbackCfg.val(pbVoltCard.k)
+                            from: 0; to: 150; step: 0.05; decimals: 2; suffix: " V"
+                            onMoved: pushbackCfg.set(pbVoltCard.k, newValue)
+                        }
+                        SwStepper {
+                            width: parent.width
+                            label: "ANGLE"
+                            value: pushbackCfg.val(pbVoltCard.k + "_angle")
+                            from: 0; to: 30; step: 1; decimals: 1; suffix: "\u00B0"
+                            onMoved: pushbackCfg.set(pbVoltCard.k + "_angle", newValue)
+                        }
+                        SwStepper {
+                            width: parent.width
+                            label: "RATE"
+                            value: pushbackCfg.val(pbVoltCard.k + "_speed")
+                            from: 0; to: 30; step: 0.5; decimals: 1; suffix: "\u00B0/s"
+                            onMoved: pushbackCfg.set(pbVoltCard.k + "_speed", newValue)
+                        }
+                    }
+                }
+
+                LedCard {
+                    width: parent.width
+                    SwCardHead { title: "RETURN"; helpText: "How fast the nose comes back to level after a pushback ends." }
+                    SwStepper {
+                        width: parent.width
+                        label: "RETURN RATE"
+                        value: pushbackCfg.val("tiltback_return_speed")
+                        from: 0; to: 10; step: 0.5; decimals: 1; suffix: "\u00B0/s"
+                        onMoved: pushbackCfg.set("tiltback_return_speed", newValue)
+                    }
+                }
+
+                SwPill {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    minWidth: 3.6 * unit
+                    label: pushbackWindow.advanced ? "HIDE ADVANCED" : "SHOW ADVANCED"
+                    lit: pushbackWindow.advanced
+                    onClicked: pushbackWindow.advanced = !pushbackWindow.advanced
+                }
+
+                LedCard {
+                    visible: pushbackWindow.advanced
+                    width: parent.width
+                    SwCardHead {
+                        title: "CONSTANT TILTBACK"
+                        helpText: "A fixed nose angle added above a minimum ERPM (negative = nose down). Not meant to fix tilted rails: adjust the IMU calibration for that, or riding backwards feels the opposite.\n\nERPM = RPM \u00D7 motor poles / 2. On an 11\" tire with a Hypercore (30 poles), 1000 ERPM \u2248 2.2 mph."
+                    }
+                    SwStepper {
+                        width: parent.width
+                        label: "ANGLE"
+                        value: pushbackCfg.val("tiltback_constant")
+                        from: -10; to: 10; step: 0.2; decimals: 1; suffix: "\u00B0"
+                        onMoved: pushbackCfg.set("tiltback_constant", newValue)
+                    }
+                    SwStepper {
+                        id: pbConstErpm
+                        width: parent.width
+                        label: "ABOVE ERPM"
+                        value: pushbackCfg.val("tiltback_constant_erpm")
+                        from: 200; to: 100000; step: 50
+                        editable: true
+                        onMoved: pushbackCfg.set("tiltback_constant_erpm", newValue)
+                        onValueClicked: numPad.edit("CONSTANT TILTBACK ERPM", value, 200, 100000, "ERPM",
+                            function (x) { pushbackCfg.set("tiltback_constant_erpm", x); })
+                    }
+                }
+
+                LedCard {
+                    visible: pushbackWindow.advanced
+                    width: parent.width
+                    SwCardHead {
+                        title: "VARIABLE TILTBACK"
+                        helpText: "Above START ERPM the nose angle moves toward TARGET at RATE degrees per 1000 ERPM (TARGET can be negative). It adds to Constant Tiltback and doesn't affect or prevent the alert pushbacks.\n\nOn an 11\" tire with a Hypercore (30 poles), 1000 ERPM \u2248 2.2 mph."
+                    }
+                    SwStepper {
+                        width: parent.width
+                        label: "RATE"
+                        value: pushbackCfg.val("tiltback_variable")
+                        from: 0; to: 5; step: 0.05; decimals: 2; suffix: "\u00B0/k"
+                        onMoved: pushbackCfg.set("tiltback_variable", newValue)
+                    }
+                    SwStepper {
+                        width: parent.width
+                        label: "TARGET"
+                        value: pushbackCfg.val("tiltback_variable_max")
+                        from: -10; to: 10; step: 0.2; decimals: 1; suffix: "\u00B0"
+                        onMoved: pushbackCfg.set("tiltback_variable_max", newValue)
+                    }
+                    SwStepper {
+                        id: pbVarErpm
+                        width: parent.width
+                        label: "START ERPM"
+                        value: pushbackCfg.val("tiltback_variable_erpm")
+                        from: 0; to: 100000; step: 50
+                        editable: true
+                        onMoved: pushbackCfg.set("tiltback_variable_erpm", newValue)
+                        onValueClicked: numPad.edit("VARIABLE TILTBACK START ERPM", value, 0, 100000, "ERPM",
+                            function (x) { pushbackCfg.set("tiltback_variable_erpm", x); })
+                    }
+                }
+
+                SwLText {
+                    visible: cfgVerify.text !== ""
+                    width: parent.width
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: fontSizeSmall
+                    color: cfgVerify.ok ? swTheme.neonGreen : "#FFB300"
+                    text: cfgVerify.text
+                }
+                Item { width: 1; height: 0.2 * unit }
             }
         }
     }
@@ -10804,7 +11268,7 @@ Item {
         function key(k) {
             if (k === "<") {
                 entry = fresh ? "" : entry.slice(0, -1);
-            } else if (entry.length < 4 || fresh) {
+            } else if (entry.length < Math.max(4, String(maxValue).length) || fresh) {
                 entry = (fresh ? "" : entry) + k;
                 if (entry.length > 1 && entry.charAt(0) === "0") entry = entry.substr(1);
             }
@@ -12397,21 +12861,24 @@ Item {
         readonly property bool hasSpot: visible && spot !== null
         property bool realTarget: false  // the page's own control (not the LEDS tab fallback)
 
-        // per page: [SUW tab (-1 = SUW down), [targets, first visible wins]]
+        // per page (by title): [SUW tab (-1 = SUW down), [targets, first visible wins]]
         function steps(i) {
-            switch (i) {
-            case 1: return [-1, [speedo]];
-            case 2: return [0, [bottomStackTabs]];
-            case 3: return [-1, [hornFrame]];
-            case 4: return [2, [mixerGrid]];
-            case 5: return [2, [mixerModeRow]];
-            case 6: return [2, [mixerActRow, mixerModeRow]];
-            case 7: return [1, [ctlMelodyRow]];
-            case 8: return [4, [styleTabPage]];
-            case 9: return [5, [ledMainTiles]];
-            case 10: return [5, [slcmBattTile]];
-            case 11: return [5, [ledBeepCard, slcmBeepTile]];
-            case 12: return [5, [slcmUpdTile]];
+            switch (pages[i] ? pages[i][1] : "") {
+            case "HOME SCREEN": return [-1, [speedo]];
+            case "PULL-UP SHEET": return [0, [bottomStackTabs]];
+            case "HORN": return [-1, [hornFrame]];
+            // rf167: the gear; Settings itself is a window above the tour, so the
+            // card shows a picture of its RIDE tab instead of opening it
+            case "RIDE SETTINGS": return [-1, [settingsButton]];
+            case "THE MIXER": return [2, [mixerGrid]];
+            case "RECORD A MELODY": return [2, [mixerModeRow]];
+            case "PLAY & SAVE": return [2, [mixerActRow, mixerModeRow]];
+            case "MY MELODIES": return [1, [ctlMelodyRow]];
+            case "BOARD STYLE": return [4, [styleTabPage]];
+            case "LIGHTS": return [5, [ledMainTiles]];
+            case "BATTERY GAUGE": return [5, [slcmBattTile]];
+            case "BEEPER": return [5, [ledBeepCard, slcmBeepTile]];
+            case "UPDATES": return [5, [slcmUpdTile]];
             default: return [-1, []];
             }
         }
@@ -12513,6 +12980,7 @@ Item {
             ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and MAX SPEED / DUTY right there."],
             ["≡", "PULL-UP SHEET", "SWIPE UP", "Drag the sheet up for TUNES, CONTROL, MIXER, DATA, BOARD STYLE and LEDS. Tap anywhere on the main view (except HORN) to put it away."],
             ["♫", "HORN", "HOME + CONTROL", "Hold HORN to beep through the motor, no extra hardware. Sound and volume (10/10 = 4 V) in CONTROL › HORN SETTINGS. It stays well within safe, low motor current."],
+            ["⚙", "RIDE SETTINGS", "SETTINGS › RIDE", "Tap the gear, then RIDE. HAPTIC FEEDBACK: the warning tone at your duty or speed. PUSHBACK: when and how much the nose lifts (duty, speed, battery voltage). Both are Refloat's own settings and only save while the board is stopped.", "ride"],
             ["♪", "THE MIXER", "MIXER TAB", "Your board is an instrument. Ten neon tiles, ten notes, played right through the motor. Tap and hold a tile in LIVE to jam."],
             ["●", "RECORD A MELODY", "MIXER › REC", "Hit REC, then play your tune on the tiles: recording starts with your first note. \u266A BEEP adds a controller beep. The timeline fills as you go; CLEAR to start over."],
             ["▶", "PLAY & SAVE", "MIXER › PLAY / SAVE", "PLAY to hear it back, SAVE to keep it, DONE to make it the melody your board plays when it boots."],
@@ -12829,6 +13297,54 @@ Item {
                                     text: "Shown when an SLCM light module is connected. Only tagged releases; the tour never downloads or flashes anything."
                                     color: "#9a86b8"
                                     font.pixelSize: 0.18 * unit
+                                }
+                            }
+
+                            // rf167: RIDE SETTINGS - a picture of Settings › RIDE (nothing pressable)
+                            Column {
+                                visible: tourPage.demo === "ride"
+                                width: parent.width
+                                spacing: 0.12 * unit
+                                Row {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    spacing: 0.12 * unit
+                                    Repeater {
+                                        model: ["SETUP", "PREFERENCES", "RIDE"]
+                                        Rectangle {
+                                            width: 2.0 * unit
+                                            height: 0.45 * unit
+                                            radius: height / 2
+                                            color: index === 2 ? swTheme.neonGreen : "transparent"
+                                            border.color: index === 2 ? swTheme.neonGreen : swTheme.neonPurple
+                                            border.width: 1
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: modelData
+                                                color: index === 2 ? swTheme.background : "#c98bff"
+                                                font.family: "Exan"
+                                                font.pixelSize: 0.15 * unit
+                                            }
+                                        }
+                                    }
+                                }
+                                Repeater {
+                                    model: ["HAPTIC FEEDBACK", "PUSHBACK"]
+                                    Rectangle {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        width: Math.min(parent.width, 6 * unit)
+                                        height: 0.5 * unit
+                                        radius: 0.12 * unit
+                                        color: "#100a24"
+                                        border.color: "#FFB300"
+                                        border.width: 2
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: modelData + "  \u203A"
+                                            color: swTheme.neonGreen
+                                            font.family: "Exan"
+                                            font.pixelSize: 0.18 * unit
+                                        }
+                                    }
                                 }
                             }
 
@@ -15548,17 +16064,11 @@ Item {
                             text: "Tilt works while riding (engaged and moving)."
                         }
 
-                        // rf108: HAPTIC FEEDBACK (Refloat's settings) + controller BEEPER
+                        // rf108: controller BEEPER (rf167: HAPTIC FEEDBACK moved to Settings › RIDE)
                         Item { width: parent.width; height: 0.2 * unit }
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter
                             spacing: 0.2 * unit
-                            SwPill {
-                                minWidth: 3.6 * unit
-                                label: "HAPTIC FEEDBACK \u203A"
-                                lit: hapticCfg.on
-                                onClicked: hapticCfg.openWindow()
-                            }
                             SwPill {
                                 minWidth: 2.8 * unit
                                 label: ledSender.ctrlBeep ? "BEEPER ON" : "BEEPER OFF"
