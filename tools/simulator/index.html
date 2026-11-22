@@ -394,12 +394,13 @@
             <div class="ledTile" data-w="battery"><span class="g">&#9646;</span><b>BATTERY GAUGE</b><small id="ltBat"></small><i>&#8250;</i></div>
           </div></div>
           <div class="ledTiles" id="updTileBox"><div class="ledTile wide" data-w="updates"><span class="g">&#8635;</span><b>UPDATES</b><small id="ltUpd">CHECK FOR UPDATES</small><i>&#8250;</i></div></div>
+          <div id="nonRgbBox" style="display:none"><div class="pills"><div class="pill" id="nonRgbP"></div></div><p class="ledHint" style="text-align:center">For plain (single-color) head/tail lights: HEAD/TAIL LIGHTS shows just on / off and brightness, no colors or effects. Your settings on the board don't change.</p></div><!-- rf175 -->
           <div style="height:22px"></div>
           <div id="lcmTools"><span id="lcmToolsText">LCM firmware tools</span><i id="lcmToolsFill"></i></div>
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf174 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf175 · sim</span></div>
     </div>
   </div>
 
@@ -863,18 +864,19 @@ const TOUR = [
   ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "Underneath the new interface, Refloat Glow retains Refloat 1.2.3's core riding behavior, including balance, pushback, footpad handling and alerts. Most additions focus on customization, lighting and sounds. Optional settings such as MAX SPEED can change how your board behaves, so review them carefully."]
 ];
 let tourI = 0, tourX = null;
-// rf174: LIGHTS page by board (lightsText in ui.qml.in)
-function tourLightsText() {
+// rf175: LIGHTS page: both kinds of boards, yours first (lightsText in ui.qml.in)
+function tourLightsHtml() {
   const setup = P.simSetup || 'slcm';
-  return setup === 'slcm'
-    ? 'Floatwheel kit with SLCM: HEAD/TAIL LIGHTS on, off and brightness, STATUS BAR and its animations, BATTERY GAUGE for a battery % you can trust, and the light module\'s own BEEPER. Everything is sent straight to your light module.'
-    : setup === 'refloat'
-      ? 'Your controller drives the LEDs (Thor and others): HEAD/TAIL LIGHTS riding and idle effects, colors and brightness, a STATUS BAR with battery and idle animations, and SNOOZE before the board powers off. All linked with Refloat\'s own LED settings.'
-      : 'No lights found yet. Controller-driven LEDs (Thor and others): turn them on in VESC Tool › Refloat Cfg › Hardware (LED Mode). Floatwheel kits: an LCM with SLCM firmware shows up here by itself.';
+  const sl = '<b>Floatwheel kit (SLCM)</b>: HEAD/TAIL LIGHTS on/off and brightness, STATUS BAR animations, BATTERY GAUGE and the light module\'s BEEPER, sent straight to your light module.';
+  const ct = '<b>Controller LEDs</b> (most non-Floatwheel setups, e.g. Thor): effects, colors and brightness for HEAD/TAIL LIGHTS, a STATUS BAR with battery and idle animations, and SNOOZE, linked with Refloat\'s LED settings. Plain lights: NON-RGB HEAD/TAIL LIGHTS at the bottom of LEDS.';
+  const dim = t => '<span style="color:#9a86b8">' + t + '</span>';
+  return setup === 'slcm' ? 'Your board: ' + sl + '<br><br>' + dim(ct)
+    : setup === 'refloat' ? 'Your board: ' + ct + '<br><br>' + dim(sl)
+    : 'No lights found yet. ' + ct + ' Turn them on in VESC Tool › Refloat Cfg › Hardware (LED Mode).<br><br>' + sl + ' An LCM with SLCM firmware shows up here by itself.';
 }
 function tourShow() {
   const [g, t, w, x, demo] = TOUR[tourI];
-  $('tourRing').textContent = g; $('tourWhere').textContent = w; $('tourTitle').textContent = t; $('tourText').textContent = t === 'LIGHTS' ? tourLightsText() : x;
+  $('tourRing').textContent = g; $('tourWhere').textContent = w; $('tourTitle').textContent = t; if (t === 'LIGHTS') $('tourText').innerHTML = tourLightsHtml(); else $('tourText').textContent = x;
   // rf165: UPDATES = a picture of the real section (nothing pressable); CREDIT = a quiet attribution line
   tourShowDemo();
   $('tourRing').style.transform = demo === 'updates' && !$('tour').classList.contains('spot') ? 'scale(.7)' : '';
@@ -950,6 +952,7 @@ function tourGo(d) {
   $('tourPg').style.opacity = 0; clearTimeout(tourFade);
   tourFade = setTimeout(() => { tourShow(); $('tourPg').style.opacity = 1; }, 110);
 }
+$('nonRgbP').onclick = () => { P.nonRgb = !P.nonRgb; save(); renderLeds(); };
 $('tourBack').onclick = () => tourGo(-1); $('tourNext').onclick = () => tourGo(1);
 $('tourCard').addEventListener('pointerdown', e => tourX = e.clientX);
 $('tourCard').addEventListener('pointerup', e => { if (tourX !== null && Math.abs(e.clientX - tourX) > 50) { const d = e.clientX < tourX ? 1 : -1; if (tourI + d >= 0 && tourI + d < TOUR.length) tourGo(d); } tourX = null; });
@@ -1881,7 +1884,10 @@ setInterval(() => {
 function renderLedsSoft() {
   const setup = P.simSetup || 'slcm', slcm = setup === 'slcm', lightsOk = setup !== 'none';
   $('rgbTileBox').style.display = 'none';  // rf128: merged into HEAD/TAIL LIGHTS
-  $('rgbInHead').style.display = setup === 'refloat' ? '' : 'none';
+  const rgbUi = setup === 'refloat' && !P.nonRgb;  // rf175: NON-RGB HEAD/TAIL LIGHTS = simple view
+  $('rgbInHead').style.display = rgbUi ? '' : 'none';
+  $('nonRgbBox').style.display = setup === 'slcm' ? 'none' : '';
+  $('nonRgbP').textContent = 'NON-RGB HEAD/TAIL LIGHTS: ' + (P.nonRgb ? 'ON' : 'OFF'); $('nonRgbP').classList.toggle('on', !!P.nonRgb);
   $('ledsSnzCard').style.display = setup === 'refloat' ? '' : 'none';
   $('ledsBeepCard').style.display = 'none';  // rf173: moved to Settings › RIDE
   // rf132: Refloat view: ALL LIGHTS on top, a bit bigger; SLCM: as before
@@ -1948,7 +1954,7 @@ function renderLedsSoft() {
 function renderLeds() {
   const pct = v => v + '%';
   $('ledHeadSteps').innerHTML = ''; const su = (P.simSetup || 'slcm') === 'slcm';  // rf116: SLCM wording as before
-  if ((P.simSetup || 'slcm') !== 'refloat') { ledStep($('ledHeadSteps'), 'ledHeadPct', su ? 'RIDING LIGHTS' : 'RIDING', 0, 100, 5, v => v ? v + '%' : 'OFF'); ledStep($('ledHeadSteps'), 'ledHeadIdlePct', su ? 'RUNNING LIGHTS (IDLE)' : 'IDLE', 0, 100, 5, v => v ? v + '%' : 'OFF'); }  // rf128: RGB boards: BRIGHTNESS card
+  if ((P.simSetup || 'slcm') !== 'refloat' || P.nonRgb) { ledStep($('ledHeadSteps'), 'ledHeadPct', su ? 'RIDING LIGHTS' : 'RIDING', 0, 100, 5, v => v ? v + '%' : 'OFF'); ledStep($('ledHeadSteps'), 'ledHeadIdlePct', su ? 'RUNNING LIGHTS (IDLE)' : 'IDLE', 0, 100, 5, v => v ? v + '%' : 'OFF'); }  // rf128: RGB boards: BRIGHTNESS card
   // rf86: snooze for controller-driven LEDs (THOR pretend option)
   if (P.ledSnoozeMin === undefined || P.ledSnoozeMin < 0 || !P.snz100) { P.ledSnoozeMin = 5; P.snz100 = true; }  // rf100: minutes before power-off
   // rf88: pretend VESC Shutdown Mode = off after 10 min: snooze stays below it
@@ -2226,7 +2232,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf174';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf175';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

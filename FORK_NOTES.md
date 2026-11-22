@@ -1976,3 +1976,15 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   Glow over Bluetooth. No laptop, no cables, just a few taps. New Refloat
   Glow releases show up here too. (Your LCM needs the SLCM base firmware
   for Bluetooth updates.)"
+
+### NON-RGB HEAD/TAIL LIGHTS, LIGHTS tour page for both setups (v1.2.3-rf175)
+- LEDS tab (Controller LEDs view), at the bottom: NON-RGB HEAD/TAIL LIGHTS
+  ON / OFF. ON = HEAD/TAIL LIGHTS shows only on / off and RIDING / IDLE
+  brightness (Refloat's Headlight / Front Brightness), like SLCM boards: no
+  colors, effects or SIMPLE / ADVANCED. Status bar unchanged. App view only:
+  nothing on the board changes. Off by default, manual only. Not shown on
+  SLCM boards (already simple).
+- Onboarding Tour LIGHTS page: both setups on one page, yours first and
+  highlighted: "Floatwheel kit (SLCM)" and "Controller LEDs (most
+  non-Floatwheel setups, e.g. Thor)", the other one dimmed below; with no
+  lights found, both plus where to turn them on.

@@ -513,7 +513,7 @@ Item {
         // can be turned off: changes then wait for APPLY CHANGES (Refloat view
         // only; an SLCM always applies)
         readonly property bool advancedOpen: ledWindow.visible
-            && ((ledWindow.section === "head" && rgbAvail && swSettings.rgbAdvanced)
+            && ((ledWindow.section === "head" && rgbUi && swSettings.rgbAdvanced)
                 || (ledWindow.section === "bar" && !slcmPresets && swSettings.barAdvanced))
         readonly property bool autoApply: swSettings.ledAutoApply || slcmDetect.present || !advancedOpen
         property bool pending: false
@@ -643,6 +643,8 @@ Item {
         property bool rgbLifted: false  // leds.lights_off_when_lifted
         property bool rgbLiftedSnap: false
         property bool rgbAvail: false
+        // rf175: the RGB head/tail controls are shown (off with NON-RGB HEAD/TAIL LIGHTS on)
+        readonly property bool rgbUi: rgbAvail && !swSettings.nonRgbHeadTail
         property bool rgbLoaded: false
         // brightness 0..100. HEAD and FRONT brightness are the HEADLIGHTS
         // window's RIDING / RUNNING levels (same Refloat settings), so they go
@@ -2640,6 +2642,7 @@ Item {
         property int ledStatusSnooze: 0  // rf109: status bar while snoozing: 0 breathe, 1 dim, 2 dark, 3 normal; rf111: 4-12 Refloat animation + 4
         property real hapticLast: 3  // rf108: strength brought back by HAPTIC FEEDBACK ON
         property real pbLastAngle: 5  // rf171: pushback angle brought back by PUSHBACK ON
+        property bool nonRgbHeadTail: false  // rf175: plain (single-color) head/tail lights: simple view
         property int rfBgLast: 1  // rf101: background color brought back by BACKGROUND ON (WHITE)  // rf86: controller-driven LEDs snooze after this many idle minutes (0 = never)
         property string ledCustom: ""  // CUSTOM animation, 8 numbers (JSON), see ledSender.custom()
         property int ledAnimBoot: 11
@@ -9633,7 +9636,7 @@ Item {
                             id: rgbCol
                             width: parent.width
                             spacing: 0.14 * unit
-                            visible: ledSender.rgbAvail  // rf128: inside HEAD/TAIL LIGHTS
+                            visible: ledSender.rgbUi  // rf128: inside HEAD/TAIL LIGHTS (rf175: not with NON-RGB)
                             property int sel: 0
                             readonly property var bar: ledSender.rgb[sel] || ({})
 
@@ -9908,7 +9911,7 @@ Item {
                         }
 
                         SwStepper {
-                            visible: !ledSender.rgbAvail  // rf128: in the BRIGHTNESS card
+                            visible: !ledSender.rgbUi  // rf128: in the BRIGHTNESS card
                             label: "RIDING"
                             value: swSettings.ledHeadlightPct
                             from: 0; to: 100; step: 5
@@ -9917,7 +9920,7 @@ Item {
                         }
 
                         SwStepper {
-                            visible: !ledSender.rgbAvail  // rf128: in the BRIGHTNESS card
+                            visible: !ledSender.rgbUi  // rf128: in the BRIGHTNESS card
                             label: "IDLE"
                             value: swSettings.ledHeadlightIdlePct
                             from: 0; to: 100; step: 5
@@ -9959,7 +9962,7 @@ Item {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: (ledSender.rgbAvail ? "HEAD/TAIL LIGHTS OFF = always off. " : "RIDING: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. "
+                            text: (ledSender.rgbUi ? "HEAD/TAIL LIGHTS OFF = always off. " : "RIDING: while the board is engaged. IDLE: the rest of the time. 0% = off; HEAD/TAIL LIGHTS OFF = always off. "
                                 + "Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). ")
                                 + "SNOOZE uses the same idle clock as VESC's power-off: riding or rolling the wheel restarts it (footpads and lifting don't), and wakes the lights. "
                                 + "When to snooze is set on the LEDS page (SNOOZE). BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes on its own timer; this is for controller-driven LEDs (e.g. Thor)."
@@ -13102,11 +13105,14 @@ Item {
         property bool realTarget: false  // the page's own control (not the LEDS tab fallback)
         // rf174: LIGHTS page, by board: Floatwheel kits with the SLCM light
         // module vs controller-driven LEDs (Thor and every other controller)
+        // rf175: LIGHTS page: both kinds of boards, yours first (bold), the other below
+        readonly property string lightsSlcm: "<b>Floatwheel kit (SLCM)</b>: HEAD/TAIL LIGHTS on/off and brightness, STATUS BAR animations, BATTERY GAUGE and the light module's BEEPER, sent straight to your light module."
+        readonly property string lightsCtl: "<b>Controller LEDs</b> (most non-Floatwheel setups, e.g. Thor): effects, colors and brightness for HEAD/TAIL LIGHTS, a STATUS BAR with battery and idle animations, and SNOOZE, linked with Refloat's LED settings. Plain lights: NON-RGB HEAD/TAIL LIGHTS at the bottom of LEDS."
         readonly property string lightsText: slcmDetect.present
-            ? "Floatwheel kit with SLCM: HEAD/TAIL LIGHTS on, off and brightness, STATUS BAR and its animations, BATTERY GAUGE for a battery % you can trust, and the light module's own BEEPER. Everything is sent straight to your light module."
+            ? "Your board: " + lightsSlcm + "<br><br><font color=\"#9a86b8\">" + lightsCtl + "</font>"
             : (ledSender.rgbAvail || ledSender.rfStatusAvail)
-                ? "Your controller drives the LEDs (Thor and others): HEAD/TAIL LIGHTS riding and idle effects, colors and brightness, a STATUS BAR with battery and idle animations, and SNOOZE before the board powers off. All linked with Refloat's own LED settings."
-                : "No lights found yet. Controller-driven LEDs (Thor and others): turn them on in VESC Tool \u203A Refloat Cfg \u203A Hardware (LED Mode). Floatwheel kits: an LCM with SLCM firmware shows up here by itself."
+                ? "Your board: " + lightsCtl + "<br><br><font color=\"#9a86b8\">" + lightsSlcm + "</font>"
+                : "No lights found yet. " + lightsCtl + " Turn them on in VESC Tool \u203A Refloat Cfg \u203A Hardware (LED Mode).<br><br>" + lightsSlcm + " An LCM with SLCM firmware shows up here by itself."
 
         // per page (by title): [SUW tab (-1 = SUW down), [targets, first visible wins]]
         function steps(i) {
@@ -13457,6 +13463,7 @@ Item {
                                 width: parent.width
                                 horizontalAlignment: Text.AlignHCenter
                                 wrapMode: Text.WordWrap
+                                textFormat: Text.StyledText
                                 text: modelData[1] === "LIGHTS" ? rinkTour.lightsText : modelData[3]
                                 color: "#ead6ff"
                                 font.pixelSize: 0.27 * unit
@@ -17810,6 +17817,26 @@ Item {
                         }
 
                         // SLCM extras: only with an SLCM light module
+                        // rf175: plain (single-color) head/tail lights: only on / off and
+                        // brightness in HEAD/TAIL LIGHTS (like SLCM boards), no colors or
+                        // effects. Manual only, never switched on by itself.
+                        SwPill {
+                            visible: !slcmDetect.present
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 5.6 * unit
+                            label: swSettings.nonRgbHeadTail ? "NON-RGB HEAD/TAIL LIGHTS: ON" : "NON-RGB HEAD/TAIL LIGHTS: OFF"
+                            lit: swSettings.nonRgbHeadTail
+                            onClicked: swSettings.nonRgbHeadTail = !swSettings.nonRgbHeadTail
+                        }
+                        SwLText {
+                            visible: !slcmDetect.present
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "For plain (single-color) head/tail lights: HEAD/TAIL LIGHTS shows just on / off and brightness, no colors or effects. Your settings on the board don't change."
+                        }
+
                         LedHeading { visible: slcmDetect.present; text: "SLCM extras" }
 
                         GridLayout {
