@@ -8275,6 +8275,53 @@ Item {
                 text: "None of this would be possible without all the hard work Lukáš Hrázký (lukash) and the Refloat community have put into Refloat. Thank you!"
             }
 
+            // rf162: optional, understated donation link for Refloat (lukash).
+            // Opens the external browser; no reminders, nothing else changes.
+            Column {
+                width: parent.width
+                spacing: 0.12 * unit
+                Text {
+                    width: parent.width
+                    horizontalAlignment: Text.AlignHCenter
+                    color: swTheme.neonPurple
+                    font.family: "Exan"
+                    font.pixelSize: 0.22 * unit
+                    font.letterSpacing: 0.02 * unit
+                    text: "SUPPORT REFLOAT DEVELOPMENT"
+                }
+                Text {
+                    width: parent.width
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    color: "#d6ffe4"
+                    font.pixelSize: fontSizeSmall
+                    text: "Refloat is a community-driven project made possible by countless hours of work. If you'd like to show your appreciation and support its continued development, you can donate directly to Lukáš. Completely optional."
+                }
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: donateText.implicitWidth + 0.5 * unit
+                    height: 0.55 * unit
+                    radius: height / 2
+                    color: donateArea.pressed ? swTheme.neonGreen : "transparent"
+                    border.color: swTheme.neonGreen
+                    border.width: 1
+                    Text {
+                        id: donateText
+                        anchors.centerIn: parent
+                        color: donateArea.pressed ? swTheme.background : swTheme.neonGreen
+                        font.family: "Exan"
+                        font.pixelSize: 0.2 * unit
+                        text: "DONATE TO REFLOAT \u2197"
+                    }
+                    MouseArea {
+                        id: donateArea
+                        anchors.fill: parent
+                        anchors.margins: -0.1 * unit
+                        onClicked: Qt.openUrlExternally("https://riddimrider.one/donate/")
+                    }
+                }
+            }
+
             NText {
                 width: parent.width
                 font.pointSize: 12

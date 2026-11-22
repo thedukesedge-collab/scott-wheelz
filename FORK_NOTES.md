@@ -1798,3 +1798,11 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   the speedo is larger and bolder (about 1.8x text, thick amber border,
   amber-tinted fill), still between the TOP SPEED and MAX DUTY boxes
   (width capped, text shrinks to fit). UI only.
+
+### Optional Refloat donation link in BEFORE YOU START (v1.2.3-rf162)
+- Page 1 of the start notice, right after the green thank-you line: a
+  small "SUPPORT REFLOAT DEVELOPMENT" section (short text, marked
+  completely optional) and an outlined DONATE TO REFLOAT ↗ link that opens
+  https://riddimrider.one/donate/ (Refloat's donation page, lukash) in the
+  external browser (Qt.openUrlExternally). No reminders, no extra popups;
+  the rest of the notice, its scrolling and NEXT are unchanged. UI only.
