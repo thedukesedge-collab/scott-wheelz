@@ -84,6 +84,10 @@ typedef struct {
     volatile bool battery_save_pending;
     volatile time_t battery_change_time;
     uint32_t battery_saved[4];
+    // hapticspeedsplit: speed reminder (km/h) in custom EEPROM word 127
+    volatile bool speed_tone_save_pending;
+    volatile time_t speed_tone_change_time;
+    uint32_t speed_tone_saved;
     Charging charging;
     BMS bms;
 

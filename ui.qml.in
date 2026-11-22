@@ -2204,6 +2204,7 @@ Item {
         readonly property int c_LCM_TEST_BEEP: 127  // Refloat Glow: light module test beep
         readonly property int c_LCM_FW: 128  // Refloat Glow: LCM firmware update relay
         readonly property int c_LCM_BATTERY: 129  // Refloat Glow: battery curve for the LCM status bar
+        readonly property int c_HAPTIC_SPEED: 131  // hapticspeedsplit: speed reminder tone
         readonly property int c_LCM_DEVICE_INFO: 27  // Refloat: the LCM's own name (Re-Float: "VPBL-<hash>")
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
@@ -2430,6 +2431,8 @@ Item {
                 lcmFw.onName(dv, ind);
             } else if (msgtype === c_LCM_BATTERY) {
                 batteryCurve.onReply(dv, ind);
+            } else if (msgtype === c_HAPTIC_SPEED) {
+                speedTone.onReply(dv, ind);
             } else if (msgtype == c_LIGHTS_CONTROL) {
                 var values = dv.getUint8(ind++);
                 lights.on = values & 0b01;
@@ -8585,6 +8588,8 @@ Item {
         function openWindow() {
             if (!load()) { VescIf.emitStatusMessage("Refloat's settings aren't loaded yet", false); return; }
             pushbackCfg.load();  // rf172: for the LINK TO PUSHBACK toggle
+            speedTone.text = "";
+            speedTone.get();  // hapticspeedsplit: shows the row once the board answers
             hapticWindow.open();
         }
         function set(key, v) {
@@ -8607,6 +8612,58 @@ Item {
         }
         property Timer writeTimer: Timer { id: hapticWriteTimer; interval: 1500; onTriggered: hapticCfg.write() }
     }
+
+    // hapticspeedsplit: the speed reminder tone (firmware command 131):
+    // a short beep every 1.5 s above its own speed, separate from Speed
+    // Pushback. Lowest priority on the board: pushback, errors and the horn
+    // take over. Stored on the board outside Refloat's config. Sent only while
+    // the board is stopped; the board saves it at rest and reports back.
+    QtObject {
+        id: speedTone
+        property bool known: false  // the firmware answered (has the feature)
+        property int kmh: 0
+        property int minKmh: 16
+        property int maxKmh: 100
+        property bool saved: false
+        property int want: -1
+        property string text: ""
+        function get() {
+            var data = commands.createData(3, commands.c_HAPTIC_SPEED);
+            data.setUint8(2, 0);
+            vescCommands.sendCustomAppData(data.buffer);
+        }
+        function set(k) {
+            want = k === 0 ? 0 : Math.max(minKmh, Math.min(maxKmh, Math.round(k)));
+            kmh = want;
+            text = mainItem.boardRunning ? "Waiting for the board to stop\u2026" : "Saving to the board\u2026";
+            speedToneSend.restart();
+        }
+        function onReply(dv, ind) {
+            kmh = dv.getUint8(ind++);
+            minKmh = dv.getUint8(ind++);
+            maxKmh = dv.getUint8(ind++);
+            saved = dv.getUint8(ind++) === 1;
+            known = true;
+            if (want >= 0) {
+                if (kmh !== want) { text = "\u26A0 The board kept " + (kmh ? kmh + " km/h" : "OFF") + "."; want = -1; }
+                else if (saved) { text = "\u2714 Saved and confirmed on the board"; want = -1; }
+                else speedToneCheck.restart();  // the board saves 2 s after the change, at rest
+            }
+        }
+        property Timer sendTimer: Timer {
+            id: speedToneSend
+            interval: 600
+            onTriggered: {
+                if (mainItem.boardRunning) { restart(); return; }  // never mid-ride
+                var data = commands.createData(4, commands.c_HAPTIC_SPEED);
+                data.setUint8(2, 1);
+                data.setUint8(3, speedTone.want);
+                vescCommands.sendCustomAppData(data.buffer);
+            }
+        }
+        property Timer checkTimer: Timer { id: speedToneCheck; interval: 2500; onTriggered: speedTone.get() }
+    }
+
 
     BaseDialog {
         id: hapticWindow
@@ -8677,6 +8734,46 @@ Item {
                     numPad.edit("AT SPEED (0 = OFF)", value, 0, to, vescConfig.speedUnit,
                         function (v) { hapticCfg.set("speedKmh", Math.round(v / atSpeedStep.f)); });
                 }
+            }
+            // hapticspeedsplit: SPEED TONE - its own speed, separate from pushback
+            SwStepper {
+                id: speedToneStep
+                visible: speedTone.known
+                label: "SPEED TONE"
+                readonly property real f: vescConfig.imperialFactor > 0 ? vescConfig.imperialFactor : 1
+                readonly property int minDisp: Math.ceil(speedTone.minKmh * f - 0.001)
+                value: speedTone.kmh > 0 ? Math.round(speedTone.kmh * f) : 0
+                from: 0; to: Math.round(speedTone.maxKmh * f); step: 1
+                editable: true
+                valueText: value === 0 ? "OFF" : value + " " + vescConfig.speedUnit
+                // OFF <-> the minimum, then 1 mph (or km/h) steps
+                function apply(d) {
+                    if (d <= 0 || d < minDisp) speedTone.set(0);
+                    else speedTone.set(Math.max(speedTone.minKmh, Math.round(d / f)));
+                }
+                onMoved: {
+                    if (value === 0 && newValue > 0) apply(minDisp);
+                    else if (newValue < minDisp) apply(0);
+                    else apply(newValue);
+                }
+                onValueClicked: numPad.edit("SPEED TONE (0 = OFF)", value, 0, to, vescConfig.speedUnit,
+                    function (x) { speedToneStep.apply(x < speedToneStep.minDisp && x > 0 ? speedToneStep.minDisp : x); })
+            }
+            SwLText {
+                visible: speedTone.known
+                width: parent.width
+                wrapMode: Text.WordWrap
+                font.pixelSize: fontSizeSmall
+                text: "SPEED TONE: one short beep every 1.5 s above this speed, on its own, separate from pushback (lowest " + Math.ceil(speedTone.minKmh * speedToneStep.f - 0.001) + " " + vescConfig.speedUnit + "). Pushback, warnings and the horn always take over. Silent while HAPTIC FEEDBACK is off."
+            }
+            SwLText {
+                visible: speedTone.known && speedTone.text !== ""
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                font.pixelSize: fontSizeSmall
+                color: speedTone.text.indexOf("\u2714") === 0 ? swTheme.neonGreen : "#FFB300"
+                text: speedTone.text
             }
             SwLText {
                 width: parent.width

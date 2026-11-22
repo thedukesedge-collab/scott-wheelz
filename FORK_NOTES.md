@@ -1952,3 +1952,30 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   the same setting as Settings › RIDE › PUSHBACK ON / OFF (same confirm
   before turning pushback off, same home-screen PUSHBACK OFF note).
   No firmware change; Refloat keeps one threshold for both.
+
+### hapticspeedsplit (branch only, v1.2.3-rf172-hapticspeedsplit): SPEED TONE
+FIRMWARE CHANGE, on branch `hapticspeedsplit` only (not on main), its own
+pre-release `hapticspeedsplit-dev`. Bench test before riding.
+- What: a speed reminder tone with its own speed, separate from Speed
+  Pushback (e.g. tone at 20 mph, nose lift at 25 mph). Haptic window ›
+  SPEED TONE: OFF or 10 mph and up, 1 mph steps / tap to type.
+- haptic_feedback.c: new HAPTIC_FEEDBACK_SPEED_TONE, checked LAST in
+  haptic_feedback_get_type(): pushback (duty / speed), temperature /
+  voltage / fatal alerts, the current alert and the horn all return before
+  it. RUNNING only, not in handtest (existing checks at the top). Its own
+  pattern: one 0.1 s beep every 1.5 s (duty / speed pushback = fast
+  beeping, errors = other patterns), and any other alert may take over as
+  soon as that beep isn't sounding. Beep only (foc_play_tone, the haptic
+  "duty" tone strength / frequency, Refloat's speed scaling); never the
+  vibrate current tone (same rule as the horn). Silent with haptic strength 0.
+- Limits in firmware: 0 = off, under 16 km/h (10 mph) = off, max 100 km/h.
+- Not in Refloat's config (adding a config field would change its layout
+  and reset every board to defaults): custom EEPROM word 127 (free since
+  rf71), 0xC1 << 24 | km/h, loaded at boot, saved 2 s after a change only
+  at rest (flash_begin, like the horn / battery curve).
+- Command 131 (COMMAND_HAPTIC_SPEED): [2] 0 = get, 1 = set ([3] km/h);
+  reply 101, 131, km/h, min, max, saved. The app sends only while the
+  board is stopped and confirms the saved value; the row only shows when
+  the firmware answers.
+- Not changed: balance, setpoint / pushback logic (main.c), motor
+  control, Refloat config, other haptic types.

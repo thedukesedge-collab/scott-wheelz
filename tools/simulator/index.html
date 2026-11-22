@@ -399,7 +399,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf172 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf172-hapticspeedsplit · sim</span></div>
     </div>
   </div>
 
@@ -1181,6 +1181,7 @@ function hapticWin() {
     + '<div id="hapLinkAsk" style="display:none;border:1px solid #ff2b4f;border-radius:8px;padding:8px;margin:4px 0 8px;text-align:center"><div style="font:12px Orbitron,monospace;color:#ff2b4f;margin-bottom:4px">⚠ TURN PUSHBACK OFF?</div><p style="font-size:12px;color:#ead6ff;margin:0 0 6px;line-height:1.4">The nose will no longer lift at AT DUTY or AT SPEED. Refloat still beeps and plays the haptic tone there, but nothing physically slows you down. Near max duty the motor runs out of power: riding past it causes a nosedive. Battery voltage pushback stays on.</p><div class="pills"><div class="pill" id="hapAskNo">CANCEL</div><div class="pill" id="hapAskYes" style="color:#ff2b4f;border-color:#ff2b4f">TURN OFF</div></div></div>'
     + '<div id="hapSteps"></div>'
     + '<p class="ledHint">The motor plays a warning tone you feel and hear when you reach the duty or speed set here (a solid tone a little above it). These are Refloat\'s own settings: STRENGTH = Warning Audible Strength (stronger at speed), AT DUTY / AT SPEED = Refloat\'s Duty Cycle and Speed Pushback thresholds, so the nose also lifts there (Pushback Angle). Saved when the board is idle.</p>'
+    + '<p class="ledHint">SPEED TONE: one short beep every 1.5 s above this speed, on its own, separate from pushback (lowest 10 mph). Pushback, warnings and the horn always take over. Silent while HAPTIC FEEDBACK is off.</p>'
     + '<p class="ledHint" style="color:#ff2b4f">Duty above about 85% leaves little margin before the motor runs out of power: keep AT DUTY where your pushback was if you\'re not sure.</p>'
     + '<div class="btns"><button class="pri" data-close>CLOSE</button></div>');
   const r = () => {
@@ -1196,6 +1197,9 @@ function hapticWin() {
     // rf160: 1 mph steps (stored as whole km/h, like Refloat); tap the number to type it
     const mph = () => Math.round(h.spd * 0.621371), toKmh = m => Math.round(m / 0.621371);
     cuStep('hapSteps', 'AT SPEED', mph, 0, 62, 1, v => v ? v + ' mph' : 'OFF', v => { h.spd = toKmh(v); save(); r(); });
+    // hapticspeedsplit: SPEED TONE, its own speed (0 = off, 10 mph minimum), separate from pushback
+    if (h.st === undefined) h.st = 0;
+    cuStep('hapSteps', 'SPEED TONE', () => h.st, 0, 62, 1, v => v ? v + ' mph' : 'OFF', v => { h.st = v === 0 ? 0 : (h.st === 0 ? 10 : (v < 10 ? 0 : v)); save(); r(); });
     { const sv = $('hapSteps').lastElementChild.querySelector('.stepVal');
       sv.style.cursor = 'pointer'; sv.style.borderBottom = '2px dashed var(--purple)';
       sv.onclick = () => numPad('AT SPEED (0 = OFF)', mph(), 0, 62, 'mph', v => { h.spd = toKmh(v); save(); r(); }); }
@@ -2207,7 +2211,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf172';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf172-hapticspeedsplit';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

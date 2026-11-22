@@ -89,6 +89,17 @@ void haptic_feedback_init(HapticFeedback *hf) {
     hf->live_hz = 0;
     hf->live_start = 0;
     hf->live_playing = false;
+    hf->speed_tone_kmh = 0;
+}
+
+uint8_t haptic_feedback_set_speed_tone(HapticFeedback *hf, uint8_t kmh) {
+    if (kmh < SPEED_TONE_MIN_KMH) {
+        kmh = 0;
+    } else if (kmh > SPEED_TONE_MAX_KMH) {
+        kmh = SPEED_TONE_MAX_KMH;
+    }
+    hf->speed_tone_kmh = kmh;
+    return kmh;
 }
 
 uint16_t melody_level_hz(uint8_t level) {
@@ -281,6 +292,15 @@ static HapticFeedbackType haptic_feedback_get_type(
         return HAPTIC_FEEDBACK_HORN;
     }
 
+    // Refloat Glow (hapticspeedsplit): the speed reminder, below everything
+    // else: pushback (duty / speed), errors, the current alert and the horn
+    // all return above, so they always take over. Riding only (checked at
+    // the top of this function).
+    uint8_t st = hf->speed_tone_kmh;
+    if (st >= SPEED_TONE_MIN_KMH && fabsf(md->speed) > (float) st) {
+        return HAPTIC_FEEDBACK_SPEED_TONE;
+    }
+
     return HAPTIC_FEEDBACK_NONE;
 }
 
@@ -293,6 +313,7 @@ static uint8_t get_beats(HapticFeedbackType type) {
         return 2;
     case HAPTIC_FEEDBACK_DUTY_CONTINUOUS:
     case HAPTIC_FEEDBACK_HORN:
+    case HAPTIC_FEEDBACK_SPEED_TONE:  // own pattern in haptic_feedback_update()
         return 0;
     case HAPTIC_FEEDBACK_ERROR_TEMPERATURE:
         return 6;
@@ -312,6 +333,7 @@ static const CfgHapticTone *get_haptic_tone(const HapticFeedback *hf) {
     case HAPTIC_FEEDBACK_DUTY_SPEED:
     case HAPTIC_FEEDBACK_DUTY_CONTINUOUS:
     case HAPTIC_FEEDBACK_HORN:
+    case HAPTIC_FEEDBACK_SPEED_TONE:
         return &hf->cfg->duty;
     case HAPTIC_FEEDBACK_ERROR_TEMPERATURE:
     case HAPTIC_FEEDBACK_ERROR_VOLTAGE:
@@ -439,7 +461,13 @@ void haptic_feedback_update(
     }
 
     bool should_be_playing = false;
-    if (hf->type_playing != HAPTIC_FEEDBACK_NONE) {
+    if (hf->type_playing == HAPTIC_FEEDBACK_SPEED_TONE) {
+        // hapticspeedsplit: one TONE_LENGTH beep every SPEED_TONE_PERIOD;
+        // any other alert may take over as soon as the beep isn't sounding
+        float tone_time = fmodf(timer_age(time, hf->tone_timer), SPEED_TONE_PERIOD);
+        should_be_playing = tone_time < TONE_LENGTH;
+        hf->can_change_type = !hf->is_playing;
+    } else if (hf->type_playing != HAPTIC_FEEDBACK_NONE) {
         uint8_t beats = get_beats(hf->type_playing);
         if (beats == 0) {
             should_be_playing = true;
@@ -496,7 +524,10 @@ void haptic_feedback_update(
         // horn mode). Idle, a current tone would move the wheel; riding, it
         // would add a square wave on top of the balance current. rf140: the
         // buzz branches that could never run were removed.
-        bool play_buzz = !horn && buzz_strength > 0.0f;
+        // hapticspeedsplit: the speed reminder is a beep only, it never adds
+        // current (same rule as the horn)
+        bool play_buzz =
+            !horn && hf->type_playing != HAPTIC_FEEDBACK_SPEED_TONE && buzz_strength > 0.0f;
         if (horn && hf->horn_mode == HORN_MODE_ALT) {
             // beep, pause, beep, ...
             uint32_t step = (uint32_t) (timer_age(time, hf->horn_start) / HORN_ALT_STEP);

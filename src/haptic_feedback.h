@@ -32,7 +32,18 @@ typedef enum {
     HAPTIC_FEEDBACK_ERROR_VOLTAGE,
     HAPTIC_FEEDBACK_ERROR_FATAL,
     HAPTIC_FEEDBACK_HORN,  // Refloat Glow: manual horn from the app
+    // Refloat Glow (hapticspeedsplit): a speed reminder tone with its own
+    // threshold, separate from Speed Pushback. Lowest priority, beep only.
+    HAPTIC_FEEDBACK_SPEED_TONE,
 } HapticFeedbackType;
+
+// Refloat Glow (hapticspeedsplit): speed reminder limits (km/h). 0 = off;
+// below the minimum it stays off (no reminder buzzing at walking speed).
+#define SPEED_TONE_MIN_KMH 16  // 10 mph
+#define SPEED_TONE_MAX_KMH 100
+// one short beep per period: clearly different from the duty / speed
+// pushback tone (fast beeping) and the error patterns
+#define SPEED_TONE_PERIOD 1.5f
 
 // Refloat Glow horn sound modes (sent by the app with each press)
 typedef enum {
@@ -110,6 +121,7 @@ typedef struct {
     volatile time_t live_start;
     volatile float live_volume;
     bool live_playing;
+    volatile uint8_t speed_tone_kmh;  // hapticspeedsplit: 0 = off
     float tone_budget;  // s of tone left
     time_t tone_budget_timer;
     bool tone_rest;  // budget ran out, waiting for TONE_BUDGET_RESUME
@@ -127,6 +139,10 @@ void haptic_feedback_horn_settings(
 );
 
 void haptic_feedback_configure(HapticFeedback *hf, const RefloatConfig *cfg);
+
+// Refloat Glow (hapticspeedsplit): set the speed reminder (km/h, 0 = off).
+// Values under SPEED_TONE_MIN_KMH turn it off, above the max are capped.
+uint8_t haptic_feedback_set_speed_tone(HapticFeedback *hf, uint8_t kmh);
 
 // Refloat Glow horn requests (byte [2] of COMMAND_SW_HORN)
 typedef enum {

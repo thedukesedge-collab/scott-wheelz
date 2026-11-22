@@ -1334,6 +1334,7 @@ static void aux_thd(void *arg) {
         horn_settings_save_if_due(d);
         lcm_vp_save_if_due(d);
         battery_curve_save_if_due(d);
+        speed_tone_save_if_due(d);
 
         if (timer_older(&d->time, motor_config_refresh_timer, 0.5)) {
             motor_data_refresh_motor_config(
@@ -1573,6 +1574,57 @@ static __attribute__((noinline)) void battery_curve_save_if_due(Data *d) {
     flash_end(d);
 }
 
+// hapticspeedsplit: the speed reminder (haptic tone with its own threshold,
+// separate from Speed Pushback) in custom EEPROM word 127 (left free in rf71):
+// 0xC1 << 24 | km/h. Not part of Refloat's config, so adding it doesn't
+// change the config layout (which would reset every board to defaults).
+#define SPEED_TONE_EEPROM_ADDR 127
+#define SPEED_TONE_MAGIC 0xC1u
+#define CMD_HAPTIC_SPEED 131  // = COMMAND_HAPTIC_SPEED below
+
+static void speed_tone_load(Data *d) {
+    eeprom_var v;
+    d->speed_tone_saved = 0;
+    if (!VESC_IF->read_eeprom_var(&v, SPEED_TONE_EEPROM_ADDR)) {
+        return;
+    }
+    d->speed_tone_saved = v.as_u32;
+    if ((v.as_u32 >> 24) == SPEED_TONE_MAGIC) {
+        haptic_feedback_set_speed_tone(&d->haptic_feedback, v.as_u32 & 0xFF);
+    }
+}
+
+static __attribute__((noinline)) void speed_tone_save_if_due(Data *d) {
+    if (!d->speed_tone_save_pending || !timer_older(&d->time, d->speed_tone_change_time, 2.0f) ||
+        !flash_begin(d)) {
+        return;
+    }
+    d->speed_tone_save_pending = false;
+    uint32_t w = (SPEED_TONE_MAGIC << 24) | d->haptic_feedback.speed_tone_kmh;
+    if (w != d->speed_tone_saved) {
+        eeprom_var v = {.as_u32 = w};
+        if (VESC_IF->store_eeprom_var(&v, SPEED_TONE_EEPROM_ADDR)) {
+            d->speed_tone_saved = w;
+        } else {
+            log_error("Failed to save the speed reminder.");
+        }
+    }
+    flash_end(d);
+}
+
+// reply: 101, 131, km/h (0 = off), min km/h, max km/h, saved (1 = in EEPROM)
+static void speed_tone_reply(Data *d) {
+    uint8_t b[6];
+    b[0] = 101;
+    b[1] = CMD_HAPTIC_SPEED;
+    b[2] = d->haptic_feedback.speed_tone_kmh;
+    b[3] = SPEED_TONE_MIN_KMH;
+    b[4] = SPEED_TONE_MAX_KMH;
+    b[5] = !d->speed_tone_save_pending &&
+        d->speed_tone_saved == ((SPEED_TONE_MAGIC << 24) | d->haptic_feedback.speed_tone_kmh);
+    VESC_IF->send_app_data(b, 6);
+}
+
 static int battery_cells(void) {
     return VESC_IF->get_cfg_int(CFG_PARAM_si_battery_cells);
 }
@@ -1668,6 +1720,7 @@ static void data_init(Data *d) {
     lcm_vp_load(d);
     battery_curve_init(&d->battery_curve);
     battery_curve_load(d);
+    speed_tone_load(d);
     charging_init(&d->charging);
     bms_init(&d->bms);
 
@@ -1735,6 +1788,7 @@ enum {
     COMMAND_LCM_FW = 128,  // LCM firmware update relay, see lcm_fw.h
     COMMAND_LCM_BATTERY = 129,  // battery curve: 0 = get, 1 = set (13 bytes), see battery_curve.h
     COMMAND_LCM_POWER_OFF = 130,  // rf74-rf76 power off from the app: removed, ignored
+    COMMAND_HAPTIC_SPEED = 131,  // speed reminder: [2] 0 = get, 1 = set ([3] km/h, 0 = off)
     COMMAND_LIVE_TONE = 125,  // melody tiles: u8 pitch level (0 = stop), resent every 100 ms
 
     // commands above 200 are unstable and can change protocol at any time
@@ -2811,6 +2865,21 @@ static __attribute__((noinline)) bool rm_command(
             d->battery_save_pending = true;
         }
         battery_curve_reply(d);
+        return true;
+    }
+    case COMMAND_HAPTIC_SPEED: {
+        if (len >= 4 && buffer[2] == 1) {
+            uint8_t before = d->haptic_feedback.speed_tone_kmh;
+            if (haptic_feedback_set_speed_tone(&d->haptic_feedback, buffer[3]) != before ||
+                d->speed_tone_saved >> 24 != SPEED_TONE_MAGIC) {
+                d->speed_tone_change_time = d->time.now;
+                d->speed_tone_save_pending = true;  // saved at rest, like the horn
+            }
+        } else if (len < 3) {
+            log_error("Command data length incorrect: %u", len);
+            return true;
+        }
+        speed_tone_reply(d);
         return true;
     }
     case COMMAND_LIVE_TONE: {
