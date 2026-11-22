@@ -5251,13 +5251,23 @@ Item {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    SlcmSlider { label: "Color"; unit: "°"; maxValue: 359; value: slcmSettings.color; onMoved: slcm.set("color", v) }
+                    LText { text: "Color: " + slcmSettings.color + "\u00B0" }
                     Rectangle {
-                        width: 0.6 * unit
-                        height: 0.6 * unit
+                        Layout.preferredWidth: 0.4 * unit
+                        Layout.preferredHeight: 0.4 * unit
                         radius: 3
                         color: Qt.hsla(slcmSettings.color / 360, 1, 0.5, 1)
                     }
+                    Item { Layout.fillWidth: true }
+                }
+                Slider {
+                    Layout.fillWidth: true
+                    from: 0
+                    to: 359
+                    stepSize: 1
+                    value: slcmSettings.color
+                    onMoved: slcm.set("color", Math.round(value))
+                }
                 }
 
                 SlcmHeader { text: "Battery" }
