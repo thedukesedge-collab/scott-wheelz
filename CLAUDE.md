@@ -228,7 +228,8 @@ Do not begin changing safety-critical firmware behavior as part of this naming a
 
 ## Standing working rules (from the user)
 
-- Send the dev .vescpkg link, the simulator link and screenshots after every update.
+- After every update send only: the simulator link, the dev .vescpkg link and a
+  brief description of the changes. No screenshots (user, 2026-11-21).
 - Neon Future theme for everything new; short, simple UI wording.
 - Piggyback on Refloat's own settings instead of reinventing them.
 - Don't touch the balance code; config writes only when the board is stopped.

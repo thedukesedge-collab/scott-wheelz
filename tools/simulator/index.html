@@ -92,6 +92,7 @@
   .ledCard .cardSep { height: 1px; background: rgba(168,85,255,.35); margin: 4px 0; }
   .ledCard .cardT { text-align: center; color: var(--green); font-family: Orbitron, monospace; font-size: 12px; letter-spacing: 1px; margin-bottom: 2px; }
   #barSimple .stepVal, #rgbSimple .stepVal, #headSnzTitle .stepVal, #ledsSnzCard .stepVal { width: 118px !important; }
+  #ledsSnzSteps .stepVal { width: 78px !important; }  /* rf154 */
   #barSimple .ledHint, #rgbSimple .ledHint { text-align: center; }
   .pill { border: 2px solid var(--purple); color: var(--purple); border-radius: 999px; padding: 6px 14px; font-family: Orbitron, monospace; font-size: 11px; cursor: pointer; }
   #lcmTools { position: relative; width: max-content; margin: 0 auto; padding: 6px 10px; font-size: 10px; letter-spacing: .5px; color: #5c5470; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; }
@@ -375,7 +376,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf153 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf154 · sim</span></div>
     </div>
   </div>
 
@@ -1744,6 +1745,8 @@ function renderLeds() {
   if ((P.simSetup || 'slcm') === 'refloat') {
     P.ledSnoozeMin = Math.min(P.ledSnoozeMin, 9);
     $('ledsSnzSteps').innerHTML = ''; ledStep($('ledsSnzSteps'), 'ledSnoozeMin', 'BEFORE OFF', 0, 9, 1, v => v ? v + ' min' : 'NEVER');  // rf129: on the LEDS page
+    { const r = $('ledsSnzSteps').lastElementChild, l = r.querySelector('.lbl');  // rf154: minutes first, then the words
+      l.textContent = 'BEFORE BOARD POWERS OFF'; r.appendChild(l); r.style.justifyContent = 'flex-start'; r.style.gap = '10px'; }
     const n = document.createElement('p'); n.className = 'ledHint'; n.style.cssText = 'text-align:center;color:var(--green)';
     n.textContent = 'Board powers off after 10 min idling (VESC Shutdown Mode)' + (P.ledSnoozeMin ? ', so the lights snooze at ' + (10 - P.ledSnoozeMin) + ' min.' : '.') + ' They blink twice every 15 s in the last minute.';
     $('ledsSnzSteps').appendChild(n);
@@ -2004,7 +2007,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf153';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf154';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

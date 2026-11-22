@@ -16374,15 +16374,31 @@ Item {
                             title: "SNOOZE"
                             // rf100: how many minutes BEFORE the board powers off the
                             // snooze starts (default 5; 0 = never), head/tail and status bar
-                            SwStepper {
+                            // rf154: reads "[v 5 min ^] BEFORE BOARD POWERS OFF": the
+                            // minutes on the left, the words right after them
+                            Item {
                                 visible: ledSender.rgbAvail || ledSender.rfStatusAvail
                                 width: parent.width
-                                label: "BEFORE OFF"
-                                valueWidth: 3.6 * unit
-                                value: swSettings.ledSnoozeMin === 255 ? 5 : swSettings.ledSnoozeMin
-                                from: 0; to: vescAppConfig.offMinutes >= 2 ? Math.min(60, Math.ceil(vescAppConfig.offMinutes) - 1) : 60; step: 1
-                                valueText: value === 0 ? "NEVER" : value + " min"
-                                onMoved: { swSettings.ledSnoozeMin = newValue; ledSender.changed(); }
+                                height: 0.95 * unit
+                                SwStepper {
+                                    id: snoozeMinStep
+                                    anchors.left: parent.left
+                                    width: valueWidth + 2.4 * unit  // just the arrows and the minutes
+                                    label: ""
+                                    valueWidth: 2.0 * unit
+                                    value: swSettings.ledSnoozeMin === 255 ? 5 : swSettings.ledSnoozeMin
+                                    from: 0; to: vescAppConfig.offMinutes >= 2 ? Math.min(60, Math.ceil(vescAppConfig.offMinutes) - 1) : 60; step: 1
+                                    valueText: value === 0 ? "NEVER" : value + " min"
+                                    onMoved: { swSettings.ledSnoozeMin = newValue; ledSender.changed(); }
+                                }
+                                SwNeonLabel {
+                                    anchors.left: snoozeMinStep.right
+                                    anchors.leftMargin: 0.2 * unit
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    font.pixelSize: 0.26 * unit
+                                    text: "BEFORE BOARD POWERS OFF"
+                                }
                             }
                             SwLText {
                                 visible: (ledSender.rgbAvail || ledSender.rfStatusAvail) && vescAppConfig.offMinutes > 0

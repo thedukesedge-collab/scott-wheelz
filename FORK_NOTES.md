@@ -1722,3 +1722,9 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   ON / OFF), the two pills and one short line ("Refloat's beeper. OFF also
   mutes the warnings."). Same buttons, same function. UI only; SLCM view
   unchanged.
+
+### SNOOZE reads "5 min BEFORE BOARD POWERS OFF" (v1.2.3-rf154)
+- LEDS › SNOOZE (Refloat view): the minutes with their up / down arrows
+  sit on the left, followed by "BEFORE BOARD POWERS OFF" (was "BEFORE
+  OFF" on the left, minutes on the right). Same setting, same range. UI
+  only.
