@@ -115,7 +115,7 @@ cat > /tmp/wrapper.qml <<'Q'
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 ApplicationWindow {
-    width: 393; height: 680; visible: true
+    width: 393; height: 852  // a typical phone (393 x 852); visible: true
     Timer { id: quitTimer; interval: 500; onTriggered: Qt.quit() }
     Loader {
         id: l
