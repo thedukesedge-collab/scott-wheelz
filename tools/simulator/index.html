@@ -360,7 +360,7 @@
             <div class="ledTile wide" data-w="bar" style="height:92px"><canvas id="statusArt" style="display:none;position:absolute;left:8px;right:8px;top:6px;width:calc(100% - 16px);height:94px"></canvas><span class="bArt"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i></span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
           </div>
           <div class="ledCard" id="ledsSnzCard" style="display:none"><div class="cardT" style="position:relative">SNOOZE<span id="snzHelp" style="position:absolute;right:2px;top:50%;transform:translateY(-50%);width:22px;height:22px;line-height:19px;border:2px solid var(--purple);border-radius:50%;color:var(--green);font-size:13px;cursor:pointer;box-sizing:border-box;text-align:center">?</span></div><div id="ledsSnzSteps"></div></div>
-          <div class="ledCard" id="ledsBeepCard" style="display:none"><div class="pills"><div class="pill" id="ledsBeepP"></div><div class="pill on" id="ledsTestBeep">&#9834; TEST BEEP</div></div><p class="ledHint" style="text-align:center">Refloat's beeper. OFF also mutes the warnings.</p></div>
+          <div class="ledCard" id="ledsBeepCard" style="display:none"><div class="pills"><div class="pill" id="ledsBeepP"></div><div class="pill on" id="ledsTestBeep">&#9834; TEST BEEP</div></div><p class="ledHint" style="text-align:center">Refloat's beeper. OFF also mutes the warnings.</p><div class="pills" style="align-items:center"><div class="pill" id="ledsFatalP"></div><span id="fatalHelp" style="display:inline-block;width:22px;height:22px;line-height:19px;border:2px solid var(--purple);border-radius:50%;color:var(--green);font:13px Orbitron,monospace;cursor:pointer;box-sizing:border-box;text-align:center">?</span></div><p class="ledHint" style="text-align:center">Keeps beeping after a fault until the board is power-cycled.</p></div>
           <div class="pills" id="ledsWaitBox" style="display:none"><div class="pill on" id="ledsWaitP">&#10003; APPLY WAITING LED CHANGES</div></div>
           <div class="ledTiles" id="rgbTileBox"><div class="ledTile wide" data-w="rgb"><span class="g">&#9672;</span><b>RGB LIGHTS</b><small id="ltRgb"></small><i>&#8250;</i></div></div>
           <p style="font-size:11px;color:var(--text);text-align:center;margin:8px 6px">These are Refloat's LED settings (VESC Tool &#8250; Refloat Cfg &#8250; LEDs), kept in step both ways, so they work the same on every controller.</p>
@@ -376,7 +376,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf156 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf157 · sim</span></div>
     </div>
   </div>
 
@@ -1730,7 +1730,7 @@ function renderLedsSoft() {
   $('ltBar').textContent = P.ledBar ? 'ON · RIDE ' + P.ledRidePct + '% · ' + (sb ? 'IDLE ' + animLabel('ledAnimIdle', P.ledAnimIdle) : P.rfTimeout > 0 ? 'IDLE: ' + RF_MODES[P.rfMode] : 'IDLE: BATTERY') : 'OFF';
   $('ltAnim').textContent = 'IDLE ' + animLabel('ledAnimIdle', P.ledAnimIdle) + ' · RIDE ' + animLabel('ledAnimRide', P.ledAnimRide);
   $('ltSound').textContent = 'CONTROLLER ' + (P.ctrlBeep !== false ? 'ON' : 'OFF') + ' · LCM ' + (P.ledBeep ? 'ON' : 'OFF');
-  pill('ctrlBeepPill', P.ctrlBeep !== false, 'BEEPER'); pill('ledsBeepP', P.ctrlBeep !== false, 'BEEPER');
+  pill('ctrlBeepPill', P.ctrlBeep !== false, 'BEEPER'); pill('ledsBeepP', P.ctrlBeep !== false, 'BEEPER'); pill('ledsFatalP', P.fatalPersist !== false, 'PERSISTENT FATAL BEEP');  // rf157
   for (let i = 0; i < 11; i++) { const v = P['_pt' + i]; const c0 = P.batCustom || batCur(); if (v !== undefined && $('batAdv').style.display === 'flex' && v !== c0.points[i]) batEdit(x => { x.points[i] = v; }); }
   if ($('batAdv').style.display === 'flex' && P._ir !== undefined) { const c0 = P.batCustom || batCur(); if (P._ir !== c0.ir || (P.batCustom && P._cap !== P.batCustom.cap)) batEdit(x => { x.ir = P._ir; x.cap = P._cap; }); }
   const cc = batCur();
@@ -1983,6 +1983,17 @@ $('applyP').onclick = () => { if (P.ledPending) doApply(); };
 $('ledsWaitP').onclick = doApply;
 $('ledsBeepP').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); renderLedsSoft(); renderCtl(); };
 $('ledsTestBeep').onclick = () => $('ctrlTestBeep').click();
+// rf157: Refloat's Persistent Fatal Error as a toggle, with a (?) window
+$('ledsFatalP').onclick = () => { P.fatalPersist = P.fatalPersist === false; save(); renderLedsSoft(); };
+$('fatalHelp').onclick = e => { e.stopPropagation();
+  const G = t => '<b style="color:var(--green)">' + t + '</b>';
+  modal('<h3>PERSISTENT FATAL BEEP</h3>' + [
+    "This is Refloat's " + G('Persistent Fatal Error') + " setting. When it's " + G('ON') + ', any ' + G('firmware fault') + ', even a momentary one, sets a fatal error that keeps signalling with ' + G('pushback and four beeps') + ' until you ' + G('power-cycle the board') + ' (or clear it in VESC Tool).',
+    'On most ' + G('known-good, working boards') + " it's recommended " + G('OFF') + '. It can be set off during what many would call ' + G('normal riding') + ': ' + G('airtime') + ' or ' + G('deweighting') + ' while moving, like a ' + G('curb drop') + ' or a ' + G('bonk') + ', can cause a brief fault, and with this ON it turns into a ' + G('persistent beep') + '.',
+    'With it ' + G('OFF') + ', a fault still beeps ' + G("while it's happening") + "; it just doesn't stay on afterwards.",
+    "Saved to the board only while it's " + G('stopped') + ". Refloat's default is ON."
+  ].map(t => '<p style="color:#ead6ff;font-size:13px;line-height:1.45;margin:0 0 10px">' + t + '</p>').join('') + '<div class="btns"><button class="pri" data-close>GOT IT</button></div>');
+};
 // any change inside an ADVANCED view while AUTO APPLY is off waits
 $('ledWin').addEventListener('click', e => {
   if (!manual() || e.target.closest('.autoCard') || e.target.closest('#applyBar') || e.target.id === 'ledWinBack' || e.target.closest('#rgbSimpleP,#rgbAdvP,#barSimpleP,#barAdvP')) return;
@@ -2014,7 +2025,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf156';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf157';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

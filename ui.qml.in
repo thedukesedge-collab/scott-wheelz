@@ -420,6 +420,7 @@ Item {
         // (e.g. a Thor on controller-driven LEDs) the LCM firmware tools are hidden.
         property bool lcmModule: true
         property bool ctrlBeep: true  // is_beeper_enabled (Refloat's beeper on Servo/PPM, also the write beep)
+        property bool fatalPersist: true  // rf157: persistent_fatal_error (Refloat's, default on)
         // rf87: the colors offered (Refloat's enum indexes): the basic ones;
         // a color set in VESC Tool outside this list still shows by its name
         // and is kept until changed here
@@ -561,17 +562,28 @@ Item {
             ctrlBeep = on;
             beepWriteTimer.restart();
         }
+        // rf157: Refloat's Persistent Fatal Error, written the same way (stopped only)
+        function setFatalPersist(on) {
+            if (!rfLoaded) fromConfig();
+            fatalPersist = on;
+            beepWriteTimer.restart();
+        }
         function writeBeep() {
             if (!cfgReady()) return;
             if (mainItem.boardRunning) {
                 beepWriteTimer.restart();
                 return;
             }
-            var c = packageConfig.pkgConfig;
+            var c = packageConfig.pkgConfig, dirty = false;
             if (c.getParamBool("is_beeper_enabled") !== ctrlBeep) {
                 c.updateParamBool("is_beeper_enabled", ctrlBeep);
-                packageConfig.writeConfig();
+                dirty = true;
             }
+            if (c.getParamBool("persistent_fatal_error") !== fatalPersist) {
+                c.updateParamBool("persistent_fatal_error", fatalPersist);
+                dirty = true;
+            }
+            if (dirty) packageConfig.writeConfig();
         }
         property Timer beepTimer: Timer {
             id: beepWriteTimer
@@ -783,6 +795,10 @@ Item {
                 c.updateParamBool("is_beeper_enabled", ctrlBeep);
                 dirty = true;
             }
+            if (rfLoaded && c.getParamBool("persistent_fatal_error") !== fatalPersist) {
+                c.updateParamBool("persistent_fatal_error", fatalPersist);
+                dirty = true;
+            }
             if (rfLoaded && c.getParamBool("leds.status.show_sensors_while_running") !== rfSensors) {
                 c.updateParamBool("leds.status.show_sensors_while_running", rfSensors);
                 dirty = true;
@@ -829,6 +845,7 @@ Item {
             rfDutyTh = c.getParamDouble("leds.status.duty_threshold");
             rfSensors = c.getParamBool("leds.status.show_sensors_while_running");
             ctrlBeep = c.getParamBool("is_beeper_enabled");
+            fatalPersist = c.getParamBool("persistent_fatal_error");
             if (swSettings.rideC1 < 0) {  // rf114: riding starts with the idle colors
                 swSettings.rideC1 = rfColor1; swSettings.rideC2 = rfColor2; swSettings.rideSpeed = rfSpeed;
             }
@@ -14393,6 +14410,51 @@ Item {
         }
     }
 
+    // rf157: PERSISTENT FATAL BEEP (?) - Refloat's Persistent Fatal Error
+    // (alert_tracker.c: a firmware fault latches the fatal error state)
+    BaseDialog {
+        id: fatalHelp
+        title: "Persistent fatal beep"
+        standardButtons: Dialog.NoButton
+        readonly property string g: "<b><font color=\"" + swTheme.neonGreen + "\">"
+        readonly property string e: "</font></b>"
+        footer: Item {
+            implicitHeight: 1.2 * unit
+            SwPill {
+                anchors.centerIn: parent
+                minWidth: 3.0 * unit
+                label: "GOT IT"
+                onClicked: fatalHelp.close()
+            }
+        }
+        Column {
+            width: parent.width
+            spacing: 0.3 * unit
+            Repeater {
+                model: [
+                    "This is Refloat's " + fatalHelp.g + "Persistent Fatal Error" + fatalHelp.e + " setting. When it's " + fatalHelp.g + "ON" + fatalHelp.e
+                        + ", any " + fatalHelp.g + "firmware fault" + fatalHelp.e + ", even a momentary one, sets a fatal error that keeps signalling with "
+                        + fatalHelp.g + "pushback and four beeps" + fatalHelp.e + " until you " + fatalHelp.g + "power-cycle the board" + fatalHelp.e + " (or clear it in VESC Tool).",
+                    "On most " + fatalHelp.g + "known-good, working boards" + fatalHelp.e + " it's recommended " + fatalHelp.g + "OFF" + fatalHelp.e
+                        + ". It can be set off during what many would call " + fatalHelp.g + "normal riding" + fatalHelp.e + ": " + fatalHelp.g + "airtime" + fatalHelp.e + " or "
+                        + fatalHelp.g + "deweighting" + fatalHelp.e + " while moving, like a " + fatalHelp.g + "curb drop" + fatalHelp.e + " or a " + fatalHelp.g + "bonk" + fatalHelp.e
+                        + ", can cause a brief fault, and with this ON it turns into a " + fatalHelp.g + "persistent beep" + fatalHelp.e + ".",
+                    "With it " + fatalHelp.g + "OFF" + fatalHelp.e + ", a fault still beeps " + fatalHelp.g + "while it's happening" + fatalHelp.e + "; it just doesn't stay on afterwards.",
+                    "Saved to the board only while it's " + fatalHelp.g + "stopped" + fatalHelp.e + ". Refloat's default is ON."
+                ]
+                Text {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    textFormat: Text.StyledText
+                    color: "#ead6ff"
+                    font.pixelSize: 0.3 * unit
+                    lineHeight: 1.15
+                    text: modelData
+                }
+            }
+        }
+    }
+
     // rf156: SNOOZE (?) - how snooze and the idle power-off clock work.
     // The power-off time is VESC's own (App Settings > General > Shutdown
     // Mode), read live. Facts from leds.c: the idle clock restarts with
@@ -16526,6 +16588,47 @@ Item {
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: fontSizeSmall
                                 text: "Refloat's beeper. OFF also mutes the warnings."
+                            }
+                            // rf157: Refloat's Persistent Fatal Error as a toggle, (?) explains
+                            Row {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                spacing: 0.2 * unit
+                                SwPill {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    minWidth: 6.15 * unit
+                                    label: ledSender.fatalPersist ? "PERSISTENT FATAL BEEP ON" : "PERSISTENT FATAL BEEP OFF"
+                                    lit: ledSender.fatalPersist
+                                    onClicked: ledSender.setFatalPersist(!ledSender.fatalPersist)
+                                }
+                                Rectangle {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 0.5 * unit
+                                    height: width
+                                    radius: width / 2
+                                    color: fatalHelpArea.pressed ? swTheme.neonPurple : "transparent"
+                                    border.color: swTheme.neonPurple
+                                    border.width: 2
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "?"
+                                        color: fatalHelpArea.pressed ? swTheme.background : swTheme.neonGreen
+                                        font.family: "Exan"
+                                        font.pixelSize: 0.28 * unit
+                                    }
+                                    MouseArea {
+                                        id: fatalHelpArea
+                                        anchors.fill: parent
+                                        anchors.margins: -0.2 * unit
+                                        onClicked: fatalHelp.open()
+                                    }
+                                }
+                            }
+                            SwLText {
+                                width: parent.width
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: fontSizeSmall
+                                text: "Keeps beeping after a fault until the board is power-cycled."
                             }
                         }
 

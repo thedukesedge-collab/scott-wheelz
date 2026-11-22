@@ -1751,3 +1751,18 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   - the arrows set how many minutes early (NEVER = no snooze)
 - Behaviour unchanged (leds.c: the clock restarts on riding, a rolling
   wheel or a motor tone). UI only.
+
+### PERSISTENT FATAL BEEP toggle (v1.2.3-rf157)
+- LEDS › BEEPER card (Refloat view): a PERSISTENT FATAL BEEP ON / OFF pill
+  with a (?) window and one short line. It is Refloat's own Persistent
+  Fatal Error setting (persistent_fatal_error, Refloat Cfg; default ON),
+  read from and written to the board like BEEPER ON / OFF: only while the
+  board is stopped, and linked both ways with VESC Tool.
+- (?) explains: ON latches any firmware fault, even a momentary one, into
+  a fatal error (pushback + four beeps) until the board is power-cycled or
+  it's cleared in VESC Tool; commonly recommended OFF on known-good boards
+  because airtime / deweighting (curb drop, bonk) can cause a brief fault;
+  with OFF a fault still beeps while it lasts.
+- No firmware change: the package already applies this setting
+  (alert_tracker.c). It changes how faults are signalled, so it is a
+  safety-relevant setting; the rider chooses it.
