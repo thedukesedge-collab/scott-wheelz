@@ -144,7 +144,7 @@ for c in "$@"; do
     h=$([ $shot = 2 ] && echo 1700 || echo 703)
     sed "s/HEIGHT/$h/" /tmp/wrapper.qml > /tmp/wrapper_h.qml
     mkdir -p ~/.config/QtProject
-    printf "[preferences]\nshowWelcomeDialog=false\n" > ~/.config/QtProject/qmlscene.conf
+    printf "[preferences]\nshowWelcomeDialog=false\n\n[uiHints]\nstatusText=true\nplotCursor=true\ndrGeneral=true\ndrStartStop=true\ndrDownload=true\n" > ~/.config/QtProject/qmlscene.conf
     open=$([ $shot = 0 ] && echo "" || echo "if (typeof slcmDialog !== 'undefined') slcmDialog.open();")
     git show "$c:ui.qml.in" | sed "s/{{PACKAGE_NAME}}/SLCM for Refloat/g; s/{{VERSION}}/test/g" \
       | OPEN="$open" python3 -c "
