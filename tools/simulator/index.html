@@ -399,7 +399,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf172 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf173 · sim</span></div>
     </div>
   </div>
 
@@ -440,7 +440,7 @@
         <div id="barSimple">
           <div class="secTitle">Animations</div>
           <div class="ledCard"><div id="bsColor"></div><div id="bsIdle"></div><div id="bsRide"></div><div id="bsSnz"></div></div>
-          <p class="ledHint">Refloat's status bar animations for each moment. Each effect starts in its own colors (KNIGHT RIDER red, FELONY red / blue, STROBE white, ...); COLOR changes them all. ADVANCED: second color / background, speed, START AFTER, the duty bar, footpad sensors and own colors for riding and snooze.</p>
+          <p class="ledHint">Refloat's status bar animations for each moment. Each effect starts in its own colors (KNIGHT RIDER red, FELONY red / blue, STROBE white, ...); COLOR changes them all. ADVANCED: second color / background, speed, BATTERY FOR, the duty bar, footpad sensors and own colors for riding and snooze.</p>
         </div>
         <div id="barAdv">
         <div class="ledCard autoCard"><div class="cardT">APPLY</div><div class="pills"><div class="pill autoP"></div></div><p class="ledHint autoHint"></p></div>
@@ -547,9 +547,8 @@
         <p class="ledHint">&#8226; Only for LCMs with the bootloader, installed once with an ST-Link (SLCM.hex). Stock LCM firmware can't be flashed from the app: it has no update code and only listens for the VESC's basic data.<br>&#8226; Board powered on and idle. The update is refused while riding; don't ride until it's done.<br>&#8226; Headlights and beeper go off while it updates (about a minute). Keep the app connected.<br>&#8226; If it's interrupted, the LCM keeps the power on and waits for the update. Press FLASH LCM again, or power the board off and on first. Hold the button 2 s to power off.</p>
       </div>
       <div class="ledSec" data-s="sound">
-        <div class="secTitle">Controller</div>
-        <div class="pills"><div class="pill" id="ctrlBeepPill"></div><div class="pill on" id="ctrlTestBeep">&#9834; TEST BEEP</div></div>
-        <p class="ledHint">Refloat's Enable Beeper on Servo/PPM: the beep when settings are written, and the warning beeps (low / high battery, temperature, sensor faults). Refloat has one switch for all of them: OFF also silences the warnings.</p>
+        <div class="pills" style="display:none"><div class="pill" id="ctrlBeepPill"></div><div class="pill on" id="ctrlTestBeep">&#9834; TEST BEEP</div></div>
+        <p class="ledHint" style="text-align:center">The controller's beeper (Refloat's) is in Settings (gear) › RIDE › BEEPER.</p><!-- rf173 -->
         <div class="secTitle">Light module</div>
         <div class="pills"><div class="pill" id="ledBeepPill"></div></div>
         <div id="ledTestBeep" class="bigBeep">&#9834;&nbsp; TEST BEEP</div>
@@ -858,7 +857,7 @@ const TOUR = [
   ["◢", "BOARD STYLE", "BOARD STYLE TAB", "Pick rails, tire and colors so the board on screen looks like yours."],
   ["◉", "LIGHTS", "LEDS TAB", "HEAD/TAIL LIGHTS: riding and idle effects, colors and brightness (RGB LEDs like Thor), SNOOZE before the board powers off. STATUS BAR: idle and riding animations. All linked with Refloat's settings."],
   ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
-  ["♬", "BEEPER", "LEDS › BEEPER", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
+  ["♬", "BEEPER", "SETTINGS › RIDE › BEEPER", "Controller beeper on/off with a TEST BEEP and PERSISTENT FATAL BEEP, in Settings (gear) › RIDE. The light module's own beeper stays in LEDS › BEEPER."],
   ["↻", "UPDATES", "LEDS › UPDATES", "Check GitHub for Refloat Glow and SLCM updates. Download supported releases and install them through the app. Compatible Floatwheel, XRV, Pint V and GTV light modules support Bluetooth firmware updates.", "updates"],
   ["★", "CREDIT WHERE IT'S DUE", "THE ORIGINAL", "Refloat Glow builds on Refloat by Lukáš Hrázký (lukash), which itself builds on the Float package by Mitch Lustig, Dado Mista and Nico Aleman. Their work made this project possible. Full credit and appreciation go to the original developers and community.", "credit"],
   ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "Underneath the new interface, Refloat Glow retains Refloat 1.2.3's core riding behavior, including balance, pushback, footpad handling and alerts. Most additions focus on customization, lighting and sounds. Optional settings such as MAX SPEED can change how your board behaves, so review them carefully."]
@@ -887,7 +886,7 @@ function tourShowDemo() {
 // rf166: each page opens the SUW on the right tab and spotlights the real control (visual only)
 const TOUR_STEPS = [null, [-1, ['speedoWrap']], [0, ['tabs']], [-1, ['horn']], [-1, ['btnSettings']], [2, ['padTiles']], [2, [() => $('mxRec').parentElement]],
   [2, [() => $('padPlay').parentElement, () => $('mxRec').parentElement]], [1, [() => $('myMelOpen').parentElement]], [4, ['pgStyle']],
-  [5, [() => $('ltHead').closest('.ledTiles')]], [5, [() => $('ltBat').closest('.ledTile')]], [5, ['ledsBeepCard', () => $('ltSound').closest('.ledTile')]],
+  [5, [() => $('ltHead').closest('.ledTiles')]], [5, [() => $('ltBat').closest('.ledTile')]], [-1, ['btnSettings']],
   [5, [() => $('ltUpd').closest('.ledTile')]], null, null];
 let tourSaved = null, tourTarget = null, tourReal = false, tourRaf = 0, tourSettle = 0;
 const tourVis = el => !!el && el.offsetParent !== null && el.getBoundingClientRect().height > 0;
@@ -1291,6 +1290,8 @@ $('btnSettings').onclick = () => {
     + '<div class="card"><b>TUNES</b>' + sw('d', false, 'Show changed options count') + '</div>'
     + '<div class="card"><b>DATA &amp; APP</b>' + sw('e', true, 'Show Welcome dialog') + sw('f', true, 'Check for new package versions') + '<div style="text-align:center;margin-top:6px"><span class="nb" id="mTour">SHOW TIPS &amp; TRICKS</span></div></div></div>'
     + '<div data-pg="2" style="display:none;max-height:52vh;overflow:auto">'
+    + '<div class="card"><b>BEEPER</b><div class="pills"><span class="pill" id="mBeep"></span><span class="pill on" id="mTestBeep">&#9834; TEST BEEP</span></div><p style="text-align:center">Refloat\'s beeper. OFF also mutes the warnings.</p>'
+    + '<div class="pills" style="align-items:center"><span class="pill" id="mFatal"></span><span id="mFatalQ" style="display:inline-block;width:22px;height:22px;line-height:19px;border:2px solid var(--purple);border-radius:50%;color:var(--green);font:13px Orbitron,monospace;cursor:pointer;box-sizing:border-box;text-align:center">?</span></div><p style="text-align:center">Keeps beeping after a fault until the board is power-cycled.</p></div>'
     + '<div class="card"><b>HAPTIC FEEDBACK</b><p>A warning tone you feel and hear through the motor at the duty or speed you set (Refloat\'s Haptic Feedback).</p><div style="text-align:center"><span class="nb" id="mHap"></span></div></div>'
     + '<div class="card"><b>PUSHBACK</b><p>When and how much the nose lifts to tell you to slow down: duty, speed, high and low battery voltage (Refloat\'s Pushback settings).</p><div style="text-align:center"><span class="nb" id="mPb">PUSHBACK SETTINGS ›</span></div></div></div>'
     + '<div class="btns"><button class="pri" data-ok>CLOSE</button></div>', () => { P.dialMax = clamp(+$('mDial').value || 40, 10, 200); save(); });
@@ -1302,6 +1303,14 @@ $('btnSettings').onclick = () => {
   $('mTour').onclick = () => { $('modal').classList.remove('on'); tourOpen(); };
   $('mHap').textContent = 'HAPTIC FEEDBACK: ' + (P.hap.str > 0 ? 'ON' : 'OFF') + ' ›';  // rf167: moved here from CONTROL
   $('mHap').onclick = hapticWin; $('mPb').onclick = pushbackWin;
+  // rf173: controller BEEPER moved here from LEDS
+  const bp = (id, on, txt) => { $(id).textContent = txt + (on ? ' ON' : ' OFF'); $(id).classList.toggle('on', on); };
+  const beepR = () => { bp('mBeep', P.ctrlBeep !== false, 'BEEPER'); bp('mFatal', P.fatalPersist !== false, 'PERSISTENT FATAL BEEP'); };
+  beepR();
+  $('mBeep').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); beepR(); renderLedsSoft(); renderCtl(); };
+  $('mTestBeep').onclick = () => $('ctrlTestBeep').click();
+  $('mFatal').onclick = () => { P.fatalPersist = P.fatalPersist === false; save(); beepR(); };
+  $('mFatalQ').onclick = e => $('fatalHelp').onclick(e);
   document.querySelectorAll('#modalBox [data-t]').forEach(x => x.onclick = () => toast(x.dataset.t));
 };
 
@@ -1865,7 +1874,7 @@ function renderLedsSoft() {
   $('rgbTileBox').style.display = 'none';  // rf128: merged into HEAD/TAIL LIGHTS
   $('rgbInHead').style.display = setup === 'refloat' ? '' : 'none';
   $('ledsSnzCard').style.display = setup === 'refloat' ? '' : 'none';
-  $('ledsBeepCard').style.display = slcm ? 'none' : '';  // rf131
+  $('ledsBeepCard').style.display = 'none';  // rf173: moved to Settings › RIDE
   // rf132: Refloat view: ALL LIGHTS on top, a bit bigger; SLCM: as before
   { const lp = $('lightsPill'), box = slcm ? $('lightsBotBox') : $('lightsTopBox');
     if (lp.parentNode !== box) box.appendChild(lp);
@@ -1911,7 +1920,7 @@ function renderLedsSoft() {
   $('barSlcm').style.display = sb ? '' : 'none'; $('barRf').style.display = sb ? 'none' : '';
   $('ltBar').textContent = P.ledBar ? 'ON · RIDE ' + P.ledRidePct + '% · ' + (sb ? 'IDLE ' + animLabel('ledAnimIdle', P.ledAnimIdle) : P.rfTimeout > 0 ? 'IDLE: ' + RF_MODES[P.rfMode] : 'IDLE: BATTERY') : 'OFF';
   $('ltAnim').textContent = 'IDLE ' + animLabel('ledAnimIdle', P.ledAnimIdle) + ' · RIDE ' + animLabel('ledAnimRide', P.ledAnimRide);
-  $('ltSound').textContent = 'CONTROLLER ' + (P.ctrlBeep !== false ? 'ON' : 'OFF') + ' · LCM ' + (P.ledBeep ? 'ON' : 'OFF');
+  $('ltSound').textContent = 'LCM BEEPER ' + (P.ledBeep ? 'ON' : 'OFF');  // rf173
   pill('ctrlBeepPill', P.ctrlBeep !== false, 'BEEPER'); pill('ledsBeepP', P.ctrlBeep !== false, 'BEEPER'); pill('ledsFatalP', P.fatalPersist !== false, 'PERSISTENT FATAL BEEP');  // rf157
   for (let i = 0; i < 11; i++) { const v = P['_pt' + i]; const c0 = P.batCustom || batCur(); if (v !== undefined && $('batAdv').style.display === 'flex' && v !== c0.points[i]) batEdit(x => { x.points[i] = v; }); }
   if ($('batAdv').style.display === 'flex' && P._ir !== undefined) { const c0 = P.batCustom || batCur(); if (P._ir !== c0.ir || (P.batCustom && P._cap !== P.batCustom.cap)) batEdit(x => { x.ir = P._ir; x.cap = P._cap; }); }
@@ -2056,11 +2065,12 @@ function renderRf() {
         bg ? { on: P.rfColor2 !== 0, click: () => { if (P.rfColor2) { P.rfBgLast = P.rfColor2; P.rfColor2 = 0; } else P.rfColor2 = P.rfBgLast || 1; save(); renderRf(); } } : null);
     }
     if (P.rfMode !== 0) st('rfSpeed', 'SPEED', 0.1, 5, 0.1, v => v.toFixed(1) + '/s');
-    st('rfTimeout', 'START AFTER', 1, 300, 1, v => v + ' s');
+    st('rfTimeout', 'BATTERY FOR', 1, 300, 1, v => v + ' s');  // rf173: was BATTERY FOR
+    { const n = document.createElement('p'); n.className = 'ledHint'; n.style.textAlign = 'center'; n.textContent = 'Battery shows this long, then the idle animation.'; $('rfSteps').appendChild(n); }
     $('rfSwatch').style.background = 'linear-gradient(90deg,' + rfCss(rfRgb(P.rfColor1)) + ',' + rfCss(rfRgb(P.rfMode >= 1 && P.rfMode <= 5 ? P.rfColor2 : P.rfColor1)) + ')';
   }
   const slcm = (P.simSetup || 'slcm') === 'slcm';
-  $('rfHint').textContent = "Refloat's own Status Idle animation, so it's the same on every controller (Thor, Floatwheel, ...): controller-driven LEDs play it themselves, and for an SLCM light module the package turns it into the closest SLCM animation (from SLCM r19; older builds show the battery). BATTERY = the battery level. START AFTER only applies to controller-driven LEDs, an SLCM starts right away."
+  $('rfHint').textContent = "Refloat's own Status Idle animation, so it's the same on every controller (Thor, Floatwheel, ...): controller-driven LEDs play it themselves, and for an SLCM light module the package turns it into the closest SLCM animation (from SLCM r19; older builds show the battery). BATTERY = the battery level. BATTERY FOR only applies to controller-driven LEDs, an SLCM starts right away."
     + (slcm && P.ledAnimIdle !== 15 ? ' Right now the SLCM plays ' + animLabel('ledAnimIdle', P.ledAnimIdle) + ' from SLCM EXTRAS \u203A ANIMATIONS instead; change anything here to follow this again.' : '');
 }
 document.querySelectorAll('#rideSel .stepBtn').forEach(x => x.onclick = () => { const v = clamp(P.rideMode + +x.dataset.d, 0, 9); if (v !== P.rideMode) { if (P.ride && oneCol(v - 1) && !oneCol(P.rideMode - 1)) P.ride.c2 = 0; { const d = effCols(v - 1, -1); if (d) P.ride = { c1: d[0], c2: d[1], speed: P.rfSpeed }; } P.rideMode = v; save(); renderRf(); } });
@@ -2207,7 +2217,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf172';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf173';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

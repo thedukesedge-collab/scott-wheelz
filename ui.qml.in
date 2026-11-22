@@ -8019,6 +8019,84 @@ Item {
                             }
                         }
 
+                        // rf173: the controller beeper (Refloat's), moved here from LEDS
+                        SettingsCard {
+                            id: settingsBeeperCard  // Onboarding Tour target
+                            title: "BEEPER"
+                            Column {
+                                Layout.fillWidth: true
+                                spacing: 0.1 * unit
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.15 * unit
+                            SwPill {
+                                minWidth: 3.0 * unit
+                                label: ledSender.ctrlBeep ? "BEEPER ON" : "BEEPER OFF"
+                                lit: ledSender.ctrlBeep
+                                onClicked: ledSender.setCtrlBeep(!ledSender.ctrlBeep)
+                            }
+                            SwPill {
+                                minWidth: 3.0 * unit
+                                label: "\u266A TEST BEEP"
+                                lit: true
+                                onClicked: {
+                                    ledSender.testCtrlBeep();
+                                    VescIf.emitStatusMessage(ledSender.ctrlBeep ? "Test beep sent to the controller"
+                                        : "Controller beeper is off - turn it on to hear the test beep", true);
+                                }
+                            }
+                        }
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "Refloat's beeper. OFF also mutes the warnings."
+                        }
+                        // rf157: Refloat's Persistent Fatal Error as a toggle, (?) explains
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.2 * unit
+                            SwPill {
+                                anchors.verticalCenter: parent.verticalCenter
+                                minWidth: 6.15 * unit
+                                label: ledSender.fatalPersist ? "PERSISTENT FATAL BEEP ON" : "PERSISTENT FATAL BEEP OFF"
+                                lit: ledSender.fatalPersist
+                                onClicked: ledSender.setFatalPersist(!ledSender.fatalPersist)
+                            }
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 0.5 * unit
+                                height: width
+                                radius: width / 2
+                                color: fatalHelpArea.pressed ? swTheme.neonPurple : "transparent"
+                                border.color: swTheme.neonPurple
+                                border.width: 2
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "?"
+                                    color: fatalHelpArea.pressed ? swTheme.background : swTheme.neonGreen
+                                    font.family: "Exan"
+                                    font.pixelSize: 0.28 * unit
+                                }
+                                MouseArea {
+                                    id: fatalHelpArea
+                                    anchors.fill: parent
+                                    anchors.margins: -0.2 * unit
+                                    onClicked: fatalHelp.open()
+                                }
+                            }
+                        }
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "Keeps beeping after a fault until the board is power-cycled."
+                        }
+                            }
+                        }
+
                         SettingsCard {
                             id: settingsPushbackCard  // Onboarding Tour target
                             title: "PUSHBACK"
@@ -10044,7 +10122,7 @@ Item {
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: fontSizeSmall
                                 text: "Refloat's status bar animations for each moment. Each effect starts in its own colors (KNIGHT RIDER red, FELONY red / blue, STROBE white, ...); COLOR changes them all. "
-                                    + "ADVANCED: second color / background, speed, START AFTER, the duty bar, footpad sensors and own colors for riding and snooze."
+                                    + "ADVANCED: second color / background, speed, BATTERY FOR, the duty bar, footpad sensors and own colors for riding and snooze."
                             }
                         }
 
@@ -10157,10 +10235,17 @@ Item {
                                 onMoved: ledSender.setRf("rfSpeed", newValue)
                             }
                             SwStepper {
-                                label: "START AFTER"
+                                label: "BATTERY FOR"  // rf173: was START AFTER
                                 value: ledSender.rfTimeout
                                 from: 1; to: 300; step: 1; suffix: " s"
                                 onMoved: ledSender.setRf("rfTimeout", newValue)
+                            }
+                            SwLText {
+                                width: parent.width
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: fontSizeSmall
+                                text: "Battery shows this long, then the idle animation."
                             }
                         }
 
@@ -10170,7 +10255,7 @@ Item {
                             font.pixelSize: fontSizeSmall
                             text: "Refloat's own Status Idle animation, so it's the same on every controller (Thor, Floatwheel, ...): controller-driven LEDs play it themselves, "
                                 + "and for an SLCM light module the package turns it into the closest SLCM animation (from SLCM r19; older builds show the battery). "
-                                + "BATTERY = the battery level. START AFTER only applies to controller-driven LEDs, an SLCM starts right away."
+                                + "BATTERY = the battery level. BATTERY FOR only applies to controller-driven LEDs, an SLCM starts right away."
                                 + (slcmDetect.present && !ledSender.idleFollows
                                     ? " Right now the SLCM plays " + ledSender.animLabel(0, swSettings.ledAnimIdle) + " from SLCM EXTRAS \u203A ANIMATIONS instead; change anything here to follow this again."
                                     : "")
@@ -10500,34 +10585,13 @@ Item {
                         spacing: 0.14 * unit
                         visible: ledWindow.section === "sound"
 
-                        // rf84: the controller's own beeper (Refloat setting)
-                        LedHeading { text: "Controller" }
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 0.15 * unit
-                            SwPill {
-                                minWidth: 3.4 * unit
-                                label: ledSender.ctrlBeep ? "BEEPER ON" : "BEEPER OFF"
-                                lit: ledSender.ctrlBeep
-                                onClicked: ledSender.setCtrlBeep(!ledSender.ctrlBeep)
-                            }
-                            SwPill {
-                                minWidth: 3.0 * unit
-                                label: "\u266A TEST BEEP"
-                                lit: true
-                                onClicked: {
-                                    ledSender.testCtrlBeep();
-                                    VescIf.emitStatusMessage(ledSender.ctrlBeep ? "Test beep sent to the controller"
-                                        : "Controller beeper is off - turn it on to hear the test beep", true);
-                                }
-                            }
-                        }
+                        // rf173: the controller beeper is in Settings › RIDE (gear)
                         SwLText {
                             width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: "Refloat's Enable Beeper on Servo/PPM: the beep when settings are written, and the warning beeps (low / high battery, temperature, sensor faults). "
-                                + "Refloat has one switch for all of them: OFF also silences the warnings."
+                            text: "The controller's beeper (Refloat's) is in Settings (gear) \u203A RIDE \u203A BEEPER."
                         }
 
                         LedHeading { text: "Light module" }
@@ -13053,7 +13117,7 @@ Item {
             case "BOARD STYLE": return [4, [styleTabPage]];
             case "LIGHTS": return [5, [ledMainTiles]];
             case "BATTERY GAUGE": return [5, [slcmBattTile]];
-            case "BEEPER": return [5, [ledBeepCard, slcmBeepTile]];
+            case "BEEPER": return [-1, [settingsButton]];  // rf173: moved to Settings
             case "UPDATES": return [5, [slcmUpdTile]];
             default: return [-1, []];
             }
@@ -13171,7 +13235,7 @@ Item {
             ["◢", "BOARD STYLE", "BOARD STYLE TAB", "Pick rails, tire and colors so the board on screen looks like yours."],
             ["◉", "LIGHTS", "LEDS TAB", "HEAD/TAIL LIGHTS: riding and idle effects, colors and brightness (RGB LEDs like Thor), SNOOZE before the board powers off. STATUS BAR: idle and riding animations. All linked with Refloat's settings."],
             ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
-            ["♬", "BEEPER", "LEDS › BEEPER", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
+            ["♬", "BEEPER", "SETTINGS › RIDE › BEEPER", "Controller beeper on/off with a TEST BEEP and PERSISTENT FATAL BEEP, in Settings (gear) › RIDE. The light module's own beeper stays in LEDS › BEEPER."],
             ["↻", "UPDATES", "LEDS › UPDATES", "Check GitHub for Refloat Glow and SLCM updates. Download supported releases and install them through the app. Compatible Floatwheel, XRV, Pint V and GTV light modules support Bluetooth firmware updates.", "updates"],
             ["★", "CREDIT WHERE IT'S DUE", "THE ORIGINAL", "Refloat Glow builds on Refloat by Lukáš Hrázký (lukash), which itself builds on the Float package by Mitch Lustig, Dado Mista and Nico Aleman. Their work made this project possible. Full credit and appreciation go to the original developers and community.", "credit"],
             ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "Underneath the new interface, Refloat Glow retains Refloat 1.2.3's core riding behavior, including balance, pushback, footpad handling and alerts. Most additions focus on customization, lighting and sounds. Optional settings such as MAX SPEED can change how your board behaves, so review them carefully."]
@@ -17715,81 +17779,7 @@ Item {
                             }
                         }
 
-                        // rf131: the controller beeper (Refloat's) in the Refloat view
-                        // (rf153: compact - no title, one short line; under SNOOZE)
-                        LedCard {
-                            id: ledBeepCard  // rf166: Onboarding Tour target
-                            visible: !slcmDetect.present
-                            width: parent.width
-                            Row {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                spacing: 0.15 * unit
-                                SwPill {
-                                    minWidth: 3.0 * unit
-                                    label: ledSender.ctrlBeep ? "BEEPER ON" : "BEEPER OFF"
-                                    lit: ledSender.ctrlBeep
-                                    onClicked: ledSender.setCtrlBeep(!ledSender.ctrlBeep)
-                                }
-                                SwPill {
-                                    minWidth: 3.0 * unit
-                                    label: "\u266A TEST BEEP"
-                                    lit: true
-                                    onClicked: {
-                                        ledSender.testCtrlBeep();
-                                        VescIf.emitStatusMessage(ledSender.ctrlBeep ? "Test beep sent to the controller"
-                                            : "Controller beeper is off - turn it on to hear the test beep", true);
-                                    }
-                                }
-                            }
-                            SwLText {
-                                width: parent.width
-                                horizontalAlignment: Text.AlignHCenter
-                                wrapMode: Text.WordWrap
-                                font.pixelSize: fontSizeSmall
-                                text: "Refloat's beeper. OFF also mutes the warnings."
-                            }
-                            // rf157: Refloat's Persistent Fatal Error as a toggle, (?) explains
-                            Row {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                spacing: 0.2 * unit
-                                SwPill {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    minWidth: 6.15 * unit
-                                    label: ledSender.fatalPersist ? "PERSISTENT FATAL BEEP ON" : "PERSISTENT FATAL BEEP OFF"
-                                    lit: ledSender.fatalPersist
-                                    onClicked: ledSender.setFatalPersist(!ledSender.fatalPersist)
-                                }
-                                Rectangle {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: 0.5 * unit
-                                    height: width
-                                    radius: width / 2
-                                    color: fatalHelpArea.pressed ? swTheme.neonPurple : "transparent"
-                                    border.color: swTheme.neonPurple
-                                    border.width: 2
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "?"
-                                        color: fatalHelpArea.pressed ? swTheme.background : swTheme.neonGreen
-                                        font.family: "Exan"
-                                        font.pixelSize: 0.28 * unit
-                                    }
-                                    MouseArea {
-                                        id: fatalHelpArea
-                                        anchors.fill: parent
-                                        anchors.margins: -0.2 * unit
-                                        onClicked: fatalHelp.open()
-                                    }
-                                }
-                            }
-                            SwLText {
-                                width: parent.width
-                                horizontalAlignment: Text.AlignHCenter
-                                wrapMode: Text.WordWrap
-                                font.pixelSize: fontSizeSmall
-                                text: "Keeps beeping after a fault until the board is power-cycled."
-                            }
-                        }
+                        // rf173: BEEPER moved to Settings › RIDE (gear)
 
                         // rf131: changes made in an ADVANCED view with AUTO APPLY off, still waiting
                         SwPill {
@@ -17836,8 +17826,8 @@ Item {
                                 id: slcmBeepTile  // rf166: Onboarding Tour target
                                 title: "BEEPER"
                                 glyph: "\u266A"
-                                lit: ledSender.ctrlBeep || swSettings.ledBeep
-                                summary: "CONTROLLER " + (ledSender.ctrlBeep ? "ON" : "OFF") + " \u00B7 LCM " + (swSettings.ledBeep ? "ON" : "OFF")
+                                lit: swSettings.ledBeep
+                                summary: "LCM BEEPER " + (swSettings.ledBeep ? "ON" : "OFF")  // rf173: controller beeper in Settings
                                 onClicked: ledWindow.show("sound")
                             }
                             LedTile {

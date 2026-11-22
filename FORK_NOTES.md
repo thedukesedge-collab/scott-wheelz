@@ -1952,3 +1952,16 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   the same setting as Settings › RIDE › PUSHBACK ON / OFF (same confirm
   before turning pushback off, same home-screen PUSHBACK OFF note).
   No firmware change; Refloat keeps one threshold for both.
+
+### BEEPER in Settings › RIDE, "BATTERY FOR" (v1.2.3-rf173)
+- The controller beeper (BEEPER ON / OFF, TEST BEEP, PERSISTENT FATAL BEEP
+  with its (?)) moved from LEDS to Settings (gear) › RIDE › BEEPER. Same
+  Refloat settings, same save rules. LEDS: the Refloat-view beeper card is
+  gone; on SLCM boards LEDS › BEEPER keeps only the light module's own
+  beeper (with a pointer to Settings). CONTROL's BEEPER pill unchanged.
+- Status bar idle animation: "START AFTER" is now "BATTERY FOR" with the
+  line "Battery shows this long, then the idle animation." (Refloat's
+  Status Idle Timeout: how long the status bar shows the battery after the
+  board stops, before the idle animation).
+- Onboarding Tour: BEEPER page now points at the gear (SETTINGS › RIDE ›
+  BEEPER).
