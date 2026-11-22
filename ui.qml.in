@@ -14416,8 +14416,8 @@ Item {
         id: fatalHelp
         title: "Persistent fatal beep"
         standardButtons: Dialog.NoButton
-        readonly property string g: "<b><font color=\"" + swTheme.neonGreen + "\">"
-        readonly property string e: "</font></b>"
+        readonly property string g: ""  // rf158: no highlighted words
+        readonly property string e: ""
         footer: Item {
             implicitHeight: 1.2 * unit
             SwPill {
@@ -14443,6 +14443,7 @@ Item {
                     "Saved to the board only while it's " + fatalHelp.g + "stopped" + fatalHelp.e + ". Refloat's default is ON."
                 ]
                 Text {
+                    visible: modelData !== ""
                     width: parent.width
                     wrapMode: Text.WordWrap
                     textFormat: Text.StyledText
@@ -14463,8 +14464,8 @@ Item {
         id: snoozeHelp
         title: "Snooze"
         standardButtons: Dialog.NoButton
-        readonly property string g: "<b><font color=\"" + swTheme.neonGreen + "\">"
-        readonly property string e: "</font></b>"
+        readonly property string g: ""  // rf158: no highlighted words
+        readonly property string e: ""
         readonly property real offMin: vescAppConfig.offMinutes
         readonly property string offText: offMin <= 0 ? ""
             : offMin < 1 ? Math.round(offMin * 60) + " seconds"
@@ -14495,12 +14496,16 @@ Item {
                     : snoozeHelp.offMin <= 0 ? snoozeHelp.g + "Snooze" + snoozeHelp.e + " kicks in after " + snoozeHelp.g + "10 minutes" + snoozeHelp.e + " idle to let you know the board has been " + snoozeHelp.g + "sitting idle" + snoozeHelp.e + ". The lights switch to their snooze look."
                     : snoozeHelp.offMin <= snoozeHelp.before ? "The power-off time is " + snoozeHelp.g + "too short for snooze" + snoozeHelp.e + " (" + snoozeHelp.before + " min before it), so snooze won't kick in."
                     : snoozeHelp.g + "Snooze" + snoozeHelp.e + " kicks in " + snoozeHelp.g + snoozeHelp.before + " min before" + snoozeHelp.e + " that time to let you know your board is " + snoozeHelp.g + "getting close to powering off" + snoozeHelp.e
-                        + ". The lights switch to their snooze look" + (snoozeHelp.offMin >= 1 ? ", and in the last minute they " + snoozeHelp.g + "blink twice every 15 s" + snoozeHelp.e : "") + ".",
+                        + ". The lights switch to their snooze look (BREATHE, DIM, DARK... set in HEAD/TAIL LIGHTS and STATUS BAR).",
+                    // rf158: leds.c: a separate power-off warning on top of any snooze
+                    // look (also with NEVER); last minute, last 15 s for a 1 min timer
+                    snoozeHelp.offMin >= 1 ? "Separately, just before power-off the lights flash twice every 15 s as a last warning (the last minute, or the last 15 s with a 1 minute timer). This happens whatever the snooze look is, even with snooze set to NEVER." : "",
                     "To reset the clock, " + snoozeHelp.g + "roll the wheel forward" + snoozeHelp.e + " (or ride). The idle power-off clock " + snoozeHelp.g + "starts over" + snoozeHelp.e
                         + ", snooze ends and the lights go back to their " + snoozeHelp.g + "normal idle look" + snoozeHelp.e + ". Pressing the footpads or lifting the board doesn't reset it.",
                     "Use the arrows to pick how many minutes before power-off snooze starts (" + snoozeHelp.g + "NEVER" + snoozeHelp.e + " = no snooze)."
                 ]
                 Text {
+                    visible: modelData !== ""
                     width: parent.width
                     wrapMode: Text.WordWrap
                     textFormat: Text.StyledText

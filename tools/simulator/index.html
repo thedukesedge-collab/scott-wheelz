@@ -376,7 +376,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf157 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf158 · sim</span></div>
     </div>
   </div>
 
@@ -771,10 +771,11 @@ function applySheet() {
 function setSheet(f) { sheetF = f; P.sheet = f; save(); $('sheet').classList.add('anim'); applySheet(); }
 // rf156: SNOOZE (?) - the explanation in a window (the sim's VESC powers off after 10 min)
 $('snzHelp').onclick = e => { e.stopPropagation();
-  const G = t => '<b style="color:var(--green)">' + t + '</b>', b = P.ledSnoozeMin;
+  const G = t => t, b = P.ledSnoozeMin;  // rf158: no highlighted words
   modal('<h3>SNOOZE</h3>' + [
     'Your board is set to ' + G('power off') + ' after idling for ' + G('10 minutes') + '.',
-    G('Snooze') + ' kicks in ' + (b > 0 ? G(b + ' min before') + ' that time' : '(set to ' + G('NEVER') + ' right now)') + ' to let you know your board is ' + G('getting close to powering off') + '. The lights switch to their snooze look, and in the last minute they ' + G('blink twice every 15 s') + '.',
+    G('Snooze') + ' kicks in ' + (b > 0 ? G(b + ' min before') + ' that time' : '(set to ' + G('NEVER') + ' right now)') + ' to let you know your board is ' + G('getting close to powering off') + '. The lights switch to their snooze look (BREATHE, DIM, DARK... set in HEAD/TAIL LIGHTS and STATUS BAR).',
+    'Separately, just before power-off the lights flash twice every 15 s as a last warning (the last minute, or the last 15 s with a 1 minute timer). This happens whatever the snooze look is, even with snooze set to NEVER.',
     'To reset the clock, ' + G('roll the wheel forward') + ' (or ride). The idle power-off clock ' + G('starts over') + ', snooze ends and the lights go back to their ' + G('normal idle look') + '. Pressing the footpads or lifting the board doesn\'t reset it.',
     'Use the arrows to pick how many minutes before power-off snooze starts (' + G('NEVER') + ' = no snooze).'
   ].map(t => '<p style="color:#ead6ff;font-size:13px;line-height:1.45;margin:0 0 10px">' + t + '</p>').join('') + '<div class="btns"><button class="pri" data-close>GOT IT</button></div>');
@@ -1986,7 +1987,7 @@ $('ledsTestBeep').onclick = () => $('ctrlTestBeep').click();
 // rf157: Refloat's Persistent Fatal Error as a toggle, with a (?) window
 $('ledsFatalP').onclick = () => { P.fatalPersist = P.fatalPersist === false; save(); renderLedsSoft(); };
 $('fatalHelp').onclick = e => { e.stopPropagation();
-  const G = t => '<b style="color:var(--green)">' + t + '</b>';
+  const G = t => t;  // rf158: no highlighted words
   modal('<h3>PERSISTENT FATAL BEEP</h3>' + [
     "This is Refloat's " + G('Persistent Fatal Error') + " setting. When it's " + G('ON') + ', any ' + G('firmware fault') + ', even a momentary one, sets a fatal error that keeps signalling with ' + G('pushback and four beeps') + ' until you ' + G('power-cycle the board') + ' (or clear it in VESC Tool).',
     'On most ' + G('known-good, working boards') + " it's recommended " + G('OFF') + '. It can be set off during what many would call ' + G('normal riding') + ': ' + G('airtime') + ' or ' + G('deweighting') + ' while moving, like a ' + G('curb drop') + ' or a ' + G('bonk') + ', can cause a brief fault, and with this ON it turns into a ' + G('persistent beep') + '.',
@@ -2025,7 +2026,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf157';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf158';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

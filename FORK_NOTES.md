@@ -1766,3 +1766,11 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - No firmware change: the package already applies this setting
   (alert_tracker.c). It changes how faults are signalled, so it is a
   safety-relevant setting; the rider chooses it.
+
+### Help windows: plain text, power-off warning explained (v1.2.3-rf158)
+- SNOOZE (?) and PERSISTENT FATAL BEEP (?) windows: no highlighted words.
+- SNOOZE (?) no longer says the snooze blinks. As leds.c does it: snooze
+  uses its own look (BREATHE / DIM / DARK ...); separately, just before
+  power-off the lights flash twice every 15 s as a last warning (last
+  minute, last 15 s with a 1 min timer), whatever the snooze look, even
+  with snooze NEVER. Text only.
