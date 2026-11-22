@@ -8873,35 +8873,61 @@ Item {
                     }
                 }
 
-                Repeater {
-                    model: [["HIGH VOLTAGE", "tiltback_hv", "Pushback when the battery voltage goes above this, most often when braking or going downhill on a full battery (it can make the tail drag, take care). On VESC firmware 6.05+ it's a per-cell value (Refloat's default 4.30 V); on 6.02 it's the pack total. ANGLE is how far the nose lifts, RATE how fast."],
-                            ["LOW VOLTAGE", "tiltback_lv", "Pushback when the battery voltage drops below this, telling you to slow down before the pack sags too far. On VESC firmware 6.05+ it's a per-cell value (Refloat's default 3.00 V); on 6.02 it's the pack total. Make sure it is above your battery's real cut-off. ANGLE is how far the nose lifts, RATE how fast."]]
-                    LedCard {
-                        id: pbVoltCard
+                // rf167: written out (a LedCard as a Repeater delegate loses its layout)
+                LedCard {
+                    id: pbHvCard
+                    width: parent.width
+                    readonly property string k: "tiltback_hv"
+                    SwCardHead { title: "HIGH VOLTAGE"; helpText: "Pushback when the battery voltage goes above this, most often when braking or going downhill on a full battery (it can make the tail drag, take care). On VESC firmware 6.05+ it's a per-cell value (Refloat's default 4.30 V); on 6.02 it's the pack total. ANGLE is how far the nose lifts, RATE how fast." }
+                    SwStepper {
                         width: parent.width
-                        readonly property string k: modelData[1]
-                        SwCardHead { title: modelData[0]; helpText: modelData[2] }
-                        SwStepper {
-                            width: parent.width
-                            label: "AT"
-                            value: pushbackCfg.val(pbVoltCard.k)
-                            from: 0; to: 150; step: 0.05; decimals: 2; suffix: " V"
-                            onMoved: pushbackCfg.set(pbVoltCard.k, newValue)
-                        }
-                        SwStepper {
-                            width: parent.width
-                            label: "ANGLE"
-                            value: pushbackCfg.val(pbVoltCard.k + "_angle")
-                            from: 0; to: 30; step: 1; decimals: 1; suffix: "\u00B0"
-                            onMoved: pushbackCfg.set(pbVoltCard.k + "_angle", newValue)
-                        }
-                        SwStepper {
-                            width: parent.width
-                            label: "RATE"
-                            value: pushbackCfg.val(pbVoltCard.k + "_speed")
-                            from: 0; to: 30; step: 0.5; decimals: 1; suffix: "\u00B0/s"
-                            onMoved: pushbackCfg.set(pbVoltCard.k + "_speed", newValue)
-                        }
+                        label: "AT"
+                        value: pushbackCfg.val(pbHvCard.k)
+                        from: 0; to: 150; step: 0.05; decimals: 2; suffix: " V"
+                        onMoved: pushbackCfg.set(pbHvCard.k, newValue)
+                    }
+                    SwStepper {
+                        width: parent.width
+                        label: "ANGLE"
+                        value: pushbackCfg.val(pbHvCard.k + "_angle")
+                        from: 0; to: 30; step: 1; decimals: 1; suffix: "\u00B0"
+                        onMoved: pushbackCfg.set(pbHvCard.k + "_angle", newValue)
+                    }
+                    SwStepper {
+                        width: parent.width
+                        label: "RATE"
+                        value: pushbackCfg.val(pbHvCard.k + "_speed")
+                        from: 0; to: 30; step: 0.5; decimals: 1; suffix: "\u00B0/s"
+                        onMoved: pushbackCfg.set(pbHvCard.k + "_speed", newValue)
+                    }
+                }
+
+                // rf167: written out (a LedCard as a Repeater delegate loses its layout)
+                LedCard {
+                    id: pbLvCard
+                    width: parent.width
+                    readonly property string k: "tiltback_lv"
+                    SwCardHead { title: "LOW VOLTAGE"; helpText: "Pushback when the battery voltage drops below this, telling you to slow down before the pack sags too far. On VESC firmware 6.05+ it's a per-cell value (Refloat's default 3.00 V); on 6.02 it's the pack total. Make sure it is above your battery's real cut-off. ANGLE is how far the nose lifts, RATE how fast." }
+                    SwStepper {
+                        width: parent.width
+                        label: "AT"
+                        value: pushbackCfg.val(pbLvCard.k)
+                        from: 0; to: 150; step: 0.05; decimals: 2; suffix: " V"
+                        onMoved: pushbackCfg.set(pbLvCard.k, newValue)
+                    }
+                    SwStepper {
+                        width: parent.width
+                        label: "ANGLE"
+                        value: pushbackCfg.val(pbLvCard.k + "_angle")
+                        from: 0; to: 30; step: 1; decimals: 1; suffix: "\u00B0"
+                        onMoved: pushbackCfg.set(pbLvCard.k + "_angle", newValue)
+                    }
+                    SwStepper {
+                        width: parent.width
+                        label: "RATE"
+                        value: pushbackCfg.val(pbLvCard.k + "_speed")
+                        from: 0; to: 30; step: 0.5; decimals: 1; suffix: "\u00B0/s"
+                        onMoved: pushbackCfg.set(pbLvCard.k + "_speed", newValue)
                     }
                 }
 
