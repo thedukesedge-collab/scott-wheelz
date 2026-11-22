@@ -375,7 +375,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf149 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf150 · sim</span></div>
     </div>
   </div>
 
@@ -768,7 +768,7 @@ function applySheet() {
   $('sheetHint').style.bottom = px(h + 2); sheetHintShow();
 }
 function setSheet(f) { sheetF = f; P.sheet = f; save(); $('sheet').classList.add('anim'); applySheet(); }
-$('sheetDismiss').addEventListener('click', () => setSheet(0));
+$('sheetDismiss').addEventListener('click', () => { if (dismissHorn) { dismissHorn = false; return; } setSheet(0); });
 (() => {
   const hd = $('handle'); let y0 = 0, f0 = 0, moved = false;
   hd.addEventListener('pointerdown', e => { hd.setPointerCapture(e.pointerId); y0 = e.clientY; f0 = sheetF; moved = false; dragging = true; hd.classList.add('drag'); $('sheet').classList.remove('anim'); });
@@ -813,7 +813,7 @@ $('btnEdit').onclick = () => {
 const TOUR = [
   ["✦", "REFLOAT GLOW", "WELCOME", "Built on Refloat 1.2.3 by Lukáš Hrázký (lukash) and the Refloat community, reimagined with a Neon Future style theme and a bunch of extra features. Swipe through what's new; it takes a minute."],
   ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and MAX SPEED / DUTY right there."],
-  ["≡", "PULL-UP SHEET", "SWIPE UP", "Drag the sheet up for TUNES, CONTROL, MIXER, DATA, BOARD STYLE and LEDS. Tap anywhere on the main view to put it away."],
+  ["≡", "PULL-UP SHEET", "SWIPE UP", "Drag the sheet up for TUNES, CONTROL, MIXER, DATA, BOARD STYLE and LEDS. Tap anywhere on the main view (except HORN) to put it away."],
   ["♫", "HORN", "HOME + CONTROL", "Hold HORN to beep through the motor, no extra hardware. Sound and volume (10/10 = 4 V) in CONTROL › HORN SETTINGS. It stays well within safe, low motor current."],
   ["♪", "THE MIXER", "MIXER TAB", "Your board is an instrument. Ten neon tiles, ten notes, played right through the motor. Tap and hold a tile in LIVE to jam."],
   ["●", "RECORD A MELODY", "MIXER › REC", "Hit REC, then play your tune on the tiles: recording starts with your first note. The timeline fills as you go; CLEAR to start over."],
@@ -1190,14 +1190,25 @@ const moveActive = springSlider($('moveTrack'), $('moveKnob'), true, v => { S.mo
 // ---------- horn (heat budget, same rules as the package) ----------
 const H_MAX = 3.0; let budget = H_MAX, hornPressed = false, hornExpired = false, hornBlocked = false, hornPressT = 0;
 const hornAvail = () => S.mode === 'running' || S.mode === 'ready';
-$('horn').addEventListener('pointerdown', e => {
+const hornDown = (el, e) => {
   if (!hornAvail()) return;
-  $('horn').setPointerCapture(e.pointerId);
+  el.setPointerCapture(e.pointerId);
   hornPressed = true; hornExpired = false; hornBlocked = budget < 0.2; hornPressT = performance.now();
   if (!hornBlocked && navigator.vibrate) try { navigator.vibrate(running() ? 3000 : 2000); } catch (e) {}
-});
+};
+$('horn').addEventListener('pointerdown', e => hornDown($('horn'), e));
 const hornUp = () => { hornPressed = false; hornExpired = false; hornBlocked = false; if (navigator.vibrate) try { navigator.vibrate(0); } catch (e) {} };
 $('horn').addEventListener('pointerup', hornUp); $('horn').addEventListener('pointercancel', hornUp);
+// rf150: with the sheet up, a tap on the main view puts it down, except on
+// HORN: that press goes to the horn and the sheet stays up
+let dismissHorn = false;
+$('sheetDismiss').addEventListener('pointerdown', e => {
+  const r = $('horn').getBoundingClientRect();
+  dismissHorn = e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom;
+  if (dismissHorn) hornDown($('sheetDismiss'), e);
+});
+$('sheetDismiss').addEventListener('pointerup', () => { if (dismissHorn) hornUp(); });
+$('sheetDismiss').addEventListener('pointercancel', () => { if (dismissHorn) { hornUp(); dismissHorn = false; } });
 
 // ---------- free-spin limiter ----------
 function renderFs() {
@@ -1993,7 +2004,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf149';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf150';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
