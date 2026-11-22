@@ -1774,3 +1774,9 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   power-off the lights flash twice every 15 s as a last warning (last
   minute, last 15 s with a 1 min timer), whatever the snooze look, even
   with snooze NEVER. Text only.
+
+### PERSISTENT FATAL BEEP help wording (v1.2.3-rf159)
+- (?) window: "any fault, even a momentary one, sets a fatal error that
+  keeps beeping until you power-cycle the board". The words "firmware"
+  and "pushback and four beeps" were dropped at the user's request. Text
+  only; Refloat's behaviour is unchanged.

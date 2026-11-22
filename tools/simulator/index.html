@@ -376,7 +376,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf158 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf159 · sim</span></div>
     </div>
   </div>
 
@@ -1989,7 +1989,7 @@ $('ledsFatalP').onclick = () => { P.fatalPersist = P.fatalPersist === false; sav
 $('fatalHelp').onclick = e => { e.stopPropagation();
   const G = t => t;  // rf158: no highlighted words
   modal('<h3>PERSISTENT FATAL BEEP</h3>' + [
-    "This is Refloat's " + G('Persistent Fatal Error') + " setting. When it's " + G('ON') + ', any ' + G('firmware fault') + ', even a momentary one, sets a fatal error that keeps signalling with ' + G('pushback and four beeps') + ' until you ' + G('power-cycle the board') + ' (or clear it in VESC Tool).',
+    "This is Refloat's " + G('Persistent Fatal Error') + " setting. When it's " + G('ON') + ', any fault, even a momentary one, sets a fatal error that keeps beeping until you power-cycle the board (or clear it in VESC Tool).',  // rf159
     'On most ' + G('known-good, working boards') + " it's recommended " + G('OFF') + '. It can be set off during what many would call ' + G('normal riding') + ': ' + G('airtime') + ' or ' + G('deweighting') + ' while moving, like a ' + G('curb drop') + ' or a ' + G('bonk') + ', can cause a brief fault, and with this ON it turns into a ' + G('persistent beep') + '.',
     'With it ' + G('OFF') + ', a fault still beeps ' + G("while it's happening") + "; it just doesn't stay on afterwards.",
     "Saved to the board only while it's " + G('stopped') + ". Refloat's default is ON."
@@ -2026,7 +2026,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf158';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf159';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

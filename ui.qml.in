@@ -14433,8 +14433,7 @@ Item {
             Repeater {
                 model: [
                     "This is Refloat's " + fatalHelp.g + "Persistent Fatal Error" + fatalHelp.e + " setting. When it's " + fatalHelp.g + "ON" + fatalHelp.e
-                        + ", any " + fatalHelp.g + "firmware fault" + fatalHelp.e + ", even a momentary one, sets a fatal error that keeps signalling with "
-                        + fatalHelp.g + "pushback and four beeps" + fatalHelp.e + " until you " + fatalHelp.g + "power-cycle the board" + fatalHelp.e + " (or clear it in VESC Tool).",
+                        + ", any fault, even a momentary one, sets a fatal error that keeps beeping until you power-cycle the board (or clear it in VESC Tool).",  // rf159
                     "On most " + fatalHelp.g + "known-good, working boards" + fatalHelp.e + " it's recommended " + fatalHelp.g + "OFF" + fatalHelp.e
                         + ". It can be set off during what many would call " + fatalHelp.g + "normal riding" + fatalHelp.e + ": " + fatalHelp.g + "airtime" + fatalHelp.e + " or "
                         + fatalHelp.g + "deweighting" + fatalHelp.e + " while moving, like a " + fatalHelp.g + "curb drop" + fatalHelp.e + " or a " + fatalHelp.g + "bonk" + fatalHelp.e
