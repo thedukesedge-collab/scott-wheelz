@@ -376,7 +376,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf154 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf155 · sim</span></div>
     </div>
   </div>
 
@@ -1747,8 +1747,9 @@ function renderLeds() {
     $('ledsSnzSteps').innerHTML = ''; ledStep($('ledsSnzSteps'), 'ledSnoozeMin', 'BEFORE OFF', 0, 9, 1, v => v ? v + ' min' : 'NEVER');  // rf129: on the LEDS page
     { const r = $('ledsSnzSteps').lastElementChild, l = r.querySelector('.lbl');  // rf154: minutes first, then the words
       l.textContent = 'BEFORE BOARD POWERS OFF'; r.appendChild(l); r.style.justifyContent = 'flex-start'; r.style.gap = '10px'; }
-    const n = document.createElement('p'); n.className = 'ledHint'; n.style.cssText = 'text-align:center;color:var(--green)';
-    n.textContent = 'Board powers off after 10 min idling (VESC Shutdown Mode)' + (P.ledSnoozeMin ? ', so the lights snooze at ' + (10 - P.ledSnoozeMin) + ' min.' : '.') + ' They blink twice every 15 s in the last minute.';
+    // rf155: one plain line, the board's power-off time highlighted (the sim's VESC is set to 10 min)
+    const n = document.createElement('p'); n.className = 'ledHint'; n.style.cssText = 'text-align:center;color:#ead6ff';
+    n.innerHTML = 'Your board is set to power off after idling for <b style="color:var(--green)">10 minutes</b>.';
     $('ledsSnzSteps').appendChild(n);
   }
   $('ledBarSteps').innerHTML = ''; ledStep($('ledBarSteps'), 'ledIdlePct', 'IDLE BRIGHTNESS', 0, 100, 5, pct); ledStep($('ledBarSteps'), 'ledRidePct', 'RIDING BRIGHTNESS', 0, 100, 5, pct);
@@ -2007,7 +2008,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf154';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf155';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

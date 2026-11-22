@@ -16400,18 +16400,23 @@ Item {
                                     text: "BEFORE BOARD POWERS OFF"
                                 }
                             }
+                            // rf155: one plain line from VESC's own power-off timer (App
+                            // Settings > General > Shutdown Mode, read live), the time highlighted
                             SwLText {
-                                visible: (ledSender.rgbAvail || ledSender.rfStatusAvail) && vescAppConfig.offMinutes > 0
+                                visible: ledSender.rgbAvail || ledSender.rfStatusAvail
                                 width: parent.width
                                 horizontalAlignment: Text.AlignHCenter
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: fontSizeSmall
-                                color: swTheme.neonGreen
-                                readonly property real snzBefore: swSettings.ledSnoozeMin === 255 ? 5 : swSettings.ledSnoozeMin
-                                text: "Board powers off after " + (vescAppConfig.offMinutes < 1 ? "10 s" : vescAppConfig.offMinutes >= 60 ? (vescAppConfig.offMinutes / 60) + " h" : vescAppConfig.offMinutes + " min")
-                                    + " idling (VESC Shutdown Mode)"
-                                    + (snzBefore > 0 && vescAppConfig.offMinutes > snzBefore ? ", so the lights snooze at " + (vescAppConfig.offMinutes - snzBefore) + " min." : ".")
-                                    + " They blink twice every 15 s in the last minute."
+                                color: "#ead6ff"
+                                textFormat: Text.StyledText
+                                readonly property real offMin: vescAppConfig.offMinutes
+                                readonly property string offText: offMin <= 0 ? ""
+                                    : offMin < 1 ? Math.round(offMin * 60) + " seconds"
+                                    : offMin >= 60 ? (offMin / 60) + (offMin === 60 ? " hour" : " hours")
+                                    : offMin + (offMin === 1 ? " minute" : " minutes")
+                                text: offMin <= 0 ? "Your board isn't set to power off when idle."
+                                    : "Your board is set to power off after idling for <b><font color=\"" + swTheme.neonGreen + "\">" + offText + "</font></b>."
                             }
                         }
 

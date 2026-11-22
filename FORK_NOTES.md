@@ -1728,3 +1728,10 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   sit on the left, followed by "BEFORE BOARD POWERS OFF" (was "BEFORE
   OFF" on the left, minutes on the right). Same setting, same range. UI
   only.
+
+### SNOOZE: one plain line about the power-off time (v1.2.3-rf155)
+- The green note under SNOOZE is replaced by one line: "Your board is set
+  to power off after idling for 10 minutes." The time comes live from
+  VESC's App Settings › General › Shutdown Mode (10 seconds ... 5 hours)
+  and is highlighted in green. With no power-off timer: "Your board isn't
+  set to power off when idle." UI only.
