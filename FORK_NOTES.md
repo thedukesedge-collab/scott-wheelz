@@ -1944,3 +1944,11 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   when both duty (100 %) and speed (0) pushback are disabled.
 - No firmware change. A separate haptic-only speed (tone at 2 mph, lift at
   20 mph) would need one; not done.
+
+### HAPTIC FEEDBACK: LINKED TO PUSHBACK toggle (v1.2.3-rf172)
+- Haptic window: LINKED TO PUSHBACK / NOT LINKED: TONE ONLY. Linked =
+  Refloat's normal behaviour (tone and nose lift together at AT DUTY / AT
+  SPEED). Not linked = Pushback Angle 0: tone and beep only, no lift. It is
+  the same setting as Settings › RIDE › PUSHBACK ON / OFF (same confirm
+  before turning pushback off, same home-screen PUSHBACK OFF note).
+  No firmware change; Refloat keeps one threshold for both.

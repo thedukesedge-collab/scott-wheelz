@@ -399,7 +399,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf171 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf172 · sim</span></div>
     </div>
   </div>
 
@@ -1176,12 +1176,20 @@ function renderCtl() {
 }
 $('ctlBeep').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); renderCtl(); renderLedsSoft(); };
 function hapticWin() {
-  modal('<h3>HAPTIC FEEDBACK</h3><div class="pills"><div class="pill" id="hapOn"></div></div><div id="hapSteps"></div>'
+  modal('<h3>HAPTIC FEEDBACK</h3><div class="pills"><div class="pill" id="hapOn"></div></div>'
+    + '<div class="pills"><div class="pill" id="hapLink"></div></div><p class="ledHint" id="hapLinkNote" style="text-align:center"></p>'
+    + '<div id="hapLinkAsk" style="display:none;border:1px solid #ff2b4f;border-radius:8px;padding:8px;margin:4px 0 8px;text-align:center"><div style="font:12px Orbitron,monospace;color:#ff2b4f;margin-bottom:4px">⚠ TURN PUSHBACK OFF?</div><p style="font-size:12px;color:#ead6ff;margin:0 0 6px;line-height:1.4">The nose will no longer lift at AT DUTY or AT SPEED. Refloat still beeps and plays the haptic tone there, but nothing physically slows you down. Near max duty the motor runs out of power: riding past it causes a nosedive. Battery voltage pushback stays on.</p><div class="pills"><div class="pill" id="hapAskNo">CANCEL</div><div class="pill" id="hapAskYes" style="color:#ff2b4f;border-color:#ff2b4f">TURN OFF</div></div></div>'
+    + '<div id="hapSteps"></div>'
     + '<p class="ledHint">The motor plays a warning tone you feel and hear when you reach the duty or speed set here (a solid tone a little above it). These are Refloat\'s own settings: STRENGTH = Warning Audible Strength (stronger at speed), AT DUTY / AT SPEED = Refloat\'s Duty Cycle and Speed Pushback thresholds, so the nose also lifts there (Pushback Angle). Saved when the board is idle.</p>'
     + '<p class="ledHint" style="color:#ff2b4f">Duty above about 85% leaves little margin before the motor runs out of power: keep AT DUTY where your pushback was if you\'re not sure.</p>'
     + '<div class="btns"><button class="pri" data-close>CLOSE</button></div>');
   const r = () => {
     const h = P.hap; $('hapOn').textContent = 'HAPTIC FEEDBACK ' + (h.str > 0 ? 'ON' : 'OFF'); $('hapOn').classList.toggle('on', h.str > 0);
+    // rf172: LINKED TO PUSHBACK = Refloat's normal behaviour; off = tone only (Pushback Angle 0)
+    const lk = P.pb.dutyAng > 0;
+    $('hapLink').textContent = lk ? 'LINKED TO PUSHBACK' : 'NOT LINKED: TONE ONLY'; $('hapLink').classList.toggle('on', lk);
+    $('hapLinkNote').textContent = lk ? 'The nose also lifts (pushback) at AT DUTY / AT SPEED.' : 'Tone and beep only at AT DUTY / AT SPEED: the nose doesn\'t lift (pushback is off).';
+    $('hapLinkNote').style.color = lk ? 'var(--green)' : '#ff2b4f';
     $('hapSteps').innerHTML = '';
     if (h.str > 0) cuStep('hapSteps', 'STRENGTH', () => h.str, 0.5, 12, 0.5, v => v.toFixed(1) + ' V', v => { h.str = Math.round(v * 2) / 2; save(); r(); });
     cuStep('hapSteps', 'AT DUTY', () => h.duty, 50, 100, 1, v => v >= 100 ? 'OFF' : v + '%', v => { h.duty = v; save(); r(); });
@@ -1193,6 +1201,9 @@ function hapticWin() {
       sv.onclick = () => numPad('AT SPEED (0 = OFF)', mph(), 0, 62, 'mph', v => { h.spd = toKmh(v); save(); r(); }); }
     renderCtl();
   };
+  $('hapLink').onclick = () => { if (P.pb.dutyAng > 0) $('hapLinkAsk').style.display = ''; else { P.pb.dutyAng = P.pb.lastAng > 0 ? P.pb.lastAng : 5; save(); r(); rideNotes(); } };
+  $('hapAskNo').onclick = () => $('hapLinkAsk').style.display = 'none';
+  $('hapAskYes').onclick = () => { $('hapLinkAsk').style.display = 'none'; P.pb.lastAng = P.pb.dutyAng; P.pb.dutyAng = 0; save(); r(); rideNotes(); };
   $('hapOn').onclick = () => { const h = P.hap; if (h.str > 0) { h.last = h.str; h.str = 0; } else h.str = h.last || 3; save(); r(); rideNotes(); };
   r();
 }
@@ -2196,7 +2207,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf171';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf172';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

@@ -8584,6 +8584,7 @@ Item {
         }
         function openWindow() {
             if (!load()) { VescIf.emitStatusMessage("Refloat's settings aren't loaded yet", false); return; }
+            pushbackCfg.load();  // rf172: for the LINK TO PUSHBACK toggle
             hapticWindow.open();
         }
         function set(key, v) {
@@ -8626,6 +8627,25 @@ Item {
                     if (hapticCfg.on) { swSettings.hapticLast = hapticCfg.strength; hapticCfg.set("strength", 0); }
                     else hapticCfg.set("strength", swSettings.hapticLast > 0 ? swSettings.hapticLast : 3);
                 }
+            }
+            // rf172: LINKED = the tone plays where the nose lifts (Refloat's normal
+            // behaviour); OFF = tone only, no nose lift (Pushback Angle 0, the
+            // same switch as Settings › RIDE › PUSHBACK ON / OFF)
+            SwPill {
+                anchors.horizontalCenter: parent.horizontalCenter
+                minWidth: 3.6 * unit
+                label: pushbackCfg.liftOn ? "LINKED TO PUSHBACK" : "NOT LINKED: TONE ONLY"
+                lit: pushbackCfg.liftOn
+                onClicked: pushbackCfg.liftOn ? pushbackOffConfirm.open() : pushbackCfg.setLift(true)
+            }
+            SwLText {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                font.pixelSize: fontSizeSmall
+                color: pushbackCfg.liftOn ? swTheme.neonGreen : "#ff2b4f"
+                text: pushbackCfg.liftOn ? "The nose also lifts (pushback) at AT DUTY / AT SPEED."
+                    : "Tone and beep only at AT DUTY / AT SPEED: the nose doesn't lift (pushback is off)."
             }
             SwStepper {
                 visible: hapticCfg.on
