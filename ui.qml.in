@@ -13100,6 +13100,13 @@ Item {
         property var spot: null  // {x, y, w, h} in rinkTour coordinates
         readonly property bool hasSpot: visible && spot !== null
         property bool realTarget: false  // the page's own control (not the LEDS tab fallback)
+        // rf174: LIGHTS page, by board: Floatwheel kits with the SLCM light
+        // module vs controller-driven LEDs (Thor and every other controller)
+        readonly property string lightsText: slcmDetect.present
+            ? "Floatwheel kit with SLCM: HEAD/TAIL LIGHTS on, off and brightness, STATUS BAR and its animations, BATTERY GAUGE for a battery % you can trust, and the light module's own BEEPER. Everything is sent straight to your light module."
+            : (ledSender.rgbAvail || ledSender.rfStatusAvail)
+                ? "Your controller drives the LEDs (Thor and others): HEAD/TAIL LIGHTS riding and idle effects, colors and brightness, a STATUS BAR with battery and idle animations, and SNOOZE before the board powers off. All linked with Refloat's own LED settings."
+                : "No lights found yet. Controller-driven LEDs (Thor and others): turn them on in VESC Tool \u203A Refloat Cfg \u203A Hardware (LED Mode). Floatwheel kits: an LCM with SLCM firmware shows up here by itself."
 
         // per page (by title): [SUW tab (-1 = SUW down), [targets, first visible wins]]
         function steps(i) {
@@ -13236,7 +13243,7 @@ Item {
             ["◉", "LIGHTS", "LEDS TAB", "HEAD/TAIL LIGHTS: riding and idle effects, colors and brightness (RGB LEDs like Thor), SNOOZE before the board powers off. STATUS BAR: idle and riding animations. All linked with Refloat's settings."],
             ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
             ["♬", "BEEPER", "SETTINGS › RIDE › BEEPER", "Controller beeper on/off with a TEST BEEP and PERSISTENT FATAL BEEP, in Settings (gear) › RIDE. The light module's own beeper stays in LEDS › BEEPER."],
-            ["↻", "UPDATES", "LEDS › UPDATES", "Check GitHub for Refloat Glow and SLCM updates. Download supported releases and install them through the app. Compatible Floatwheel, XRV, Pint V and GTV light modules support Bluetooth firmware updates.", "updates"],
+            ["↻", "UPDATES", "LEDS › UPDATES", "NEW: update your light module (LCM) right from Refloat Glow over Bluetooth. No laptop, no cables, just a few taps. New Refloat Glow releases show up here too. (Your LCM needs the SLCM base firmware for Bluetooth updates.)", "updates"],
             ["★", "CREDIT WHERE IT'S DUE", "THE ORIGINAL", "Refloat Glow builds on Refloat by Lukáš Hrázký (lukash), which itself builds on the Float package by Mitch Lustig, Dado Mista and Nico Aleman. Their work made this project possible. Full credit and appreciation go to the original developers and community.", "credit"],
             ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "Underneath the new interface, Refloat Glow retains Refloat 1.2.3's core riding behavior, including balance, pushback, footpad handling and alerts. Most additions focus on customization, lighting and sounds. Optional settings such as MAX SPEED can change how your board behaves, so review them carefully."]
         ]
@@ -13450,7 +13457,7 @@ Item {
                                 width: parent.width
                                 horizontalAlignment: Text.AlignHCenter
                                 wrapMode: Text.WordWrap
-                                text: modelData[3]
+                                text: modelData[1] === "LIGHTS" ? rinkTour.lightsText : modelData[3]
                                 color: "#ead6ff"
                                 font.pixelSize: 0.27 * unit
                                 lineHeight: 1.15

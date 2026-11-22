@@ -399,7 +399,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf173 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf174 · sim</span></div>
     </div>
   </div>
 
@@ -858,14 +858,23 @@ const TOUR = [
   ["◉", "LIGHTS", "LEDS TAB", "HEAD/TAIL LIGHTS: riding and idle effects, colors and brightness (RGB LEDs like Thor), SNOOZE before the board powers off. STATUS BAR: idle and riding animations. All linked with Refloat's settings."],
   ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
   ["♬", "BEEPER", "SETTINGS › RIDE › BEEPER", "Controller beeper on/off with a TEST BEEP and PERSISTENT FATAL BEEP, in Settings (gear) › RIDE. The light module's own beeper stays in LEDS › BEEPER."],
-  ["↻", "UPDATES", "LEDS › UPDATES", "Check GitHub for Refloat Glow and SLCM updates. Download supported releases and install them through the app. Compatible Floatwheel, XRV, Pint V and GTV light modules support Bluetooth firmware updates.", "updates"],
+  ["↻", "UPDATES", "LEDS › UPDATES", "NEW: update your light module (LCM) right from Refloat Glow over Bluetooth. No laptop, no cables, just a few taps. New Refloat Glow releases show up here too. (Your LCM needs the SLCM base firmware for Bluetooth updates.)", "updates"],
   ["★", "CREDIT WHERE IT'S DUE", "THE ORIGINAL", "Refloat Glow builds on Refloat by Lukáš Hrázký (lukash), which itself builds on the Float package by Mitch Lustig, Dado Mista and Nico Aleman. Their work made this project possible. Full credit and appreciation go to the original developers and community.", "credit"],
   ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "Underneath the new interface, Refloat Glow retains Refloat 1.2.3's core riding behavior, including balance, pushback, footpad handling and alerts. Most additions focus on customization, lighting and sounds. Optional settings such as MAX SPEED can change how your board behaves, so review them carefully."]
 ];
 let tourI = 0, tourX = null;
+// rf174: LIGHTS page by board (lightsText in ui.qml.in)
+function tourLightsText() {
+  const setup = P.simSetup || 'slcm';
+  return setup === 'slcm'
+    ? 'Floatwheel kit with SLCM: HEAD/TAIL LIGHTS on, off and brightness, STATUS BAR and its animations, BATTERY GAUGE for a battery % you can trust, and the light module\'s own BEEPER. Everything is sent straight to your light module.'
+    : setup === 'refloat'
+      ? 'Your controller drives the LEDs (Thor and others): HEAD/TAIL LIGHTS riding and idle effects, colors and brightness, a STATUS BAR with battery and idle animations, and SNOOZE before the board powers off. All linked with Refloat\'s own LED settings.'
+      : 'No lights found yet. Controller-driven LEDs (Thor and others): turn them on in VESC Tool › Refloat Cfg › Hardware (LED Mode). Floatwheel kits: an LCM with SLCM firmware shows up here by itself.';
+}
 function tourShow() {
   const [g, t, w, x, demo] = TOUR[tourI];
-  $('tourRing').textContent = g; $('tourWhere').textContent = w; $('tourTitle').textContent = t; $('tourText').textContent = x;
+  $('tourRing').textContent = g; $('tourWhere').textContent = w; $('tourTitle').textContent = t; $('tourText').textContent = t === 'LIGHTS' ? tourLightsText() : x;
   // rf165: UPDATES = a picture of the real section (nothing pressable); CREDIT = a quiet attribution line
   tourShowDemo();
   $('tourRing').style.transform = demo === 'updates' && !$('tour').classList.contains('spot') ? 'scale(.7)' : '';
@@ -2217,7 +2226,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf173';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf174';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

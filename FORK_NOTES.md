@@ -1965,3 +1965,14 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   board stops, before the idle animation).
 - Onboarding Tour: BEEPER page now points at the gear (SETTINGS › RIDE ›
   BEEPER).
+
+### Onboarding Tour: LIGHTS by board, new UPDATES text (v1.2.3-rf174)
+- LIGHTS page text follows the board: Floatwheel kit with an SLCM light
+  module (head/tail lights, status bar animations, battery gauge, LCM
+  beeper), controller-driven LEDs (Thor and other controllers: effects,
+  colors, status bar, snooze, Refloat's LED settings), or no lights found
+  yet (where to turn them on).
+- UPDATES page: "NEW: update your light module (LCM) right from Refloat
+  Glow over Bluetooth. No laptop, no cables, just a few taps. New Refloat
+  Glow releases show up here too. (Your LCM needs the SLCM base firmware
+  for Bluetooth updates.)"
