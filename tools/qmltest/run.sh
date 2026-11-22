@@ -115,7 +115,7 @@ cat > /tmp/wrapper.qml <<'Q'
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 ApplicationWindow {
-    width: 395; height: 703; visible: true
+    width: 393; height: 680; visible: true
     Timer { id: quitTimer; interval: 500; onTriggered: Qt.quit() }
     Loader {
         id: l
@@ -130,11 +130,8 @@ ApplicationWindow {
         interval: 3000; running: true
         onTriggered: {
             // hide first-run dialogs / hint overlays so the screen is visible
-            if (l.item) for (var k = 0; k < l.item.children.length; k++) {
-                var ch = l.item.children[k];
-                if (ch.children.length > 0 && /Page|SwipeView/.test("" + ch.children[0])) ch.visible = false;
-            }
-            l.item && l.item.parent && l.item.parent.grabToImage(function(r) { r.saveToFile("/tmp/shot.png"); });
+            var root = l.parent; while (root.parent) root = root.parent;
+            root.grabToImage(function(r) { r.saveToFile("/tmp/shot.png"); });
             function dump(it, depth) {
                 if (depth > 4 || !it) return;
                 for (var i = 0; i < it.children.length; i++) {
@@ -152,19 +149,27 @@ ApplicationWindow {
 Q
 cd "$here/../.."
 mkdir -p /tmp/shots
+# shots: 0 home, 1-3 MIXER (BLANK / NOTES / 123), 4 LEDS > HEAD/TAIL LIGHTS
+# SIMPLE, 5 the same ADVANCED, 6 LEDS > STATUS BAR (Refloat LED view)
 for c in "$@"; do
-  # frame 0: collapsed, 1: open on TUNES, 2: open on MIXER (REC mode)
-  # 3: open on LEDS
-  for shot in 0 1 2 3; do
-    frac=$([ $shot = 0 ] && echo 0 || echo 1)
-    tab=$([ $shot = 2 ] && echo 2 || ([ $shot = 3 ] && echo 5 || echo 0))
-    rec=$([ $shot = 2 ] && echo true || echo false)
-    echo "=================== $c (shot $shot, sheetFraction=$frac)"
+  for shot in 0 1 2 3 4 5 6; do
+    echo "=================== $c (shot $shot)"
     mkdir -p ~/.config/QtProject
-    # mark first-run hints as seen so they don't pop the sheet open
-    printf "[scottWheelz]\nsheetFraction=$frac\nrailStyle=$frac\n\n[uiHints]\nstatusText=true\nplotCursor=true\ndrGeneral=true\ndrStartStop=true\ndrDownload=true\n" > ~/.config/QtProject/qmlscene.conf
-    git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Re-RinkFloat/g; s/{{VERSION}}/test/g; s/{{LCM_FW_JSON}}/null/g" \
-      | sed "s/category: \"scottWheelz\"/category: \"scottWheelzTest$shot\"/; s/property int railStyle: 0 /property int railStyle: $((2 - 2 * frac)) /; s/property bool flipView: false /property bool flipView: $([ $frac = 1 ] && echo true || echo false) /; s/property real sheetFraction: 0 /property real sheetFraction: $frac /; s/bottomSheet.open();//; s/bottomStackTabs.currentIndex = 3;//; s/id: bottomStackTabs$/id: bottomStackTabs; currentIndex: $tab/; s/id: bottomStackLayout$/id: bottomStackLayout; currentIndex: $tab/; s/property bool recording: false/property bool recording: $rec/; s/Component.onCompleted: fraction = swSettings.sheetFraction >= 0.5 ? 1 : 0/Component.onCompleted: fraction = $frac/" \
+    printf "[uiHints]\nstatusText=true\nplotCursor=true\ndrGeneral=true\ndrStartStop=true\ndrDownload=true\n" > ~/.config/QtProject/qmlscene.conf
+    case $shot in
+      0) act="" ;;
+      1|2|3) act="swSettings.mixerLabels = $((shot - 1)); bottomSheet.open(); bottomStackTabs.currentIndex = 2;" ;;
+      4|5) act="ledSender.rgbAvail = true; ledSender.rfStatusAvail = true; swSettings.rgbAdvanced = $([ $shot = 5 ] && echo true || echo false); bottomSheet.open(); bottomStackTabs.currentIndex = 5; ledWindow.show('head');" ;;
+      6) act="ledSender.rgbAvail = true; ledSender.rfStatusAvail = true; bottomSheet.open(); bottomStackTabs.currentIndex = 5; ledWindow.show('bar');" ;;
+    esac
+    git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Refloat Glow/g; s/{{VERSION}}/test/g; s/{{LCM_FW_JSON}}/null/g" \
+      | sed "s/category: \"scottWheelz\"/category: \"scottWheelzTest$shot\"/" \
+      | ACT="$act" python3 -c "
+import os, sys
+s = sys.stdin.read()
+i = s.rstrip().rfind('}')
+t = '    Timer { interval: 1200; running: true; onTriggered: { try { if (typeof disclaimerDialog !== \"undefined\") disclaimerDialog.close(); if (typeof rinkTour !== \"undefined\") rinkTour.close(); } catch (e) {} ' + os.environ['ACT'] + ' } }\n'
+sys.stdout.write(s[:i] + t + s[i:])" \
       | python3 rjsmin.py > /tmp/ui.qml
     QML2_IMPORT_PATH=$stubs QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software timeout 30 \
       /usr/lib/qt5/bin/qmlscene /tmp/wrapper.qml 2>&1 \
