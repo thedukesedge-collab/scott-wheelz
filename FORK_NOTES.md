@@ -1883,3 +1883,22 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   and shows a picture of Settings › RIDE (Settings is a window above the
   tour, so it isn't opened; nothing is applied). Tour steps are now looked
   up by page title. 16 pages.
+
+### Onboarding Tour: no flicker on NEXT / BACK (v1.2.3-rf168)
+- Cause (app and simulator alike): on every page change the tour dropped
+  its spotlight and target, then picked the new control 300 ms later once
+  the SUW had slid into place. For those 300 ms the card had no spot, so it
+  jumped to the centre at full size with the whole screen dimmed, then
+  jumped back next to the new control.
+- Fix: the new control is picked right away and the spotlight stays on
+  while the SUW moves; it glides (140 ms ease) to the new control and
+  follows the SUW as it slides. The 300 ms check only re-confirms the
+  control and scrolls it into view. The spot only switches off on pages
+  without a control (WELCOME, CREDIT, SAME RIDE). A spot that can't be
+  measured for a frame keeps its last position instead of blinking off.
+- Simulator: same fix; one pending settle and one content swap at a time
+  (rapid NEXT / BACK can't stack timers or land on a stale page).
+- Measured in the simulator, frame by frame: before, the spotlight dropped
+  out on every NEXT between pages with a control (12 of 12); after, 0
+  (it only clears when moving to a centred page). CI load test pages
+  through the tour every ~190 ms and logs spotlight drops (TOURDROPS).

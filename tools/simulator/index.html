@@ -226,7 +226,7 @@
   #tour.on { display: flex; }
   /* rf166: Onboarding Tour spotlight on the real control; the tour layer still blocks every tap */
   #tour.spot { background: transparent; align-items: flex-start; }
-  #tourSpot { display: none; position: absolute; border: 3px solid var(--green); border-radius: 10px; box-shadow: 0 0 0 9999px rgba(5,2,16,.85), 0 0 14px rgba(57,255,122,.6); pointer-events: none; animation: tourSpotPulse 1.3s ease-in-out infinite; }
+  #tourSpot { display: none; position: absolute; transition: left .14s ease-out, top .14s ease-out, width .14s ease-out, height .14s ease-out; border: 3px solid var(--green); border-radius: 10px; box-shadow: 0 0 0 9999px rgba(5,2,16,.85), 0 0 14px rgba(57,255,122,.6); pointer-events: none; animation: tourSpotPulse 1.3s ease-in-out infinite; }
   #tour.spot #tourSpot { display: block; }
   @keyframes tourSpotPulse { 0%, 100% { border-color: rgba(57,255,122,1); } 50% { border-color: rgba(57,255,122,.35); } }
   #tour.spot #tourCard { position: absolute; left: 50%; transform: translateX(-50%); height: auto; max-height: 50%; transition: top .2s; }
@@ -397,7 +397,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf167 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf168 · sim</span></div>
     </div>
   </div>
 
@@ -887,20 +887,31 @@ const TOUR_STEPS = [null, [-1, ['speedoWrap']], [0, ['tabs']], [-1, ['horn']], [
   [2, [() => $('padPlay').parentElement, () => $('mxRec').parentElement]], [1, [() => $('myMelOpen').parentElement]], [4, ['pgStyle']],
   [5, [() => $('ltHead').closest('.ledTiles')]], [5, [() => $('ltBat').closest('.ledTile')]], [5, ['ledsBeepCard', () => $('ltSound').closest('.ledTile')]],
   [5, [() => $('ltUpd').closest('.ledTile')]], null, null];
-let tourSaved = null, tourTarget = null, tourReal = false, tourRaf = 0;
+let tourSaved = null, tourTarget = null, tourReal = false, tourRaf = 0, tourSettle = 0;
 const tourVis = el => !!el && el.offsetParent !== null && el.getBoundingClientRect().height > 0;
+// rf168: the target is picked right away and the spotlight / card stay up while
+// the SUW slides (they glide to the new control). Before, the spot was dropped
+// for 300 ms on every NEXT: the card jumped to the centre with a full dim and
+// back - the flicker. One pending settle at a time (rapid NEXT / BACK).
+function tourPick(st) {
+  for (const c of st[1]) { const el = typeof c === 'function' ? c() : $(c); if (tourVis(el)) { tourReal = true; return el; } }
+  tourReal = false;
+  return st[0] === 5 ? document.querySelector('.tab[data-i="5"]') : null;  // not on this board: the LEDS tab
+}
 function tourApply() {
   const st = TOUR_STEPS[tourI];
-  tourTarget = null; tourReal = false;
-  if (!st) { if (sheetF > 0.5) setSheet(0); tourPlace(); return; }
-  if (st[0] < 0) { if (sheetF > 0.5) setSheet(0); } else { setTab(st[0]); if (sheetF < 0.5) setSheet(1); }
-  setTimeout(() => {
-    for (const c of st[1]) { const el = typeof c === 'function' ? c() : $(c); if (tourVis(el)) { tourTarget = el; tourReal = true; break; } }
-    if (!tourTarget && st[0] === 5) tourTarget = document.querySelector('.tab[data-i="5"]');  // not on this board: the LEDS tab
+  clearTimeout(tourSettle);
+  if (!st) { tourTarget = null; tourReal = false; if (sheetF > 0.5) setSheet(0); tourPlace(); return; }
+  if (st[0] < 0) { if (sheetF > 0.5) setSheet(0); } else { if (P.tab !== st[0]) setTab(st[0]); if (sheetF < 0.5) setSheet(1); }
+  tourTarget = tourPick(st);
+  tourPlace();
+  const i = tourI;
+  tourSettle = setTimeout(() => {
+    if (i !== tourI) return;
+    tourTarget = tourPick(st);
     if (tourTarget && tourReal) tourTarget.scrollIntoView({ block: 'nearest' });
     tourShowDemo(); tourPlace();
   }, 300);
-  tourPlace();
 }
 function tourPlace() {
   const T = $('tour'), sp = $('tourSpot'), c = $('tourCard');
@@ -921,7 +932,14 @@ function tourPlace() {
 function tourLoop() { if (!$('tour').classList.contains('on')) return; tourPlace(); tourRaf = requestAnimationFrame(tourLoop); }
 function tourOpen() { tourSaved = { f: sheetF, tab: P.tab || 0 }; tourI = 0; tourShow(); $('tour').classList.add('on'); tourApply(); cancelAnimationFrame(tourRaf); tourLoop(); }
 const tourClose = () => { $('tour').classList.remove('on', 'spot', 'up', 'down'); tourTarget = null; if (tourSaved) { setTab(tourSaved.tab); setSheet(tourSaved.f > 0.5 ? 1 : 0); tourSaved = null; } P.tourSeen = true; save(); };
-function tourGo(d) { const n = tourI + d; if (n < 0 || n >= TOUR.length) { tourClose(); return; } tourI = n; $('tourPg').style.opacity = 0; tourApply(); setTimeout(() => { tourShow(); $('tourPg').style.opacity = 1; }, 120); }
+let tourFade = 0;
+function tourGo(d) {
+  const n = tourI + d; if (n < 0 || n >= TOUR.length) { tourClose(); return; }
+  tourI = n; tourApply();
+  // rf168: one content swap at a time; the card itself stays put
+  $('tourPg').style.opacity = 0; clearTimeout(tourFade);
+  tourFade = setTimeout(() => { tourShow(); $('tourPg').style.opacity = 1; }, 110);
+}
 $('tourBack').onclick = () => tourGo(-1); $('tourNext').onclick = () => tourGo(1);
 $('tourCard').addEventListener('pointerdown', e => tourX = e.clientX);
 $('tourCard').addEventListener('pointerup', e => { if (tourX !== null && Math.abs(e.clientX - tourX) > 50) { const d = e.clientX < tourX ? 1 : -1; if (tourI + d >= 0 && tourI + d < TOUR.length) tourGo(d); } tourX = null; });
@@ -2150,7 +2168,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf167';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf168';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

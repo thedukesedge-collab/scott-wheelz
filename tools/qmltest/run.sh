@@ -152,7 +152,7 @@ mkdir -p /tmp/shots
 # shots: 0 home, 1-3 MIXER (BLANK / NOTES / 123), 4 LEDS > HEAD/TAIL LIGHTS
 # SIMPLE, 5 the same ADVANCED, 6 LEDS > STATUS BAR (Refloat LED view)
 for c in "$@"; do
-  for shot in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16; do
+  for shot in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17; do
     echo "=================== $c (shot $shot)"
     mkdir -p ~/.config/QtProject
     printf "[uiHints]\nstatusText=true\nplotCursor=true\ndrGeneral=true\ndrStartStop=true\ndrDownload=true\n" > ~/.config/QtProject/qmlscene.conf
@@ -169,6 +169,7 @@ for c in "$@"; do
       12) act="if (!rinkTour.visible) { rinkTour.open(); tourSwipe.currentIndex = 12; }" ;;
       15) act="pushbackCfg.loaded = true; pushbackWindow.advanced = true; pushbackWindow.open();" ;;
       16) act="settingsDialog.show(2);" ;;
+      17) act="if (!rinkTour.visible) { rinkTour.open(); tourSwipe.currentIndex = 1; var n = 0, drops = 0, last = false; var t = Qt.createQmlObject('import QtQuick 2.0; Timer { interval: 16; repeat: true }', rinkTour); t.triggered.connect(function () { n++; if (n % 12 === 0 && tourSwipe.currentIndex < 13) tourSwipe.incrementCurrentIndex(); if (n > 20 && last && !rinkTour.hasSpot) drops++; last = rinkTour.hasSpot; if (n === 12 * 13 + 30) console.log('TOURDROPS ' + drops + ' at page ' + tourSwipe.currentIndex); }); t.start(); }" ;;
       13) act="if (!rinkTour.visible) { rinkTour.open(); tourSwipe.currentIndex = 4; }" ;;
       14) act="if (!rinkTour.visible) { rinkTour.open(); tourSwipe.currentIndex = 13; }" ;;
     esac
