@@ -1988,3 +1988,13 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   highlighted: "Floatwheel kit (SLCM)" and "Controller LEDs (most
   non-Floatwheel setups, e.g. Thor)", the other one dimmed below; with no
   lights found, both plus where to turn them on.
+
+### MAX SPEED terms: VERIFY YOUR SPEED IS CORRECT (v1.2.3-rf176)
+- The terms window before MAX SPEED (every time) adds an amber "VERIFY YOUR
+  SPEED IS CORRECT" section: the limit is VESC's Max ERPM, worked out from
+  Motor Settings › Additional Info (wheel diameter, motor poles, gear
+  ratio); ERPM = wheel RPM × gear ratio × motor poles ÷ 2 (pole pairs);
+  the board's current values and ERPM per mph / km/h; red: wrong values =
+  wrong speed reading = the limit (and a nosedive) at a different real
+  speed; how to check with a GPS speed app first. The window scrolls on
+  small screens. Onboarding Tour checked: no change needed.

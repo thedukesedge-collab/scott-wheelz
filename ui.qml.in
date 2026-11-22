@@ -9272,7 +9272,16 @@ Item {
         }
         onAccepted: if (maxSpeedAck.checked) maxSpeedPanel.open()
 
+        // rf176: scrolls on small screens (longer explanation)
+        Flickable {
+            width: maxSpeedTerms.availableWidth
+            height: Math.min(maxSpeedTermsCol.implicitHeight, (maxSpeedTerms.parent ? maxSpeedTerms.parent.height : 800) * 0.62)
+            contentHeight: maxSpeedTermsCol.implicitHeight
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollIndicator.vertical: ScrollIndicator {}
         Column {
+            id: maxSpeedTermsCol
             width: maxSpeedTerms.availableWidth
             spacing: 0.25 * unit
 
@@ -9293,11 +9302,41 @@ Item {
                 text: "WARNING: the limit also applies while riding. If you ever reach this speed on the ground, the motor can no longer push the nose back up and the board WILL NOSEDIVE."
             }
 
+            // rf176: VERIFY YOUR SPEED - how the limit is worked out, from what
+            Text {
+                width: parent.width
+                font.pointSize: 13
+                font.bold: true
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+                color: "#FFB300"
+                text: "\u26A0 VERIFY YOUR SPEED IS CORRECT"
+            }
             NText {
                 width: parent.width
                 font.pointSize: 12
                 wrapMode: Text.WordWrap
-                text: "Set it well above the fastest you ride. After setting it, check it with the board lifted (it's confirmed on the board automatically) and after changing the wheel or tire. You ride at your own risk."
+                text: "How it works: the limit is VESC's Max ERPM (motor electrical RPM), not a speed. The app turns your speed into ERPM with three values from VESC Tool \u203A Motor Settings \u203A Additional Info: wheel diameter, motor poles and gear ratio.\n\n"
+                    + "ERPM = wheel RPM \u00D7 gear ratio \u00D7 motor poles \u00F7 2 (electrical RPM counts pole pairs: a 30-pole Hypercore has 15).\n\n"
+                    + (maxSpeed.ready
+                        ? "Your board now: wheel " + (maxSpeed.wheelD * 39.3701).toFixed(1) + "\" (" + Math.round(maxSpeed.wheelD * 1000) + " mm), " + maxSpeed.poles + " poles, gear " + maxSpeed.gear.toFixed(2)
+                            + " \u2192 1 " + vescConfig.speedUnit + " \u2248 " + Math.round(maxSpeed.erpmPerKmh / vescConfig.imperialFactor) + " ERPM."
+                        : "Your board's motor settings aren't read yet.")
+            }
+            Text {
+                width: parent.width
+                font.pointSize: 12
+                font.bold: true
+                wrapMode: Text.WordWrap
+                color: "#ff2b4f"
+                text: "If any of these is entered wrong, the app's speed is wrong too and the limit kicks in at a different real speed: the board can NOSEDIVE sooner than you expect."
+            }
+            NText {
+                width: parent.width
+                font.pointSize: 12
+                wrapMode: Text.WordWrap
+                text: "Check it first: ride at a steady speed with a GPS speed app and compare it to the speed shown here. If they don't match, fix the values in VESC Tool before setting a limit.\n\n"
+                    + "Set it well above the fastest you ride. After setting it, check it with the board lifted (it's confirmed on the board automatically) and after changing the wheel or tire. You ride at your own risk."
             }
 
             CheckBox {
@@ -9306,6 +9345,7 @@ Item {
                 text: "I understand and accept these terms"
                 onCheckedChanged: maxSpeedTerms.standardButton(Dialog.Ok).enabled = checked
             }
+        }
         }
     }
 
