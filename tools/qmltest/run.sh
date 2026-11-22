@@ -130,7 +130,7 @@ ApplicationWindow {
     Timer {
         interval: 3000; running: true
         onTriggered: {
-            l.item && l.item.parent && l.item.parent.grabToImage(function(r) { r.saveToFile("/tmp/shot.png"); });
+            var root = l.parent; while (root.parent) root = root.parent; root.grabToImage(function(r) { r.saveToFile("/tmp/shot.png"); });
             quitTimer.start();
         }
     }
