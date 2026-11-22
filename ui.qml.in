@@ -2639,6 +2639,7 @@ Item {
         property real snzSpeed: 1.0
         property int ledStatusSnooze: 0  // rf109: status bar while snoozing: 0 breathe, 1 dim, 2 dark, 3 normal; rf111: 4-12 Refloat animation + 4
         property real hapticLast: 3  // rf108: strength brought back by HAPTIC FEEDBACK ON
+        property real pbLastAngle: 5  // rf171: pushback angle brought back by PUSHBACK ON
         property int rfBgLast: 1  // rf101: background color brought back by BACKGROUND ON (WHITE)  // rf86: controller-driven LEDs snooze after this many idle minutes (0 = never)
         property string ledCustom: ""  // CUSTOM animation, 8 numbers (JSON), see ledSender.custom()
         property int ledAnimBoot: 11
@@ -4216,6 +4217,25 @@ Item {
     }
 
     // rf124: a rounded neon card with a centered title, for one light / group
+    component OffNote : Rectangle {
+        property alias text: offNoteText.text
+        property color tone: "#ff2b4f"
+        z: 3
+        width: offNoteText.implicitWidth + 0.3 * unit
+        height: offNoteText.implicitHeight + 0.1 * unit
+        radius: height / 2
+        color: "#0b0718"
+        border.color: tone
+        border.width: 1
+        Text {
+            id: offNoteText
+            anchors.centerIn: parent
+            color: parent.tone
+            font.family: "Exan"
+            font.pixelSize: 0.2 * unit
+        }
+    }
+
     // rf167: a small (?) that opens a plain explanation window (infoHelp)
     component SwHelpDot : Rectangle {
         property string helpTitle: ""
@@ -8581,6 +8601,7 @@ Item {
             if (dirty) {
                 packageConfig.writeConfig();
                 cfgVerify.start({"haptic.duty.strength": strength, "tiltback_duty": duty, "tiltback_speed": speedKmh});  // rf167
+                rideState.refresh();  // rf171
             }
         }
         property Timer writeTimer: Timer { id: hapticWriteTimer; interval: 1500; onTriggered: hapticCfg.write() }
@@ -8642,7 +8663,7 @@ Item {
                 wrapMode: Text.WordWrap
                 font.pixelSize: fontSizeSmall
                 text: "The motor plays a warning tone you feel and hear when you reach the duty or speed set here (a solid tone a little above it). "
-                    + "These are Refloat's own settings: STRENGTH = Warning Audible Strength (stronger at speed), AT DUTY / AT SPEED = Refloat's Duty Cycle and Speed Pushback thresholds, so the nose also lifts there (Pushback Angle). Saved when the board is idle."
+                    + "These are Refloat's own settings: STRENGTH = Warning Audible Strength (stronger at speed), AT DUTY / AT SPEED = Refloat's Duty Cycle and Speed Pushback thresholds, so the nose also lifts there unless PUSHBACK is OFF (Settings \u203A RIDE \u203A PUSHBACK). Saved when the board is idle."
             }
             Text {
                 width: parent.width
@@ -8743,6 +8764,37 @@ Item {
         }
     }
 
+    // rf171: what the home screen notes show, from the board's Refloat config
+    // (read on every config update, and after our own writes)
+    QtObject {
+        id: rideState
+        property bool known: false
+        property bool pushbackOn: true
+        property bool hapticOn: true
+        function refresh() {
+            var c = packageConfig.pkgConfig;
+            known = !!c && VescIf.isPortConnected() && state.pkgState !== state.s_Connecting;
+            if (!c) return;
+            // duty / speed pushback (the nose lift): Refloat lifts to
+            // tiltback_duty_angle at either threshold; 0 = no lift (Refloat
+            // then only beeps / plays the haptic tone there)
+            var ang = c.getParamDouble("tiltback_duty_angle");
+            var duty = c.getParamDouble("tiltback_duty"), spd = c.getParamInt("tiltback_speed");
+            pushbackOn = ang > 0 && (duty < 0.995 || spd > 0);
+            hapticOn = c.getParamDouble("haptic.duty.strength") > 0;
+        }
+        property Connections conns: Connections {
+            target: packageConfig
+            function onUpdate() { rideState.refresh(); }
+        }
+        property Timer poll: Timer {  // connection / state changes
+            interval: 1000
+            repeat: true
+            running: true
+            onTriggered: rideState.refresh()
+        }
+    }
+
     // rf167: Settings › RIDE › PUSHBACK - Refloat 1.2.3's own pushback /
     // tiltback settings (Refloat Cfg), with Refloat's ranges and steps. Read
     // from the board's config when the window opens, written only while the
@@ -8798,9 +8850,39 @@ Item {
             if (any) {
                 packageConfig.writeConfig();
                 cfgVerify.start(dirty);
+                rideState.refresh();
             }
         }
         property Timer writeTimer: Timer { id: pushbackWriteTimer; interval: 1500; onTriggered: pushbackCfg.write() }
+        // rf171: PUSHBACK ON / OFF = the duty / speed nose lift (Pushback Angle).
+        // OFF = angle 0: Refloat keeps the thresholds, beeps and the haptic tone
+        // there, but the nose doesn't lift. HV / LV pushback are not touched.
+        readonly property bool liftOn: val("tiltback_duty_angle") > 0
+        function setLift(on) {
+            if (on) set("tiltback_duty_angle", swSettings.pbLastAngle > 0 ? swSettings.pbLastAngle : 5);
+            else {
+                if (val("tiltback_duty_angle") > 0) swSettings.pbLastAngle = val("tiltback_duty_angle");
+                set("tiltback_duty_angle", 0);
+            }
+        }
+    }
+
+    BaseDialog {
+        id: pushbackOffConfirm
+        parent: ApplicationWindow.overlay
+        title: "\u26A0 Turn pushback off?"
+        titleColor: "#ff2b4f"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onOpened: standardButton(Dialog.Ok).text = "Turn off"
+        onAccepted: pushbackCfg.setLift(false)
+        Text {
+            width: pushbackOffConfirm.availableWidth
+            wrapMode: Text.WordWrap
+            color: "#ead6ff"
+            font.pixelSize: 0.3 * unit
+            lineHeight: 1.15
+            text: "The nose will no longer lift at AT DUTY or AT SPEED. Refloat still beeps and plays the haptic tone there, but nothing physically slows you down.\n\nNear max duty the motor runs out of power: riding past it causes a nosedive. Battery voltage pushback stays on."
+        }
     }
 
     BaseDialog {
@@ -8846,11 +8928,29 @@ Item {
                     text: "The board is running: changes wait until it stops."
                 }
 
+                // rf171: the simple view: PUSHBACK ON / OFF and the two thresholds
+                SwPill {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    minWidth: 3.6 * unit
+                    label: pushbackCfg.liftOn ? "PUSHBACK ON" : "PUSHBACK OFF"
+                    lit: pushbackCfg.liftOn
+                    onClicked: pushbackCfg.liftOn ? pushbackOffConfirm.open() : pushbackCfg.setLift(true)
+                }
+                Text {
+                    visible: !pushbackCfg.liftOn
+                    width: parent.width
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: fontSizeSmall
+                    color: "#ff2b4f"
+                    text: "Pushback is off: at AT DUTY / AT SPEED you only get Refloat's beep and haptic tone, the nose doesn't lift. Battery voltage pushback stays on."
+                }
+
                 LedCard {
                     width: parent.width
                     SwCardHead {
                         title: "DUTY & SPEED"
-                        helpText: "Duty pushback starts when the motor's duty cycle reaches AT DUTY (100% = off). VESC's real maximum is about 95%: reaching it means a nosedive, so pushback must come well before that.\n\nSpeed pushback starts at AT SPEED (0 = off).\n\nBoth lift the nose to ANGLE, tilting at RATE. A fast rate can be dangerous. The same AT DUTY / AT SPEED values are used by Haptic Feedback."
+                        helpText: "Duty pushback starts when the motor's duty cycle reaches AT DUTY (100% = off). VESC's real maximum is about 95%: reaching it means a nosedive, so pushback must come well before that.\n\nSpeed pushback starts at AT SPEED (0 = off).\n\nBoth lift the nose to ANGLE, tilting at RATE (ADVANCED). A fast rate can be dangerous.\n\nRefloat uses the same AT DUTY / AT SPEED for Haptic Feedback: the tone and the pushback start together. PUSHBACK OFF keeps the tone and beep there but stops the nose lift."
                     }
                     SwStepper {
                         width: parent.width
@@ -8874,6 +8974,7 @@ Item {
                             function (x) { pushbackCfg.set("tiltback_speed", Math.round(x / pbSpeedStep.f)); })
                     }
                     SwStepper {
+                        visible: pushbackWindow.advanced && pushbackCfg.liftOn
                         width: parent.width
                         label: "ANGLE"
                         value: pushbackCfg.val("tiltback_duty_angle")
@@ -8881,6 +8982,7 @@ Item {
                         onMoved: pushbackCfg.set("tiltback_duty_angle", newValue)
                     }
                     SwStepper {
+                        visible: pushbackWindow.advanced && pushbackCfg.liftOn
                         width: parent.width
                         label: "RATE"
                         value: pushbackCfg.val("tiltback_duty_speed")
@@ -8897,10 +8999,19 @@ Item {
                     }
                 }
 
+                SwPill {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    minWidth: 3.6 * unit
+                    label: pushbackWindow.advanced ? "HIDE ADVANCED" : "SHOW ADVANCED"
+                    lit: pushbackWindow.advanced
+                    onClicked: pushbackWindow.advanced = !pushbackWindow.advanced
+                }
+
                 // rf167: no extra properties on a LedCard instance: with one, its
                 // children skip the card's content column (same as the rf150 head/tail bug)
                 LedCard {
                     id: pbHvCard
+                    visible: pushbackWindow.advanced
                     width: parent.width
                     SwCardHead { title: "HIGH VOLTAGE"; helpText: "Pushback when the battery voltage goes above this, most often when braking or going downhill on a full battery (it can make the tail drag, take care). On VESC firmware 6.05+ it's a per-cell value (Refloat's default 4.30 V); on 6.02 it's the pack total. ANGLE is how far the nose lifts, RATE how fast." }
                     SwStepper {
@@ -8930,6 +9041,7 @@ Item {
                 // children skip the card's content column (same as the rf150 head/tail bug)
                 LedCard {
                     id: pbLvCard
+                    visible: pushbackWindow.advanced
                     width: parent.width
                     SwCardHead { title: "LOW VOLTAGE"; helpText: "Pushback when the battery voltage drops below this, telling you to slow down before the pack sags too far. On VESC firmware 6.05+ it's a per-cell value (Refloat's default 3.00 V); on 6.02 it's the pack total. Make sure it is above your battery's real cut-off. ANGLE is how far the nose lifts, RATE how fast." }
                     SwStepper {
@@ -8956,6 +9068,7 @@ Item {
                 }
 
                 LedCard {
+                    visible: pushbackWindow.advanced
                     width: parent.width
                     SwCardHead { title: "RETURN"; helpText: "How fast the nose comes back to level after a pushback ends." }
                     SwStepper {
@@ -8967,13 +9080,6 @@ Item {
                     }
                 }
 
-                SwPill {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    minWidth: 3.6 * unit
-                    label: pushbackWindow.advanced ? "HIDE ADVANCED" : "SHOW ADVANCED"
-                    lit: pushbackWindow.advanced
-                    onClicked: pushbackWindow.advanced = !pushbackWindow.advanced
-                }
 
                 LedCard {
                     visible: pushbackWindow.advanced
@@ -14018,6 +14124,25 @@ Item {
                     labelText: "MAX DUTY"
                     warn: swSettings.peakDuty >= 0.9
                     valueText: toFixed1Zero(swSettings.peakDuty * 100) + "%"
+                }
+
+                // rf171: PUSHBACK OFF (red, under TOP SPEED) / HAPTIC OFF (pink,
+                // under MAX DUTY), from the board's Refloat settings
+                OffNote {
+                    visible: rideState.known && !rideState.pushbackOn
+                    anchors.top: peakSpeedStat.bottom
+                    anchors.topMargin: 0.08 * unit
+                    anchors.left: peakSpeedStat.left  // rf171: never past the screen edge
+                    tone: "#ff2b4f"
+                    text: "PUSHBACK OFF"
+                }
+                OffNote {
+                    visible: rideState.known && !rideState.hapticOn
+                    anchors.top: peakDutyStat.bottom
+                    anchors.topMargin: 0.08 * unit
+                    anchors.right: peakDutyStat.right
+                    tone: "#ff4fd8"
+                    text: "HAPTIC OFF"
                 }
 
                 // rf169: no max speed limit: a small purple note in the same spot

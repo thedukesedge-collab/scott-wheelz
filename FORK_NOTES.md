@@ -1924,3 +1924,23 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - Onboarding Tour: opens right after BEFORE YOU START on the first open of
   each new version (tourSeenVer), SKIP / DONE to leave. Replay Tour in
   Settings unchanged.
+
+### PUSHBACK ON / OFF, simpler Pushback page, PUSHBACK / HAPTIC OFF notes (v1.2.3-rf171)
+- Why haptic at 2 mph also gave pushback at 2 mph: in Refloat 1.2.3 the
+  haptic tone has no threshold of its own. It plays while the board is in
+  Duty / Speed Pushback (haptic_feedback.c: SAT_PB_DUTY / SAT_PB_SPEED),
+  i.e. at tiltback_duty / tiltback_speed, the same place the nose lifts
+  (main.c). Refloat's own way to keep the tone without the lift is a
+  Pushback Angle of 0 (it then also beeps at duty).
+- Settings › RIDE › PUSHBACK, simple view: PUSHBACK ON / OFF, AT DUTY, AT
+  SPEED. OFF = Pushback Angle 0 (the last angle is remembered for ON);
+  thresholds, beeps and the haptic tone stay, the nose doesn't lift. Turning
+  it off asks first (red warning: no lift near max duty, nosedive risk).
+  HV / LV pushback untouched. SHOW ADVANCED: angle, rate, HV, LV, return,
+  constant / variable tiltback (as rf167).
+- Home screen: red "PUSHBACK OFF" under TOP SPEED, pink "HAPTIC OFF" under
+  MAX DUTY, read from the board's Refloat config (on every config update
+  and after our writes), only while connected. "PUSHBACK OFF" also shows
+  when both duty (100 %) and speed (0) pushback are disabled.
+- No firmware change. A separate haptic-only speed (tone at 2 mph, lift at
+  20 mph) would need one; not done.
