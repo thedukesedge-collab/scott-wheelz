@@ -186,7 +186,6 @@ static uint8_t status_remote_baseline = LCM_BASELINE_UNSET;
 static const uint8_t stock_level_pct[2][4] = {{0U, 0U, 60U, 100U}, {0U, 30U, 60U, 100U}};
 static uint8_t stock_level = 0U;
 static uint32_t stock_key = 0xFFFFFFFFU; // Refloat's last 3 brightness bytes
-static bool_t vp_active = false;         // the last poll reply had the VP block
 #endif
 #ifdef VP_LIGHT_CONTROL
 static uint8_t vp_test_beep_last = 0xFFU; // 0xFF: no VP block seen yet
@@ -236,7 +235,6 @@ lcm_status_t vesc_serial_init(void)
 #else
     stock_level = 0U;
     stock_key = 0xFFFFFFFFU;
-    vp_active = false;
 #endif
 #ifdef VP_LIGHT_CONTROL
     vp_test_beep_last = 0xFFU;
@@ -933,8 +931,6 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
                             &settings->status_brightness,
                             COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS);
         vp_apply_block(&payload[VP_BLOCK_OFFSET], settings);
-        vp_active = true;
-        stock_level = 0U;
 
         // CUSTOM animation parameters (package rf71+)
         if ((packet_length >= VP_CUSTOM_OFFSET + sizeof(settings->custom_anim)) &&
@@ -956,7 +952,7 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
         return;
     }
     vp_battery_level = -1; // no VP block (any more): the VESC's battery %
-    vp_active = false;
+    vp_test_beep_last = 0xFFU; // = no VP block (a later one records, no beep)
     {
         // Stock Refloat: its Lights On/Off and LED brightness drive the
         // SLCM - headlights at the riding level while riding, the idle level
@@ -1014,11 +1010,12 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
  */
 bool_t vesc_serial_stock_level_step(void)
 {
-    if (vp_active || (board_mode_get() == BOARD_MODE_RIDING))
+    // vp_test_beep_last is 0xFF only while no VP block arrives
+    if ((vp_test_beep_last != 0xFFU) || (board_mode_get() == BOARD_MODE_RIDING))
     {
         return false;
     }
-    stock_level = (uint8_t)((stock_level % 3U) + 1U);
+    stock_level = (stock_level >= 3U) ? 1U : (uint8_t)(stock_level + 1U);
     return true;
 }
 #endif
