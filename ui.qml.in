@@ -13078,18 +13078,25 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.top
                     anchors.topMargin: -0.08 * unit
-                    width: maxSpeedBadge.implicitWidth + 0.3 * unit
-                    height: maxSpeedBadge.implicitHeight + 0.1 * unit
+                    // rf161: bigger and bolder so a set limit is obvious (kept
+                    // between the TOP SPEED / MAX DUTY boxes)
+                    width: Math.min(maxSpeedBadge.implicitWidth + 0.4 * unit, parent.width * 0.44)
+                    height: 0.62 * unit
                     radius: height / 2
-                    color: "#0b0718"
+                    color: "#2a1d00"
                     border.color: "#FFB300"
-                    border.width: 1
+                    border.width: 3
                     Text {
                         id: maxSpeedBadge
                         anchors.centerIn: parent
+                        width: parent.width - 0.3 * unit
+                        horizontalAlignment: Text.AlignHCenter
+                        fontSizeMode: Text.HorizontalFit
+                        minimumPixelSize: 0.2 * unit
                         color: "#FFB300"
                         font.family: "Exan"
-                        font.pixelSize: 0.2 * unit
+                        font.bold: true
+                        font.pixelSize: 0.36 * unit
                         text: "\u26A0 MAX %1 %2".arg(Math.round(maxSpeed.capKmh * vescConfig.imperialFactor)).arg(vescConfig.speedUnit.toUpperCase())
                     }
                 }

@@ -1792,3 +1792,9 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   stopped). It is also Refloat's Speed Pushback threshold, so the nose
   lifts there too; finer steps only.
 - SwStepper gets an optional `editable` / valueClicked() (unused elsewhere).
+
+### Bigger MAX SPEED badge on the home screen (v1.2.3-rf161)
+- When a max speed limit is set, the "⚠ MAX 25 MPH" badge at the top of
+  the speedo is larger and bolder (about 1.8x text, thick amber border,
+  amber-tinted fill), still between the TOP SPEED and MAX DUTY boxes
+  (width capped, text shrinks to fit). UI only.

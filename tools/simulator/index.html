@@ -256,7 +256,7 @@
     <div id="speedoWrap">
       <canvas id="speedo"></canvas>
       <div class="peak nf" id="pkSpeed"><div class="v"></div><div class="l">TOP SPEED</div></div>
-      <div class="nf" id="msBadge" style="display:none;position:absolute;left:50%;transform:translateX(-50%);top:-6px;z-index:3;background:#0b0718;font-size:10px;color:#FFB300;border:1px solid #FFB300;border-radius:999px;padding:2px 9px;white-space:nowrap"></div>
+      <div class="nf" id="msBadge" style="display:none;position:absolute;left:50%;transform:translateX(-50%);top:-6px;z-index:3;background:#2a1d00;font-size:17px;font-weight:700;color:#FFB300;border:3px solid #FFB300;border-radius:999px;padding:4px 14px;white-space:nowrap;max-width:44%;box-shadow:0 0 10px rgba(255,179,0,.45)"></div><!-- rf161: bigger -->
       <div class="peak nf" id="pkDuty"><div class="v"></div><div class="l">MAX DUTY</div></div>
     </div>
     <div class="spacer"></div>
@@ -376,7 +376,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf160 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf161 · sim</span></div>
     </div>
   </div>
 
@@ -2031,7 +2031,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf160';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf161';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
