@@ -152,7 +152,7 @@ mkdir -p /tmp/shots
 # shots: 0 home, 1-3 MIXER (BLANK / NOTES / 123), 4 LEDS > HEAD/TAIL LIGHTS
 # SIMPLE, 5 the same ADVANCED, 6 LEDS > STATUS BAR (Refloat LED view)
 for c in "$@"; do
-  for shot in 0 1 2 3 4 5 6 7; do
+  for shot in 0 1 2 3 4 5 6 7 8; do
     echo "=================== $c (shot $shot)"
     mkdir -p ~/.config/QtProject
     printf "[uiHints]\nstatusText=true\nplotCursor=true\ndrGeneral=true\ndrStartStop=true\ndrDownload=true\n" > ~/.config/QtProject/qmlscene.conf
@@ -162,6 +162,7 @@ for c in "$@"; do
       4|5) act="ledSender.rgbAvail = true; ledSender.rfStatusAvail = true; ledSender.rgbLoaded = true; ledSender.rgb = [{mode: $([ $shot = 5 ] && echo 2 || echo 0), c1: 1, c2: 0, speed: 1, bri: 1}, {mode: 0, c1: 4, c2: 0, speed: 1, bri: 1}, {mode: 1, c1: 1, c2: 0, speed: 1, bri: 0.5}, {mode: 0, c1: 4, c2: 0, speed: 1, bri: 0.5}]; swSettings.rgbAdvanced = $([ $shot = 5 ] && echo true || echo false); bottomSheet.open(); bottomStackTabs.currentIndex = 5; if (ledWindow.section !== 'head' || !ledWindow.visible) ledWindow.show('head');" ;;
       6) act="ledSender.rgbAvail = true; ledSender.rfStatusAvail = true; bottomSheet.open(); bottomStackTabs.currentIndex = 5; ledWindow.show('bar');" ;;
       7) act="ledSender.rgbAvail = true; ledSender.rfStatusAvail = true; bottomSheet.open(); bottomStackTabs.currentIndex = 5; ledWindow.close(); bottomSheet.maxHeight = mainItem.height * 0.92;" ;;
+      8) act="snoozeHelp.open();" ;;
     esac
     git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Refloat Glow/g; s/{{VERSION}}/test/g; s/{{LCM_FW_JSON}}/null/g" \
       | sed "s/category: \"scottWheelz\"/category: \"scottWheelzTest$shot\"/" \

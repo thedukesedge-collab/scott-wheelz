@@ -1735,3 +1735,19 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   VESC's App Settings › General › Shutdown Mode (10 seconds ... 5 hours)
   and is highlighted in green. With no power-off timer: "Your board isn't
   set to power off when idle." UI only.
+
+### SNOOZE (?) window (v1.2.3-rf156)
+- The SNOOZE card on the LEDS page (Refloat view) is just the title, a
+  (?) button and the minutes row. The explanation moved into a window
+  that opens with (?), key words in green:
+  - the board's power-off time, read live from VESC (App Settings ›
+    General › Shutdown Mode); with no power-off timer, snooze after 10 min
+  - snooze kicks in N min before that time to let the rider know the board
+    is getting close to powering off; in the last minute the lights blink
+    twice every 15 s
+  - rolling the wheel forward (or riding) restarts the idle power-off
+    clock, ends snooze and brings back the normal idle look; footpads or
+    lifting don't
+  - the arrows set how many minutes early (NEVER = no snooze)
+- Behaviour unchanged (leds.c: the clock restarts on riding, a rolling
+  wheel or a motor tone). UI only.

@@ -359,7 +359,7 @@
             <div class="ledTile wide" data-w="head" style="height:150px"><canvas id="boardArt" style="position:absolute;left:8px;right:8px;top:6px;width:calc(100% - 16px);height:94px"></canvas><b>HEAD/TAIL LIGHTS</b><small id="ltHead"></small><i>&#8250;</i></div>
             <div class="ledTile wide" data-w="bar" style="height:92px"><canvas id="statusArt" style="display:none;position:absolute;left:8px;right:8px;top:6px;width:calc(100% - 16px);height:94px"></canvas><span class="bArt"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i></span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
           </div>
-          <div class="ledCard" id="ledsSnzCard" style="display:none"><div class="cardT">SNOOZE</div><div id="ledsSnzSteps"></div></div>
+          <div class="ledCard" id="ledsSnzCard" style="display:none"><div class="cardT" style="position:relative">SNOOZE<span id="snzHelp" style="position:absolute;right:2px;top:50%;transform:translateY(-50%);width:22px;height:22px;line-height:19px;border:2px solid var(--purple);border-radius:50%;color:var(--green);font-size:13px;cursor:pointer;box-sizing:border-box;text-align:center">?</span></div><div id="ledsSnzSteps"></div></div>
           <div class="ledCard" id="ledsBeepCard" style="display:none"><div class="pills"><div class="pill" id="ledsBeepP"></div><div class="pill on" id="ledsTestBeep">&#9834; TEST BEEP</div></div><p class="ledHint" style="text-align:center">Refloat's beeper. OFF also mutes the warnings.</p></div>
           <div class="pills" id="ledsWaitBox" style="display:none"><div class="pill on" id="ledsWaitP">&#10003; APPLY WAITING LED CHANGES</div></div>
           <div class="ledTiles" id="rgbTileBox"><div class="ledTile wide" data-w="rgb"><span class="g">&#9672;</span><b>RGB LIGHTS</b><small id="ltRgb"></small><i>&#8250;</i></div></div>
@@ -376,7 +376,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf155 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf156 · sim</span></div>
     </div>
   </div>
 
@@ -769,6 +769,16 @@ function applySheet() {
   $('sheetHint').style.bottom = px(h + 2); sheetHintShow();
 }
 function setSheet(f) { sheetF = f; P.sheet = f; save(); $('sheet').classList.add('anim'); applySheet(); }
+// rf156: SNOOZE (?) - the explanation in a window (the sim's VESC powers off after 10 min)
+$('snzHelp').onclick = e => { e.stopPropagation();
+  const G = t => '<b style="color:var(--green)">' + t + '</b>', b = P.ledSnoozeMin;
+  modal('<h3>SNOOZE</h3>' + [
+    'Your board is set to ' + G('power off') + ' after idling for ' + G('10 minutes') + '.',
+    G('Snooze') + ' kicks in ' + (b > 0 ? G(b + ' min before') + ' that time' : '(set to ' + G('NEVER') + ' right now)') + ' to let you know your board is ' + G('getting close to powering off') + '. The lights switch to their snooze look, and in the last minute they ' + G('blink twice every 15 s') + '.',
+    'To reset the clock, ' + G('roll the wheel forward') + ' (or ride). The idle power-off clock ' + G('starts over') + ', snooze ends and the lights go back to their ' + G('normal idle look') + '. Pressing the footpads or lifting the board doesn\'t reset it.',
+    'Use the arrows to pick how many minutes before power-off snooze starts (' + G('NEVER') + ' = no snooze).'
+  ].map(t => '<p style="color:#ead6ff;font-size:13px;line-height:1.45;margin:0 0 10px">' + t + '</p>').join('') + '<div class="btns"><button class="pri" data-close>GOT IT</button></div>');
+};
 $('sheetDismiss').addEventListener('click', () => { if (dismissHorn) { dismissHorn = false; return; } setSheet(0); });
 (() => {
   const hd = $('handle'); let y0 = 0, f0 = 0, moved = false;
@@ -1747,10 +1757,6 @@ function renderLeds() {
     $('ledsSnzSteps').innerHTML = ''; ledStep($('ledsSnzSteps'), 'ledSnoozeMin', 'BEFORE OFF', 0, 9, 1, v => v ? v + ' min' : 'NEVER');  // rf129: on the LEDS page
     { const r = $('ledsSnzSteps').lastElementChild, l = r.querySelector('.lbl');  // rf154: minutes first, then the words
       l.textContent = 'BEFORE BOARD POWERS OFF'; r.appendChild(l); r.style.justifyContent = 'flex-start'; r.style.gap = '10px'; }
-    // rf155: one plain line, the board's power-off time highlighted (the sim's VESC is set to 10 min)
-    const n = document.createElement('p'); n.className = 'ledHint'; n.style.cssText = 'text-align:center;color:#ead6ff';
-    n.innerHTML = 'Your board is set to power off after idling for <b style="color:var(--green)">10 minutes</b>.';
-    $('ledsSnzSteps').appendChild(n);
   }
   $('ledBarSteps').innerHTML = ''; ledStep($('ledBarSteps'), 'ledIdlePct', 'IDLE BRIGHTNESS', 0, 100, 5, pct); ledStep($('ledBarSteps'), 'ledRidePct', 'RIDING BRIGHTNESS', 0, 100, 5, pct);
   $('ledAnimSteps').innerHTML = '';
@@ -2008,7 +2014,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf155';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf156';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

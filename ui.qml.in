@@ -14393,6 +14393,62 @@ Item {
         }
     }
 
+    // rf156: SNOOZE (?) - how snooze and the idle power-off clock work.
+    // The power-off time is VESC's own (App Settings > General > Shutdown
+    // Mode), read live. Facts from leds.c: the idle clock restarts with
+    // riding, a rolling wheel or a motor tone; no power-off timer = 10 min.
+    BaseDialog {
+        id: snoozeHelp
+        title: "Snooze"
+        standardButtons: Dialog.NoButton
+        readonly property string g: "<b><font color=\"" + swTheme.neonGreen + "\">"
+        readonly property string e: "</font></b>"
+        readonly property real offMin: vescAppConfig.offMinutes
+        readonly property string offText: offMin <= 0 ? ""
+            : offMin < 1 ? Math.round(offMin * 60) + " seconds"
+            : offMin >= 60 ? (offMin / 60) + (offMin === 60 ? " hour" : " hours")
+            : offMin + (offMin === 1 ? " minute" : " minutes")
+        readonly property real before: swSettings.ledSnoozeMin === 255 ? 5 : swSettings.ledSnoozeMin
+
+        footer: Item {
+            implicitHeight: 1.2 * unit
+            SwPill {
+                anchors.centerIn: parent
+                minWidth: 3.0 * unit
+                label: "GOT IT"
+                onClicked: snoozeHelp.close()
+            }
+        }
+
+        Column {
+            width: parent.width
+            spacing: 0.3 * unit
+            Repeater {
+                model: [
+                    snoozeHelp.offMin > 0
+                        ? "Your board is set to " + snoozeHelp.g + "power off" + snoozeHelp.e + " after idling for " + snoozeHelp.g + snoozeHelp.offText + snoozeHelp.e + "."
+                        : "Your board isn't set to power off when idle, so the lights snooze after " + snoozeHelp.g + "10 minutes" + snoozeHelp.e + " idle.",
+                    snoozeHelp.g + "Snooze" + snoozeHelp.e + " kicks in "
+                        + (snoozeHelp.before > 0 ? snoozeHelp.g + snoozeHelp.before + " min before" + snoozeHelp.e + " that time" : "(set to " + snoozeHelp.g + "NEVER" + snoozeHelp.e + " right now)")
+                        + " to let you know your board is " + snoozeHelp.g + "getting close to powering off" + snoozeHelp.e
+                        + ". The lights switch to their snooze look, and in the last minute they " + snoozeHelp.g + "blink twice every 15 s" + snoozeHelp.e + ".",
+                    "To reset the clock, " + snoozeHelp.g + "roll the wheel forward" + snoozeHelp.e + " (or ride). The idle power-off clock " + snoozeHelp.g + "starts over" + snoozeHelp.e
+                        + ", snooze ends and the lights go back to their " + snoozeHelp.g + "normal idle look" + snoozeHelp.e + ". Pressing the footpads or lifting the board doesn't reset it.",
+                    "Use the arrows to pick how many minutes before power-off snooze starts (" + snoozeHelp.g + "NEVER" + snoozeHelp.e + " = no snooze)."
+                ]
+                Text {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    textFormat: Text.StyledText
+                    color: "#ead6ff"
+                    font.pixelSize: 0.3 * unit
+                    lineHeight: 1.15
+                    text: modelData
+                }
+            }
+        }
+    }
+
     // Refloat Glow (rf81): with the sheet (SUW) up, a tap anywhere on
     // the main view above it just puts it down (that tap does nothing else).
     // rf150: except the HORN button: it still works with the sheet up, so horn
@@ -16371,7 +16427,42 @@ Item {
                         LedCard {
                             visible: !ledSender.slcmPresets && (ledSender.rgbAvail || ledSender.rfStatusAvail)
                             width: parent.width
-                            title: "SNOOZE"
+                            // rf156: title with a (?) that opens the explanation
+                            Item {
+                                width: parent.width
+                                height: 0.5 * unit
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "SNOOZE"
+                                    color: swTheme.neonGreen
+                                    font.family: "Exan"
+                                    font.pixelSize: 0.28 * unit
+                                    font.letterSpacing: 0.03 * unit
+                                }
+                                Rectangle {
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 0.5 * unit
+                                    height: width
+                                    radius: width / 2
+                                    color: snzHelpArea.pressed ? swTheme.neonPurple : "transparent"
+                                    border.color: swTheme.neonPurple
+                                    border.width: 2
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "?"
+                                        color: snzHelpArea.pressed ? swTheme.background : swTheme.neonGreen
+                                        font.family: "Exan"
+                                        font.pixelSize: 0.28 * unit
+                                    }
+                                    MouseArea {
+                                        id: snzHelpArea
+                                        anchors.fill: parent
+                                        anchors.margins: -0.2 * unit  // easy to hit
+                                        onClicked: snoozeHelp.open()
+                                    }
+                                }
+                            }
                             // rf100: how many minutes BEFORE the board powers off the
                             // snooze starts (default 5; 0 = never), head/tail and status bar
                             // rf154: reads "[v 5 min ^] BEFORE BOARD POWERS OFF": the
@@ -16399,24 +16490,6 @@ Item {
                                     font.pixelSize: 0.26 * unit
                                     text: "BEFORE BOARD POWERS OFF"
                                 }
-                            }
-                            // rf155: one plain line from VESC's own power-off timer (App
-                            // Settings > General > Shutdown Mode, read live), the time highlighted
-                            SwLText {
-                                visible: ledSender.rgbAvail || ledSender.rfStatusAvail
-                                width: parent.width
-                                horizontalAlignment: Text.AlignHCenter
-                                wrapMode: Text.WordWrap
-                                font.pixelSize: fontSizeSmall
-                                color: "#ead6ff"
-                                textFormat: Text.StyledText
-                                readonly property real offMin: vescAppConfig.offMinutes
-                                readonly property string offText: offMin <= 0 ? ""
-                                    : offMin < 1 ? Math.round(offMin * 60) + " seconds"
-                                    : offMin >= 60 ? (offMin / 60) + (offMin === 60 ? " hour" : " hours")
-                                    : offMin + (offMin === 1 ? " minute" : " minutes")
-                                text: offMin <= 0 ? "Your board isn't set to power off when idle."
-                                    : "Your board is set to power off after idling for <b><font color=\"" + swTheme.neonGreen + "\">" + offText + "</font></b>."
                             }
                         }
 
