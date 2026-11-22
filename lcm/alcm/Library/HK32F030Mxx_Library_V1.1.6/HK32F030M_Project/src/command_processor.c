@@ -25,6 +25,9 @@
 #include "footpads.h"
 #include "lcm_types.h"
 #include "button_driver_hw.h"
+#ifdef VP_LIGHT_CONTROL
+#include "vesc_serial.h"
+#endif
 
 /**
  * @brief Enumerates the adjustment types for the command processor
@@ -422,7 +425,12 @@ void command_processor_default_handler(event_type_t event, const event_data_t *d
     {
 #ifdef VP_LIGHT_CONTROL
     case EVENT_BUTTON_CLICK:
-        // Lights and beeper are set from the app (VP); clicks do nothing
+        // Lights and beeper are set from the app (VP). Only on stock Refloat
+        // (no VP block) click-click steps the light level; nothing else.
+        if ((data->click_count == 2U) && vesc_serial_stock_level_step())
+        {
+            event_queue_push(EVENT_COMMAND_ACK, NULL);
+        }
         (void)event_data;
         break;
 #else

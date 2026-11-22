@@ -69,12 +69,31 @@ static void test_vp_clicks_do_nothing(void **state)
         event_data_t data = cpvp_count(count);
 
         will_return(board_mode_get, BOARD_MODE_IDLE);
+        if (count == 2U)
+        {
+            // click-click asks vesc_serial (refused: VP block, or riding)
+            will_return(vesc_serial_stock_level_step, false);
+        }
         command_processor_button_event_handler(EVENT_BUTTON_CLICK, &data);
     }
 
     assert_int_equal(headlights, settings_get()->enable_headlights);
     assert_int_equal(leds, settings_get()->enable_status_leds);
     assert_int_equal(beep, settings_get()->enable_beep);
+}
+
+/* Click-click on stock Refloat: the light level steps, with an ACK */
+static void test_vp_click_click_stock_level(void **state)
+{
+    (void)state;
+
+    event_data_t data = cpvp_count(2);
+
+    will_return(board_mode_get, BOARD_MODE_IDLE);
+    will_return(vesc_serial_stock_level_step, true);
+    expect_value(event_queue_push, event, EVENT_COMMAND_ACK);
+    expect_any(event_queue_push, data);
+    command_processor_button_event_handler(EVENT_BUTTON_CLICK, &data);
 }
 
 /* Hold: shuts the board down - the power function stays */
@@ -158,6 +177,7 @@ static void test_vp_hold_ignored_when_off(void **state)
 
 const struct CMUnitTest command_processor_vp_tests[] = {
     cmocka_unit_test_setup(test_vp_clicks_do_nothing, cpvp_setup),
+    cmocka_unit_test_setup(test_vp_click_click_stock_level, cpvp_setup),
     cmocka_unit_test_setup(test_vp_hold_shuts_down, cpvp_setup),
     cmocka_unit_test_setup(test_vp_hold_shuts_down_riding, cpvp_setup),
     cmocka_unit_test_setup(test_vp_click_hold_no_config, cpvp_setup),

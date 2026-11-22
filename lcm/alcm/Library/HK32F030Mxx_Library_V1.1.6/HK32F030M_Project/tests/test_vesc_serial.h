@@ -474,6 +474,7 @@ void test_vesc_serial_battery_lut_overrides_battery_level(void **state)
  * and a reply with the wrong refloat package id (both ignored, no crash,
  * no events, previously-applied values untouched).
  */
+#ifndef VP_LIGHT_CONTROL // SLCM: test_vesc_serial_stock_refloat below
 void test_vesc_serial_app_integration(void **state)
 {
     (void)state; // Unused
@@ -632,6 +633,7 @@ void test_vesc_serial_app_integration(void **state)
 
     assert_true(ring_buffer_is_empty(rx_buffer));
 }
+#endif
 
 // Not declared in vesc_serial.h - non-static so tests can call it
 // directly, matching this codebase's convention.
@@ -978,6 +980,8 @@ void test_vesc_serial_vp_block(void **state)
     assert_true(settings->enable_status_leds);
     assert_false(settings->enable_beep);
     assert_int_equal(ANIMATION_OPTION_RAINBOW_BAR, settings->idle_animation);
+    // with the VP block the app sets the lights: click-click does nothing
+    assert_false(vesc_serial_stock_level_step());
     assert_int_equal(ANIMATION_OPTION_FIRE, settings->ride_animation);
     assert_int_equal(ANIMATION_OPTION_120_SCROLL, settings->dozing_animation);
     assert_int_equal(ANIMATION_OPTION_FLOATWHEEL_CLASSIC, settings->boot_animation);
@@ -1078,21 +1082,142 @@ void test_vesc_serial_vp_block(void **state)
         assert_int_equal(570, vesc_serial_get_battery_level());
     }
 
-    // Packet 4: wrong magic - stock behavior: this first non-VP reply only
-    // records the brightness baseline, nothing applied
+    // Packet 4: wrong magic - stock Refloat from now on: its brightness
+    // applies right away (idle: the idle headlight byte, 0 here), and the
+    // lights are on
     {
         uint8_t payload[] = {0x24, 0x65, 0x18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 90, 0, 90,
                              0x55, 1, 0x00, 0, 0, 0, 0, 0, 0, 0};
+        command_processor_context_t ctx_head = COMMAND_PROCESSOR_CONTEXT_HEADLIGHT_BRIGHTNESS;
+        command_processor_context_t ctx_status = COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS;
 
+        settings->enable_headlights = false;  // e.g. switched off from the app
+        will_return(board_mode_get, BOARD_MODE_IDLE);
+        expect_value(event_queue_push, event, EVENT_COMMAND_TOGGLE_LIGHTS);
+        expect_any(event_queue_push, data);
+        expect_value(event_queue_push, event, EVENT_COMMAND_SETTINGS_CHANGED);
+        expect_check(event_queue_push, data, validate_context_event_data, (uintmax_t)&ctx_head);
+        expect_value(event_queue_push, event, EVENT_COMMAND_SETTINGS_CHANGED);
+        expect_check(event_queue_push, data, validate_context_event_data, (uintmax_t)&ctx_status);
         vp_push_packet(rx_buffer, payload, (uint8_t)sizeof(payload));
         event_queue_call_mocked_callback(EVENT_SERIAL_DATA_RX, &rx_event_data);
     }
 
-    assert_int_equal(127U, settings->headlight_brightness);
-    assert_int_equal(76U, settings->status_brightness);
+    assert_int_equal(0U, settings->headlight_brightness);   // idle byte 0 %
+    assert_int_equal(229U, settings->status_brightness);    // 90 %
     assert_true(settings->enable_headlights);
     assert_true(settings->enable_status_leds);
     assert_true(ring_buffer_is_empty(rx_buffer));
+}
+
+/* one stock Refloat poll reply (headlight riding / idle / status %), with
+ * the board mode the SLCM is in, and the brightness changes it should make */
+static void stock_poll(uint8_t head, uint8_t idle, uint8_t status, board_mode_t mode,
+                       bool_t head_changes, bool_t status_changes)
+{
+    static command_processor_context_t ctx_head = COMMAND_PROCESSOR_CONTEXT_HEADLIGHT_BRIGHTNESS;
+    static command_processor_context_t ctx_status = COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS;
+    uint8_t payload[] = {0x24, 0x65, 0x18, 0, 0, 0, 0, 0, 0, 0, 0, 0, head, idle, status};
+    event_data_t rx_event_data = {0};
+
+    will_return(board_mode_get, mode);
+    if (head_changes)
+    {
+        expect_value(event_queue_push, event, EVENT_COMMAND_SETTINGS_CHANGED);
+        expect_check(event_queue_push, data, validate_context_event_data, (uintmax_t)&ctx_head);
+    }
+    if (status_changes)
+    {
+        expect_value(event_queue_push, event, EVENT_COMMAND_SETTINGS_CHANGED);
+        expect_check(event_queue_push, data, validate_context_event_data, (uintmax_t)&ctx_status);
+    }
+    vp_push_packet(vesc_serial_get_rx_buffer(), payload, (uint8_t)sizeof(payload));
+    event_queue_call_mocked_callback(EVENT_SERIAL_DATA_RX, &rx_event_data);
+}
+
+/**
+ * @brief SLCM on stock Refloat (no VP block ever)
+ *
+ * Covers: brightness applied from the very first reply; headlights at the
+ * riding byte while riding and the idle byte otherwise; click-click levels
+ * (1-3, wrapping) override Refloat until its values change; no level step
+ * while riding; Refloat's Lights Off (all 0); lights switched back on when a
+ * saved setting had them off.
+ */
+void test_vesc_serial_stock_refloat(void **state)
+{
+    (void)state; // Unused
+
+    settings_t *settings = settings_get();
+    settings->headlight_brightness = 255U;
+    settings->status_brightness = 255U;
+    settings->enable_headlights = true;
+    settings->enable_status_leds = true;
+
+    // first reply (also the first packet: VESC alive): applied at once,
+    // idle -> the idle headlight byte (20 %)
+    expect_value(event_queue_push, event, EVENT_VESC_ALIVE);
+    expect_any(event_queue_push, data);
+    stock_poll(50, 20, 30, BOARD_MODE_IDLE, true, true);
+    assert_int_equal(51U, settings->headlight_brightness);  // 20 %
+    assert_int_equal(76U, settings->status_brightness);     // 30 %
+
+    // the same reply, nothing changes
+    stock_poll(50, 20, 30, BOARD_MODE_IDLE, false, false);
+
+    // riding: the riding byte (50 %)
+    stock_poll(50, 20, 30, BOARD_MODE_RIDING, true, false);
+    assert_int_equal(127U, settings->headlight_brightness);
+
+    // no level step while riding
+    will_return(board_mode_get, BOARD_MODE_RIDING);
+    assert_false(vesc_serial_stock_level_step());
+
+    // click-click: level 1 = headlights off, status bar 30 % (unchanged)
+    will_return(board_mode_get, BOARD_MODE_IDLE);
+    assert_true(vesc_serial_stock_level_step());
+    stock_poll(50, 20, 30, BOARD_MODE_IDLE, true, false);
+    assert_int_equal(0U, settings->headlight_brightness);
+    assert_int_equal(76U, settings->status_brightness);
+
+    // level 2: 60 % / 60 %, kept while Refloat sends the same values
+    will_return(board_mode_get, BOARD_MODE_IDLE);
+    assert_true(vesc_serial_stock_level_step());
+    stock_poll(50, 20, 30, BOARD_MODE_IDLE, true, true);
+    stock_poll(50, 20, 30, BOARD_MODE_RIDING, false, false);
+    assert_int_equal(153U, settings->headlight_brightness);
+    assert_int_equal(153U, settings->status_brightness);
+
+    // level 3 (100 %), then it wraps to level 1
+    will_return(board_mode_get, BOARD_MODE_IDLE);
+    assert_true(vesc_serial_stock_level_step());
+    stock_poll(50, 20, 30, BOARD_MODE_IDLE, true, true);
+    assert_int_equal(255U, settings->headlight_brightness);
+    will_return(board_mode_get, BOARD_MODE_IDLE);
+    assert_true(vesc_serial_stock_level_step());
+    stock_poll(50, 20, 30, BOARD_MODE_IDLE, true, true);
+    assert_int_equal(0U, settings->headlight_brightness);
+    assert_int_equal(76U, settings->status_brightness);
+
+    // Refloat sends different values: back to following Refloat
+    stock_poll(80, 40, 50, BOARD_MODE_IDLE, true, true);
+    assert_int_equal(102U, settings->headlight_brightness); // 40 %
+    assert_int_equal(127U, settings->status_brightness);    // 50 %
+
+    // Refloat's Lights Off: everything 0
+    stock_poll(0, 0, 0, BOARD_MODE_IDLE, true, true);
+    assert_int_equal(0U, settings->headlight_brightness);
+    assert_int_equal(0U, settings->status_brightness);
+
+    // lights saved as off (e.g. from the app earlier): switched on again
+    settings->enable_headlights = false;
+    settings->enable_status_leds = false;
+    expect_value(event_queue_push, event, EVENT_COMMAND_TOGGLE_LIGHTS);
+    expect_any(event_queue_push, data);
+    stock_poll(0, 0, 0, BOARD_MODE_IDLE, false, false);
+    assert_true(settings->enable_headlights);
+    assert_true(settings->enable_status_leds);
+    assert_true(ring_buffer_is_empty(vesc_serial_get_rx_buffer()));
 }
 #endif
 
@@ -1110,9 +1235,11 @@ const struct CMUnitTest vesc_serial_tests[] = {
     cmocka_unit_test_setup(test_vesc_serial_comm_setup_wrong_size, vesc_serial_setup),
     cmocka_unit_test_setup(test_vesc_serial_comm_setup_decodes_values, vesc_serial_setup),
     cmocka_unit_test(test_vesc_serial_battery_lut_overrides_battery_level),
+#ifndef VP_LIGHT_CONTROL
     cmocka_unit_test_setup(test_vesc_serial_app_integration, vesc_serial_setup),
-#ifdef VP_LIGHT_CONTROL
+#else
     cmocka_unit_test_setup(test_vesc_serial_vp_block, vesc_serial_setup),
+    cmocka_unit_test_setup(test_vesc_serial_stock_refloat, vesc_serial_setup),
 #endif
     cmocka_unit_test_setup(test_board_mode_change_riding_and_disabled_poll, vesc_serial_setup),
     cmocka_unit_test_setup(test_board_mode_change_off_with_inactive_timer, vesc_serial_setup),

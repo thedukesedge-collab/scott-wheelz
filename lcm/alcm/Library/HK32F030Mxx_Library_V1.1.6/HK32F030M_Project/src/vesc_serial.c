@@ -174,8 +174,20 @@ static int16_t vesc_serial_filtered_voltage = 0;
 static bool_t vesc_serial_filtered_voltage_init = false;
 #endif
 #ifdef ENABLE_APP_INTEGRATION
+#ifndef VP_LIGHT_CONTROL
 static uint8_t headlight_remote_baseline = LCM_BASELINE_UNSET;
 static uint8_t status_remote_baseline = LCM_BASELINE_UNSET;
+#else
+// Stock Refloat (no VP block): Refloat's brightness drives the lights from
+// the first poll. A click-click level (1-3, 0 = follow Refloat) overrides it
+// until Refloat's values change. Levels: headlights 0/60/100 %, status bar
+// 30/60/100 %.
+#define LCM_POLL_HEADLIGHT_IDLE_BRIGHTNESS_OFFSET 13
+static const uint8_t stock_level_pct[2][4] = {{0U, 0U, 60U, 100U}, {0U, 30U, 60U, 100U}};
+static uint8_t stock_level = 0U;
+static uint32_t stock_key = 0xFFFFFFFFU; // Refloat's last 3 brightness bytes
+static bool_t vp_active = false;         // the last poll reply had the VP block
+#endif
 #ifdef VP_LIGHT_CONTROL
 static uint8_t vp_test_beep_last = 0xFFU; // 0xFF: no VP block seen yet
 // app changes are written to the LCM's EEPROM this many polls (250 ms)
@@ -218,8 +230,14 @@ lcm_status_t vesc_serial_init(void)
     // Assume VESC is not alive
     vesc_alive = false;
 #ifdef ENABLE_APP_INTEGRATION
+#ifndef VP_LIGHT_CONTROL
     headlight_remote_baseline = LCM_BASELINE_UNSET;
     status_remote_baseline = LCM_BASELINE_UNSET;
+#else
+    stock_level = 0U;
+    stock_key = 0xFFFFFFFFU;
+    vp_active = false;
+#endif
 #ifdef VP_LIGHT_CONTROL
     vp_test_beep_last = 0xFFU;
     vp_battery_level = -1;
@@ -638,7 +656,7 @@ void process_comm_get_values_setup_selective(const uint8_t *payload, uint8_t pac
     }
 }
 
-#ifdef ENABLE_APP_INTEGRATION
+#if defined(ENABLE_APP_INTEGRATION) && !defined(VP_LIGHT_CONTROL)
 /**
  * @brief Applies a single refloat-reported brightness channel if it changed
  *
@@ -681,6 +699,9 @@ static void apply_lcm_brightness(uint8_t *baseline, uint8_t new_pct, uint8_t *se
         }
     }
 }
+#endif
+
+#ifdef ENABLE_APP_INTEGRATION
 
 #ifdef VP_LIGHT_CONTROL
 /**
@@ -912,6 +933,8 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
                             &settings->status_brightness,
                             COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS);
         vp_apply_block(&payload[VP_BLOCK_OFFSET], settings);
+        vp_active = true;
+        stock_level = 0U;
 
         // CUSTOM animation parameters (package rf71+)
         if ((packet_length >= VP_CUSTOM_OFFSET + sizeof(settings->custom_anim)) &&
@@ -933,15 +956,72 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
         return;
     }
     vp_battery_level = -1; // no VP block (any more): the VESC's battery %
-#endif
+    vp_active = false;
+    {
+        // Stock Refloat: its Lights On/Off and LED brightness drive the
+        // SLCM - headlights at the riding level while riding, the idle level
+        // otherwise, and the status bar. A click-click level overrides them
+        // until Refloat sends different values. Lights are switched on here
+        // (RAM only, never saved) so a "headlights off" saved from the app
+        // can't keep them dark on stock Refloat.
+        uint32_t key = payload[LCM_POLL_HEADLIGHT_BRIGHTNESS_OFFSET] |
+                       ((uint32_t)payload[LCM_POLL_HEADLIGHT_IDLE_BRIGHTNESS_OFFSET] << 8) |
+                       ((uint32_t)payload[LCM_POLL_STATUS_BRIGHTNESS_OFFSET] << 16);
+        uint8_t head = payload[(board_mode_get() == BOARD_MODE_RIDING)
+                                   ? LCM_POLL_HEADLIGHT_BRIGHTNESS_OFFSET
+                                   : LCM_POLL_HEADLIGHT_IDLE_BRIGHTNESS_OFFSET];
+        uint8_t status = payload[LCM_POLL_STATUS_BRIGHTNESS_OFFSET];
 
+        if (key != stock_key)
+        {
+            stock_key = key;
+            stock_level = 0U;
+        }
+        if (stock_level != 0U)
+        {
+            head = stock_level_pct[0][stock_level];
+            status = stock_level_pct[1][stock_level];
+        }
+        if (!settings->enable_headlights || !settings->enable_status_leds)
+        {
+            settings->enable_headlights = true;
+            settings->enable_status_leds = true;
+            event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
+        }
+        vp_apply_brightness(head, &settings->headlight_brightness,
+                            COMMAND_PROCESSOR_CONTEXT_HEADLIGHT_BRIGHTNESS);
+        vp_apply_brightness(status, &settings->status_brightness,
+                            COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS);
+    }
+#else
     apply_lcm_brightness(&headlight_remote_baseline, payload[LCM_POLL_HEADLIGHT_BRIGHTNESS_OFFSET],
                           &settings->headlight_brightness,
                           COMMAND_PROCESSOR_CONTEXT_HEADLIGHT_BRIGHTNESS);
     apply_lcm_brightness(&status_remote_baseline, payload[LCM_POLL_STATUS_BRIGHTNESS_OFFSET],
                           &settings->status_brightness,
                           COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS);
+#endif
 }
+
+#ifdef VP_LIGHT_CONTROL
+/**
+ * @brief Click-click on stock Refloat: next light level (1, 2, 3, 1, ...)
+ *
+ * Only without the VP block (with it, the app sets the lights) and never
+ * while riding. Takes effect with the next poll reply (<= 250 ms).
+ *
+ * @return true if the level changed
+ */
+bool_t vesc_serial_stock_level_step(void)
+{
+    if (vp_active || (board_mode_get() == BOARD_MODE_RIDING))
+    {
+        return false;
+    }
+    stock_level = (uint8_t)((stock_level % 3U) + 1U);
+    return true;
+}
+#endif
 #endif
 
 /**

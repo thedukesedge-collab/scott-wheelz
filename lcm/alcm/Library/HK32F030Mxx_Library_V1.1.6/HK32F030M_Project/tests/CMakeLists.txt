@@ -215,6 +215,7 @@ add_test(NAME BoardModeTestVP COMMAND test_board_mode_vp)
 
 add_executable(test_command_processor_vp
     command_processor_vp_main.c
+    mocks/mock_vesc_serial_stock.c
     mocks/mock_event_queue.c
     mocks/mock_timer.c
     mocks/mock_board_mode.c
