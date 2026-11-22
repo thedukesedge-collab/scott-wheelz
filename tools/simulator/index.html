@@ -230,6 +230,17 @@
   #tourWhere { font: 700 10px Orbitron, monospace; letter-spacing: 2px; color: var(--purple); }
   #tourTitle { font: 700 20px Orbitron, monospace; color: var(--green); letter-spacing: 1px; text-shadow: 0 0 8px var(--green); }
   #tourText { color: #ead6ff; font-size: 13px; line-height: 1.45; }
+  #tourPg { overflow-y: auto; }  /* rf165: scrolls on small phones */
+  #tourDemo { width: 100%; }
+  #tourDemo .path { font: 10px Orbitron, monospace; color: var(--purple); margin-bottom: 6px; }
+  #tourDemo .chk { position: relative; margin: 0 auto 8px; width: 88%; border: 2px solid var(--green); background: #0d2a12; color: var(--green); border-radius: 999px; padding: 6px 0; font: 11px Orbitron, monospace; }
+  #tourDemo .chk::after { content: ''; position: absolute; inset: -6px; border: 2px solid #FFB300; border-radius: 999px; animation: tourPulse 1.4s ease-in-out infinite; }
+  @keyframes tourPulse { 0%, 100% { opacity: 1; } 50% { opacity: .15; } }
+  #tourDemo .lanes { display: flex; gap: 8px; }
+  #tourDemo .lane { flex: 1; border: 1px solid var(--purple); background: #140a26; border-radius: 8px; padding: 6px; font-size: 11px; color: #ead6ff; line-height: 1.35; }
+  #tourDemo .lane b { display: block; font: 10px Orbitron, monospace; color: var(--purple); }
+  #tourDemo .lane i { display: block; font: normal 9px Orbitron, monospace; color: #d6ffe4; margin: 2px 0; }
+  #tourDemo .note { font-size: 10px; color: #9a86b8; margin-top: 6px; line-height: 1.35; }
   #tourDots { display: flex; gap: 5px; margin: 10px 0; }
   #tourDots i { width: 6px; height: 6px; border-radius: 3px; background: #4a2a73; transition: width .15s; }
   #tourDots i.on { width: 16px; background: var(--green); }
@@ -239,7 +250,7 @@
 <div id="phone">
 <div id="tour"><div id="tourCard">
   <div class="nf" style="font-size:12px"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span></div>
-  <div id="tourPg"><div id="tourRing"></div><div id="tourWhere"></div><div id="tourTitle"></div><div id="tourText"></div></div>
+  <div id="tourPg"><div id="tourRing"></div><div id="tourWhere"></div><div id="tourTitle"></div><div id="tourText"></div><div id="tourDemo"></div></div>
   <div id="tourDots"></div>
   <div style="display:flex;gap:12px"><div class="pill" id="tourBack" style="min-width:90px;text-align:center"></div><div class="pill on" id="tourNext" style="min-width:90px;text-align:center"></div></div>
 </div></div>
@@ -376,7 +387,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf164 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf165 · sim</span></div>
     </div>
   </div>
 
@@ -835,14 +846,22 @@ const TOUR = [
   ["◉", "LIGHTS", "LEDS TAB", "HEAD/TAIL LIGHTS: riding and idle effects, colors and brightness (RGB LEDs like Thor), SNOOZE before the board powers off. STATUS BAR: idle and riding animations. All linked with Refloat's settings."],
   ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
   ["♬", "BEEPER", "LEDS › BEEPER", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
-  ["↻", "UPDATES", "LEDS › UPDATES", "Check for new package and SLCM releases from GitHub, download and flash in a few taps. Floatwheel, XRV, Pint V and GTV light modules with SLCM update over Bluetooth."],
-  ["★", "CREDIT WHERE IT'S DUE", "THE ORIGINAL", "Built on Refloat by Lukáš Hrázký (lukash), itself built on the Float package by Mitch Lustig, Dado Mista and Nico Aleman. All the credit for this great package goes to them. I take no credit for any of it."],
-  ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "How the board rides is unchanged: balance, tunes, pushbacks, footpads and alerts are Refloat's own code. Everything else was carefully gone through and is mostly quality-of-life and user-experience upgrades: the look, lights, sounds and setup tools. (MAX SPEED is the one opt-in exception: it sets a VESC limit, only if you turn it on.) Have fun out there."]
+  ["↻", "UPDATES", "LEDS › UPDATES", "Check GitHub for Refloat Glow and SLCM updates. Download supported releases and install them through the app. Compatible Floatwheel, XRV, Pint V and GTV light modules support Bluetooth firmware updates.", "updates"],
+  ["★", "CREDIT WHERE IT'S DUE", "THE ORIGINAL", "Refloat Glow builds on Refloat by Lukáš Hrázký (lukash), which itself builds on the Float package by Mitch Lustig, Dado Mista and Nico Aleman. Their work made this project possible. Full credit and appreciation go to the original developers and community.", "credit"],
+  ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "Underneath the new interface, Refloat Glow retains Refloat 1.2.3's core riding behavior, including balance, pushback, footpad handling and alerts. Most additions focus on customization, lighting and sounds. Optional settings such as MAX SPEED can change how your board behaves, so review them carefully."]
 ];
 let tourI = 0, tourX = null;
 function tourShow() {
-  const [g, t, w, x] = TOUR[tourI];
+  const [g, t, w, x, demo] = TOUR[tourI];
   $('tourRing').textContent = g; $('tourWhere').textContent = w; $('tourTitle').textContent = t; $('tourText').textContent = x;
+  // rf165: UPDATES = a picture of the real section (nothing pressable); CREDIT = a quiet attribution line
+  $('tourDemo').innerHTML = demo === 'updates'
+    ? '<div class="path">SWIPE UP › LEDS › UPDATES</div><div class="chk">↻ CHECK FOR UPDATES</div>'
+      + '<div class="lanes"><div class="lane" style="border-color:var(--green)"><b style="color:var(--green)">PACKAGE</b><i>DOWNLOAD PACKAGE</i>then install it in VESC Tool (VESC Packages)</div>'
+      + '<div class="lane"><b>LIGHT MODULE</b><i>FLASH UPDATE</i>SLCM over Bluetooth, board at rest</div></div>'
+      + '<div class="note">Shown when an SLCM light module is connected. Only tagged releases; the tour never downloads or flashes anything.</div>'
+    : demo === 'credit' ? '<div class="note" style="font-family:Orbitron,monospace">Refloat · GPL-3.0 · github.com/lukash/refloat</div>' : '';
+  $('tourRing').style.transform = demo === 'updates' ? 'scale(.7)' : '';
   $('tourDots').innerHTML = TOUR.map((_, i) => '<i' + (i === tourI ? ' class="on"' : '') + '></i>').join('');
   $('tourBack').textContent = tourI ? 'BACK' : 'SKIP'; $('tourNext').textContent = tourI === TOUR.length - 1 ? 'DONE' : 'NEXT';
 }
@@ -2031,7 +2050,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf164';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf165';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

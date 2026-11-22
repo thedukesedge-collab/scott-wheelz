@@ -12388,7 +12388,9 @@ Item {
         function open() { tourSwipe.currentIndex = 0; visible = true; }
         function close() { visible = false; swSettings.tourSeen = true; }
 
-        // [glyph, title, where, text]
+        // [glyph, title, where, text, demo]  rf165: optional demo ("updates" = a
+        // non-interactive picture of the real UPDATES section, "credit" = a
+        // quiet attribution line); nothing in the tour touches the board
         readonly property var pages: [
             ["✦", "REFLOAT GLOW", "WELCOME", "Built on Refloat 1.2.3 by Lukáš Hrázký (lukash) and the Refloat community, reimagined with a Neon Future style theme and a bunch of extra features. Swipe through what's new; it takes a minute."],
             ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and MAX SPEED / DUTY right there."],
@@ -12402,9 +12404,9 @@ Item {
             ["◉", "LIGHTS", "LEDS TAB", "HEAD/TAIL LIGHTS: riding and idle effects, colors and brightness (RGB LEDs like Thor), SNOOZE before the board powers off. STATUS BAR: idle and riding animations. All linked with Refloat's settings."],
             ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
             ["♬", "BEEPER", "LEDS › BEEPER", "Controller beeper on/off with a TEST BEEP, plus the light module's own beeper."],
-            ["↻", "UPDATES", "LEDS › UPDATES", "Check for new package and SLCM releases from GitHub, download and flash in a few taps. Floatwheel, XRV, Pint V and GTV light modules with SLCM update over Bluetooth."],
-            ["★", "CREDIT WHERE IT'S DUE", "THE ORIGINAL", "Built on Refloat by Lukáš Hrázký (lukash), itself built on the Float package by Mitch Lustig, Dado Mista and Nico Aleman. All the credit for this great package goes to them. I take no credit for any of it."],
-            ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "How the board rides is unchanged: balance, tunes, pushbacks, footpads and alerts are Refloat's own code. Everything else was carefully gone through and is mostly quality-of-life and user-experience upgrades: the look, lights, sounds and setup tools. (MAX SPEED is the one opt-in exception: it sets a VESC limit, only if you turn it on.) Have fun out there."]
+            ["↻", "UPDATES", "LEDS › UPDATES", "Check GitHub for Refloat Glow and SLCM updates. Download supported releases and install them through the app. Compatible Floatwheel, XRV, Pint V and GTV light modules support Bluetooth firmware updates.", "updates"],
+            ["★", "CREDIT WHERE IT'S DUE", "THE ORIGINAL", "Refloat Glow builds on Refloat by Lukáš Hrázký (lukash), which itself builds on the Float package by Mitch Lustig, Dado Mista and Nico Aleman. Their work made this project possible. Full credit and appreciation go to the original developers and community.", "credit"],
+            ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "Underneath the new interface, Refloat Glow retains Refloat 1.2.3's core riding behavior, including balance, pushback, footpad handling and alerts. Most additions focus on customization, lighting and sounds. Optional settings such as MAX SPEED can change how your board behaves, so review them carefully."]
         ]
 
         MouseArea { anchors.fill: parent }  // block the screen behind
@@ -12443,16 +12445,27 @@ Item {
                 Repeater {
                     model: rinkTour.pages
 
-                    Item {
+                    // rf165: a page scrolls if it doesn't fit (small phones, demo pages)
+                    Flickable {
+                        id: tourPage
+                        readonly property string demo: modelData.length > 4 ? modelData[4] : ""
+                        readonly property bool current: SwipeView.isCurrentItem && rinkTour.visible
+                        clip: true
+                        contentWidth: width
+                        contentHeight: Math.max(height, tourPageCol.implicitHeight)
+                        interactive: tourPageCol.implicitHeight > height
+                        flickableDirection: Flickable.VerticalFlick
+                        boundsBehavior: Flickable.StopAtBounds
                         Column {
-                            anchors.centerIn: parent
-                            width: parent.width
+                            id: tourPageCol
+                            y: Math.max(0, (tourPage.height - implicitHeight) / 2)
+                            width: tourPage.width
                             spacing: 0.25 * unit
 
                             Item {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                width: 2.2 * unit
-                                height: 2.2 * unit
+                                width: tourPage.demo === "updates" ? 1.5 * unit : 2.2 * unit
+                                height: width
                                 Rectangle {
                                     id: tourRing
                                     anchors.fill: parent
@@ -12474,7 +12487,7 @@ Item {
                                     anchors.centerIn: parent
                                     text: modelData[0]
                                     color: "#d6ffe4"
-                                    font.pixelSize: 0.95 * unit
+                                    font.pixelSize: (tourPage.demo === "updates" ? 0.65 : 0.95) * unit
                                 }
                                 Glow {
                                     anchors.fill: tourGlyph
@@ -12528,6 +12541,125 @@ Item {
                                 color: "#ead6ff"
                                 font.pixelSize: 0.27 * unit
                                 lineHeight: 1.15
+                            }
+
+                            // rf165: UPDATES - a picture of the real section, nothing pressable.
+                            // Same names as the LEDS tab; the real one keeps every check.
+                            Column {
+                                visible: tourPage.demo === "updates"
+                                width: parent.width
+                                spacing: 0.15 * unit
+                                Text {
+                                    width: parent.width
+                                    horizontalAlignment: Text.AlignHCenter
+                                    text: "SWIPE UP  ›  LEDS  ›  UPDATES"
+                                    color: swTheme.neonPurple
+                                    font.family: "Exan"
+                                    font.pixelSize: 0.2 * unit
+                                }
+                                Item {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    width: Math.min(parent.width, 6.5 * unit)
+                                    height: 0.75 * unit
+                                    Rectangle {
+                                        id: tourUpdPill
+                                        anchors.centerIn: parent
+                                        width: parent.width - 0.3 * unit
+                                        height: 0.55 * unit
+                                        radius: height / 2
+                                        color: "#0d2a12"
+                                        border.color: swTheme.neonGreen
+                                        border.width: 2
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "↻  CHECK FOR UPDATES"
+                                            color: swTheme.neonGreen
+                                            font.family: "Exan"
+                                            font.pixelSize: 0.22 * unit
+                                        }
+                                    }
+                                    Rectangle {  // the "look here" ring
+                                        anchors.fill: parent
+                                        radius: height / 2
+                                        color: "transparent"
+                                        border.color: "#FFB300"
+                                        border.width: 2
+                                        SequentialAnimation on opacity {
+                                            running: tourPage.current && tourPage.demo === "updates"
+                                            loops: Animation.Infinite
+                                            NumberAnimation { from: 1.0; to: 0.15; duration: 700 }
+                                            NumberAnimation { from: 0.15; to: 1.0; duration: 700 }
+                                        }
+                                    }
+                                }
+                                Row {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    spacing: 0.15 * unit
+                                    Repeater {
+                                        model: [["PACKAGE", "DOWNLOAD PACKAGE", "then install it in VESC Tool (VESC Packages)"],
+                                                ["LIGHT MODULE", "FLASH UPDATE", "SLCM over Bluetooth, board at rest"]]
+                                        Rectangle {
+                                            width: (tourPageCol.width - 0.15 * unit) / 2
+                                            height: laneCol.implicitHeight + 0.2 * unit
+                                            radius: 0.12 * unit
+                                            color: "#140a26"
+                                            border.color: index === 0 ? swTheme.neonGreen : swTheme.neonPurple
+                                            border.width: 1
+                                            Column {
+                                                id: laneCol
+                                                anchors.centerIn: parent
+                                                width: parent.width - 0.2 * unit
+                                                spacing: 0.05 * unit
+                                                Text {
+                                                    width: parent.width
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    text: modelData[0]
+                                                    color: index === 0 ? swTheme.neonGreen : swTheme.neonPurple
+                                                    font.family: "Exan"
+                                                    font.pixelSize: 0.18 * unit
+                                                }
+                                                Text {
+                                                    width: parent.width
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    fontSizeMode: Text.HorizontalFit
+                                                    minimumPixelSize: 0.1 * unit
+                                                    text: modelData[1]
+                                                    color: "#d6ffe4"
+                                                    font.family: "Exan"
+                                                    font.pixelSize: 0.16 * unit
+                                                }
+                                                Text {
+                                                    width: parent.width
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    wrapMode: Text.WordWrap
+                                                    text: modelData[2]
+                                                    color: "#ead6ff"
+                                                    font.pixelSize: 0.19 * unit
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                Text {
+                                    width: parent.width
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.WordWrap
+                                    text: "Shown when an SLCM light module is connected. Only tagged releases; the tour never downloads or flashes anything."
+                                    color: "#9a86b8"
+                                    font.pixelSize: 0.18 * unit
+                                }
+                            }
+
+                            // rf165: CREDIT - a quiet attribution line
+                            Text {
+                                visible: tourPage.demo === "credit"
+                                width: parent.width
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                text: "Refloat · GPL-3.0 · github.com/lukash/refloat"
+                                color: "#9a86b8"
+                                font.family: "Exan"
+                                font.pixelSize: 0.17 * unit
                             }
                         }
                     }

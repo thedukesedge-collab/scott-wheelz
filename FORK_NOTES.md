@@ -1811,3 +1811,20 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - rf163 (picture with "vibe code" and pixel sunglasses) reverted at the
   user's request: page 2 of BEFORE YOU START shows the original
   "don't trust the AI code" picture again. Nothing else changed.
+
+### Tour: UPDATES, CREDIT WHERE IT'S DUE, SAME RIDE (v1.2.3-rf165)
+- Same 15 tour pages, same order, same icons, dots, SKIP / BACK / NEXT /
+  DONE, first-start and "show tips & tricks" behaviour. Three existing
+  pages updated in place (no new pages):
+  - UPDATES: new text, plus a non-interactive picture of the real
+    UPDATES section (SWIPE UP › LEDS › UPDATES, the CHECK FOR UPDATES
+    button with a pulsing ring, PACKAGE = DOWNLOAD PACKAGE then install in
+    VESC Tool, LIGHT MODULE = FLASH UPDATE over Bluetooth with the board at
+    rest). Notes it shows with an SLCM connected and that the tour never
+    downloads or flashes. Real update checks / warnings unchanged.
+  - CREDIT WHERE IT'S DUE: new text, plus a quiet "Refloat · GPL-3.0 ·
+    github.com/lukash/refloat" line. Star icon kept.
+  - SAME RIDE: new text (core riding behaviour retained; optional settings
+    like MAX SPEED change how the board behaves). Still the last page with
+    DONE; warning icon kept.
+- Each tour page scrolls if it doesn't fit (small phones). UI only.
