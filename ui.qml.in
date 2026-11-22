@@ -2618,6 +2618,7 @@ Item {
         property bool hideDisclaimer: false  // rf93 (unused since rf104)
         property string hideDisclaimerVer: ""  // rf104: "don't show again" for this package version only
         property bool tourSeen: false  // rf90: the tips & tricks tour opens once on first start
+        property string tourSeenVer: ""  // rf170: the tour opens on the first open of each new version (SKIP to leave)
         property int ledSnoozeMin: 5  // rf100: minutes BEFORE the board powers off (0 = never)
         property int ledRideMode: 0  // rf97: riding status bar: 0 battery / duty, else Refloat mode + 1
         property int ledSnoozeStyle: 0  // rf97: 0 breathe, 1 dim, 2 dark
@@ -7357,7 +7358,7 @@ Item {
         // rf150: the notice waits until this package's tab is on screen
         // (startNoticeTimer), then the tour as before
         if (swSettings.hideDisclaimerVer !== "{{VERSION}}") startNoticeTimer.start();  // rf104: again after every update
-        else if (!swSettings.tourSeen) rinkTour.open();
+        else if (swSettings.tourSeenVer !== "{{VERSION}}") rinkTour.open();  // rf170: once per new version
 
         onStartupTimer.start();
     }
@@ -7368,6 +7369,27 @@ Item {
     // for a moment. If you switch to another tab while it's open, it closes
     // and comes back when you return, until you press CONTINUE.
     property bool startNoticeDone: false
+    // rf170: VESC Tool (mobile) hosts this UI in a page of its main SwipeView
+    // and hands us that SwipeView (uiApp.swipeViewItem). The notice waits
+    // until the rider actually SELECTS this tab: it has to be seen not
+    // selected first (e.g. still on VESC Packages right after installing)
+    // and then selected, or the rider touches this UI. Being the current
+    // page right when the package loads doesn't count. Desktop VESC Tool (no
+    // SwipeView handed over): on screen + a touch.
+    property bool tabLeftOnce: false
+    property bool touchedOnce: false
+    function hostSelected() {
+        var host = mainItem.parent;
+        if (host && host.swipeViewItem && host.parent)
+            return host.swipeViewItem.currentItem === host.parent && mainItem.packageOnScreen();
+        return mainItem.packageOnScreen();
+    }
+    MouseArea {  // rf170: notices the first touch, passes it on untouched
+        anchors.fill: parent
+        z: 1000
+        enabled: !mainItem.touchedOnce && !mainItem.startNoticeDone
+        onPressed: function (mouse) { mainItem.touchedOnce = true; mouse.accepted = false; }
+    }
     function packageOnScreen() {
         if (!mainItem.visible || mainItem.width <= 0 || mainItem.height <= 0) return false;
         var w = mainItem.Window.width, h = mainItem.Window.height;
@@ -7385,7 +7407,9 @@ Item {
                 stop();
                 return;
             }
-            var on = mainItem.packageOnScreen();
+            var sel = mainItem.hostSelected();
+            if (!sel) mainItem.tabLeftOnce = true;
+            var on = sel && (mainItem.tabLeftOnce || mainItem.touchedOnce);
             seen = on ? seen + 1 : 0;
             if (disclaimerDialog.visible) {
                 if (!on) disclaimerDialog.close();
@@ -8333,7 +8357,7 @@ Item {
             mainItem.startNoticeDone = true;  // rf150: the tab watcher stops
             if (disclaimerHide.checked) swSettings.hideDisclaimerVer = "{{VERSION}}";
             close();
-            if (!swSettings.tourSeen) rinkTour.open();
+            if (swSettings.tourSeenVer !== "{{VERSION}}") rinkTour.open();  // rf170: tour right after, SKIP to leave
         }
 
         Column {
@@ -12997,6 +13021,7 @@ Item {
         }
         function close() {
             visible = false;
+            swSettings.tourSeenVer = "{{VERSION}}";  // rf170
             spot = null;
             target = null;
             bottomStackTabs.currentIndex = savedTab;

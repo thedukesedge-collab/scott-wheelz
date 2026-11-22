@@ -397,7 +397,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf169 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf170 · sim</span></div>
     </div>
   </div>
 
@@ -931,7 +931,7 @@ function tourPlace() {
 }
 function tourLoop() { if (!$('tour').classList.contains('on')) return; tourPlace(); tourRaf = requestAnimationFrame(tourLoop); }
 function tourOpen() { tourSaved = { f: sheetF, tab: P.tab || 0 }; tourI = 0; tourShow(); $('tour').classList.add('on'); tourApply(); cancelAnimationFrame(tourRaf); tourLoop(); }
-const tourClose = () => { $('tour').classList.remove('on', 'spot', 'up', 'down'); tourTarget = null; if (tourSaved) { setTab(tourSaved.tab); setSheet(tourSaved.f > 0.5 ? 1 : 0); tourSaved = null; } P.tourSeen = true; save(); };
+const tourClose = () => { $('tour').classList.remove('on', 'spot', 'up', 'down'); tourTarget = null; if (tourSaved) { setTab(tourSaved.tab); setSheet(tourSaved.f > 0.5 ? 1 : 0); tourSaved = null; } P.tourSeen = true; P.tourSeenVer = PKG_VER; save(); };
 let tourFade = 0;
 function tourGo(d) {
   const n = tourI + d; if (n < 0 || n >= TOUR.length) { tourClose(); return; }
@@ -997,7 +997,7 @@ function disclaimerPage2(hide) {
     + '<button class="pri" data-ok style="' + pill + '">CONTINUE WITH REFLOAT GLOW</button>'
     + '<button id="dcStock" style="' + pill + 'background:transparent;border:2px solid #ff8a1f;color:#ff8a1f">\u21B6 BACK TO REFLOAT 1.2.3</button>'
     + '<button id="dcPrev" style="background:none;border:0;color:#8a7aa8;font-size:12px">\u2039 BACK</button></div>',
-    () => { if (hide) { P.hideDisclaimerVer = PKG_VER; save(); } if (!P.tourSeen) setTimeout(tourOpen, 200); });
+    () => { if (hide) { P.hideDisclaimerVer = PKG_VER; save(); } if (P.tourSeenVer !== PKG_VER) setTimeout(tourOpen, 200); });  // rf170: tour right after the notice, once per version
   $('dcPrev').onclick = () => { close(); setTimeout(disclaimerOpen, 50); };
   $('dcStock').onclick = () => { close(); setTimeout(() => revertOpen(hide), 50); };
 }
@@ -1011,7 +1011,7 @@ function revertOpen(hide) {
   $('rvCancel').onclick = () => { $('modal').classList.remove('on'); setTimeout(() => disclaimerPage2(hide), 50); };
 }
 // rf104: again after every package update
-setTimeout(() => P.hideDisclaimerVer === PKG_VER ? (!P.tourSeen && tourOpen()) : disclaimerOpen(), 600);
+setTimeout(() => P.hideDisclaimerVer === PKG_VER ? (P.tourSeenVer !== PKG_VER && tourOpen()) : disclaimerOpen(), 600);
 // rf141: tap the version line to read the notice again
 $('ver').style.cursor = 'pointer';
 $('ver').addEventListener('click', disclaimerOpen);
@@ -2168,7 +2168,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf169';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf170';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

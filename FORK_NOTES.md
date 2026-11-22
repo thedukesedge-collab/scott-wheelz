@@ -1909,3 +1909,18 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   spot and the original (rf96) badge shape. With a limit set, the big
   amber "⚠ MAX 25 MPH" badge shows instead (unchanged). Hidden while
   connecting / before the motor config is read. UI only.
+
+### BEFORE YOU START only when the tab is opened; tour on first open (v1.2.3-rf170)
+- Why it still showed right after installing: rf150 only checked that the
+  package page was on screen. VESC Tool inserts the package page at index
+  1 of its main SwipeView, so right after an install that page can already
+  be the one showing without the rider having picked the tab.
+- Now the notice waits for the rider to actually select the Refloat Glow
+  tab: VESC Tool hands the package its SwipeView (uiApp.swipeViewItem);
+  the tab has to be seen not selected (still on VESC Packages, the
+  connection page, ...) and then selected, or the rider touches the package
+  UI. Being the current page at load time doesn't count. Desktop VESC Tool:
+  on screen + first touch. The first-touch watcher passes the touch on.
+- Onboarding Tour: opens right after BEFORE YOU START on the first open of
+  each new version (tourSeenVer), SKIP / DONE to leave. Replay Tour in
+  Settings unchanged.
