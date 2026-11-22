@@ -56,8 +56,9 @@ jobs:
         run: |
           tools/qmltest/run.sh 800a46b > /tmp/stock.log
           tools/qmltest/run.sh HEAD > /tmp/ours.log
+          echo "::group::stock 1.2.3 log"; cat /tmp/stock.log; echo "::endgroup::"
           cat /tmp/ours.log
-          norm() { grep -E "qrc|file:///tmp/ui.qml|Error|error|LOADER" "$1" | sed -E 's#file:///tmp/ui.qml:[0-9]+(:[0-9]+)?##; s/=+ [^ ]+ \(shot [0-9]\)//; s/0x[0-9a-f]+//g; s/QMLTYPE_[0-9]+_QML_[0-9]+//g' | sort -u; }
+          norm() { grep -E "qrc|file:///tmp/ui.qml|Error|error|LOADER" "$1" | sed -E 's#file:///tmp/ui.qml:[0-9]+(:[0-9]+)?##; s/=+ [^ ]+ \(shot [0-9]\)//; s/0x[0-9a-f]+//g; s/QMLTYPE_[0-9]+//g; s/_QML_[0-9]+//g' | sort -u; }
           norm /tmp/stock.log > /tmp/stock.n; norm /tmp/ours.log > /tmp/ours.n
           echo "--- warnings only in SLCM for Refloat:"; comm -13 /tmp/stock.n /tmp/ours.n | tee /tmp/new.txt
           grep -q "LOADER READY" /tmp/ours.log || { echo "::error::UI did not load"; exit 1; }

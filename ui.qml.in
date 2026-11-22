@@ -5353,7 +5353,7 @@ Item {
         title: "Flash SLCM"
         standardButtons: Dialog.Ok | Dialog.Cancel
         LText {
-            anchors.fill: parent
+            width: slcmFlashConfirm.availableWidth
             wrapMode: Text.WordWrap
             text: "Update the light module to SLCM " + (slcmFw.image ? slcmFw.image.slcm : "") + "?\n\n"
                 + "Keep the board powered on and off the ground, and keep the phone connected. "
