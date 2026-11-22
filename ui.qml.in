@@ -12569,7 +12569,7 @@ Item {
             readonly property bool spotBelow: rinkTour.hasSpot && rinkTour.spot.y + rinkTour.spot.h / 2 > parent.height / 2
             anchors.horizontalCenter: parent.horizontalCenter
             width: Math.min(parent.width - 0.6 * unit, 9 * unit)
-            height: rinkTour.hasSpot ? Math.min(parent.height * 0.5, 8.5 * unit, Math.max(5.5 * unit, (spotBelow ? rinkTour.spot.y : parent.height - rinkTour.spot.y - rinkTour.spot.h) - 0.8 * unit))
+            height: rinkTour.hasSpot ? Math.min(parent.height * 0.62, 9.5 * unit, Math.max(5.5 * unit, (spotBelow ? rinkTour.spot.y : parent.height - rinkTour.spot.y - rinkTour.spot.h) - 0.8 * unit))
                 : Math.min(parent.height - 1.2 * unit, 11 * unit)
             y: !rinkTour.hasSpot ? (parent.height - height) / 2
                 : spotBelow ? Math.max(0.3 * unit, Math.min(rinkTour.spot.y - height - 0.45 * unit, 0.6 * unit))
