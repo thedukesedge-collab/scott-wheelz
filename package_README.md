@@ -1,3 +1,19 @@
+# SLCM for Refloat
+
+**Unofficial.** Stock [Refloat](https://github.com/lukash/refloat) 1.2.3 with one addition: support for the **SLCM** light module firmware. Everything else, including balance, tunes, alerts, LEDs and the app screens, is Refloat 1.2.3 unchanged.
+
+*None of this would be possible without all the hard work Lukáš Hrázký (lukash) and the Refloat community have put into Refloat. Thank you!*
+
+- **What's added:** an **SLCM Light Module** button in **Control** (light and beeper settings, animations, color, battery curve for the status bar, SLCM firmware updates). The board saves the SLCM settings itself and refuses to start while it is writing them or while the SLCM is updating.
+- **Not an official Refloat release**, and not endorsed by or affiliated with the Refloat developers. Please don't report its issues to the Refloat project.
+- **License:** GPL-3.0-or-later, like Refloat. Source: https://github.com/thedukesedge-collab/scott-wheelz/tree/slcm-for-refloat
+- **Your Refloat config carries over** to and from stock Refloat 1.2.3 (same settings layout).
+- Made with AI assistance as part of the Refloat Glow side project. Test on a stand first; ride at your own risk. No warranty.
+
+---
+
+*Below: Refloat's own description, unchanged.*
+
 # Refloat
 
 A full-featured self-balancing skateboard package.

@@ -1,4 +1,5 @@
 // Copyright 2025 Lukas Hrazky
+// Modified for SLCM for Refloat (part of Refloat Glow), 2026. See SLCM_NOTES.md.
 //
 // This file is part of the Refloat VESC package.
 //
@@ -19,6 +20,7 @@
 
 #include "alert_tracker.h"
 #include "atr.h"
+#include "battery_curve.h"
 #include "bms.h"
 #include "booster.h"
 #include "brake_tilt.h"
@@ -29,6 +31,7 @@
 #include "imu.h"
 #include "konami.h"
 #include "lcm.h"
+#include "lcm_fw.h"
 #include "leds.h"
 #include "motor_control.h"
 #include "motor_data.h"
@@ -73,6 +76,19 @@ typedef struct {
 
     Leds leds;
     LcmData lcm;
+
+    // SLCM for Refloat: light module (SLCM) support
+    LcmFw lcm_fw;  // SLCM firmware update relay
+    BatteryCurve battery_curve;  // battery % for the SLCM status bar
+    lib_mutex flash_mutex;  // one flash writer at a time (config / SLCM saves)
+    volatile bool flash_busy;  // an SLCM settings save is writing flash: no starting
+    volatile bool lcm_vp_save_pending;
+    volatile time_t lcm_vp_change_time;
+    uint32_t lcm_vp_saved[LCM_VP_EEPROM_WORDS];
+    volatile bool battery_save_pending;
+    volatile time_t battery_change_time;
+    uint32_t battery_saved[4];
+    time_t start_blocked_beep_timer;
     Charging charging;
     BMS bms;
 

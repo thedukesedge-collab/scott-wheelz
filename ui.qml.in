@@ -1,5 +1,6 @@
 // Copyright 2022 Benjamin Vedder <benjamin@vedder.se>
 // Copyright 2024 Lukas Hrazky
+// Modified for SLCM for Refloat (part of Refloat Glow), 2026. See SLCM_NOTES.md.
 //
 // This file is part of the Refloat VESC package.
 //
@@ -845,6 +846,12 @@ Item {
                 var extraFlags = dv.getUint8(ind++);
 
                 state.commsState = state.comms_RTDataIDs;
+            } else if (msgtype === slcm.c_LCM_FW) {  // SLCM for Refloat
+                slcmFw.onReply(dv, ind);
+            } else if (msgtype === slcm.c_LCM_DEVICE_INFO) {
+                slcm.onName(dv, ind);
+            } else if (msgtype === slcm.c_LCM_BATTERY) {
+                slcmBattery.onReply(dv, ind);
             } else if (msgtype == c_LIGHTS_CONTROL) {
                 var values = dv.getUint8(ind++);
                 lights.on = values & 0b01;
@@ -966,6 +973,414 @@ Item {
         property var lastPackageUpdateCheck
         property var packageUpdateSnooze
     }
+
+    // ---- SLCM for Refloat: light module (SLCM) support --------------------
+    // Everything below up to "end SLCM for Refloat" is added to stock Refloat
+    // 1.2.3. Settings live in the app (category "slcmForRefloat") and are sent
+    // to the board, which keeps them (EEPROM) and passes them to the SLCM in
+    // its poll reply. See SLCM_NOTES.md.
+    Settings {
+        id: slcmSettings
+        category: "slcmForRefloat"
+
+        property bool configured: false  // nothing is sent before the first change
+        property bool headlights: true
+        property bool statusBar: true
+        property bool beep: true
+        property int headlightPct: 80
+        property int headlightIdlePct: 50
+        property int statusIdlePct: 80
+        property int statusRidePct: 80
+        property int animIdle: 0
+        property int animRide: 0
+        property int animDoze: 0
+        property int animBoot: 11
+        property int animShutdown: 0
+        property int color: 200
+        property bool batCurveOn: false
+        property string batCell: "VTC6"
+        property int batStyle: 0  // -1 conservative, 0 balanced, 1 optimistic
+        property int batParallel: 2
+        property bool fwTestChannel: false  // download from lcm-dev instead of lcm-latest
+    }
+
+    QtObject {
+        id: slcm
+
+        readonly property int c_LCM_DEVICE_INFO: 27
+        readonly property int c_LCM_VP_SETTINGS: 126
+        readonly property int c_LCM_TEST_BEEP: 127
+        readonly property int c_LCM_FW: 128
+        readonly property int c_LCM_BATTERY: 129
+
+        // SLCM animations (as in the SLCM firmware); 14 CUSTOM is not offered here
+        readonly property var animNames: ["Standard", "Rainbow scan", "Rainbow mirror", "Knight rider",
+            "Rainbow bar", "The fuzz", "Fire", "Pulse out", "Pulse in", "120 scroll", "Comp. wave",
+            "Classic", "Color scan", "Battery level"]
+        // [label, setting, name of 0]
+        readonly property var animContexts: [["Idle", "animIdle", "Standard"], ["Riding", "animRide", "Off"],
+            ["Snooze", "animDoze", "Off"], ["Boot", "animBoot", "Standard"], ["Shutdown", "animShutdown", "Standard"]]
+        function animModel(ctx) {
+            var m = animNames.slice();
+            m[0] = animContexts[ctx][2];
+            if (ctx === 0) m.push("Refloat's Status Idle");  // 128: piggybacks Refloat's own LED config
+            return m;
+        }
+        function animToIndex(ctx, v) { return v === 128 ? animNames.length : Math.min(v, animNames.length - 1); }
+        function indexToAnim(ctx, i) { return ctx === 0 && i === animNames.length ? 128 : i; }
+
+        readonly property bool present: lcmName.indexOf("VP-") === 0 || lcmName.indexOf("VPBL-") === 0 || legacy
+        property string lcmName: ""
+        property bool lcmPolling: false
+        property bool blActive: false
+        property bool gotStatus: false
+        readonly property bool legacy: lcmName === "" && lcmPolling && !blActive
+        readonly property bool hasBootloader: lcmName.indexOf("VPBL-") === 0
+        readonly property string statusText: !gotStatus && lcmName === "" ? "Looking for the light module..."
+            : blActive && !hasBootloader ? "SLCM bootloader is waiting for firmware (an update didn't finish). Flash it below."
+            : hasBootloader ? "SLCM " + lcmName.substr(5) + " (with bootloader)"
+            : lcmName.indexOf("VP-") === 0 ? "SLCM " + lcmName.substr(3) + " (no bootloader: updates need an ST-Link)"
+            : legacy ? "Older SLCM (doesn't report its version)"
+            : lcmName !== "" ? "Light module “" + lcmName + "” is not an SLCM"
+            : "No light module is polling the board"
+
+        function probe() {
+            vescCommands.sendCustomAppData(commands.createData(2, c_LCM_DEVICE_INFO).buffer);
+            if (!slcmFw.active) slcmFw.send(3, []);
+        }
+        function onName(dv, ind) {
+            var n = "";
+            while (ind < dv.byteLength) {
+                var c = dv.getUint8(ind++);
+                if (c === 0) break;
+                n += String.fromCharCode(c);
+            }
+            lcmName = n;
+        }
+
+        function send() {
+            if (!slcmSettings.configured) return;
+            var s = slcmSettings;
+            var data = commands.createData(32, c_LCM_VP_SETTINGS);  // the same 32 bytes as Refloat Glow
+            data.setUint8(2, (s.headlights ? 1 : 0) | (s.statusBar ? 2 : 0) | (s.beep ? 4 : 0));
+            data.setUint8(3, s.headlightPct);
+            data.setUint8(4, s.statusIdlePct);
+            data.setUint8(5, s.statusRidePct);
+            data.setUint8(6, s.animIdle);
+            data.setUint8(7, s.animRide);
+            data.setUint8(8, s.animDoze);
+            data.setUint8(9, s.animBoot);
+            data.setUint8(10, s.animShutdown);
+            data.setUint16(11, s.color);
+            data.setUint8(13, s.headlightIdlePct);
+            // 14-21 CUSTOM animation, 22-31 controller-LED options of Refloat
+            // Glow: not used here (0), the SLCM ignores them
+            vescCommands.sendCustomAppData(data.buffer);
+        }
+        function set(key, v) {
+            if (slcmSettings[key] === v && slcmSettings.configured) return;
+            slcmSettings[key] = v;
+            slcmSettings.configured = true;
+            sendTimer.restart();
+        }
+        property Timer sendTimer: Timer {
+            interval: 150
+            onTriggered: slcm.send()
+        }
+        function testBeep() {
+            slcmSettings.configured = true;
+            send();  // the beep request rides in the settings block
+            vescCommands.sendCustomAppData(commands.createData(2, c_LCM_TEST_BEEP).buffer);
+        }
+
+        property Timer pollTimer: Timer {
+            interval: 3000
+            repeat: true
+            triggeredOnStart: true
+            running: slcmDialog.visible && !slcmFw.active
+            onTriggered: slcm.probe()
+        }
+    }
+
+    // battery % for the SLCM status bar from a per-cell curve (cell mV = 2500
+    // + 10 * p at 100, 90 ... 0 %); Floatwheel's own tables, as in Refloat Glow
+    QtObject {
+        id: slcmBattery
+
+        readonly property var p42a: [170, 156, 144, 135, 128, 120, 112, 104, 96, 84, 50]
+        readonly property var cellList: [
+            {name: "P28A", points: p42a, ir: 20}, {name: "P30B", points: p42a, ir: 17},
+            {name: "VTC6", points: [170, 156, 152, 140, 132, 124, 116, 106, 96, 79, 50], ir: 20},
+            {name: "P42A", points: p42a, ir: 19}, {name: "P45B", points: p42a, ir: 15},
+            {name: "P50B", points: p42a, ir: 13},
+            {name: "50S", points: [170, 158, 154, 140, 132, 124, 114, 102, 88, 66, 50], ir: 15},
+            {name: "RS50", points: [170, 156, 150, 139, 129, 117, 103, 89, 70, 49, 20], ir: 15},
+            {name: "DG40", points: [170, 155, 144, 137, 130, 122, 110, 100, 88, 74, 50], ir: 20}
+        ]
+        readonly property var cellNames: cellList.map(function (c) { return c.name; })
+        readonly property var current: cellList[Math.max(0, cellNames.indexOf(slcmSettings.batCell))]
+        readonly property var points: {
+            var base = current.points, shift = -3 * slcmSettings.batStyle, p = [];
+            for (var i = 0; i < 11; i++) p.push(i === 0 ? base[0] : Math.max(0, Math.min(255, base[i] + shift)));
+            for (i = 1; i < 11; i++) p[i] = Math.max(0, Math.min(p[i], p[i - 1] - 1));
+            return p;
+        }
+        property int cells: 0
+        property real volts: 0
+        property int percent: 255
+        property bool synced: false
+        readonly property int resistance: Math.max(0, Math.min(255,
+            Math.round(current.ir * (cells > 0 ? cells : 18) / Math.max(1, slcmSettings.batParallel) / 2)))
+
+        function send(set) {
+            var data = commands.createData(set ? 16 : 3, slcm.c_LCM_BATTERY);
+            data.setUint8(2, set ? 1 : 0);
+            if (set) {
+                data.setUint8(3, slcmSettings.batCurveOn ? 1 : 0);
+                data.setUint8(4, resistance);
+                for (var i = 0; i < 11; i++) data.setUint8(5 + i, points[i]);
+            }
+            vescCommands.sendCustomAppData(data.buffer);
+        }
+        function set(key, v) {
+            slcmSettings[key] = v;
+            synced = true;  // the app's choice wins from now on
+            sendTimer.restart();
+        }
+        property Timer sendTimer: Timer {
+            interval: 300
+            onTriggered: slcmBattery.send(true)
+        }
+        // reply: 0, enabled, resistance, 11 points, cells, voltage (u16 0.1 V), %
+        function onReply(dv, ind) {
+            if (dv.byteLength < ind + 18 || dv.getUint8(ind++) !== 0) return;
+            var on = dv.getUint8(ind++) !== 0;
+            ind += 12;
+            var oldCells = cells;
+            cells = dv.getUint8(ind++);
+            volts = dv.getUint16(ind) / 10; ind += 2;
+            percent = dv.getUint8(ind++);
+            if (!synced) {
+                synced = true;
+                slcmSettings.batCurveOn = on;  // show what the board has
+            } else if (cells !== oldCells && oldCells !== 0) {
+                send(true);  // series count known: sag compensation changed
+            }
+        }
+        property Timer pollTimer: Timer {
+            interval: 1000
+            repeat: true
+            triggeredOnStart: true
+            running: slcmDialog.visible
+            onTriggered: slcmBattery.send(false)
+        }
+    }
+
+    // SLCM firmware update over the board's connection (bootloader SLCMs):
+    // download SLCM.hex from the project's lcm-latest (or lcm-dev) release,
+    // check it like the bootloader does, then send it page by page.
+    QtObject {
+        id: slcmFw
+
+        readonly property string repo: "thedukesedge-collab/scott-wheelz"
+        readonly property string tag: slcmSettings.fwTestChannel ? "lcm-dev" : "lcm-latest"
+        property var image: null  // {size, crc, slcm, bytes}
+        property int dlState: 0  // 0 -, 1 downloading, 2 ready, 3 failed
+        property int pkgState: 0  // 0 idle, 1 staged, 2 sending, 3 ok, 4 failed
+        property int pkgError: 0
+        property int want: 0
+        property bool active: false
+        property real progress: 0
+        property string message: ""
+        property int noReply: 0
+        property var xhr: null
+        readonly property bool canFlash: !!image && !active && (slcm.hasBootloader || slcm.blActive || slcm.legacy)
+            && state.pkgState !== state.s_Running
+
+        readonly property var errorText: ["",
+            "The board is running. Stop riding and try again.",
+            "The firmware image is broken (bad size).",
+            "The SLCM didn't start updating: it has no bootloader. Install SLCM.hex once with an ST-Link.",
+            "The SLCM got nothing and went back to its old firmware.",
+            "Checksum mismatch: the SLCM is retrying."]
+
+        function send(sub, extra) {
+            var data = commands.createData(3 + extra.length, slcm.c_LCM_FW);
+            data.setUint8(2, sub);
+            for (var i = 0; i < extra.length; i++) data.setUint8(3 + i, extra[i]);
+            vescCommands.sendCustomAppData(data.buffer);
+        }
+        function u32(v) { return [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255]; }
+        function crc16(b, n) {
+            var crc = 0;
+            for (var i = 0; i < n; i++) {
+                crc ^= b[i] << 8;
+                for (var k = 0; k < 8; k++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+            }
+            return crc;
+        }
+        // Intel .hex -> update image, with the bootloader's own checks
+        function parseHex(text) {
+            var APP = 0x08000600, END = 0x08003F80, mem = {}, base = 0, maxA = -1, n = 0;
+            var lines = text.split(/\r?\n/);
+            for (var li = 0; li < lines.length; li++) {
+                var l = lines[li].trim();
+                if (l === "") continue;
+                if (l[0] !== ":" || l.length < 11 || (l.length - 1) % 2) return {error: "Not an Intel .hex file."};
+                var r = [];
+                for (var i = 1; i < l.length; i += 2) {
+                    var v = parseInt(l.substr(i, 2), 16);
+                    if (isNaN(v)) return {error: "Not an Intel .hex file."};
+                    r.push(v);
+                }
+                var sum = 0;
+                for (i = 0; i < r.length; i++) sum = (sum + r[i]) & 255;
+                if (sum !== 0 || r.length !== r[0] + 5) return {error: "Checksum error in the .hex."};
+                var type = r[3], addr = (r[1] << 8) | r[2];
+                if (type === 0) {
+                    for (i = 0; i < r[0]; i++) {
+                        var a = base + addr + i;
+                        if (a >= APP && a < END) { mem[a] = r[4 + i]; if (a > maxA) maxA = a; n++; }
+                        else if (a >= END && a < 0x08004000) return {error: "This .hex writes the battery table page: not an update image."};
+                    }
+                } else if (type === 4) base = ((r[4] << 8) | r[5]) * 65536;
+                else if (type === 2) base = ((r[4] << 8) | r[5]) * 16;
+                else if (type === 1) break;
+            }
+            if (n === 0) return {error: "No firmware for the bootloader in this .hex."};
+            var size = Math.ceil((maxA + 1 - APP) / 128) * 128;
+            var b = new Uint8Array(size);
+            for (i = 0; i < size; i++) b[i] = mem[APP + i] !== undefined ? mem[APP + i] : 0xFF;
+            var sp = (b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24)) >>> 0;
+            var pc = (b[4] | (b[5] << 8) | (b[6] << 16) | (b[7] << 24)) >>> 0;
+            if (sp < 0x20000001 || sp > 0x20000800 || !(pc & 1) || pc < APP || pc >= END)
+                return {error: "This doesn't look like SLCM firmware built for the bootloader."};
+            var slcmVer = "";
+            for (i = 0; i + 6 < size && !slcmVer; i++) {
+                if (b[i] === 86 && b[i + 1] === 80 && b[i + 2] === 66 && b[i + 3] === 76 && b[i + 4] === 45) {
+                    var j = i + 5, s = "";
+                    while (j < size && j < i + 25 && b[j] >= 45 && b[j] <= 122) s += String.fromCharCode(b[j++]);
+                    slcmVer = s;
+                }
+            }
+            if (!slcmVer) return {error: "No SLCM version found in this .hex."};
+            return {size: size, crc: crc16(b, size), slcm: slcmVer, bytes: b};
+        }
+
+        property Timer dlTimeout: Timer {
+            interval: 30000
+            onTriggered: {
+                if (slcmFw.xhr) slcmFw.xhr.abort();
+                slcmFw.xhr = null;
+                slcmFw.dlState = 3;
+                slcmFw.message = "The download timed out. Check the phone's internet connection.";
+            }
+        }
+        function download() {
+            if (dlState === 1 || active) return;
+            dlState = 1;
+            image = null;
+            message = "Downloading SLCM.hex (" + tag + ")...";
+            var r = new XMLHttpRequest();
+            xhr = r;
+            r.open("GET", "https://github.com/" + repo + "/releases/download/" + tag + "/SLCM.hex", true);
+            r.onreadystatechange = function() {
+                if (r.readyState !== XMLHttpRequest.DONE || xhr !== r) return;
+                xhr = null;
+                dlTimeout.stop();
+                if (r.status !== 200 || !r.responseText) {
+                    dlState = 3;
+                    message = "Download failed (" + (r.status === 0 ? "no connection" : "HTTP " + r.status) + ").";
+                    return;
+                }
+                var h = parseHex(r.responseText);
+                if (h.error) {
+                    dlState = 3;
+                    message = "The download failed its checks, nothing was changed: " + h.error;
+                    return;
+                }
+                image = h;
+                dlState = 2;
+                message = "Ready: SLCM " + h.slcm + " (" + h.size + " bytes)"
+                    + (slcm.hasBootloader && slcm.lcmName.substr(5) === h.slcm ? ". Your SLCM already runs this version." : ".");
+            };
+            dlTimeout.restart();
+            r.send();
+        }
+
+        function start() {
+            if (!canFlash) return;
+            slcmSettings.configured = true;  // the update flag rides in the settings block
+            slcm.send();
+            active = true;
+            progress = 0;
+            noReply = 0;
+            message = "Starting... (keep the board powered on and still)";
+            send(1, u32(image.size).concat([(image.crc >> 8) & 255, image.crc & 255]));
+            fwTimer.start();
+        }
+        function cancel() {
+            send(4, []);
+            active = false;
+            fwTimer.stop();
+            message = "Cancelled. If the SLCM had already started, power the board off and on, then flash again.";
+        }
+        function sendPage(off) {
+            if (off < 0 || off >= image.size) return;
+            var d = u32(off);
+            for (var i = 0; i < 128; i++) d.push(image.bytes[off + i]);
+            send(2, d);
+        }
+        // STATUS reply: 3, state, error, wanted offset (u32), size (u32), flags
+        function onReply(dv, ind) {
+            if (dv.byteLength < ind + 11 || dv.getUint8(ind++) !== 3) return;
+            pkgState = dv.getUint8(ind++);
+            pkgError = dv.getUint8(ind++);
+            want = dv.getUint32(ind); ind += 4;
+            ind += 4;
+            slcm.blActive = dv.byteLength > ind ? (dv.getUint8(ind) & 1) !== 0 : false;
+            slcm.lcmPolling = dv.byteLength > ind ? (dv.getUint8(ind) & 4) !== 0 : false;
+            slcm.gotStatus = true;
+            noReply = 0;
+            if (!active) return;
+            var pages = image.size / 128;
+            if (pkgState === 1) {
+                message = "Waiting for the SLCM to start its bootloader...";
+                sendPage(128);
+                sendPage(256);
+            } else if (pkgState === 2) {
+                var done = want === 0 ? pages - 1 : Math.max(0, want / 128 - 1);
+                progress = done / pages;
+                message = (pkgError === 5 ? errorText[5] + " " : "") + "Updating: " + Math.round(progress * 100) + "%. Keep the app connected.";
+                sendPage(want);
+                sendPage(want === 0 ? -1 : (want + 128 < image.size ? want + 128 : 0));
+            } else if (pkgState === 3) {
+                progress = 1;
+                active = false;
+                fwTimer.stop();
+                message = "Done: the SLCM firmware is updated and running.";
+            } else if (pkgState === 4) {
+                active = false;
+                fwTimer.stop();
+                message = errorText[pkgError] || "The update failed.";
+            }
+        }
+        property Timer fwTimer: Timer {
+            id: slcmFwTimer
+            interval: 80
+            repeat: true
+            onTriggered: {
+                if (++slcmFw.noReply > 150) {
+                    slcmFw.active = false;
+                    stop();
+                    slcmFw.message = "Lost the connection. The SLCM waits with its power on: reconnect and flash again (or power the board off and on).";
+                    return;
+                }
+                slcmFw.send(3, []);
+            }
+        }
+    }
+    // ---- end SLCM for Refloat ----------------------------------------------
 
     QtObject {
         id: updateChecker
@@ -4752,6 +5167,202 @@ Item {
         }
     }
 
+    // ---- SLCM for Refloat: the SLCM window (opened from Control > Lights)
+    BaseDialog {
+        id: slcmDialog
+        implicitHeight: fullHeight
+        title: "SLCM Light Module"
+        standardButtons: Dialog.Close
+
+        component SlcmSwitch : RowLayout {
+            Layout.fillWidth: true
+            property string label
+            property bool checked
+            signal toggled(bool on)
+            LText { Layout.fillWidth: true; text: parent.label }
+            Switch { checked: parent.checked; onToggled: parent.toggled(checked) }
+        }
+        component SlcmSlider : ColumnLayout {
+            Layout.fillWidth: true
+            property string label
+            property int value
+            property int maxValue: 100
+            property string unit: "%"
+            signal moved(int v)
+            LText { text: parent.label + ": " + sl.value.toFixed(0) + parent.unit }
+            Slider {
+                id: sl
+                Layout.fillWidth: true
+                from: 0
+                to: parent.maxValue
+                stepSize: 1
+                value: parent.value
+                onMoved: parent.moved(Math.round(value))
+            }
+        }
+        component SlcmHeader : LText {
+            Layout.fillWidth: true
+            Layout.topMargin: 0.3 * unit
+            font.pixelSize: fontSizeBig
+            horizontalAlignment: Text.AlignHCenter
+        }
+
+        ScrollView {
+            anchors.fill: parent
+            contentWidth: availableWidth
+            clip: true
+
+            ColumnLayout {
+                width: parent.width
+                spacing: 0.1 * unit
+
+                DText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: slcm.statusText
+                }
+
+                SlcmHeader { text: "Lights" }
+                SlcmSwitch { label: "Headlights"; checked: slcmSettings.headlights; onToggled: slcm.set("headlights", on) }
+                SlcmSlider { label: "Headlights riding"; value: slcmSettings.headlightPct; onMoved: slcm.set("headlightPct", v) }
+                SlcmSlider { label: "Headlights idle"; value: slcmSettings.headlightIdlePct; onMoved: slcm.set("headlightIdlePct", v) }
+                SlcmSwitch { label: "Status bar"; checked: slcmSettings.statusBar; onToggled: slcm.set("statusBar", on) }
+                SlcmSlider { label: "Status bar idle"; value: slcmSettings.statusIdlePct; onMoved: slcm.set("statusIdlePct", v) }
+                SlcmSlider { label: "Status bar riding"; value: slcmSettings.statusRidePct; onMoved: slcm.set("statusRidePct", v) }
+                RowLayout {
+                    Layout.fillWidth: true
+                    SlcmSwitch { label: "Beeper"; checked: slcmSettings.beep; onToggled: slcm.set("beep", on) }
+                    Button { text: "Test beep"; onClicked: slcm.testBeep() }
+                }
+
+                SlcmHeader { text: "Animations" }
+                Repeater {
+                    model: slcm.animContexts.length
+                    RowLayout {
+                        Layout.fillWidth: true
+                        LText { Layout.fillWidth: true; text: slcm.animContexts[index][0] }
+                        ComboBox {
+                            Layout.preferredWidth: 4.5 * unit
+                            model: slcm.animModel(index)
+                            currentIndex: slcm.animToIndex(index, slcmSettings[slcm.animContexts[index][1]])
+                            onActivated: slcm.set(slcm.animContexts[index][1], slcm.indexToAnim(index, currentIndex))
+                        }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    SlcmSlider { label: "Color"; unit: "°"; maxValue: 359; value: slcmSettings.color; onMoved: slcm.set("color", v) }
+                    Rectangle {
+                        width: 0.6 * unit
+                        height: 0.6 * unit
+                        radius: 3
+                        color: Qt.hsla(slcmSettings.color / 360, 1, 0.5, 1)
+                    }
+                }
+
+                SlcmHeader { text: "Battery" }
+                SlcmSwitch {
+                    label: "Status bar from cell curve"
+                    checked: slcmSettings.batCurveOn
+                    onToggled: slcmBattery.set("batCurveOn", on)
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: slcmSettings.batCurveOn
+                    LText { Layout.fillWidth: true; text: "Cell" }
+                    ComboBox {
+                        Layout.preferredWidth: 4.5 * unit
+                        model: slcmBattery.cellNames
+                        currentIndex: Math.max(0, slcmBattery.cellNames.indexOf(slcmSettings.batCell))
+                        onActivated: slcmBattery.set("batCell", slcmBattery.cellNames[currentIndex])
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: slcmSettings.batCurveOn
+                    LText { Layout.fillWidth: true; text: "Parallel groups" }
+                    SpinBox {
+                        from: 1
+                        to: 10
+                        value: slcmSettings.batParallel
+                        onValueModified: slcmBattery.set("batParallel", value)
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: slcmSettings.batCurveOn
+                    LText { Layout.fillWidth: true; text: "Gauge" }
+                    ComboBox {
+                        Layout.preferredWidth: 4.5 * unit
+                        model: ["Conservative", "Balanced", "Optimistic"]
+                        currentIndex: slcmSettings.batStyle + 1
+                        onActivated: slcmBattery.set("batStyle", currentIndex - 1)
+                    }
+                }
+                DText {
+                    Layout.fillWidth: true
+                    text: slcmBattery.cells > 0
+                        ? slcmBattery.volts.toFixed(1) + " V, " + slcmBattery.cells + "s"
+                            + (slcmBattery.percent <= 100 ? ", " + slcmBattery.percent + "%" : "")
+                        : ""
+                }
+
+                SlcmHeader { text: "Firmware" }
+                RowLayout {
+                    Layout.fillWidth: true
+                    LText { Layout.fillWidth: true; text: "Test builds (lcm-dev)" }
+                    Switch {
+                        checked: slcmSettings.fwTestChannel
+                        enabled: !slcmFw.active
+                        onToggled: { slcmSettings.fwTestChannel = checked; slcmFw.image = null; slcmFw.dlState = 0; }
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Button {
+                        Layout.fillWidth: true
+                        text: "Download"
+                        enabled: slcmFw.dlState !== 1 && !slcmFw.active
+                        onClicked: slcmFw.download()
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        text: slcmFw.active ? "Cancel" : "Flash SLCM"
+                        enabled: slcmFw.active || slcmFw.canFlash
+                        onClicked: slcmFw.active ? slcmFw.cancel() : slcmFlashConfirm.open()
+                    }
+                }
+                ProgressBar {
+                    Layout.fillWidth: true
+                    visible: slcmFw.active || slcmFw.progress > 0
+                    value: slcmFw.progress
+                }
+                DText {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: slcmFw.message !== "" ? slcmFw.message
+                        : "Updates need an SLCM with the bootloader. Board powered on and still, phone connected."
+                }
+            }
+        }
+    }
+
+    BaseDialog {
+        id: slcmFlashConfirm
+        parent: ApplicationWindow.overlay
+        title: "Flash SLCM"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        LText {
+            anchors.fill: parent
+            wrapMode: Text.WordWrap
+            text: "Update the light module to SLCM " + (slcmFw.image ? slcmFw.image.slcm : "") + "?\n\n"
+                + "Keep the board powered on and off the ground, and keep the phone connected. "
+                + "The board can't be started while the update runs."
+        }
+        onAccepted: slcmFw.start()
+    }
+    // ---- end SLCM for Refloat ----------------------------------------------
+
     BaseDialog {
         id: newPackageVersionDialog
         parent: ApplicationWindow.overlay
@@ -7097,6 +7708,13 @@ Item {
                                 commands.sendLightsControl(undefined, !lights.headlightsOn);
                             }
                         }
+                    }
+
+                    // SLCM for Refloat: the SLCM window
+                    Button {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: "SLCM Light Module"
+                        onClicked: slcmDialog.open()
                     }
 
                     LText {

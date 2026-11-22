@@ -1,3 +1,4 @@
+# Modified for SLCM for Refloat (part of Refloat Glow), 2026. See SLCM_NOTES.md.
 # use `make VESC_TOOL=path/to/your/vesc_tool` to specify custom vesc_tool path
 VESC_TOOL ?= vesc_tool
 # use `make MINIFY_QML=0` to skip qml minification and pack the qml verbatim
@@ -5,11 +6,11 @@ MINIFY_QML ?= 1
 # use `make OLDVT=1` to build with old vesc_tool which doesn't support pkgdesc.qml
 OLDVT ?= 0
 
-all: refloat.vescpkg
+all: slcm-for-refloat.vescpkg
 
-refloat.vescpkg: src lisp/package.lisp package_README-gen.md ui.qml
+slcm-for-refloat.vescpkg: src lisp/package.lisp package_README-gen.md ui.qml
 ifeq ($(OLDVT), 1)
-	"$(VESC_TOOL)" --buildPkg "refloat.vescpkg:lisp/package.lisp:ui.qml:0:package_README-gen.md:Refloat"
+	"$(VESC_TOOL)" --buildPkg "slcm-for-refloat.vescpkg:lisp/package.lisp:ui.qml:0:package_README-gen.md:SLCM for Refloat"
 else
 	"$(VESC_TOOL)" --buildPkgFromDesc pkgdesc.qml
 endif
@@ -41,7 +42,7 @@ ui.qml: ui.qml.in package_name version
 	${MINIFY_CMD} > $@
 
 clean:
-	rm -f refloat.vescpkg package_README-gen.md ui.qml
+	rm -f slcm-for-refloat.vescpkg package_README-gen.md ui.qml
 	$(MAKE) -C src clean
 
 .PHONY: all clean src

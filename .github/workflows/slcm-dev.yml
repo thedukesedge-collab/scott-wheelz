@@ -1,0 +1,72 @@
+# SLCM for Refloat: unit tests + dev build of this branch (upstream's ci.yml
+# also builds and runs clang-format). Publishes release slcm-for-refloat-dev.
+name: SLCM for Refloat dev build
+on:
+  push:
+    branches: [slcm-for-refloat]
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Light module unit tests
+        run: sh tools/lcm_vp_test/run.sh
+
+      - name: Build Package
+        uses: ./.github/actions/build
+        with:
+          cache-auth-token: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+      - name: Publish dev build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp slcm-for-refloat.vescpkg slcm-for-refloat-dev.vescpkg
+          TAG=slcm-for-refloat-dev
+          NOTES="Untested development build of SLCM for Refloat $(cat version) from commit ${GITHUB_SHA::7}: stock Refloat 1.2.3 + SLCM support only. Bench testing only, NOT for riding. Unofficial; not affiliated with or endorsed by the Refloat developers. License: GPL-3.0-or-later; full source: https://github.com/${GITHUB_REPOSITORY}/tree/${GITHUB_SHA}. What changed: SLCM_NOTES.md."
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" --target "$GITHUB_SHA" --prerelease --latest=false \
+            --title "SLCM for Refloat DEV $(cat version) (${GITHUB_SHA::7}) - bench testing only" \
+            --notes "$NOTES" slcm-for-refloat-dev.vescpkg LICENSE
+
+  qml:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Qt 5 QML runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qtdeclarative5-dev-tools qmlscene qml-module-qtquick2 \
+            qml-module-qtquick-controls2 qml-module-qtquick-layouts qml-module-qtgraphicaleffects \
+            qml-module-qt-labs-settings qml-module-qtquick-dialogs qml-module-qtquick-window2 \
+            qml-module-qtquick-templates2 qml-module-qtquick-controls
+      - name: Syntax lint
+        run: |
+          sed "s/{{PACKAGE_NAME}}/x/g; s/{{VERSION}}/x/g" ui.qml.in | python3 rjsmin.py > /tmp/lint.qml
+          /usr/lib/qt5/bin/qmllint /tmp/lint.qml
+      - name: Load test vs stock Refloat 1.2.3 (no new QML warnings)
+        run: |
+          tools/qmltest/run.sh 800a46b > /tmp/stock.log
+          tools/qmltest/run.sh HEAD > /tmp/ours.log
+          cat /tmp/ours.log
+          norm() { grep -E "qrc|file:///tmp/ui.qml|Error|error|LOADER" "$1" | sed -E 's#file:///tmp/ui.qml:[0-9]+(:[0-9]+)?##; s/=+ [^ ]+ \(shot [0-9]\)//' | sort -u; }
+          norm /tmp/stock.log > /tmp/stock.n; norm /tmp/ours.log > /tmp/ours.n
+          echo "--- warnings only in SLCM for Refloat:"; comm -13 /tmp/stock.n /tmp/ours.n | tee /tmp/new.txt
+          grep -q "LOADER READY" /tmp/ours.log || { echo "::error::UI did not load"; exit 1; }
+          [ ! -s /tmp/new.txt ] || { echo "::error::new QML warnings"; exit 1; }
+      - name: Publish screenshots to the slcm-shots branch
+        if: always()
+        run: |
+          cd /tmp/shots
+          git init -q && git checkout -q -b slcm-shots
+          git add *.png
+          git -c user.name=ci -c user.email=ci@example.com commit -q -m "screenshots ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" slcm-shots

@@ -1,3 +1,19 @@
+# SLCM for Refloat (branch `slcm-for-refloat`)
+
+**Unofficial.** Stock Refloat **v1.2.3** (commit 800a46b) by Lukáš Hrázký (lukash) with **only** SLCM light module support added. Built as a controlled variant of the [Refloat Glow](https://github.com/thedukesedge-collab/scott-wheelz) side project: the same SLCM features, nothing else. Not affiliated with or endorsed by the Refloat developers. GPL-3.0-or-later ([LICENSE](LICENSE)).
+
+*None of this would be possible without all the hard work Lukáš Hrázký (lukash) and the Refloat community have put into Refloat. Thank you!*
+
+- **Exactly what changed:** [SLCM_NOTES.md](SLCM_NOTES.md), or `git diff 800a46b slcm-for-refloat`.
+- **Dev builds** (bench testing only, not for riding): release `slcm-for-refloat-dev`.
+- The SLCM firmware itself is built from `lcm/` on the `main` branch (ALCM by Mitchell White, GPL-3.0, with SLCM changes) and published on the `lcm-latest` / `lcm-dev` releases.
+
+> **Warning:** firmware for self-balancing vehicles can cause serious injury. Test on a stand first. Provided without warranty.
+
+---
+
+*Everything below is Refloat's own README, unchanged.*
+
 # Refloat - VESC Package
 Refloat is a VESC Package for self-balancing skateboards. It aims to:
 - Provide a polished and full-featured user experience

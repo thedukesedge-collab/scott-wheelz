@@ -1,6 +1,7 @@
 // Copyright 2019 - 2022 Mitch Lustig
 // Copyright 2022 Benjamin Vedder <benjamin@vedder.se>
 // Copyright 2024 Lukas Hrazky
+// Modified for SLCM for Refloat (part of Refloat Glow), 2026. See SLCM_NOTES.md.
 //
 // This file is part of the Refloat VESC package.
 //
@@ -319,6 +320,13 @@ static float get_setpoint_adjustment_step_size(Data *d) {
     default:
         return 0;
     }
+}
+
+// SLCM for Refloat: extra conditions for STARTING only (READY state). Not
+// part of can_engage(), which is also checked while riding: these must never
+// stop a running board.
+static bool start_is_blocked(const Data *d) {
+    return d->flash_busy || lcm_fw_blocks_engage(&d->lcm_fw, &d->time);
 }
 
 bool can_engage(const Data *d) {
@@ -1026,14 +1034,26 @@ static void refloat_thd(void *arg) {
                 d->startup_pitch_tolerance = d->float_conf.startup_pitch_tolerance;
             }
 
+            // SLCM for Refloat: no starting while an SLCM settings save is
+            // writing flash or the SLCM is updating / in its bootloader (it
+            // holds the board's power latch); beep if someone tries
+            const bool start_blocked = start_is_blocked(d);
+            if (start_blocked && d->footpad.state == FS_BOTH &&
+                timer_older(&d->time, d->start_blocked_beep_timer, 2)) {
+                timer_refresh(&d->time, &d->start_blocked_beep_timer);
+                beep_alert(d, 3, 0);
+            }
+
             // Check for valid startup position and switch state
             if (fabsf(d->imu.balance_pitch) < d->startup_pitch_tolerance &&
-                fabsf(d->imu.roll) < d->float_conf.startup_roll_tolerance && can_engage(d)) {
+                fabsf(d->imu.roll) < d->float_conf.startup_roll_tolerance && can_engage(d) &&
+                !start_blocked) {
                 engage(d);
                 break;
             }
             // Ignore roll for the first second while it's upside down
-            if (d->state.darkride && (fabsf(d->imu.balance_pitch) < d->startup_pitch_tolerance)) {
+            if (d->state.darkride && !start_blocked &&
+                (fabsf(d->imu.balance_pitch) < d->startup_pitch_tolerance)) {
                 if (time_elapsed(&d->time, disengage, 1)) {
                     // after 1 second:
                     if (fabsf(fabsf(d->imu.roll) - 180) < d->float_conf.startup_roll_tolerance) {
@@ -1051,7 +1071,7 @@ static void refloat_thd(void *arg) {
             }
             // Push-start aka dirty landing Part II
             if (d->float_conf.startup_pushstart_enabled && d->motor.abs_erpm > 1000 &&
-                can_engage(d)) {
+                can_engage(d) && !start_blocked) {
                 if ((fabsf(d->imu.balance_pitch) < 45) && (fabsf(d->imu.roll) < 45)) {
                     // 45 to prevent board engaging when upright or laying sideways
                     // 45 degree tolerance is more than plenty for tricks / extreme mounts
@@ -1087,6 +1107,130 @@ static void refloat_thd(void *arg) {
 #define SERIALIZED_CONFIG_LENGTH 320
 #endif
 
+// SLCM for Refloat: flash writes. The SLCM settings and battery curve are
+// saved in custom EEPROM words past the config (80-87, 125-127), from the aux
+// thread, 2 s after the last change and only with the board fully at rest -
+// not running, nobody on the footpads, wheel still. Starting is refused while
+// such a save is in progress (flash_busy). A mutex keeps them from ever
+// overlapping the config write.
+static void flash_lock(Data *d) {
+    if (d->flash_mutex) {
+        VESC_IF->mutex_lock(d->flash_mutex);
+    }
+}
+
+static void flash_unlock(Data *d) {
+    if (d->flash_mutex) {
+        VESC_IF->mutex_unlock(d->flash_mutex);
+    }
+}
+
+static bool can_save_settings(const Data *d) {
+    return d->state.state != STATE_RUNNING && d->footpad.state == FS_NONE &&
+        d->motor.abs_erpm < 100.0f;
+}
+
+static bool flash_begin(Data *d) {
+    if (!d->flash_mutex || !can_save_settings(d)) {
+        return false;
+    }
+    d->flash_busy = true;
+    // re-check after raising the flag: the balance thread may have engaged
+    // between the first check and the flag (it can't from here on)
+    if (!can_save_settings(d)) {
+        d->flash_busy = false;
+        return false;
+    }
+    flash_lock(d);
+    return true;
+}
+
+static void flash_end(Data *d) {
+    flash_unlock(d);
+    d->flash_busy = false;
+}
+
+#define LCM_VP_EEPROM_ADDR 80  // 4 words: 80-83, + 3 words: 125-127
+
+static int lcm_vp_eeprom_addr(int i) {
+    return i < 4 ? LCM_VP_EEPROM_ADDR + i : 125 + i - 4;
+}
+
+static void lcm_vp_load(Data *d) {
+    uint32_t w[LCM_VP_EEPROM_WORDS];
+    for (int i = 0; i < LCM_VP_EEPROM_WORDS; ++i) {
+        eeprom_var v;
+        if (!VESC_IF->read_eeprom_var(&v, lcm_vp_eeprom_addr(i))) {
+            if (i < 3) {
+                return;
+            }
+            v.as_u32 = 0;  // idle headlight / custom words not written yet
+        }
+        w[i] = v.as_u32;
+        d->lcm_vp_saved[i] = w[i];
+    }
+    lcm_vp_unpack(&d->lcm, w);
+}
+
+static __attribute__((noinline)) void lcm_vp_save_if_due(Data *d) {
+    if (!d->lcm_vp_save_pending || !timer_older(&d->time, d->lcm_vp_change_time, 2.0f) ||
+        !flash_begin(d)) {
+        return;
+    }
+    d->lcm_vp_save_pending = false;
+    uint32_t w[LCM_VP_EEPROM_WORDS];
+    lcm_vp_pack(&d->lcm, w);
+    for (int i = 0; i < LCM_VP_EEPROM_WORDS; ++i) {
+        if (w[i] != d->lcm_vp_saved[i]) {
+            eeprom_var v = {.as_u32 = w[i]};
+            if (!VESC_IF->store_eeprom_var(&v, lcm_vp_eeprom_addr(i))) {
+                log_error("Failed to save light module settings.");
+                break;
+            }
+            d->lcm_vp_saved[i] = w[i];
+        }
+    }
+    flash_end(d);
+}
+
+#define BATTERY_EEPROM_ADDR 84  // 4 words: 84-87
+
+static void battery_curve_load(Data *d) {
+    uint32_t w[4];
+    for (int i = 0; i < 4; ++i) {
+        eeprom_var v;
+        if (!VESC_IF->read_eeprom_var(&v, BATTERY_EEPROM_ADDR + i)) {
+            return;
+        }
+        w[i] = v.as_u32;
+        d->battery_saved[i] = w[i];
+    }
+    battery_curve_unpack(&d->battery_curve, w);
+}
+
+static __attribute__((noinline)) void battery_curve_save_if_due(Data *d) {
+    if (!d->battery_save_pending || !timer_older(&d->time, d->battery_change_time, 2.0f) ||
+        !flash_begin(d)) {
+        return;
+    }
+    d->battery_save_pending = false;
+    uint32_t w[4];
+    battery_curve_pack(&d->battery_curve, w);
+    // magic word last, so an interrupted save is never half-valid
+    for (int k = 0; k < 4; ++k) {
+        int i = (k + 1) % 4;
+        if (w[i] != d->battery_saved[i]) {
+            eeprom_var v = {.as_u32 = w[i]};
+            if (!VESC_IF->store_eeprom_var(&v, BATTERY_EEPROM_ADDR + i)) {
+                log_error("Failed to save the battery curve.");
+                break;
+            }
+            d->battery_saved[i] = w[i];
+        }
+    }
+    flash_end(d);
+}
+
 static void write_cfg_to_eeprom(Data *d) {
     const size_t words = (SERIALIZED_CONFIG_LENGTH - 1) / 4 + 1;
     const size_t bufsize = words * 4;
@@ -1104,6 +1248,7 @@ static void write_cfg_to_eeprom(Data *d) {
     }
 
     bool write_ok = true;
+    flash_lock(d);  // SLCM for Refloat: never at the same time as an SLCM save
     for (uint32_t i = 0; i < words; ++i) {
         eeprom_var v;
         v.as_u32 = buffer[i];
@@ -1112,6 +1257,7 @@ static void write_cfg_to_eeprom(Data *d) {
             break;
         }
     }
+    flash_unlock(d);
 
     VESC_IF->free(buffer);
 
@@ -1141,6 +1287,9 @@ static void aux_thd(void *arg) {
             VESC_IF->store_backup_data();
             d->odometer = VESC_IF->mc_get_odometer();
         }
+
+        lcm_vp_save_if_due(d);  // SLCM for Refloat
+        battery_curve_save_if_due(d);
 
         if (timer_older(&d->time, motor_config_refresh_timer, 0.5)) {
             motor_data_refresh_motor_config(
@@ -1212,6 +1361,10 @@ static void data_init(Data *d) {
     leds_init(&d->leds);
     leds_setup(&d->leds, &d->float_conf.hardware.leds, &d->float_conf.leds);
     lcm_init(&d->lcm, &d->float_conf.hardware.leds);
+    lcm_fw_init(&d->lcm_fw);  // SLCM for Refloat
+    lcm_vp_load(d);
+    battery_curve_init(&d->battery_curve);
+    battery_curve_load(d);
     charging_init(&d->charging);
     bms_init(&d->bms);
 
@@ -1262,6 +1415,13 @@ enum {
     COMMAND_ALERTS_LIST = 35,
     COMMAND_ALERTS_CONTROL = 36,
     COMMAND_DATA_RECORD_REQUEST = 41,
+
+    // SLCM for Refloat: light module (SLCM) commands, the same numbers as in
+    // Refloat Glow (kept far from upstream's range)
+    COMMAND_LCM_VP_SETTINGS = 126,  // SLCM light settings, 11-32 bytes, see lcm.h
+    COMMAND_LCM_TEST_BEEP = 127,  // SLCM test beep
+    COMMAND_LCM_FW = 128,  // SLCM firmware update relay, see lcm_fw.h
+    COMMAND_LCM_BATTERY = 129,  // battery curve: 0 = get, 1 = set (13 bytes), see battery_curve.h
 
     // commands above 200 are unstable and can change protocol at any time
 } Commands;
@@ -2185,6 +2345,91 @@ static void cmd_info(const Data *d, unsigned char *buf, int len) {
 }
 
 // Handler for incoming app commands
+// SLCM for Refloat: the light module poll and the SLCM commands, out of line
+// so on_command_received's stack frame stays upstream's size
+static int battery_cells(void) {
+    return VESC_IF->get_cfg_int(CFG_PARAM_si_battery_cells);
+}
+
+static __attribute__((noinline)) void lcm_poll(Data *d, unsigned char *buffer, unsigned int len) {
+    lcm_poll_request(&d->lcm, buffer, len);
+    lcm_fw_poll_seen(&d->lcm_fw, &d->time);
+    d->lcm.vp_update = lcm_fw_update_flag(&d->lcm_fw, &d->state, &d->time);
+    d->lcm.vp_battery = battery_curve_update(
+        &d->battery_curve,
+        VESC_IF->mc_get_input_voltage_filtered(),
+        VESC_IF->mc_get_tot_current_in_filtered(),
+        battery_cells()
+    );
+    lcm_poll_response(&d->lcm, &d->state, d->footpad.state, &d->motor, d->imu.pitch);
+}
+
+// reply: 101, 129, 0, enabled, resistance, 11 points, cells, pack voltage
+// (u16, 0.1 V), battery % (0xFF = off)
+static __attribute__((noinline)) void battery_curve_reply(Data *d) {
+    uint8_t b[3 + BATTERY_CURVE_SET_LENGTH + 4];
+    int ind = 0;
+    BatteryCurve *bc = &d->battery_curve;
+    b[ind++] = 101;
+    b[ind++] = COMMAND_LCM_BATTERY;
+    b[ind++] = 0;
+    b[ind++] = bc->enabled;
+    b[ind++] = bc->resistance;
+    memcpy(&b[ind], bc->points, BATTERY_CURVE_POINTS);
+    ind += BATTERY_CURVE_POINTS;
+    b[ind++] = battery_cells();
+    uint16_t dv = (uint16_t) (VESC_IF->mc_get_input_voltage_filtered() * 10.0f);
+    b[ind++] = dv >> 8;
+    b[ind++] = dv & 0xFF;
+    b[ind++] = bc->percent;
+    VESC_IF->send_app_data(b, ind);
+}
+
+static __attribute__((noinline)) bool slcm_command(
+    Data *d, uint8_t command, unsigned char *buffer, unsigned int len
+) {
+    switch (command) {
+    case COMMAND_LCM_VP_SETTINGS: {
+        if (lcm_vp_set(&d->lcm, &buffer[2], len - 2)) {
+            d->lcm_vp_change_time = d->time.now;
+            d->lcm_vp_save_pending = true;
+        } else {
+            log_error("Command data length incorrect: %u", len);
+        }
+        return true;
+    }
+    case COMMAND_LCM_TEST_BEEP: {
+        lcm_vp_test_beep(&d->lcm);
+        return true;
+    }
+    case COMMAND_LCM_FW: {
+        lcm_fw_command(
+            &d->lcm_fw,
+            &d->state,
+            &d->time,
+            // VPBL, or an LCM that doesn't name itself (pre-r15 SLCM builds):
+            // a TRY is safe, without a bootloader the update flag is ignored
+            // and START times out
+            strncmp(d->lcm.name, "VPBL", 4) == 0 || d->lcm.name[0] == '\0',
+            &buffer[2],
+            len - 2
+        );
+        return true;
+    }
+    case COMMAND_LCM_BATTERY: {
+        if (len >= 3 && buffer[2] == 1 &&
+            battery_curve_set(&d->battery_curve, &buffer[3], len - 3)) {
+            d->battery_change_time = d->time.now;
+            d->battery_save_pending = true;
+        }
+        battery_curve_reply(d);
+        return true;
+    }
+    default:
+        return false;
+    }
+}
+
 static void on_command_received(unsigned char *buffer, unsigned int len) {
     Data *d = (Data *) ARG;
     uint8_t magicnr = buffer[0];
@@ -2196,6 +2441,10 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
     }
     if (magicnr != 101) {
         log_error("Invalid Package ID: %u", magicnr);
+        return;
+    }
+    if (command >= COMMAND_LCM_VP_SETTINGS && command <= COMMAND_LCM_BATTERY &&
+        slcm_command(d, command, buffer, len)) {
         return;
     }
 
@@ -2289,8 +2538,7 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
         return;
     }
     case COMMAND_LCM_POLL: {
-        lcm_poll_request(&d->lcm, &buffer[2], len - 2);
-        lcm_poll_response(&d->lcm, &d->state, d->footpad.state, &d->motor, d->imu.pitch);
+        lcm_poll(d, &buffer[2], len - 2);  // SLCM for Refloat
         return;
     }
     case COMMAND_LCM_LIGHT_INFO: {
@@ -2453,6 +2701,9 @@ static void stop(void *arg) {
     }
     log_msg("Terminating.");
     leds_destroy(&d->leds);
+    if (d->flash_mutex) {
+        VESC_IF->free(d->flash_mutex);  // SLCM for Refloat
+    }
     VESC_IF->free(d);
 }
 
@@ -2466,6 +2717,7 @@ INIT_FUN(lib_info *info) {
         return false;
     }
     data_init(d);
+    d->flash_mutex = VESC_IF->mutex_create ? VESC_IF->mutex_create() : NULL;  // SLCM for Refloat
 
     // Periodically called from the aux thread. Do the first refresh here to avoid races.
     motor_data_refresh_motor_config(
