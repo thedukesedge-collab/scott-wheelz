@@ -8050,7 +8050,7 @@ Item {
                             width: parent.width
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
-                            font.pixelSize: fontSizeSmall
+                            font.pixelSize: 0.22 * unit  // rf173: like the other Settings cards
                             text: "Refloat's beeper. OFF also mutes the warnings."
                         }
                         // rf157: Refloat's Persistent Fatal Error as a toggle, (?) explains
@@ -8091,7 +8091,7 @@ Item {
                             width: parent.width
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
-                            font.pixelSize: fontSizeSmall
+                            font.pixelSize: 0.22 * unit  // rf173: like the other Settings cards
                             text: "Keeps beeping after a fault until the board is power-cycled."
                         }
                             }
