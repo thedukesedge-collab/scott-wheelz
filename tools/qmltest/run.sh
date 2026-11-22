@@ -158,7 +158,7 @@ for c in "$@"; do
     printf "[uiHints]\nstatusText=true\nplotCursor=true\ndrGeneral=true\ndrStartStop=true\ndrDownload=true\n" > ~/.config/QtProject/qmlscene.conf
     case $shot in
       0) act="" ;;
-      1|2|3) act="swSettings.mixerLabels = $((shot - 1)); bottomSheet.open(); bottomStackTabs.currentIndex = 2;" ;;
+      1|2|3) act="bottomSheet.open(); bottomStackTabs.currentIndex = 2; swSettings.mixerLabels = $((shot - 1));" ;;
       4|5) act="ledSender.rgbAvail = true; ledSender.rfStatusAvail = true; swSettings.rgbAdvanced = $([ $shot = 5 ] && echo true || echo false); bottomSheet.open(); bottomStackTabs.currentIndex = 5; ledWindow.show('head');" ;;
       6) act="ledSender.rgbAvail = true; ledSender.rfStatusAvail = true; bottomSheet.open(); bottomStackTabs.currentIndex = 5; ledWindow.show('bar');" ;;
     esac

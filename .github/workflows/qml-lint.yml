@@ -25,7 +25,7 @@ jobs:
           sed "s/{{PACKAGE_NAME}}/x/g; s/{{VERSION}}/x/g; s/{{LCM_FW_JSON}}/null/g" ui.qml.in | python3 rjsmin.py > /tmp/lint.qml
           /usr/lib/qt5/bin/qmllint /tmp/lint.qml
       - name: Load test (stub VESC Tool modules)
-        run: tools/qmltest/run.sh HEAD
+        run: tools/qmltest/run.sh HEAD 9f5e432 75d6eef 573e486
       - name: Publish screenshots to the qml-shots branch
         run: |
           cd /tmp/shots
