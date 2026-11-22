@@ -1261,6 +1261,7 @@ static __attribute__((noinline)) void horn_settings_save_if_due(Data *d);
 static __attribute__((noinline)) void lcm_vp_save_if_due(Data *d);
 
 static __attribute__((noinline)) void battery_curve_save_if_due(Data *d);
+static __attribute__((noinline)) void speed_tone_save_if_due(Data *d);
 
 // rf77: a requested Refloat config write (see write_cfg_to_eeprom), done
 // once the board is at rest. Not in flywheel mode: that runs on a temporary
