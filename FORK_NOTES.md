@@ -1658,3 +1658,21 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   README: "Refloat Glow is an unofficial side project, built for fun, to make
   a few things simpler, like the LED controls. It's not an official Refloat
   release." UI text only.
+
+### SLCM r25: works properly with stock Refloat (LCM firmware only)
+- With stock Refloat 1.2.3 (no VP settings block) the SLCM now follows
+  Refloat's light settings from the first poll instead of only after they
+  change: Lights On/Off, headlights at the riding level while riding and
+  the idle level otherwise, status bar brightness. Behavior modeled on
+  Floatwheel's own LCM firmware (the idea only; no code reused - that repo
+  has no license).
+- Click-click on stock Refloat steps three light levels (headlights
+  0/60/100 %, status bar 30/60/100 %), not while riding; it holds until
+  Refloat sends different values. With the VP block, clicks still do
+  nothing.
+- A "lights off" saved from the app is overridden in RAM on stock Refloat
+  (never written), so Lights On always means on.
+- Unchanged: everything with the VP block (Refloat Glow / SLCM for
+  Refloat), the plain ALCM build. SLCM flash: 14,704 of 14,720 bytes (16
+  free). New host tests: stock-Refloat path, click-click levels.
+- The VESC package is unchanged (no new rf version).

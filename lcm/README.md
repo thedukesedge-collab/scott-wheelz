@@ -16,12 +16,22 @@ HK32F030M-based LCM, with Refloat Glow changes (`VP_LIGHT_CONTROL`):
   levels), the idle, riding, snooze (dozing), boot and shutdown animations,
   the personal color, and the beeper.
 - **The power button keeps its power functions**: hold to power off (and the
-  normal wake/power-on), plus the factory reset (hold through boot). Clicks
-  and click-hold (config mode) no longer change anything, and the footpads
-  no longer adjust settings.
+  normal wake/power-on), plus the factory reset (hold through boot).
+  Click-hold (config mode) no longer does anything, and the footpads no
+  longer adjust settings.
 
-Without a VP package that sends light settings, ALCM keeps its saved
-settings and behaves like stock v0.1.1 apart from the button changes.
+**On stock Refloat** (no VP block in the poll reply; SLCM r25+) the SLCM
+follows Refloat's own light settings from the first poll: Lights On/Off,
+headlights at Refloat's riding brightness while riding and its idle
+brightness otherwise, and the status bar brightness (Refloat Cfg › LEDs).
+Lights are switched on in RAM so a "headlights off" saved earlier from the
+app can't keep them dark (nothing is written to EEPROM on this path).
+**Click-click** (not while riding) steps three light levels - headlights
+0 / 60 / 100 %, status bar 30 / 60 / 100 % - with an ACK; the level holds until
+Refloat sends different values. Animations, color and beeper keep their
+saved settings. With the VP block (Refloat Glow, SLCM for Refloat) none of
+this applies and clicks do nothing. The plain ALCM build (`VP=0`) is
+unchanged.
 
 Battery gauge colors: white above 55 %, yellow 55-41 %, orange 40-30 %, red
 below 30 %, flashing red at 5 % and below; shown while riding from 40 % down.
