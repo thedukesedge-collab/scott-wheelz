@@ -4807,6 +4807,8 @@ Item {
         // across the full width
         property bool bigName: false
         signal moved(real newValue)
+        property bool editable: false  // rf160: tap the value to type it (numPad)
+        signal valueClicked()
         // rf101: optional ON / OFF switch between the label and the arrows
         // (-1 = none, 0 off, 1 on), e.g. the background color
         property int toggle: -1
@@ -4883,6 +4885,22 @@ Item {
                         font.family: "Exan"
                         font.pixelSize: 0.32 * unit
                         text: stepper.valueText !== "" ? stepper.valueText : stepper.value.toFixed(stepper.decimals) + stepper.suffix
+                    }
+                    // rf160: a typed value: dashed line under it, tap opens the number pad
+                    Row {
+                        visible: modelData === 0 && stepper.editable
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: parent.bottom
+                        spacing: 0.06 * unit
+                        Repeater {
+                            model: 6
+                            Rectangle { width: 0.12 * unit; height: 2; color: swTheme.neonPurple }
+                        }
+                    }
+                    MouseArea {
+                        enabled: modelData === 0 && stepper.editable
+                        anchors.fill: parent
+                        onClicked: stepper.valueClicked()
                     }
 
                     Rectangle {
@@ -8438,11 +8456,21 @@ Item {
                 onMoved: hapticCfg.set("duty", newValue / 100)
             }
             SwStepper {
+                id: atSpeedStep
                 label: "AT SPEED"
-                value: hapticCfg.speedKmh
-                from: 0; to: 100; step: 5
-                valueText: value === 0 ? "OFF" : Math.round(value * vescConfig.imperialFactor) + " " + vescConfig.speedUnit
-                onMoved: hapticCfg.set("speedKmh", newValue)
+                // rf160: 1 mph (or km/h) steps in the rider's unit; Refloat keeps
+                // whole km/h, and 1 mph <-> rounded km/h round-trips exactly.
+                // Tap the number to type it (number pad, DONE).
+                readonly property real f: vescConfig.imperialFactor > 0 ? vescConfig.imperialFactor : 1
+                value: Math.round(hapticCfg.speedKmh * f)
+                from: 0; to: Math.round(100 * f); step: 1
+                editable: true
+                valueText: value === 0 ? "OFF" : value + " " + vescConfig.speedUnit
+                onMoved: hapticCfg.set("speedKmh", Math.round(newValue / f))
+                onValueClicked: {
+                    numPad.edit("AT SPEED (0 = OFF)", value, 0, to, vescConfig.speedUnit,
+                        function (v) { hapticCfg.set("speedKmh", Math.round(v / atSpeedStep.f)); });
+                }
             }
             SwLText {
                 width: parent.width

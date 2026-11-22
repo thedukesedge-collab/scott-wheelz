@@ -376,7 +376,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf159 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf160 · sim</span></div>
     </div>
   </div>
 
@@ -1092,7 +1092,12 @@ function hapticWin() {
     $('hapSteps').innerHTML = '';
     if (h.str > 0) cuStep('hapSteps', 'STRENGTH', () => h.str, 0.5, 12, 0.5, v => v.toFixed(1) + ' V', v => { h.str = Math.round(v * 2) / 2; save(); r(); });
     cuStep('hapSteps', 'AT DUTY', () => h.duty, 50, 100, 1, v => v >= 100 ? 'OFF' : v + '%', v => { h.duty = v; save(); r(); });
-    cuStep('hapSteps', 'AT SPEED', () => h.spd, 0, 100, 5, v => v ? Math.round(v * 0.621371) + ' mph' : 'OFF', v => { h.spd = v; save(); r(); });
+    // rf160: 1 mph steps (stored as whole km/h, like Refloat); tap the number to type it
+    const mph = () => Math.round(h.spd * 0.621371), toKmh = m => Math.round(m / 0.621371);
+    cuStep('hapSteps', 'AT SPEED', mph, 0, 62, 1, v => v ? v + ' mph' : 'OFF', v => { h.spd = toKmh(v); save(); r(); });
+    { const sv = $('hapSteps').lastElementChild.querySelector('.stepVal');
+      sv.style.cursor = 'pointer'; sv.style.borderBottom = '2px dashed var(--purple)';
+      sv.onclick = () => numPad('AT SPEED (0 = OFF)', mph(), 0, 62, 'mph', v => { h.spd = toKmh(v); save(); r(); }); }
     renderCtl();
   };
   $('hapOn').onclick = () => { const h = P.hap; if (h.str > 0) { h.last = h.str; h.str = 0; } else h.str = h.last || 3; save(); r(); };
@@ -2026,7 +2031,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf159';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf160';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

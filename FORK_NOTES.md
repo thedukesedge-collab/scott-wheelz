@@ -1780,3 +1780,15 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   keeps beeping until you power-cycle the board". The words "firmware"
   and "pushback and four beeps" were dropped at the user's request. Text
   only; Refloat's behaviour is unchanged.
+
+### HAPTIC FEEDBACK › AT SPEED: 1 mph steps, tap to type (v1.2.3-rf160)
+- AT SPEED steps by 1 in the rider's unit (mph or km/h; was 5 km/h).
+  Refloat stores Speed Pushback (tiltback_speed) as whole km/h; a whole mph
+  rounds to whole km/h and back to the same mph, so every step sticks.
+- Tap the number to type it on the neon number pad; DONE sets it (kept
+  within 0 - 62 mph / 0 - 100 km/h, 0 = OFF) and closes the pad. A dashed
+  line under the number shows it can be tapped.
+- Same setting, same write path as before (only while the board is
+  stopped). It is also Refloat's Speed Pushback threshold, so the nose
+  lifts there too; finer steps only.
+- SwStepper gets an optional `editable` / valueClicked() (unused elsewhere).
