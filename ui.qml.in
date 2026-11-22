@@ -2613,7 +2613,7 @@ Item {
         property bool barAdvanced: false  // rf118: STATUS BAR view (Refloat LEDs)
         property bool rgbAdvanced: false  // rf118: RGB LIGHTS view
         property bool ledAutoApply: true  // rf131: LED changes go to the board right away
-        property bool mixerNotes: false  // rf142: MIXER tiles show their note names
+        property int mixerLabels: 0  // rf149: MIXER tile labels: 0 blank, 1 note names, 2 numbers
         property int rgbIdleLastFront: 50  // rf127: idle brightness before OFF
         property int rgbIdleLastRear: 50
         property int snzC1: 4
@@ -15578,11 +15578,11 @@ Item {
                                 onClicked: melodyPad.beep()
                             }
 
-                            // rf142: note names on the tiles (as before rf85), on / off
+                            // rf149: tile labels, tap to cycle: BLANK -> NOTES -> 123
                             SwPill {
-                                label: "NOTES"
-                                lit: swSettings.mixerNotes
-                                onClicked: swSettings.mixerNotes = !swSettings.mixerNotes
+                                label: ["BLANK", "NOTES", "123"][swSettings.mixerLabels]
+                                lit: swSettings.mixerLabels !== 0
+                                onClicked: swSettings.mixerLabels = (swSettings.mixerLabels + 1) % 3
                             }
 
                             Item { Layout.fillWidth: true }
@@ -15684,11 +15684,12 @@ Item {
                                     color: held ? melodyPad.tileColor(level) : "#140a26"
                                     border.color: melodyPad.tileColor(level)
                                     border.width: 3
-                                    // rf85: blank tiles; rf142: NOTES shows the note names again
+                                    // rf85: blank tiles; rf149: NOTES = note names, 123 = numbers
                                     Text {
-                                        visible: swSettings.mixerNotes
+                                        visible: swSettings.mixerLabels !== 0
                                         anchors.centerIn: parent
-                                        text: melodyPad.noteNames[parent.level - 1].charAt(0) + "<font size=\"2\">" + melodyPad.noteNames[parent.level - 1].charAt(1) + "</font>"
+                                        text: swSettings.mixerLabels === 2 ? String(parent.level)
+                                            : melodyPad.noteNames[parent.level - 1].charAt(0) + "<font size=\"2\">" + melodyPad.noteNames[parent.level - 1].charAt(1) + "</font>"
                                         textFormat: Text.StyledText
                                         color: parent.held ? swTheme.background : melodyPad.tileColor(parent.level)
                                         font.family: "Exan"

@@ -1676,3 +1676,10 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   Refloat), the plain ALCM build. SLCM flash: 14,704 of 14,720 bytes (16
   free). New host tests: stock-Refloat path, click-click levels.
 - The VESC package is unchanged (no new rf version).
+
+### Mixer tile labels: BLANK / NOTES / 123 (v1.2.3-rf149)
+- The MIXER's NOTES pill is now a three-way pill (tap to cycle):
+  BLANK (default, plain tiles as before), NOTES (note names E4 ... G5),
+  123 (tiles numbered 1-10). Saved in the app (mixerLabels; the rf142
+  NOTES on/off setting is no longer used, so everyone starts on BLANK).
+  UI only.
