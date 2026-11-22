@@ -156,7 +156,7 @@ target_include_directories(button_driver PUBLIC inc tests/mocks)
 target_include_directories(button_events PUBLIC inc tests/mocks)
 target_include_directories(command_processor PUBLIC inc tests/mocks)
 
-# Re-Float Rink-Mixed: VP_LIGHT_CONTROL build of the modules it changes, so
+# Refloat Glow: VP_LIGHT_CONTROL build of the modules it changes, so
 # both the stock and the VP behavior are tested
 add_library(alcm_vp STATIC
     src/animations.c

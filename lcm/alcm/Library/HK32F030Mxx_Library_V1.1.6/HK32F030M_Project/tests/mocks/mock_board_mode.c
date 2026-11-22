@@ -57,7 +57,7 @@ board_submode_t board_submode_get(void)
 
 #ifdef VP_LIGHT_CONTROL
 /**
- * @brief Mock of board_mode_fault_is_quiet (Re-Float Rink-Mixed): never
+ * @brief Mock of board_mode_fault_is_quiet (Refloat Glow): never
  * quiet here, so the buzzer tests see the stock fault sequences.
  */
 bool_t board_mode_fault_is_quiet(void)

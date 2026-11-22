@@ -1,4 +1,4 @@
-# Re-Float Rink-Mixed phone app (apps/rinkmixed): analyze, test, build.
+# Refloat Glow phone app (apps/rinkmixed): analyze, test, build.
 # Android APK on every push to apps/; the iPhone build runs when the commit
 # message contains [ios] or when started by hand (macOS minutes are pricier).
 name: App
@@ -66,8 +66,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view app-latest >/dev/null 2>&1 || gh release create app-latest --prerelease \
-            --title "Rink-Mixed app (latest build)" --notes "Latest phone app builds from main."
-          gh release edit app-latest --notes "Rink-Mixed app built from ${GITHUB_SHA::7}. Android: tap rinkmixed.apk to download and install."
+            --title "Refloat Glow app (latest build)" --notes "Latest phone app builds from main."
+          gh release edit app-latest --notes "Refloat Glow app built from ${GITHUB_SHA::7}. Android: tap rinkmixed.apk to download and install."
           gh release upload app-latest "$APP/rinkmixed.apk" --clobber
           for f in $APP/screens/*.png; do [ -f "$f" ] && gh release upload app-latest "$f" --clobber; done
 
@@ -101,5 +101,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view app-latest >/dev/null 2>&1 || gh release create app-latest --prerelease \
-            --title "Rink-Mixed app (latest build)" --notes "Latest phone app builds from main."
+            --title "Refloat Glow app (latest build)" --notes "Latest phone app builds from main."
           gh release upload app-latest "$APP/rinkmixed-unsigned.ipa" --clobber

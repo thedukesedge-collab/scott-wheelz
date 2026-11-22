@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Part of Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
-// Re-Float Rink-Mixed: LCM firmware update relay (phone -> package -> LCM
+// Part of Refloat Glow, 2026. See FORK_NOTES.md.
+// Refloat Glow: LCM firmware update relay (phone -> package -> LCM
 // bootloader). GPL-3.0-or-later.
 //
 // The phone stages an image (START: size, CRC16), the package raises the

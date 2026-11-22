@@ -212,7 +212,7 @@ Do not begin changing safety-critical firmware behavior as part of this naming a
 - Changelog: FORK_NOTES.md (one entry per release, `v1.2.3-rfN`); version in
   `version`. Releases: RELEASING.md (tagged releases only after review).
 - Files changed from upstream carry the line
-  `Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.`
+  `Modified by Refloat Glow, 2026. See FORK_NOTES.md.`
   (GPL-3.0 section 5a). New files: SPDX / GPL-3.0-or-later header.
 - Safety-critical upstream code NOT modified (verify with
   `git diff v1.2.3 -- src/<file>`): balance_filter, motor_control, pid, atr,

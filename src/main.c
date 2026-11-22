@@ -1,7 +1,7 @@
 // Copyright 2019 - 2022 Mitch Lustig
 // Copyright 2022 Benjamin Vedder <benjamin@vedder.se>
 // Copyright 2024 Lukas Hrazky
-// Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
+// Modified by Refloat Glow, 2026. See FORK_NOTES.md.
 //
 // This file is part of the Refloat VESC package.
 //
@@ -216,7 +216,7 @@ static void configure(Data *d) {
 
     reconfigure(d);
 
-    // Re-RinkFloat: follow LED Mode changes without a power cycle
+    // Refloat Glow: follow LED Mode changes without a power cycle
     d->lcm.enabled = d->float_conf.hardware.leds.mode & LED_MODE_EXTERNAL;
     lcm_configure(&d->lcm, &d->leds);
 
@@ -844,7 +844,7 @@ static void refloat_thd(void *arg) {
             }
         }
 
-        // Re-RinkFloat: if an external beeper is installed and enabled
+        // Refloat Glow: if an external beeper is installed and enabled
         // (Servo/PPM pin), it sounds together with the horn. Real alerts keep
         // control of the beeper: beep_on/off(force = false) don't interrupt a
         // running multi-beep alert.
@@ -906,7 +906,7 @@ static void refloat_thd(void *arg) {
                     beep_alert(d, 1, true);
                 }
 
-                // Re-RinkFloat: boot melody (default or custom) at the saved horn volume
+                // Refloat Glow: boot melody (default or custom) at the saved horn volume
                 if (d->boot_melody) {
                     haptic_feedback_play_melody(
                         &d->haptic_feedback,
@@ -1011,7 +1011,7 @@ static void refloat_thd(void *arg) {
                 new_current = sign(new_current) * current_limit;
             }
 
-            // Re-Float Rink-Mixed (rf75): the free-spin limiter that used to be
+            // Refloat Glow (rf75): the free-spin limiter that used to be
             // here was removed. It was the only change to the balance current:
             // a false wheelslip flag near its speed could cut drive current.
             // The balance loop is now exactly upstream Refloat 1.2.3.
@@ -1377,7 +1377,7 @@ static void read_cfg_from_eeprom(Data *d) {
     VESC_IF->free(buffer);
 }
 
-// Re-RinkFloat: horn settings in two custom EEPROM words, past the config
+// Refloat Glow: horn settings in two custom EEPROM words, past the config
 // (which uses the first SERIALIZED_CONFIG_LENGTH / 4 words).
 #define HORN_EEPROM_ADDR 120
 #define HORN_EEPROM_MAGIC 0xB3u  // B3: 64-entry melody in words 88-119
@@ -1485,7 +1485,7 @@ static void horn_settings_queue_save(Data *d, uint32_t w0, uint32_t w1) {
     }
 }
 
-// Re-Float Rink-Mixed: light module (ALCM VP) settings in 4 custom EEPROM
+// Refloat Glow: light module (ALCM VP) settings in 4 custom EEPROM
 // words (80-83, right after the 80-word config). Saved like the horn
 // settings: 2 s after the last change, never while riding.
 #define LCM_VP_EEPROM_ADDR 80  // 4 words: 80-83
@@ -1532,7 +1532,7 @@ static __attribute__((noinline)) void lcm_vp_save_if_due(Data *d) {
     flash_end(d);
 }
 
-// Re-Float Rink-Mixed: battery curve in 4 custom EEPROM words (84-87),
+// Refloat Glow: battery curve in 4 custom EEPROM words (84-87),
 // saved like the light settings: 2 s after the last change, never while riding
 #define BATTERY_EEPROM_ADDR 84
 #define CMD_LCM_BATTERY 129  // = COMMAND_LCM_BATTERY below
@@ -1722,7 +1722,7 @@ enum {
     COMMAND_ALERTS_CONTROL = 36,
     COMMAND_DATA_RECORD_REQUEST = 41,
 
-    // Re-RinkFloat custom commands (kept far from upstream's range)
+    // Refloat Glow custom commands (kept far from upstream's range)
     COMMAND_SW_HORN = 120,  // haptic horn: 1 byte, 1 = on/keepalive, 0 = off
     COMMAND_FREESPIN_LIMIT = 121,  // free-spin limiter: uint16 limit in 0.1 km/h, 0 = off
     // horn-only sound: u8 beep V x10, u16 beep Hz, u8 buzz A x10, u16 buzz Hz
@@ -2669,7 +2669,7 @@ static void cmd_info(const Data *d, unsigned char *buf, int len) {
 }
 
 // Handler for incoming app commands
-// Re-Float Rink-Mixed (rf75): the light module poll, out of line for the
+// Refloat Glow (rf75): the light module poll, out of line for the
 // same reason as rm_command below
 static __attribute__((noinline)) void lcm_poll(Data *d, unsigned char *buffer, unsigned int len) {
     lcm_poll_request(&d->lcm, buffer, len);
@@ -2684,7 +2684,7 @@ static __attribute__((noinline)) void lcm_poll(Data *d, unsigned char *buffer, u
     lcm_poll_response(&d->lcm, &d->state, d->footpad.state, &d->motor, d->imu.pitch);
 }
 
-// Re-Float Rink-Mixed (rf75): the package's own commands (120-130), kept out
+// Refloat Glow (rf75): the package's own commands (120-130), kept out
 // of on_command_received so its stack frame stays upstream's size (that
 // frame is live under data_recorder_request, the deepest call on this thread)
 static __attribute__((noinline)) bool rm_command(

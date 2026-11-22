@@ -1,5 +1,5 @@
 // Copyright 2024 Lukas Hrazky
-// Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
+// Modified by Refloat Glow, 2026. See FORK_NOTES.md.
 //
 // This file is part of the Refloat VESC package.
 //
@@ -38,7 +38,7 @@ typedef enum {
 #define MAX_LCM_NAME_LENGTH 20
 #define MAX_LCM_PAYLOAD_LENGTH 64
 
-// Re-Float Rink-Mixed: light settings for the VP build of ALCM, set from the
+// Refloat Glow: light settings for the VP build of ALCM, set from the
 // app (COMMAND_LCM_VP_SETTINGS) and appended to every LCM poll reply. See
 // lcm/README.md for the wire format.
 #define LCM_VP_FLAG_HEADLIGHTS 0x01
@@ -125,7 +125,7 @@ void lcm_configure(LcmData *lcm, const Leds *leds);
  */
 void lcm_poll_request(LcmData *lcm, uint8_t *buffer, size_t len);
 
-// Re-Float Rink-Mixed: VP settings set from the app and the LCM named itself
+// Refloat Glow: VP settings set from the app and the LCM named itself
 // as SLCM ("VP-..." / "VPBL-...") or doesn't name itself (older SLCM):
 // only then is the VP block sent
 bool lcm_is_slcm(const LcmData *lcm);
@@ -166,7 +166,7 @@ void lcm_get_battery_response(const LcmData *lcm);
 void lcm_light_ctrl_request(LcmData *lcm, unsigned char *cfg, int len);
 
 /**
- * Re-Float Rink-Mixed: sets the VP light settings from the app (12 bytes:
+ * Refloat Glow: sets the VP light settings from the app (12 bytes:
  * flags, headlight riding %, status idle %, status riding %, 5 animations,
  * color hi, color lo, headlight idle %; the 11-byte form without the last
  * byte uses the riding % for idle too). Values are clamped. Returns true if

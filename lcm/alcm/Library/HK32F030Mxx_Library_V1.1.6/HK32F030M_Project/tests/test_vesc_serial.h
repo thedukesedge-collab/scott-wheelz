@@ -915,7 +915,7 @@ static void vp_push_packet(ring_buffer_t *rx_buffer, const uint8_t *payload, uin
 }
 
 /**
- * @brief VP light-control block (Re-Float Rink-Mixed package)
+ * @brief VP light-control block (Refloat Glow package)
  *
  * Covers: brightness applied on the very first reply (no baseline wait),
  * on/off flags, beeper flag, animations and personal color applied with a

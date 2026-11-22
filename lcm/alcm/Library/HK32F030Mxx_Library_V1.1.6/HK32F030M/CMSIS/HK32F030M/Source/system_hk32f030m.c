@@ -40,7 +40,7 @@
 #define SYSCLK_SOURCE	SYSCLK_SRC_HSI32M
 
 // #define VECT_TAB_SRAM
-#ifndef VECT_TAB_OFFSET /* Re-Float Rink-Mixed: 0x600 when built to run after the LCM bootloader */
+#ifndef VECT_TAB_OFFSET /* Refloat Glow: 0x600 when built to run after the LCM bootloader */
 #define VECT_TAB_OFFSET  0x0 /*!< Vector Table base offset field. This value must be a multiple of 0x200. */
 #endif
 
@@ -93,7 +93,7 @@ void SystemInit(void)
 
 	SetSysClock();
 #else
-	/* Re-Float Rink-Mixed (SLCM, bootloader build): the same clock as
+	/* Refloat Glow (SLCM, bootloader build): the same clock as
 	 * SetSysClock() (HSI 32 MHz with the factory trim, 2 flash wait states,
 	 * flash clock prescaler 7, HCLK = PCLK = SYSCLK), written compactly to
 	 * save flash. It must be done here: on a normal power-up the bootloader

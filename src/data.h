@@ -1,5 +1,5 @@
 // Copyright 2025 Lukas Hrazky
-// Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
+// Modified by Refloat Glow, 2026. See FORK_NOTES.md.
 //
 // This file is part of the Refloat VESC package.
 //
@@ -44,7 +44,7 @@
 
 #include <vesc_c_if.h>
 
-// Re-RinkFloat: horn settings + custom melody in custom EEPROM words
+// Refloat Glow: horn settings + custom melody in custom EEPROM words
 #define HORN_EEPROM_WORDS 34  // 2 settings words + 32 melody words (64 notes/rests)
 
 typedef struct {
@@ -99,9 +99,9 @@ typedef struct {
     time_t beeper_timer;
     int beep_reason;
     bool beeper_enabled;
-    bool sw_horn_beeping;  // Re-RinkFloat: external beeper is on because of the horn
+    bool sw_horn_beeping;  // Refloat Glow: external beeper is on because of the horn
 
-    // Re-RinkFloat: horn settings + boot melody switch, remembered on the board
+    // Refloat Glow: horn settings + boot melody switch, remembered on the board
     // (2 custom EEPROM words after the config). Written from the aux thread,
     // only when changed and never while riding.
     volatile uint32_t horn_saved[HORN_EEPROM_WORDS];

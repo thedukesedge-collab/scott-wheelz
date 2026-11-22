@@ -41,7 +41,7 @@ typedef struct
     animation_option_t shutdown_animation; // Animation option for shutdown sequence.
     animation_option_t ride_animation;     // Animation option for riding state.
 #ifdef VP_LIGHT_CONTROL
-    // Re-Float Rink-Mixed (SLCM r19+): kept on the LCM, so they also apply
+    // Refloat Glow (SLCM r19+): kept on the LCM, so they also apply
     // with the package off
     uint8_t custom_anim[8]; // CUSTOM animation, see status_leds.c
     uint8_t doze_dark;      // headlights dark in snooze (no breathing)

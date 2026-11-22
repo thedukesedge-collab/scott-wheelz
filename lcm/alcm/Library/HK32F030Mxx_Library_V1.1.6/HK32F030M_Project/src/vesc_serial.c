@@ -73,7 +73,7 @@
 #define LCM_STATE_DISABLED 0x0FU
 
 #ifdef VP_LIGHT_CONTROL
-/* Re-Float Rink-Mixed (VP) light-control block, appended by the VP package
+/* Refloat Glow (VP) light-control block, appended by the VP package
  * right after refloat's standard COMMAND_LCM_POLL reply (which ends at
  * offset 14). When present, the app is the only source of light settings:
  * every field is applied whenever it differs from the current setting, and
@@ -1254,7 +1254,7 @@ TIMER_CALLBACK(vesc_serial, tx)
      * byte 7: end byte (0x03)
      */
 #if defined(ENABLE_IMU_EVENTS) && defined(ENABLE_APP_INTEGRATION)
-    /* Re-Float Rink-Mixed: the GCC build passes in an LCM_POLL segment that
+    /* Refloat Glow: the GCC build passes in an LCM_POLL segment that
      * carries the firmware name ("VPBL-<build>" with the bootloader,
      * "VP-<build>" without), generated with its CRC by lcm/tools/lcm_tag.py.
      * Refloat stores it (lcm_poll_request) so the app can tell which LCM

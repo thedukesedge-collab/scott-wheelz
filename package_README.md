@@ -1,6 +1,6 @@
 # Refloat Glow
 
-*A custom Refloat remix* (formerly Re-Float Rink-Mixed / Re-RinkFloat)
+*A custom Refloat remix*
 
 **Refloat Glow is a vibe-coded fork of [Refloat](https://github.com/lukash/refloat) 1.2.3.** All the changes below were made with an AI coding assistant on top of Refloat. All credit for the package itself goes to **Lukáš Hrázký (lukash)**, the author of Refloat, and to the original Float authors (Mitch Lustig, Dado Mista, Nico Aleman, based on work by Benjamin Vedder). Licensed under GPL-3.0. Not an official Refloat release, so please don't report Refloat Glow issues to the Refloat project.
 

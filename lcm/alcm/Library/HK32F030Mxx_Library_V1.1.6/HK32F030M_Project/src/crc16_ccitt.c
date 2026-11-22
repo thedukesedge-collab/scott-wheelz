@@ -57,7 +57,7 @@ static const uint16_t crc16_tab[] = {
  * @return The computed checksum.
  */
 #ifdef VP_LIGHT_CONTROL
-/* Re-Float Rink-Mixed: bit-by-bit version of the same CRC-16/XMODEM
+/* Refloat Glow: bit-by-bit version of the same CRC-16/XMODEM
  * (poly 0x1021, init 0) - identical results, ~470 bytes less flash than the
  * 512-byte table (the packets checked here are at most 32 bytes). */
 uint16_t crc16_ccitt(const uint8_t *data, uint16_t length)

@@ -55,7 +55,7 @@ static command_processor_adjustment_t command_processor_adjustment = COMMAND_PRO
 #endif
 
 /*
- * VP_LIGHT_CONTROL (Re-Float Rink-Mixed build): every light/beeper setting is
+ * VP_LIGHT_CONTROL (Refloat Glow build): every light/beeper setting is
  * set from the phone through the VESC package (see vesc_serial.c). The button
  * keeps only its power functions - hold to shut down, and the factory reset
  * gesture (hold through boot) - and the footpads no longer change settings.

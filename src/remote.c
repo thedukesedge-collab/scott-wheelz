@@ -1,5 +1,5 @@
 // Copyright 2025 Lukas Hrazky
-// Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
+// Modified by Refloat Glow, 2026. See FORK_NOTES.md.
 //
 // This file is part of the Refloat VESC package.
 //
@@ -73,7 +73,7 @@ void remote_input(Remote *remote, const RefloatConfig *config) {
     remote->input = value;
 }
 
-// Re-RinkFloat: hard cap on remote tilt (app TILT slider or any remote), no
+// Refloat Glow: hard cap on remote tilt (app TILT slider or any remote), no
 // matter what Tiltback Angle Limit is set to, so the setpoint can never be
 // tilted far enough to drag or dive the nose. Degrees, both directions.
 #define REMOTE_TILT_SAFE_MAX 4.0f

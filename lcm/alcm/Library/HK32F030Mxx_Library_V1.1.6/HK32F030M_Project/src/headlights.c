@@ -437,7 +437,7 @@ EVENT_HANDLER(headlights, state_change)
 #ifdef HEADLIGHTS_ENABLE_DOZING
             case BOARD_SUBMODE_IDLE_DOZING:
 #ifdef VP_LIGHT_CONTROL
-                // Re-Float Rink-Mixed: snooze breathing can be switched off
+                // Refloat Glow: snooze breathing can be switched off
                 // from the app (lights simply off in snooze)
                 if (headlights_settings->doze_dark != 0U)
                 {

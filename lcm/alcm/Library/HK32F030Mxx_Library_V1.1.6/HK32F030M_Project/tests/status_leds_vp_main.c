@@ -1,5 +1,5 @@
 /*
- * Re-Float Rink-Mixed: status LED tests for the VP_LIGHT_CONTROL build.
+ * Refloat Glow: status LED tests for the VP_LIGHT_CONTROL build.
  * (Stock tests run in test_status_leds; config mode is compiled out here.)
  * Checks the VP battery gauge colors: white above 55 %, yellow 55-41 %,
  * orange 40-30 %, red below 30 % (solid gauge); flashing red at 5 % and

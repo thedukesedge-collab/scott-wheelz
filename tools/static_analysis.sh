@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Part of Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
+# Part of Refloat Glow, 2026. See FORK_NOTES.md.
 # refloatRM: static analysis of the package C code (clang-tidy: the clang
 # static analyzer + bug-prone patterns), host build of the sources.
 #

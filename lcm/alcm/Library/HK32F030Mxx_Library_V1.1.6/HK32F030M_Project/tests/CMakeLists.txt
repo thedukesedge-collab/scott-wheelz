@@ -167,7 +167,7 @@ target_link_libraries(test_alcm PRIVATE alcm cmocka)
 # Enable testing and add test
 add_test(NAME ALCMTest COMMAND test_alcm)
 
-# Re-Float Rink-Mixed: the same tests against the VP_LIGHT_CONTROL build
+# Refloat Glow: the same tests against the VP_LIGHT_CONTROL build
 add_executable(test_alcm_vp
     mocks/mock_board_mode.c
     mocks/mock_eeprom.c

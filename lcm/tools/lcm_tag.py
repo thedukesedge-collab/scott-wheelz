@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Re-Float Rink-Mixed: writes the LCM_POLL segment that carries the LCM
+"""Refloat Glow: writes the LCM_POLL segment that carries the LCM
 firmware name (e.g. "VPBL-1a2b3c4"), with its precomputed CRC, as a header
 the GCC build force-includes (see vesc_serial.c, LCM_POLL_SEGMENT).
 

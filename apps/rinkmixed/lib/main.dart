@@ -42,7 +42,7 @@ class _RinkMixedAppState extends State<RinkMixedApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Re-Float Rink-Mixed',
+      title: 'Refloat Glow',
       debugShowCheckedModeBanner: false,
       theme: appTheme(),
       home: board.link == null

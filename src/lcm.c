@@ -1,5 +1,5 @@
 // Copyright 2024 Lukas Hrazky
-// Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
+// Modified by Refloat Glow, 2026. See FORK_NOTES.md.
 //
 // This file is part of the Refloat VESC package.
 //
@@ -60,14 +60,14 @@ void lcm_configure(LcmData *lcm, const Leds *leds) {
             lcm->brightness = cfg->headlights.brightness * 100;
             lcm->status_brightness = cfg->status.brightness_headlights_on * 100;
         } else {
-            // Re-RinkFloat: headlights off really means off on a light module
+            // Refloat Glow: headlights off really means off on a light module
             // (ALCM etc. have one headlight brightness; the stock "front strip
             // brightness" default equals the headlight default, so toggling
             // changed nothing)
             lcm->brightness = 0;
             lcm->status_brightness = cfg->status.brightness_headlights_off * 100;
         }
-        // Re-Float Rink-Mixed: and no idle (running) light either
+        // Refloat Glow: and no idle (running) light either
         lcm->brightness_idle = status->headlights_enabled ? cfg->front.brightness * 100 : 0;
     }
     lcm->lights_off_when_lifted = cfg->lights_off_when_lifted;
@@ -101,7 +101,7 @@ bool lcm_is_slcm(const LcmData *lcm) {
 }
 
 void lcm_poll_request(LcmData *lcm, uint8_t *buffer, size_t len) {
-    // Re-Float Rink-Mixed: the name is kept whatever the LED mode (the app
+    // Refloat Glow: the name is kept whatever the LED mode (the app
     // uses it to tell which LCM firmware is fitted: "VPBL-..." = ALCM VP
     // with the bootloader), and `i >= len` (stock read one byte past it)
 
@@ -131,7 +131,7 @@ void lcm_poll_response(
     buffer[ind++] = 101;  // Package ID
     buffer[ind++] = COMMAND_LCM_POLL;
 
-    // Re-Float Rink-Mixed: the VP light settings (and the VP block) only go to
+    // Refloat Glow: the VP light settings (and the VP block) only go to
     // an SLCM - an LCM that named itself "VP-..." / "VPBL-..." in its poll -
     // whatever the LED Mode. Any other LCM gets exactly stock Refloat's reply.
     const bool slcm = lcm_is_slcm(lcm);
@@ -157,7 +157,7 @@ void lcm_poll_response(
         buffer_append_float16(buffer, VESC_IF->mc_get_input_voltage_filtered(), 1e1, &ind);
 
         if (slcm) {
-            // Re-Float Rink-Mixed: brightness from the app (status bar level
+            // Refloat Glow: brightness from the app (status bar level
             // depends on riding / not riding), then the VP block (ALCM VP
             // build); 25 bytes in total, ALCM accepts up to 32
             // Headlights and status bar both switch between their riding
@@ -262,7 +262,7 @@ void lcm_device_info_response(const LcmData *lcm) {
     buffer[ind++] = COMMAND_LCM_DEVICE_INFO;
 
     {
-        // Write LCM firmware name into the buffer (Re-Float Rink-Mixed:
+        // Write LCM firmware name into the buffer (Refloat Glow:
         // whatever the LED mode, "" when no LCM has named itself)
         for (int i = 0; i < MAX_LCM_NAME_LENGTH; i++) {
             buffer[ind++] = lcm->name[i];
@@ -324,7 +324,7 @@ static uint8_t clamp_u8(uint8_t value, uint8_t max) {
     return value > max ? max : value;
 }
 
-// Re-Float Rink-Mixed (rf72): Refloat's LED colors as SLCM hues (degrees / 2;
+// Refloat Glow (rf72): Refloat's LED colors as SLCM hues (degrees / 2;
 // 0xFF = white / black: no hue, the SLCM's own color is used)
 static const uint8_t refloat_color_hue[] = {
     0xFF, 0xFF, 0xFF, 0xFF, 0,  7,   9,   5,   10,  13,  13,  14,  19,  18,  30,  41,

@@ -1,5 +1,5 @@
 /*
- * Re-Float Rink-Mixed: small replacements for the runtime routines GCC pulls
+ * Refloat Glow: small replacements for the runtime routines GCC pulls
  * in from libgcc / newlib-nano, to make room for the LCM bootloader (the
  * Cortex-M0 has no divide instruction, and libgcc's unrolled Thumb-1
  * division alone is ~730 bytes). Same results, a little slower - fine for

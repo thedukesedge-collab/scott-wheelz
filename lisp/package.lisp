@@ -1,5 +1,5 @@
 ; Part of the Refloat VESC package (GPL-3.0-or-later, see LICENSE).
-; Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
+; Modified by Refloat Glow, 2026. See FORK_NOTES.md.
 
 (import "src/package_lib.bin" 'package-lib)
 (load-native-lib package-lib)

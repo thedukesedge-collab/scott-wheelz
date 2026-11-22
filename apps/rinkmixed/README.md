@@ -1,7 +1,7 @@
-# Re-Float Rink-Mixed app
+# Refloat Glow app (old Flutter version)
 
 Standalone phone app (iPhone + Android, Flutter) for VESC Onewheels running the
-Re-Float Rink-Mixed package. It talks to the board over Bluetooth the same way
+Refloat Glow package. It talks to the board over Bluetooth the same way
 the package's VESC Tool screen does, and mirrors its look.
 
 ## Status

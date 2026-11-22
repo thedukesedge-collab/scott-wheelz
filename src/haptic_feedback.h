@@ -1,5 +1,5 @@
 // Copyright 2024 Lukas Hrazky
-// Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
+// Modified by Refloat Glow, 2026. See FORK_NOTES.md.
 //
 // This file is part of the Refloat VESC package.
 //
@@ -31,10 +31,10 @@ typedef enum {
     HAPTIC_FEEDBACK_ERROR_TEMPERATURE,
     HAPTIC_FEEDBACK_ERROR_VOLTAGE,
     HAPTIC_FEEDBACK_ERROR_FATAL,
-    HAPTIC_FEEDBACK_HORN,  // Re-RinkFloat: manual horn from the app
+    HAPTIC_FEEDBACK_HORN,  // Refloat Glow: manual horn from the app
 } HapticFeedbackType;
 
-// Re-RinkFloat horn sound modes (sent by the app with each press)
+// Refloat Glow horn sound modes (sent by the app with each press)
 typedef enum {
     HORN_MODE_BEEP = 0,  // audible motor tone only
     HORN_MODE_BUZZ = 1,  // vibration (current) only; tone when idle or vibrate is off
@@ -42,7 +42,7 @@ typedef enum {
     HORN_MODE_BOTH = 3,  // beep and buzz together
 } HornMode;
 
-// Re-RinkFloat: melodies are up to 8 notes and 4 s long
+// Refloat Glow: melodies are up to 8 notes and 4 s long
 #define MELODY_MAX_NOTES 64  // notes + rests
 #define MELODY_MAX_LENGTH 4.0f  // whole melody incl. rests (s), = recording window
 #define MELODY_MAX_NOTE 2.0f  // one note / one held tile (s); rests are not capped
@@ -51,11 +51,11 @@ typedef enum {
 // Servo/PPM) instead of a motor tone; silent when the beeper is off
 #define MELODY_BEEP_LEVEL 11
 #define MELODY_BEEP_HZ 1
-// Re-Float Rink-Mixed: boot melody volume (beep V), kept well under the
+// Refloat Glow: boot melody volume (beep V), kept well under the
 // horn's 4 V on purpose; the app's 1-10 maps to 0.25-2.5 V
 #define BOOT_MELODY_MAX_V 2.5f
 #define BOOT_MELODY_DEFAULT_V 1.5f
-// Re-RinkFloat: sound budget shared by melodies and live tiles, so the motor
+// Refloat Glow: sound budget shared by melodies and live tiles, so the motor
 // never plays tones for long stretches: 10 s of sound, refilled at half
 // speed while quiet; when it runs out, tones pause until 3 s is back.
 #define TONE_BUDGET 10.0f
@@ -76,7 +76,7 @@ typedef struct {
     bool is_playing;
     bool can_change_type;
 
-    // Re-RinkFloat horn: set from the command thread, read in the main loop.
+    // Refloat Glow horn: set from the command thread, read in the main loop.
     // A press plays for at least HORN_MIN_TIME and at most HORN_MAX_TIME_*
     // (riding / idle), stops HORN_TIMEOUT after the last keepalive (e.g. app
     // disconnects), and is limited by a heat budget (see haptic_feedback.c).
@@ -88,7 +88,7 @@ typedef struct {
     volatile bool horn_used;  // at least one press since boot
     volatile uint8_t horn_mode;  // HornMode of the current press
 
-    // Re-RinkFloat: horn-only sound settings sent by the app (not saved on the
+    // Refloat Glow: horn-only sound settings sent by the app (not saved on the
     // board). Until they arrive, the horn uses the haptic config with minimums.
     volatile bool horn_custom;
     volatile float horn_beep_strength;  // V
@@ -96,7 +96,7 @@ typedef struct {
     volatile float horn_buzz_strength;  // A, 0 = no buzz
     volatile uint16_t horn_buzz_frequency;  // Hz
 
-    // Re-RinkFloat: melody player (boot melody / custom melody), READY only
+    // Refloat Glow: melody player (boot melody / custom melody), READY only
     volatile bool melody_active;
     volatile time_t melody_start;
     volatile float melody_volume;  // V
@@ -117,7 +117,7 @@ typedef struct {
 
 void haptic_feedback_init(HapticFeedback *hf);
 
-// Re-RinkFloat: horn-only settings from the app; values are clamped to safe ranges.
+// Refloat Glow: horn-only settings from the app; values are clamped to safe ranges.
 void haptic_feedback_horn_settings(
     HapticFeedback *hf,
     float beep_strength,
@@ -128,28 +128,28 @@ void haptic_feedback_horn_settings(
 
 void haptic_feedback_configure(HapticFeedback *hf, const RefloatConfig *cfg);
 
-// Re-RinkFloat horn requests (byte [2] of COMMAND_SW_HORN)
+// Refloat Glow horn requests (byte [2] of COMMAND_SW_HORN)
 typedef enum {
     HORN_REQ_OFF = 0,
     HORN_REQ_KEEPALIVE = 1,  // only keeps an existing press alive
     HORN_REQ_START = 2,  // starts a new press
 } HornRequest;
 
-// Re-RinkFloat: start / keep alive / stop the haptic horn.
+// Refloat Glow: start / keep alive / stop the haptic horn.
 void haptic_feedback_horn(HapticFeedback *hf, const Time *time, uint8_t req, uint8_t mode);
 
-// Re-RinkFloat: true while the horn is actually sounding (drives the optional
+// Refloat Glow: true while the horn is actually sounding (drives the optional
 // external beeper on the PPM pin).
 bool haptic_feedback_horn_playing(const HapticFeedback *hf);
 
-// Re-RinkFloat: plays a melody of `count` notes (2 bytes each, see above) at
+// Refloat Glow: plays a melody of `count` notes (2 bytes each, see above) at
 // the given beep volume; count 0 plays the default boot melody (the rider's
 // "Melody 2", see haptic_feedback.c). Only sounds while the board is READY; stops if it engages.
 void haptic_feedback_play_melody(
     HapticFeedback *hf, const Time *time, float volume, const uint8_t *notes, uint8_t count
 );
 
-// Re-RinkFloat: live tone for the melody tiles: plays pitch `level` (0 = stop)
+// Refloat Glow: live tone for the melody tiles: plays pitch `level` (0 = stop)
 // while keepalives arrive (stops 0.3 s after the last one). READY only.
 void haptic_feedback_live_tone(HapticFeedback *hf, const Time *time, uint8_t level, float volume);
 

@@ -1,4 +1,4 @@
-# Re-RinkFloat: build any commit and publish it as its own release, so older
+# Refloat Glow: build any commit and publish it as its own release, so older
 # versions stay downloadable (Actions > Release a commit > Run workflow).
 name: Release a commit
 on:
@@ -33,4 +33,4 @@ jobs:
           cp refloatrm.vescpkg refloatrm-$ver.vescpkg
           gh release delete "${{ inputs.name }}" --yes --cleanup-tag || true
           gh release create "${{ inputs.name }}" refloatrm-$ver.vescpkg --prerelease \
-            --title "Re-RinkFloat $ver (${sha::7})" --notes "Build of ${sha::7}." --target "$sha"
+            --title "Refloat Glow $ver (${sha::7})" --notes "Build of ${sha::7}." --target "$sha"

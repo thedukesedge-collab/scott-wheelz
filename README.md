@@ -1,6 +1,6 @@
 # Refloat Glow
 
-*(formerly Refloat rink-mixed / Re-Float Rink-Mixed; the repository keeps its old name `scott-wheelz` so download links keep working)*
+*(the repository keeps its old name `scott-wheelz` so download links keep working)*
 
 **Refloat Glow is an independent, unofficial modification of [Refloat](https://github.com/lukash/refloat) v1.2.3**, the VESC package for self-balancing skateboards by Lukáš Hrázký (lukash). It adds a Neon Future app UI, a motor horn and melodies, controller- and LCM-driven lights, and an optional light module firmware. The balance and motor-control code is Refloat's, unchanged.
 

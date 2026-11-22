@@ -1,5 +1,5 @@
 // Copyright 2024 Lukas Hrazky
-// Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
+// Modified by Refloat Glow, 2026. See FORK_NOTES.md.
 //
 // This file is part of the Refloat VESC package.
 //
@@ -25,7 +25,7 @@
 #include <math.h>
 
 #define TONE_LENGTH 0.1f
-// Re-RinkFloat horn safety limits (seconds)
+// Refloat Glow horn safety limits (seconds)
 // - stops this long after the last keepalive from the app (app disconnects).
 //   A keepalive never starts a new press (only an explicit start does), so a
 //   Bluetooth hiccup can cut a press short but never extend it.
@@ -58,7 +58,7 @@
 // rf81: the horn's beep never goes above 4 V (the app's 10/10)
 #define HORN_MAX_BEEP_STRENGTH 4.0f
 #define HORN_DEFAULT_BEEP_FREQUENCY 495
-// Re-Float Rink-Mixed: the default boot melody, in the custom melody format
+// Refloat Glow: the default boot melody, in the custom melody format
 // (pitch level 1-10 = E4..G5, 0 = rest; length in 20 ms units). rf106: Jingle
 // Bells (public domain; same as the app's CLASSICS one), 3.48 s. (rf68-rf105:
 // the rider's "Melody 2".)
@@ -233,7 +233,7 @@ static HapticFeedbackType haptic_feedback_get_type(
     const AlertTracker *at,
     const Time *time
 ) {
-    // Re-RinkFloat: the horn also works while the board is idle (READY).
+    // Refloat Glow: the horn also works while the board is idle (READY).
     // update() then plays only the foc_play_tone part, which runs the motor
     // at 0 A with an audio signal on top, so the wheel isn't pushed.
     if (state->state == STATE_READY && horn_active(hf, time, HORN_MAX_TIME_IDLE)) {
@@ -273,7 +273,7 @@ static HapticFeedbackType haptic_feedback_get_type(
         return HAPTIC_FEEDBACK_DUTY_CONTINUOUS;
     }
 
-    // Re-RinkFloat: the horn has the lowest priority, so real pushback and
+    // Refloat Glow: the horn has the lowest priority, so real pushback and
     // error alerts are never masked by it. rf75: and never above 60% duty,
     // where the motor needs all its voltage headroom.
     if (fabsf(md->duty_cycle) < HORN_MAX_RIDING_DUTY &&
@@ -344,7 +344,7 @@ void haptic_feedback_update(
     const AlertTracker *at,
     const Time *time
 ) {
-    // Re-RinkFloat: tone budget for melodies + live tiles
+    // Refloat Glow: tone budget for melodies + live tiles
     float tdt = fminf(timer_age(time, hf->tone_budget_timer), 0.1f);
     hf->tone_budget_timer = time->now;
     if (hf->melody_active || hf->live_playing) {
@@ -359,7 +359,7 @@ void haptic_feedback_update(
         hf->tone_rest = false;
     }
 
-    // Re-RinkFloat: boot melody takes over the tone while it plays (READY only)
+    // Refloat Glow: boot melody takes over the tone while it plays (READY only)
     if (hf->melody_active) {
         float age = timer_age(time, hf->melody_start);
         uint8_t step = 0;
@@ -395,7 +395,7 @@ void haptic_feedback_update(
         }
     }
 
-    // Re-RinkFloat: live tone from the melody tiles (READY only)
+    // Refloat Glow: live tone from the melody tiles (READY only)
     // (a single held tile sounds for at most MELODY_MAX_NOTE)
     bool live = hf->live_hz > 0 && state->state == STATE_READY && !hf->tone_rest &&
         !timer_older(time, hf->live_timer, 0.3f) &&
@@ -414,7 +414,7 @@ void haptic_feedback_update(
         hf->can_change_type = true;
     }
 
-    // Re-RinkFloat: horn heat budget (main loop only)
+    // Refloat Glow: horn heat budget (main loop only)
     float dt = timer_age(time, hf->horn_budget_timer);
     hf->horn_budget_timer = time->now;
     if (dt > 0.1f || dt < 0.0f) {
@@ -465,7 +465,7 @@ void haptic_feedback_update(
         hf->is_playing = false;
     } else if (should_be_playing) {
         const CfgHapticTone *tone = get_haptic_tone(hf);
-        // Re-RinkFloat: the horn always plays at the configured maximum
+        // Refloat Glow: the horn always plays at the configured maximum
         // strength (the strength reached at Max Strength Speed), regardless of
         // the current speed.
         float scale =
@@ -477,7 +477,7 @@ void haptic_feedback_update(
         uint16_t buzz_frequency = hf->cfg->vibrate.frequency;
         bool horn = hf->type_playing == HAPTIC_FEEDBACK_HORN;
         if (horn) {
-            // Re-RinkFloat: the horn's own settings from the app, else the
+            // Refloat Glow: the horn's own settings from the app, else the
             // configured tone within the horn's limits
             if (hf->horn_custom) {
                 beep_strength = hf->horn_beep_strength;

@@ -3,7 +3,7 @@
  * KEIL_Startup_hk32f030m.s: same vector table order, Reset_Handler calls
  * SystemInit() then main() after setting up .data/.bss.
  *
- * Part of the Re-Float Rink-Mixed GCC build of ALCM (GPL-3.0-or-later).
+ * Part of the Refloat Glow GCC build of ALCM (GPL-3.0-or-later).
  */
 #include <stdint.h>
 

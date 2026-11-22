@@ -41,7 +41,7 @@ void button_driver_hw_init(void)
     // Set SYSCFG pin
     SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOC, EXTI_PinSource3);
 
-    // Re-Float Rink-Mixed: what EXTI_Init() / NVIC_Init() write for these
+    // Refloat Glow: what EXTI_Init() / NVIC_Init() write for these
     // settings, written directly (smaller, to make room for the bootloader).
     // EXTI line 3: interrupt (not event), falling edge only
     EXTI->IMR &= ~EXTI_Line3;

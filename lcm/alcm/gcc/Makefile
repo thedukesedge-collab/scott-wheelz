@@ -1,5 +1,5 @@
 # GCC (arm-none-eabi) build of ALCM for the HK32F030M LCM, an alternative to
-# the Keil MDK project in Project/MDK5. Re-Float Rink-Mixed adds
+# the Keil MDK project in Project/MDK5. Refloat Glow adds
 # VP_LIGHT_CONTROL (lights set from the VESC package, button = power only;
 # on stock Refloat: Refloat's light settings, click-click = light level).
 #

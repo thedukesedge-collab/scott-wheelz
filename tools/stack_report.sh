@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Part of Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
-# Re-Float Rink-Mixed (rf75): stack-usage report for the package.
+# Part of Refloat Glow, 2026. See FORK_NOTES.md.
+# Refloat Glow (rf75): stack-usage report for the package.
 #
 # A stack overflow on one of the controller's threads is a silent crash, and
 # a crash anywhere in the package stops balancing. This compiles every source
@@ -31,7 +31,7 @@ report() {  # $1 = source dir, $2 = output dir
     cat "$2"/*.su 2>/dev/null | awk -F'\t' '{n=split($1,a,":"); print $2, a[n], $3}' | sort -rn
 }
 
-echo "== Re-Float Rink-Mixed: largest stack frames (bytes, function, type) =="
+echo "== Refloat Glow: largest stack frames (bytes, function, type) =="
 report src /tmp/su_ours > /tmp/su_ours.txt
 head -25 /tmp/su_ours.txt
 

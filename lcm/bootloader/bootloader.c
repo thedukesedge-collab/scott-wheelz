@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Part of Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
+// Part of Refloat Glow, 2026. See FORK_NOTES.md.
 
 /*
  * LCM bootloader for the HK32F030MF4P6 light control module
  * (Floatwheel ADV200 boards: XRV, GTV, PintV) running ALCM VP.
  *
- * Part of Re-Float Rink-Mixed. GPL-3.0-or-later.
+ * Part of Refloat Glow. GPL-3.0-or-later.
  *
  * Flash map (16 KB, 128-byte pages):
  *   0x08000000 - 0x080005FF  this bootloader (1.5 KB, never written by it)

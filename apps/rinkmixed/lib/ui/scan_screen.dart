@@ -106,13 +106,13 @@ class _ScanScreenState extends State<ScanScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             const SizedBox(height: 20),
             Center(child: Text.rich(TextSpan(style: neonText(34, Neon.lavLight), children: const [
-              TextSpan(text: 'RE:', style: TextStyle(color: Neon.purple)),
+              TextSpan(text: 'RE', style: TextStyle(color: Neon.purple)),
               TextSpan(text: 'FLOAT'),
             ]))),
             const SizedBox(height: 10),
             Row(children: [
               Expanded(child: Container(height: 2, color: Neon.purple)),
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text('RINK-MIXED', style: neonText(18, Neon.green))),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text('GLOW', style: neonText(18, Neon.green))),
               Expanded(child: Container(height: 2, color: Neon.purple)),
             ]),
             const SizedBox(height: 8),

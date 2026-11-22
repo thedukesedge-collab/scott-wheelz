@@ -1,5 +1,5 @@
 name: rinkmixed
-description: "Re-Float Rink-Mixed: standalone app for VESC Onewheels running the Re-Float Rink-Mixed (Refloat) package."
+description: "Refloat Glow: standalone app for VESC Onewheels running the Refloat Glow (Refloat) package."
 publish_to: 'none'
 version: 0.1.0+1
 

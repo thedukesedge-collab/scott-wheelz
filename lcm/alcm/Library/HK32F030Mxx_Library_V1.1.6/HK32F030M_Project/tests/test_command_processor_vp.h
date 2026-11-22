@@ -1,7 +1,7 @@
 /*
  * This file is part of Advanced LCM (ALCM) project (GPL-3.0-or-later).
  *
- * Tests for the VP_LIGHT_CONTROL build (Re-Float Rink-Mixed): lights are
+ * Tests for the VP_LIGHT_CONTROL build (Refloat Glow): lights are
  * only set from the app, the button keeps only its power functions.
  */
 #ifndef TEST_COMMAND_PROCESSOR_VP_H

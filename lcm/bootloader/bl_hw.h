@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Part of Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
+// Part of Refloat Glow, 2026. See FORK_NOTES.md.
 
 /*
  * LCM bootloader: hardware access. On the LCM these are register-level
@@ -7,7 +7,7 @@
  * (BL_HOST) they come from tests/bl_host.h, which simulates the flash,
  * the UART link to the package, the clock, the button and the power latch.
  *
- * Part of Re-Float Rink-Mixed. GPL-3.0-or-later.
+ * Part of Refloat Glow. GPL-3.0-or-later.
  */
 #pragma once
 

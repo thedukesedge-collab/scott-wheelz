@@ -1,5 +1,5 @@
 /*
- * Re-Float Rink-Mixed: register-level equivalents of a few vendor library
+ * Refloat Glow: register-level equivalents of a few vendor library
  * calls, used to make room for the LCM bootloader. Each writes exactly
  * what the vendor function writes for the given arguments.
  *

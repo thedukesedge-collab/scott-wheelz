@@ -17,7 +17,7 @@ class Rf {
   static const flywheel = 22;
   static const realtimeData = 31;
   static const realtimeDataIds = 32;
-  static const horn = 120;  // Re-Float Rink-Mixed haptic horn
+  static const horn = 120;  // Refloat Glow haptic horn
 
   // package states / modes / footpad
   static const sDisabled = 0, sStartup = 1, sReady = 2, sRunning = 3, sConnecting = 254, sDisconnected = 255;

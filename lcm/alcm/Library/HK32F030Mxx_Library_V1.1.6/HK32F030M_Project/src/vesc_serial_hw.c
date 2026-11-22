@@ -44,7 +44,7 @@ void vesc_serial_hw_init(uint32_t baud)
     GPIO_Init(GPIOD, &GPIO_InitStructure);
     GPIO_PinAFConfig(GPIOD, GPIO_PinSource6, GPIO_AF_1);
 
-    // Re-Float Rink-Mixed: the registers USART_Init() would write for 8N1,
+    // Refloat Glow: the registers USART_Init() would write for 8N1,
     // RX+TX, no flow control, written directly - USART_Init() needs
     // RCC_GetClocksFreq() just to find PCLK (~320 bytes together). USART1
     // runs from PCLK = SystemCoreClock (SystemInit: USART1SW = PCLK, HCLK

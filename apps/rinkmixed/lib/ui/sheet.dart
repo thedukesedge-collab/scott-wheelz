@@ -100,10 +100,10 @@ class _BottomPanelState extends State<BottomPanel> {
             Padding(
               padding: EdgeInsets.symmetric(vertical: 0.05 * u),
               child: Text.rich(TextSpan(style: neonText(0.24 * u, Neon.dim, spacing: 0.03 * u), children: const [
-                TextSpan(text: 'RE:', style: TextStyle(color: Neon.purple)),
+                TextSpan(text: 'RE', style: TextStyle(color: Neon.purple)),
                 TextSpan(text: 'FLOAT', style: TextStyle(color: Neon.lavLight)),
                 TextSpan(text: ' — ', style: TextStyle(color: Color(0xFF7A3FC0))),
-                TextSpan(text: 'RINK-MIXED', style: TextStyle(color: Neon.green)),
+                TextSpan(text: 'GLOW', style: TextStyle(color: Neon.green)),
                 TextSpan(text: '  app $appVersion'),
               ])),
             ),

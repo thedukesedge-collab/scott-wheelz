@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Re-Float Rink-Mixed: builds the LCM bootloader images from the two .hex
+"""Refloat Glow: builds the LCM bootloader images from the two .hex
 files (lcm/bootloader + lcm/alcm built with BL=1):
 
   ALCM_VP_BL_full.hex  bootloader + app, flashed ONCE with the ST-Link

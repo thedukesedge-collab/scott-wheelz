@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Re-Float Rink-Mixed: replaces {{LCM_FW_JSON}} in ui.qml.in.
+"""Refloat Glow: replaces {{LCM_FW_JSON}} in ui.qml.in.
 
 With an image (make LCM_FW=1): the SLCM update image (ALCM_VP_app.json from
 lcm_images.py) - {size, crc, version, b64}. Without (the default since

@@ -1,5 +1,5 @@
 /*
- * Re-Float Rink-Mixed: board_mode tests for the VP_LIGHT_CONTROL build.
+ * Refloat Glow: board_mode tests for the VP_LIGHT_CONTROL build.
  * Runs the stock board_mode tests plus the VESC comm-loss behavior: like
  * stock, a lost link is always a fault (the idle shutdown timer is
  * cancelled, power stays on), but it clears itself when the VESC answers

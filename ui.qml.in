@@ -1,6 +1,6 @@
 // Copyright 2022 Benjamin Vedder <benjamin@vedder.se>
 // Copyright 2024 Lukas Hrazky
-// Modified by Refloat Glow (formerly Refloat rink-mixed), 2026. See FORK_NOTES.md.
+// Modified by Refloat Glow, 2026. See FORK_NOTES.md.
 //
 // This file is part of the Refloat VESC package.
 //
@@ -176,17 +176,17 @@ Item {
                 commands.sendRcMove(moveSlider.value);
             }
 
-            // Re-RinkFloat: free-spin limiter, resent every second (the board
+            // Refloat Glow: free-spin limiter, resent every second (the board
             // forgets it on power cycle)
             freespinSender.tick();
 
-            // Re-RinkFloat: keep the horn alive while the button is held
+            // Refloat Glow: keep the horn alive while the button is held
             hornFrame.tick();
             if (hornFrame.honking) {
                 commands.sendHorn(1);
             }
 
-            // Re-RinkFloat: main-screen TILT slider wins while it's in use; one
+            // Refloat Glow: main-screen TILT slider wins while it's in use; one
             // final 0 is sent after it springs back
             // rf108: tilt only while engaged and moving (mainItem.tiltUsable)
             var swTiltActive = mainItem.tiltUsable && (swTiltSlider.pressed || swTiltSlider.value != 0);
@@ -204,7 +204,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: once-a-second sender (light / horn settings). rf102: no
+    // Refloat Glow: once-a-second sender (light / horn settings). rf102: no
     // longer sends the removed free-spin limit (COMMAND_FREESPIN_LIMIT, ignored
     // by the package since rf75) - one less BLE packet every second.
     QtObject {
@@ -222,7 +222,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: horn-only sound settings, resent every second (kept on
+    // Refloat Glow: horn-only sound settings, resent every second (kept on
     // the board too since rf49)
     QtObject {
         id: hornSettingsSender
@@ -331,7 +331,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: light module settings (SLCM build, see lcm/README.md).
+    // Refloat Glow: light module settings (SLCM build, see lcm/README.md).
     // Sent on every change (plus one retry) and every 5 s once the LEDS tab
     // has been used; the board stores them and passes them to the light
     // module in every poll reply, so they also apply without the phone.
@@ -867,12 +867,12 @@ Item {
         }
     }
 
-    // Re-RinkFloat: LCM firmware update over the VESC link (needs the LCM
+    // Refloat Glow: LCM firmware update over the VESC link (needs the LCM
     // bootloader, installed once with an ST-Link). The image is built with
     // the package (lcm/alcm, BL=1) and embedded here. The package relays it
     // to the LCM bootloader two 128-byte pages at a time: we poll STATUS and
     // send the page the LCM wants plus the next one. See lcm_fw.h.
-    // Re-Float Rink-Mixed: is an SLCM (Smart LCM: our ALCM-based light
+    // Refloat Glow: is an SLCM (Smart LCM: our ALCM-based light
     // module firmware) answering? It names itself "VP-..." / "VPBL-..." in its
     // LCM polls; the package passes the name on (COMMAND_LCM_DEVICE_INFO).
     // Asked every few seconds while the LEDS tab is open. Only decides what the
@@ -1248,7 +1248,7 @@ Item {
         }
     }
 
-    // Re-Float Rink-Mixed: CHECK FOR UPDATES (UPDATES tab). Asks GitHub for
+    // Refloat Glow: CHECK FOR UPDATES (UPDATES tab). Asks GitHub for
     // the latest RIDER release (tagged, bench-tested; dev builds are never
     // offered), compares its package version with this one and its SLCM
     // version with the light module's, downloads SLCM.hex on request,
@@ -1427,7 +1427,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: battery curve for the LCM status bar. The package turns
+    // Refloat Glow: battery curve for the LCM status bar. The package turns
     // the pack voltage into a % with this per-cell curve and sends it to the
     // LCM in the VP block (src/battery_curve.c). Presets are floatwheel's own
     // tables (as in lcm/alcm/tools/battery_lut_patch/examples).
@@ -1583,7 +1583,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: saved melodies, kept in the app (swSettings.savedMelodies,
+    // Refloat Glow: saved melodies, kept in the app (swSettings.savedMelodies,
     // JSON [{name, notes: [[level, ms], ...]}]). The board only holds the one
     // custom melody in use (swSettings.melodyRec); choosing a saved melody
     // copies it there and sends it.
@@ -2041,7 +2041,7 @@ Item {
                 "tiltback_speed",
             ];
 
-            // Re-RinkFloat: LED settings belong to the LEDS tab, not to tunes
+            // Refloat Glow: LED settings belong to the LEDS tab, not to tunes
             return !name.startsWith("haptic.") && !name.startsWith("hardware.") && !name.startsWith("leds.") && !tuneBlacklist.includes(name);
         }
 
@@ -2177,16 +2177,16 @@ Item {
         readonly property int c_DATA_RECORD_REQUEST: 41
         readonly property int c_DATA_RECORD_HEADER: 42
         readonly property int c_DATA_RECORD_DATA: 43
-        readonly property int c_SW_HORN: 120  // Re-RinkFloat
-        readonly property int c_FREESPIN_LIMIT: 121  // Re-RinkFloat
-        readonly property int c_HORN_SETTINGS: 122  // Re-RinkFloat
-        readonly property int c_PLAY_MELODY: 123  // Re-RinkFloat
-        readonly property int c_MELODY_SET: 124  // Re-RinkFloat
-        readonly property int c_LIVE_TONE: 125  // Re-RinkFloat
-        readonly property int c_LCM_VP_SETTINGS: 126  // Re-RinkFloat: light module (ALCM VP)
-        readonly property int c_LCM_TEST_BEEP: 127  // Re-RinkFloat: light module test beep
-        readonly property int c_LCM_FW: 128  // Re-RinkFloat: LCM firmware update relay
-        readonly property int c_LCM_BATTERY: 129  // Re-RinkFloat: battery curve for the LCM status bar
+        readonly property int c_SW_HORN: 120  // Refloat Glow
+        readonly property int c_FREESPIN_LIMIT: 121  // Refloat Glow
+        readonly property int c_HORN_SETTINGS: 122  // Refloat Glow
+        readonly property int c_PLAY_MELODY: 123  // Refloat Glow
+        readonly property int c_MELODY_SET: 124  // Refloat Glow
+        readonly property int c_LIVE_TONE: 125  // Refloat Glow
+        readonly property int c_LCM_VP_SETTINGS: 126  // Refloat Glow: light module (ALCM VP)
+        readonly property int c_LCM_TEST_BEEP: 127  // Refloat Glow: light module test beep
+        readonly property int c_LCM_FW: 128  // Refloat Glow: LCM firmware update relay
+        readonly property int c_LCM_BATTERY: 129  // Refloat Glow: battery curve for the LCM status bar
         readonly property int c_LCM_DEVICE_INFO: 27  // Refloat: the LCM's own name (Re-Float: "VPBL-<hash>")
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
@@ -2306,7 +2306,7 @@ Item {
             vescCommands.sendCustomAppData(data.buffer);
         }
 
-        // Re-RinkFloat: haptic horn. on=true starts / keeps it alive (resend
+        // Refloat Glow: haptic horn. on=true starts / keeps it alive (resend
         // at least every 300ms), on=false stops it immediately.
         // req: 0 off, 1 keepalive, 2 start a new press
         function sendHorn(req) {
@@ -2373,7 +2373,7 @@ Item {
             odometer.value = values.odometer * 0.001 * vescConfig.imperialFactor;
             tachometer.value = values.tachometer_abs * 0.001 * vescConfig.imperialFactor;
 
-            // Re-RinkFloat: trip counter went backwards = board was power cycled,
+            // Refloat Glow: trip counter went backwards = board was power cycled,
             // so start fresh ride peaks
             if (values.tachometer_abs < swSettings.peakTach) {
                 swSettings.peakSpeed = 0;
@@ -2481,7 +2481,7 @@ Item {
 
                 state.rtData = state.newRtData(newRt);
 
-                // Re-RinkFloat: ride peaks, with free spin filtered out. A sample
+                // Refloat Glow: ride peaks, with free spin filtered out. A sample
                 // only counts when ALL of these have held for the last 0.5 s:
                 //  - package is running (not idle / flywheel / darkride)
                 //  - no wheelslip flag (the package's free-spin detector)
@@ -2551,7 +2551,7 @@ Item {
         property alias checkForNewVersions: prefCheckForNewVersions.checked
     }
 
-    // Re-RinkFloat: app-side display settings
+    // Refloat Glow: app-side display settings
     Settings {
         id: swSettings
         category: "scottWheelz"  // old name kept so saved settings survive the rename
@@ -3452,7 +3452,7 @@ Item {
         readonly property int fs_Both: 3
 
         property int fpState: fs_None
-        property double peakOkSince: 0  // Re-RinkFloat: when ride-peak conditions last became true
+        property double peakOkSince: 0  // Refloat Glow: when ride-peak conditions last became true
 
         onFpStateChanged: {
             leftSensor.on = false;
@@ -3529,7 +3529,7 @@ Item {
         property string stopConditionString: stopConditionToString.get(stopCondition) ?? "unknown (%1)".arg(stopCondition)
 
         property bool darkride: false
-        property bool freespinLimiting: false  // Re-RinkFloat: free-spin limiter holding the wheel
+        property bool freespinLimiting: false  // Refloat Glow: free-spin limiter holding the wheel
         property bool wheelslip: false
         property bool charging: false
 
@@ -3889,7 +3889,7 @@ Item {
         color: Utility.getAppHexColor("disabledText")
     }
 
-    // Re-RinkFloat: neon green + purple theme for the main screen.
+    // Refloat Glow: neon green + purple theme for the main screen.
     // Warning colors (red, orange) are kept so alerts still read as alerts.
     QtObject {
         id: swTheme
@@ -3899,7 +3899,7 @@ Item {
         readonly property color background: "#05060d"
         readonly property color grid: "#160d2b"
 
-        // Re-RinkFloat: neon palette for the tune preset buttons
+        // Refloat Glow: neon palette for the tune preset buttons
         readonly property var neonNames: ["Green", "Purple", "Cyan", "Magenta", "Orange", "Yellow", "Red", "Blue"]
         readonly property var neonColors: ["#39ff7a", "#b14cff", "#00f0ff", "#ff2bd6", "#ff8a1f", "#f5ff3b", "#ff2b4f", "#3b7bff"]
 
@@ -3950,7 +3950,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: Neon Future grid used behind the main screen and the bottom sheet
+    // Refloat Glow: Neon Future grid used behind the main screen and the bottom sheet
     component SwGrid : Canvas {
         contextType: "2d"
         onWidthChanged: requestPaint()
@@ -3986,7 +3986,7 @@ Item {
         color: swTheme.color("disabledText")
     }
 
-    // Re-RinkFloat: home-screen labels/values in the speedo's digital font,
+    // Refloat Glow: home-screen labels/values in the speedo's digital font,
     // neon purple with a soft glow
     component SwNeonLabel : Text {
         color: "#c98bff"
@@ -4003,7 +4003,7 @@ Item {
         minimumPixelSize: 0.2 * unit
     }
 
-    // Re-RinkFloat: "check engine" style motor symbol (outline after the
+    // Refloat Glow: "check engine" style motor symbol (outline after the
     // Material Design "engine" icon, Apache 2.0)
     component SwEngineIcon : Canvas {
         id: engineIcon
@@ -4039,7 +4039,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: small up/down arrow button with hold-to-repeat
+    // Refloat Glow: small up/down arrow button with hold-to-repeat
     component SwArrow : Rectangle {
         id: arrow
         property bool up: true
@@ -4088,7 +4088,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: neon pill button
+    // Refloat Glow: neon pill button
     component SwPill : Rectangle {
         id: pill
         property string label
@@ -4126,7 +4126,7 @@ Item {
         }
     }
 
-    // Re-Float Rink-Mixed: neon outline button for dialogs (settings window)
+    // Refloat Glow: neon outline button for dialogs (settings window)
     component NeonButton : Rectangle {
         id: nbtn
         property string text
@@ -4155,7 +4155,7 @@ Item {
         }
     }
 
-    // Re-Float Rink-Mixed: a framed group in the settings window
+    // Refloat Glow: a framed group in the settings window
     component SettingsCard : Rectangle {
         id: scard
         property string title
@@ -4188,7 +4188,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: section heading (neon green, digital font)
+    // Refloat Glow: section heading (neon green, digital font)
     component LedHeading : SwLText {
         anchors.horizontalCenter: parent ? parent.horizontalCenter : undefined
         font.pixelSize: 0.38 * unit
@@ -4227,7 +4227,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: LEDS tab tile - opens a full-screen settings window
+    // Refloat Glow: LEDS tab tile - opens a full-screen settings window
     component LedTile : Rectangle {
         id: tile
         property string title
@@ -4549,8 +4549,8 @@ Item {
         }
     }
 
-    // Re-RinkFloat: label + [down] value [up] stepper with hold-to-repeat
-    // Re-Float Rink-Mixed: an LED animation's name drawn the way the status
+    // Refloat Glow: label + [down] value [up] stepper with hold-to-repeat
+    // Refloat Glow: an LED animation's name drawn the way the status
     // bar plays it: each letter is an "LED" (rainbow, red scanner, fire...),
     // with a glow from a blurred copy of the letters. Mirrors status_leds.c.
     component AnimName : Item {
@@ -4922,7 +4922,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: value over a neon label (or the engine symbol)
+    // Refloat Glow: value over a neon label (or the engine symbol)
     component SwStat : Item {
         width: 1.7 * unit
         height: 0.95 * unit
@@ -5006,7 +5006,7 @@ Item {
                         context.lineJoin = "round";
                         iconPath.scale = Qt.size(iconSize / 50, iconSize / 50);
                         context.path = iconPath;
-                        // Re-RinkFloat: soft halo as a wide translucent stroke (crisper
+                        // Refloat Glow: soft halo as a wide translucent stroke (crisper
                         // than canvas shadowBlur), then the sharp line on top
                         if (button.iconGlowBlur > 0 && button.iconGlowColor.a > 0) {
                             context.strokeStyle = button.iconGlowColor;
@@ -5055,7 +5055,7 @@ Item {
         bgColor: Utility.getAppHexColor("normalBackground")
     }
 
-    // Re-RinkFloat: Neon Future-style round button - dark core, neon purple ring
+    // Refloat Glow: Neon Future-style round button - dark core, neon purple ring
     // with a soft glow, glowing neon green icon. Flips to solid purple when pressed.
     component NeonToolButton : FloatingToolButton {
         id: neonButton
@@ -5277,7 +5277,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: digital Neon Future speedometer. Segmented neon arc for speed
+    // Refloat Glow: digital Neon Future speedometer. Segmented neon arc for speed
     // (green, then purple, red at the top end), thin inner arc for duty, and
     // a big glowing digital readout in the middle.
     component NeonSpeedo : Item {
@@ -5290,7 +5290,7 @@ Item {
         property real erpm: 0
         property string unitText: ""
         property bool wheelslip: false
-        property bool spinLimiting: false  // Re-RinkFloat
+        property bool spinLimiting: false  // Refloat Glow
 
         property int segments: 40
         property real sweepDeg: 240
@@ -5500,7 +5500,7 @@ Item {
         // keyboard doesn't just exactly cover the buttons
         property bool placeAtTop: false
         property color titleColor: swTheme.neonGreen  // rf107: red for warnings
-        // Re-Float Rink-Mixed: every dialog in the Neon Future look - dark
+        // Refloat Glow: every dialog in the Neon Future look - dark
         // panel, purple neon frame, title in the digital font, green accents
         Material.theme: Material.Dark
         Material.accent: swTheme.neonGreen
@@ -5879,7 +5879,7 @@ Item {
         id: plot
         color: neon ? swTheme.background : "#0b0b0b"
 
-        // Re-RinkFloat: neon axes / labels (series keep their own colors)
+        // Refloat Glow: neon axes / labels (series keep their own colors)
         property bool neon: false
 
         function themeColor(name) {
@@ -7265,16 +7265,51 @@ Item {
         }
 
         // rf90: no welcome dialog / upstream hint pages on start; the
-        // Rink-Mixed tour opens once instead (SKIP closes it)
+        // Refloat Glow tour opens once instead (SKIP closes it)
         // rf93: the disclaimer opens every time (until "don't show again"),
         // the tour after it on first start
         if (swSettings.ledSnoozeMin === 255) swSettings.ledSnoozeMin = 5;  // rf100: old AUTO
         // rf97: SNOOZE BREATHING OFF from before -> DARK snooze style
         if (!swSettings.ledDozeBreath && swSettings.ledSnoozeStyle === 0) swSettings.ledSnoozeStyle = 2;
-        if (swSettings.hideDisclaimerVer !== "{{VERSION}}") disclaimerDialog.open();  // rf104: again after every update
+        // rf150: the notice waits until this package's tab is on screen
+        // (startNoticeTimer), then the tour as before
+        if (swSettings.hideDisclaimerVer !== "{{VERSION}}") startNoticeTimer.start();  // rf104: again after every update
         else if (!swSettings.tourSeen) rinkTour.open();
 
         onStartupTimer.start();
+    }
+
+    // rf150: the start notice is drawn over the whole app, so it must not
+    // open while VESC Tool shows another tab (e.g. right after installing
+    // the package): it opens once this package's own tab has been on screen
+    // for a moment. If you switch to another tab while it's open, it closes
+    // and comes back when you return, until you press CONTINUE.
+    property bool startNoticeDone: false
+    function packageOnScreen() {
+        if (!mainItem.visible || mainItem.width <= 0 || mainItem.height <= 0) return false;
+        var w = mainItem.Window.width, h = mainItem.Window.height;
+        if (!(w > 0 && h > 0)) return false;
+        var p = mainItem.mapToItem(null, mainItem.width / 2, mainItem.height / 2);
+        return p.x > 0 && p.x < w && p.y > 0 && p.y < h;
+    }
+    Timer {
+        id: startNoticeTimer
+        interval: 400
+        repeat: true
+        property int seen: 0
+        onTriggered: {
+            if (mainItem.startNoticeDone) {
+                stop();
+                return;
+            }
+            var on = mainItem.packageOnScreen();
+            seen = on ? seen + 1 : 0;
+            if (disclaimerDialog.visible) {
+                if (!on) disclaimerDialog.close();
+            } else if (seen >= 2) {
+                disclaimerDialog.open();
+            }
+        }
     }
 
     Component.onDestruction: {
@@ -7327,7 +7362,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: pick an LCM firmware .hex for FLASH LCM
+    // Refloat Glow: pick an LCM firmware .hex for FLASH LCM
     Dl.FileDialog {
         id: hexLoadDialog
         title: "Choose an LCM firmware .hex"
@@ -7542,7 +7577,7 @@ Item {
             height: parent.height
             spacing: 0.15 * unit
 
-            // Re-Float Rink-Mixed: neon tab pills instead of the stock TabBar
+            // Refloat Glow: neon tab pills instead of the stock TabBar
             Row {
                 id: settingsTabBar
                 Layout.alignment: Qt.AlignHCenter
@@ -7822,7 +7857,7 @@ Item {
                                 text: "Show tips & tricks"
                                 onClicked: {
                                     settingsDialog.close();
-                                    rinkTour.open();  // rf87: Neon Future tour of the Rink-Mixed features
+                                    rinkTour.open();  // rf87: Neon Future tour of the Refloat Glow features
                                 }
                             }
                         }
@@ -8169,6 +8204,7 @@ Item {
 
         onOpened: { page = 0; disclaimerHide.checked = false; }
         function finish() {
+            mainItem.startNoticeDone = true;  // rf150: the tab watcher stops
             if (disclaimerHide.checked) swSettings.hideDisclaimerVer = "{{VERSION}}";
             close();
             if (!swSettings.tourSeen) rinkTour.open();
@@ -8627,10 +8663,10 @@ Item {
         }
     }
 
-    // Re-RinkFloat: MY MELODIES window (CONTROL > BOOT MELODY): the saved
+    // Refloat Glow: MY MELODIES window (CONTROL > BOOT MELODY): the saved
     // melodies, kept out of the CONTROL tab so it stays short. Tap a name to
     // make it the boot melody, pencil to re-record it, x twice to delete.
-    // Re-RinkFloat: full-screen window for one LEDS tab section
+    // Refloat Glow: full-screen window for one LEDS tab section
     Popup {
         id: ledWindow
         parent: mainItem
@@ -8781,7 +8817,7 @@ Item {
 
                         // rf128: HEAD/TAIL LIGHTS and RGB LIGHTS merged for controller-driven RGB
                         // LEDs: the effect cards, brightness and RESTORE live in this window
-                        // Re-Float Rink-Mixed: RGB LIGHTS - Refloat's own light bar
+                        // Refloat Glow: RGB LIGHTS - Refloat's own light bar
                         // animations (Refloat Cfg > LEDs), for RGB strips (Thor...)
                         Column {
                             id: rgbCol
@@ -9574,7 +9610,7 @@ Item {
                         }
                     }
 
-                    // Re-Float Rink-Mixed: CUSTOM animation designer (SLCM r19+).
+                    // Refloat Glow: CUSTOM animation designer (SLCM r19+).
                     // The light module runs it itself (stored there too, so it
                     // also plays with the package off).
                     Column {
@@ -9894,7 +9930,7 @@ Item {
                         }
                     }
 
-                    // Re-Float Rink-Mixed: UPDATES (CHECK FOR UPDATES on GitHub)
+                    // Refloat Glow: UPDATES (CHECK FOR UPDATES on GitHub)
                     Column {
                         width: parent.width
                         spacing: 0.16 * unit
@@ -10319,7 +10355,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: battery gauge, advanced mode (full screen): my own cell
+    // Refloat Glow: battery gauge, advanced mode (full screen): my own cell
     // (name, size, resistance, capacity, curve), manual sag compensation
     Popup {
         id: batteryAdvanced
@@ -10527,7 +10563,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: FLASH LCM warning - must be acknowledged first
+    // Refloat Glow: FLASH LCM warning - must be acknowledged first
     Popup {
         id: lcmFwConfirm
         parent: mainItem
@@ -10619,7 +10655,7 @@ Item {
         }
     }
 
-    // Re-Float Rink-Mixed (rf81): neon number pad for the settings' number
+    // Refloat Glow (rf81): neon number pad for the settings' number
     // fields (IntTextField) - themed like the rest, DONE applies the value
     // (kept within the field's range) and closes it
     Popup {
@@ -10735,7 +10771,7 @@ Item {
         }
     }
 
-    // Re-Float Rink-Mixed: SLCM update downloaded (UPDATES tab) -> flash it?
+    // Refloat Glow: SLCM update downloaded (UPDATES tab) -> flash it?
     Popup {
         id: updatePrompt
         parent: mainItem
@@ -10799,7 +10835,7 @@ Item {
         }
     }
 
-    // Re-Float Rink-Mixed: result of CHECK LCM (LEDS > LCM firmware tools)
+    // Refloat Glow: result of CHECK LCM (LEDS > LCM firmware tools)
     Popup {
         id: lcmCheckPopup
         parent: mainItem
@@ -11112,7 +11148,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: name a melody from the MIXER recorder
+    // Refloat Glow: name a melody from the MIXER recorder
     BaseDialog {
         id: saveMelodyDialog
         parent: ApplicationWindow.overlay
@@ -11257,7 +11293,7 @@ Item {
                 text: "Overwrite with current tune"
             }
 
-            // Re-RinkFloat: neon color for this preset button (saved right away)
+            // Refloat Glow: neon color for this preset button (saved right away)
             LText {
                 Layout.fillWidth: true
                 text: "Button color: " + swTheme.neonNames[tuneColorRow.selected]
@@ -12223,10 +12259,10 @@ Item {
         }
 
         // rf90: upstream's hint pages no longer open on start (the
-        // Rink-Mixed tour replaces them)
+        // Refloat Glow tour replaces them)
     }
 
-    // rf87: Neon Future tour of the Re-Float Rink-Mixed features (SETTINGS >
+    // rf87: Neon Future tour of the Refloat Glow features (SETTINGS >
     // Show tips & tricks). Swipe or NEXT / BACK; tap outside does nothing.
     Rectangle {
         id: rinkTour
@@ -12551,7 +12587,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: Neon Future grid behind the main screen stats
+    // Refloat Glow: Neon Future grid behind the main screen stats
     Rectangle {
         x: root.x
         y: root.y
@@ -12580,7 +12616,7 @@ Item {
             // leave room for the collapsed Tunes / Control / Data sheet
             Layout.bottomMargin: bottomSheet.minHeight + 0.1 * unit
 
-            // Re-RinkFloat: the main view keeps its full-size layout and is
+            // Refloat Glow: the main view keeps its full-size layout and is
             // scaled down (from the top center) to fit above the sheet as it
             // comes up. A transform doesn't affect layout, so no feedback.
             property real fitScale: Math.min(1, (root.height - bottomSheet.height - 0.1 * unit) / Math.max(1, root.height - bottomSheet.minHeight - 0.1 * unit))
@@ -12611,7 +12647,7 @@ Item {
                     }
                 }
 
-                // Re-RinkFloat: glowing purple digital battery %
+                // Refloat Glow: glowing purple digital battery %
                 Text {
                     id: batteryBarValue
                     anchors.centerIn: parent
@@ -12636,7 +12672,7 @@ Item {
                     color: swTheme.neonPurple
                 }
 
-                // Re-RinkFloat: neon fill that fades smoothly from green (full)
+                // Refloat Glow: neon fill that fades smoothly from green (full)
                 // through yellow/orange to red (empty), glowing harder as it drops
                 property real level: clamp(value / 100, 0, 1)
                 property color fillColor: Qt.hsva(level * 140 / 360, 0.85, 1.0, 1.0)
@@ -12666,7 +12702,7 @@ Item {
                     visible: parent.level > 0
                 }
 
-                // Re-RinkFloat: voltage in the same glowing purple digital style as the %
+                // Refloat Glow: voltage in the same glowing purple digital style as the %
                 Glow {
                     anchors.fill: batteryBarVoltageValue
                     source: batteryBarVoltageValue
@@ -12762,7 +12798,7 @@ Item {
                     property string name
                     property string nameOrId
 
-                    // Re-RinkFloat: neon green, in the same digital font as the rest
+                    // Refloat Glow: neon green, in the same digital font as the rest
                     color: name ? swTheme.neonGreen : "#1d9b4c"
                     font.family: "Exan"
                     font.pixelSize: 0.5 * unit
@@ -12779,7 +12815,7 @@ Item {
                     Component.onCompleted: load();
                 }
 
-                // Re-Float Rink-Mixed: which lights the quick switches turned off
+                // Refloat Glow: which lights the quick switches turned off
                 // (neon orange, small, next to the name - doesn't move anything)
                 Text {
                     Layout.alignment: Qt.AlignVCenter
@@ -12831,9 +12867,9 @@ Item {
                 }
             }
 
-            Item {Layout.fillHeight: true}  // Re-RinkFloat: spread out to fill the screen
+            Item {Layout.fillHeight: true}  // Refloat Glow: spread out to fill the screen
 
-            // Re-RinkFloat: digital Neon Future speedometer, takes whatever height is left
+            // Refloat Glow: digital Neon Future speedometer, takes whatever height is left
             NeonSpeedo {
                 id: neonSpeedo
                 Layout.fillWidth: true
@@ -12847,7 +12883,7 @@ Item {
                 wheelslip: state.wheelslip
                 spinLimiting: state.freespinLimiting
 
-                // Re-RinkFloat: trip (left) / lifetime (right) mileage, small and
+                // Refloat Glow: trip (left) / lifetime (right) mileage, small and
                 // semi-transparent inside the dial, above the big digits
                 component SpeedoMini : Column {
                     property string labelText
@@ -12893,7 +12929,7 @@ Item {
                     y: neonSpeedo.centerY - neonSpeedo.radius * 0.55
                 }
 
-                // Re-RinkFloat: ride peaks as little digital boxes in the top
+                // Refloat Glow: ride peaks as little digital boxes in the top
                 // corners. Press and hold either one to reset both.
                 component PeakBox : Rectangle {
                     id: peakBox
@@ -13008,7 +13044,7 @@ Item {
                 })
 
                 Item {
-                    id: hudDials  // Re-RinkFloat: current / duty dials flank the speedo
+                    id: hudDials  // Refloat Glow: current / duty dials flank the speedo
                     anchors.bottom: parent.bottom
                     visible: parent.height >= 2.6 * unit  // hidden while the sheet squeezes the speedo
                     width: parent.width
@@ -13079,7 +13115,7 @@ Item {
                     width: parent.width  / 2
                     height: parent.height
 
-                    // Re-RinkFloat: footpad + roll on top, then the small dials and
+                    // Refloat Glow: footpad + roll on top, then the small dials and
                     // battery current; the side view gets the whole right column
                     property real contentHeight: hudRightTop.height + 1.5 * unit
 
@@ -13100,7 +13136,7 @@ Item {
                             property real leftVoltage: state.rtData["footpad.adc1"]
                             property real rightVoltage: state.rtData["footpad.adc2"]
 
-                            // Re-RinkFloat: breathing glow while either half is engaged
+                            // Refloat Glow: breathing glow while either half is engaged
                             property real pulse: 0
                             SequentialAnimation on pulse {
                                 running: leftSensor.on || rightSensor.on
@@ -13214,7 +13250,7 @@ Item {
                                 source: rightSensor
                             }
 
-                            // Re-RinkFloat: ADC labels on each half
+                            // Refloat Glow: ADC labels on each half
                             component AdcLabel : Text {
                                 property bool on: false
                                 anchors.centerIn: footpadCanvas
@@ -13280,7 +13316,7 @@ Item {
                             property real value: newValue
                             onValueChanged: rollCanvas.requestPaint();
 
-                            // Re-RinkFloat: + = nose up (same sign as the side view)
+                            // Refloat Glow: + = nose up (same sign as the side view)
                             property real noseUp: state.rtData["imu.pitch"]
                             onNoseUpChanged: rollCanvas.requestPaint();
                             property int tireStyle: swSettings.tireStyle
@@ -13317,7 +13353,7 @@ Item {
                                     PathSvg {path: "M 45.01 -9 L -45.01 -9 A 3 3 0 0 0 -48 -5.75 L -47 6.25 A 3 3 0 0 0 -44.01 9 L 44.01 9 A 3 3 0 0 0 47 6.25 L 48 -5.75 A 3 3 0 0 0 45.01 -9 M -33.54 9 L -33.01 15 A 38.15 15.07 95.62 0 0 -23.54 37.5 A 35 17.39 0 0 0 23.54 37.5 A 38.15 15.07 -95.62 0 0 33.01 15 L 33.54 9 M 33.54 -9 L 33.01 -15 A 38.15 15.07 95.62 0 0 23.54 -37.5 A 35 17.39 0 0 0 -23.54 -37.5 A 38.15 15.07 84.38 0 0 -33.01 -15 L -33.54 -9 M -36 -3 L 36 -3"}
                                 }
 
-                                // Re-RinkFloat: Neon Future front view. Tire + nose block roll
+                                // Refloat Glow: Neon Future front view. Tire + nose block roll
                                 // together; the nose block (with its lightbar) slides up
                                 // the tire as the nose rises: top of the tire at the
                                 // tail-down rest angle (~20 deg), middle when level.
@@ -13633,7 +13669,7 @@ Item {
                         Canvas {
                             id: pitchCanvas
                             anchors.centerIn: parent
-                            anchors.verticalCenterOffset: -0.6 * unit  // Re-RinkFloat: sit level with the footpad / roll views
+                            anchors.verticalCenterOffset: -0.6 * unit  // Refloat Glow: sit level with the footpad / roll views
                             width: height
                             height: parent.height
                             contextType: "2d"
@@ -13677,12 +13713,12 @@ Item {
                                 context.restore();
                             }
 
-                            // Re-RinkFloat: neon side view (green tire + footpads, purple
+                            // Refloat Glow: neon side view (green tire + footpads, purple
                             // rails/fender/hub) with NOSE/TAIL. Nose is on the left. The
                             // front pad brightens when ADC1 or ADC2 is engaged.
                             property bool fpOn: state.fpState !== state.fs_None
                             property real sw_sign: 1
-                            // Re-RinkFloat: FLIP mirrors the whole side view (pitch included),
+                            // Refloat Glow: FLIP mirrors the whole side view (pitch included),
                             // so the board's real attitude is kept: tail-down stays tail-down,
                             // it's just drawn on the other side
                             property bool sw_flip: swSettings.flipView
@@ -13694,7 +13730,7 @@ Item {
                             onSw_signChanged: requestPaint()
                             onSw_railChanged: requestPaint()
 
-                            // Re-RinkFloat: rail profiles. Height of the rail centerline
+                            // Refloat Glow: rail profiles. Height of the rail centerline
                             // (path units, + = down) at x (-97 nose ... 97 tail).
                             function railY(x) {
                                 // piecewise-straight profiles with sharp kinks
@@ -14023,7 +14059,7 @@ Item {
                             text: "%1°".arg(toFixed1Zero(parent.pitchValue))
                         }
 
-                        // Re-RinkFloat: BALANCE sits one step right of PITCH, so WH/MI,
+                        // Refloat Glow: BALANCE sits one step right of PITCH, so WH/MI,
                         // BATTERY AMPS, PITCH and BALANCE are evenly spaced
                         property real balanceX: textWidth / 2 + width / 2 + 0.05 * unit - textWidth / 2
 
@@ -14096,7 +14132,7 @@ Item {
                     fahrenheit: swSettings.tempF
                     unitText: swSettings.tempF ? "°F" : "°C"
 
-                    // Re-RinkFloat: tap the engine to switch °C / °F
+                    // Refloat Glow: tap the engine to switch °C / °F
                     MouseArea {
                         anchors.fill: parent
                         onClicked: swSettings.tempF = !swSettings.tempF
@@ -14126,7 +14162,7 @@ Item {
                 }
             }
 
-            // Re-RinkFloat: TILT slider. Springs back to 0 when released. Range is
+            // Refloat Glow: TILT slider. Springs back to 0 when released. Range is
             // +-4 deg (the package also hard-caps remote tilt at 4 deg), so it
             // can't tilt the nose far enough to drag or dive.
             RowLayout {
@@ -14227,7 +14263,7 @@ Item {
                 }
             }
 
-            // Re-RinkFloat: big HORN bar across the bottom (hold or tap). Riding:
+            // Refloat Glow: big HORN bar across the bottom (hold or tap). Riding:
             // full haptics, up to 3 s per press; idle: tone only, up to 2 s.
             // Mirrors the package's heat budget (haptic_feedback.c): 3 s of
             // horn, used up while sounding (1.5x faster idle), refilled 1 s
@@ -14335,7 +14371,7 @@ Item {
         }
     }
 
-    // Re-Float Rink-Mixed (rf81): with the sheet (SUW) up, a tap anywhere on
+    // Refloat Glow (rf81): with the sheet (SUW) up, a tap anywhere on
     // the main view above it just puts it down (that tap does nothing else)
     MouseArea {
         anchors.left: root.left
@@ -14441,7 +14477,7 @@ Item {
         }
     }
 
-    // Re-RinkFloat: Tunes / Control / Data live in a pull-up sheet over the
+    // Refloat Glow: Tunes / Control / Data live in a pull-up sheet over the
     // full-screen main view. Drag the handle up/down, tap it to open/close.
     // The position is remembered (swSettings.sheetFraction).
     Item {
@@ -14458,7 +14494,7 @@ Item {
         Material.background: swTheme.color("lightBackground")
 
         property real handleHeight: 0.75 * unit
-        // Re-RinkFloat: collapses all the way down to just the swipe handle
+        // Refloat Glow: collapses all the way down to just the swipe handle
         property real minHeight: handleHeight + 1
         property real openMinHeight: handleHeight + bottomStackTabs.implicitHeight + bottomLine.implicitHeight + 2
         // Fixed (unit-based) height of everything on the main view except the
@@ -14477,7 +14513,7 @@ Item {
         Component.onCompleted: fraction = 0
         onFractionChanged: if (fraction > 0.1) sheetHint.done = true
 
-        // Re-RinkFloat: the sheet is "magnetic": it always settles fully up or
+        // Refloat Glow: the sheet is "magnetic": it always settles fully up or
         // fully down, whichever is closer when you let go
         function setFraction(f) {
             fraction = f;
@@ -14574,7 +14610,7 @@ Item {
                 Layout.fillWidth: true
                 clip: true
 
-                // Re-RinkFloat: Neon Future-style tab labels
+                // Refloat Glow: Neon Future-style tab labels
                 component SwTabButton : TabButton {
                     id: swTab
                     font.family: "Exan"
@@ -14814,7 +14850,7 @@ Item {
                                     }
                                 }
 
-                                // Re-RinkFloat: neon slab like the HORN button, in the slot's
+                                // Refloat Glow: neon slab like the HORN button, in the slot's
                                 // chosen color (press and hold > Color). Brighter glow + tinted
                                 // core on the active tune; fills solid while pressed.
                                 property color neon: swTheme.tuneColor(slot)
@@ -14887,7 +14923,7 @@ Item {
                             id: movementControlsHeader
                             anchors.horizontalCenter: parent.horizontalCenter
 
-                            // Re-RinkFloat: section headings in neon green digital font
+                            // Refloat Glow: section headings in neon green digital font
                             font.pixelSize: 0.38 * unit
                             font.family: "Exan"
                             font.letterSpacing: 0.03 * unit
@@ -14895,7 +14931,7 @@ Item {
                             text: "Move"
                         }
 
-                        // Re-RinkFloat: vertical move slider. Up = forward, down =
+                        // Refloat Glow: vertical move slider. Up = forward, down =
                         // backward; same behavior as before (springs back to 0).
                         SwNeonLabel {
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -14930,7 +14966,7 @@ Item {
                                 id: tiltControlsHeader
                                 anchors.centerIn: parent
 
-                                // Re-RinkFloat: section headings in neon green digital font
+                                // Refloat Glow: section headings in neon green digital font
                                 font.pixelSize: 0.38 * unit
                                 font.family: "Exan"
                                 font.letterSpacing: 0.03 * unit
@@ -14990,7 +15026,7 @@ Item {
                             height: 0.3 * unit
                         }
 
-                        // Re-RinkFloat: horn-only sound settings
+                        // Refloat Glow: horn-only sound settings
                         SwNeonLabel {
                             anchors.horizontalCenter: parent.horizontalCenter
 
@@ -15250,7 +15286,7 @@ Item {
                             text: "Before enabling flywheel mode make sure that your board is nose up and perfectly balanced. To turn it off, you must disengage the board first."
                         }
 
-                        // Re-RinkFloat: Neon Future flywheel switch. Purple when off; neon
+                        // Refloat Glow: Neon Future flywheel switch. Purple when off; neon
                         // green, glowing and filled while flywheel mode is running.
                         Button {
                             id: flywheelOnButton
@@ -15327,7 +15363,7 @@ Item {
                     }
                 }
 
-                // Re-RinkFloat: MIXER tab - tile keyboard, real notes E4 ... G5 (white keys).
+                // Refloat Glow: MIXER tab - tile keyboard, real notes E4 ... G5 (white keys).
                 // LIVE mode: tap / hold a tile and the board plays that note live.
                 // REC mode (like making a custom vibration on iOS): the first tap
                 // starts a 4 s recording, a playhead sweeps across the timeline at a
@@ -15560,12 +15596,14 @@ Item {
 
                             SwPill {
                                 label: "LIVE"
+                                minWidth: 1.4 * unit  // rf150: the row must fit a phone
                                 lit: !melodyPad.recording
                                 onClicked: melodyPad.setRec(false)
                             }
 
                             SwPill {
                                 label: "● REC"
+                                minWidth: 1.4 * unit  // rf150: the row must fit a phone
                                 lit: melodyPad.recording
                                 onClicked: melodyPad.setRec(true)
                             }
@@ -15573,6 +15611,7 @@ Item {
                             // rf133: the controller beeper; recorded in REC
                             SwPill {
                                 label: "\u266A BEEP"
+                                minWidth: 1.4 * unit  // rf150: the row must fit a phone
                                 lit: true
                                 litColor: "#ff8a1f"  // rf134: orange, like its timeline marks
                                 onClicked: melodyPad.beep()
@@ -15581,13 +15620,18 @@ Item {
                             // rf149: tile labels, tap to cycle: BLANK -> NOTES -> 123
                             SwPill {
                                 label: ["BLANK", "NOTES", "123"][swSettings.mixerLabels]
+                                minWidth: 1.4 * unit  // rf150: the row must fit a phone
                                 lit: swSettings.mixerLabels !== 0
                                 onClicked: swSettings.mixerLabels = (swSettings.mixerLabels + 1) % 3
                             }
 
-                            Item { Layout.fillWidth: true }
-
+                            // rf150: the hint takes what's left (shortened with "..."), so
+                            // the row never gets wider than the screen
                             SwNeonLabel {
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                horizontalAlignment: Text.AlignRight
+                                elide: Text.ElideRight
                                 color: melodyPad.capturing ? "#ff4d6d" : "#c98bff"
                                 font.pixelSize: 0.24 * unit
                                 text: !melodyPad.recording
@@ -15792,7 +15836,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
-                    // Re-RinkFloat: GRAPH / TEXT switch for the live data
+                    // Refloat Glow: GRAPH / TEXT switch for the live data
                     Rectangle {
                         id: toggleDataPlotButton
                         anchors.top: parent.top
@@ -15886,7 +15930,7 @@ Item {
                                 height: 0.8 * unit  // room for the GRAPH / TEXT switch
                             }
 
-                            // Re-RinkFloat: live core values as plain text
+                            // Refloat Glow: live core values as plain text
                             Row {
                                 width: parent.width
 
@@ -15991,7 +16035,7 @@ Item {
                     }
                 }
 
-                // Re-RinkFloat: Board Style - looks of the side / front views only
+                // Refloat Glow: Board Style - looks of the side / front views only
                 ScrollView {
                     Layout.fillHeight: true
                     Layout.fillWidth: true
@@ -16012,7 +16056,7 @@ Item {
                         SwLText {
                             anchors.horizontalCenter: parent.horizontalCenter
 
-                            // Re-RinkFloat: section headings in neon green digital font
+                            // Refloat Glow: section headings in neon green digital font
                             font.pixelSize: 0.38 * unit
                             font.family: "Exan"
                             font.letterSpacing: 0.03 * unit
@@ -16020,7 +16064,7 @@ Item {
                             text: "Rails"
                         }
 
-                        // Re-RinkFloat: rail shape for the side view
+                        // Refloat Glow: rail shape for the side view
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter
                             spacing: 0.12 * unit
@@ -16056,7 +16100,7 @@ Item {
                         SwLText {
                             anchors.horizontalCenter: parent.horizontalCenter
 
-                            // Re-RinkFloat: section headings in neon green digital font
+                            // Refloat Glow: section headings in neon green digital font
                             font.pixelSize: 0.38 * unit
                             font.family: "Exan"
                             font.letterSpacing: 0.03 * unit
@@ -16064,7 +16108,7 @@ Item {
                             text: "Tire"
                         }
 
-                        // Re-RinkFloat: tire style for the side and front views
+                        // Refloat Glow: tire style for the side and front views
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter
                             spacing: 0.12 * unit
@@ -16100,7 +16144,7 @@ Item {
                         SwLText {
                             anchors.horizontalCenter: parent.horizontalCenter
 
-                            // Re-RinkFloat: section headings in neon green digital font
+                            // Refloat Glow: section headings in neon green digital font
                             font.pixelSize: 0.38 * unit
                             font.family: "Exan"
                             font.letterSpacing: 0.03 * unit
@@ -16108,7 +16152,7 @@ Item {
                             text: "View"
                         }
 
-                        // Re-RinkFloat: mirror the side view (nose left <-> right)
+                        // Refloat Glow: mirror the side view (nose left <-> right)
                         Rectangle {
                             anchors.horizontalCenter: parent.horizontalCenter
                             width: 2.6 * unit
@@ -16140,7 +16184,7 @@ Item {
                     }
                 }
 
-                // Re-RinkFloat: LEDS - light module (SLCM build) settings
+                // Refloat Glow: LEDS - light module (SLCM build) settings
                 ScrollView {
                     Layout.fillHeight: true
                     Layout.fillWidth: true
@@ -16416,7 +16460,7 @@ Item {
                             }
                         }
 
-                        // Re-Float Rink-Mixed: CHECK FOR UPDATES (package + SLCM on GitHub)
+                        // Refloat Glow: CHECK FOR UPDATES (package + SLCM on GitHub)
                         // rf130: SLCM boards only (not in the Refloat view)
                         GridLayout {
                             visible: slcmDetect.present
@@ -16442,7 +16486,7 @@ Item {
 
                         Item { width: parent.width; height: 0.6 * unit }
 
-                        // Re-Float Rink-Mixed: LCM firmware tools, tucked away
+                        // Refloat Glow: LCM firmware tools, tucked away
                         // on purpose - a 2 s press and hold opens them
                         Item {
                             id: lcmToolsLink
@@ -16500,7 +16544,7 @@ Item {
 
             }
 
-            // Re-RinkFloat: title strip - RE:FLOAT + RINK-MIXED + version
+            // Refloat Glow: title strip - REFLOAT + GLOW + version
             Text {
                 id: bottomLine
                 Layout.fillWidth: true

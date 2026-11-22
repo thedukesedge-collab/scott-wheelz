@@ -285,7 +285,7 @@ lcm_status_t function_generator_initial_sample(function_generator_t *fg, const f
     }
 
     // normalized = (sample - offset) / scale, as a Q16.16 ratio in [-1, 1].
-    // Re-Float Rink-Mixed: 32-bit long division instead of a 64-bit divide
+    // Refloat Glow: 32-bit long division instead of a 64-bit divide
     // (libgcc's __divdi3 is ~550 bytes on the M0); same result for every
     // value in range, and anything beyond [-1, 1] is still rejected below.
     {
