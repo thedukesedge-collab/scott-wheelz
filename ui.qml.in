@@ -16366,41 +16366,6 @@ Item {
                             }
                         }
 
-                        // rf131: the controller beeper (Refloat's) in the Refloat view
-                        // (rf152: above SNOOZE)
-                        LedCard {
-                            visible: !slcmDetect.present
-                            width: parent.width
-                            title: "BEEPER"
-                            Row {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                spacing: 0.15 * unit
-                                SwPill {
-                                    minWidth: 3.0 * unit
-                                    label: ledSender.ctrlBeep ? "BEEPER ON" : "BEEPER OFF"
-                                    lit: ledSender.ctrlBeep
-                                    onClicked: ledSender.setCtrlBeep(!ledSender.ctrlBeep)
-                                }
-                                SwPill {
-                                    minWidth: 3.0 * unit
-                                    label: "\u266A TEST BEEP"
-                                    lit: true
-                                    onClicked: {
-                                        ledSender.testCtrlBeep();
-                                        VescIf.emitStatusMessage(ledSender.ctrlBeep ? "Test beep sent to the controller"
-                                            : "Controller beeper is off - turn it on to hear the test beep", true);
-                                    }
-                                }
-                            }
-                            SwLText {
-                                width: parent.width
-                                horizontalAlignment: Text.AlignHCenter
-                                wrapMode: Text.WordWrap
-                                font.pixelSize: fontSizeSmall
-                                text: "Refloat's beeper: write / power beeps and warnings (battery, temperature, sensors). OFF also mutes the warnings."
-                            }
-                        }
-
                         // rf129: the snooze timer on the LEDS page (controller-driven LEDs):
                         // minutes before VESC's power-off, with the power-off note
                         LedCard {
@@ -16431,6 +16396,40 @@ Item {
                                     + " idling (VESC Shutdown Mode)"
                                     + (snzBefore > 0 && vescAppConfig.offMinutes > snzBefore ? ", so the lights snooze at " + (vescAppConfig.offMinutes - snzBefore) + " min." : ".")
                                     + " They blink twice every 15 s in the last minute."
+                            }
+                        }
+
+                        // rf131: the controller beeper (Refloat's) in the Refloat view
+                        // (rf153: compact - no title, one short line; under SNOOZE)
+                        LedCard {
+                            visible: !slcmDetect.present
+                            width: parent.width
+                            Row {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                spacing: 0.15 * unit
+                                SwPill {
+                                    minWidth: 3.0 * unit
+                                    label: ledSender.ctrlBeep ? "BEEPER ON" : "BEEPER OFF"
+                                    lit: ledSender.ctrlBeep
+                                    onClicked: ledSender.setCtrlBeep(!ledSender.ctrlBeep)
+                                }
+                                SwPill {
+                                    minWidth: 3.0 * unit
+                                    label: "\u266A TEST BEEP"
+                                    lit: true
+                                    onClicked: {
+                                        ledSender.testCtrlBeep();
+                                        VescIf.emitStatusMessage(ledSender.ctrlBeep ? "Test beep sent to the controller"
+                                            : "Controller beeper is off - turn it on to hear the test beep", true);
+                                    }
+                                }
+                            }
+                            SwLText {
+                                width: parent.width
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: fontSizeSmall
+                                text: "Refloat's beeper. OFF also mutes the warnings."
                             }
                         }
 

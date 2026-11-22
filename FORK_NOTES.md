@@ -1713,3 +1713,12 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   places (BEEPER now first). The STATUS BAR tile is the same height as
   HEAD/TAIL LIGHTS (was taller); same picture, same live status bar, same
   function. SLCM view unchanged. UI only.
+
+### LEDS page: SNOOZE under the tiles, compact BEEPER (v1.2.3-rf153)
+- Refloat view of the LEDS page, top to bottom: HEAD/TAIL LIGHTS, STATUS
+  BAR, SNOOZE, BEEPER (SNOOZE moved back up, between STATUS BAR and
+  BEEPER).
+- The BEEPER card is smaller: no title (the pill already says BEEPER
+  ON / OFF), the two pills and one short line ("Refloat's beeper. OFF also
+  mutes the warnings."). Same buttons, same function. UI only; SLCM view
+  unchanged.
