@@ -356,7 +356,7 @@
           <p id="ledNote" style="font-size:11px;color:var(--text);text-align:center;margin:4px 6px"></p>
           <div class="ledTiles">
             <div class="ledTile wide" data-w="head" style="height:150px"><canvas id="boardArt" style="position:absolute;left:8px;right:8px;top:6px;width:calc(100% - 16px);height:94px"></canvas><b>HEAD/TAIL LIGHTS</b><small id="ltHead"></small><i>&#8250;</i></div>
-            <div class="ledTile wide" data-w="bar" style="height:92px"><canvas id="statusArt" style="display:none;position:absolute;left:8px;right:8px;top:6px;width:calc(100% - 16px);height:132px"></canvas><span class="bArt"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i></span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
+            <div class="ledTile wide" data-w="bar" style="height:92px"><canvas id="statusArt" style="display:none;position:absolute;left:8px;right:8px;top:6px;width:calc(100% - 16px);height:94px"></canvas><span class="bArt"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i></span><b>STATUS BAR</b><small id="ltBar"></small><i>&#8250;</i></div>
           </div>
           <div class="ledCard" id="ledsBeepCard" style="display:none"><div class="cardT">BEEPER</div><div class="pills"><div class="pill" id="ledsBeepP"></div><div class="pill on" id="ledsTestBeep">&#9834; TEST BEEP</div></div><p class="ledHint" style="text-align:center">Refloat's beeper: write / power beeps and warnings (battery, temperature, sensors). OFF also mutes the warnings.</p></div>
           <div class="pills" id="ledsWaitBox" style="display:none"><div class="pill on" id="ledsWaitP">&#10003; APPLY WAITING LED CHANGES</div></div>
@@ -375,7 +375,7 @@
           <div style="height:16px"></div>
         </div>
       </div>
-      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf151 · sim</span></div>
+      <div id="ver" class="nf"><span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span><span style="color:#7d68ab">&nbsp; 1.2.3-rf152 · sim</span></div>
     </div>
   </div>
 
@@ -983,7 +983,7 @@ function drawBoardArt(c, w, h, t, lit) {
   const cv = $('boardArt');
   if (cv && cv.offsetParent) {
     const r = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
-    if (cv.width !== Math.round(w * r)) { cv.width = Math.round(w * r); cv.height = Math.round(h * r); }
+    if (cv.width !== Math.round(w * r) || cv.height !== Math.round(h * r)) { cv.width = Math.round(w * r); cv.height = Math.round(h * r); }
     const c = cv.getContext('2d'); c.setTransform(r, 0, 0, r, 0, 0);
     drawBoardArt(c, w, h, performance.now() / 1000, cv.parentElement.classList.contains('lit'));
   }
@@ -1052,11 +1052,11 @@ function drawStatusArt(c, w, h, t, lit) {
   const refl = (P.simSetup || 'slcm') !== 'slcm';
   if (cv) {
     cv.style.display = refl ? '' : 'none';
-    const tile = cv.parentElement; tile.style.height = refl ? '188px' : '92px';
+    const tile = cv.parentElement; tile.style.height = refl ? '150px' : '92px';  // rf152: same as HEAD/TAIL LIGHTS
     tile.querySelector('.bArt').style.display = refl ? 'none' : '';
     if (refl && cv.offsetParent) {
       const r = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
-      if (cv.width !== Math.round(w * r)) { cv.width = Math.round(w * r); cv.height = Math.round(h * r); }
+      if (cv.width !== Math.round(w * r) || cv.height !== Math.round(h * r)) { cv.width = Math.round(w * r); cv.height = Math.round(h * r); }
       const c = cv.getContext('2d'); c.setTransform(r, 0, 0, r, 0, 0);
       drawStatusArt(c, w, h, performance.now() / 1000, tile.classList.contains('lit'));
     }
@@ -2004,7 +2004,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf151';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf152';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

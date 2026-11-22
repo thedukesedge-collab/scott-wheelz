@@ -1707,3 +1707,9 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   FADE, PULSE and STROBE is now labelled COLOR 2 instead of BACKGROUND.
   Same setting and same ON / OFF switch (OFF = black), only the label.
   KNIGHT RIDER keeps BACKGROUND. UI only; SLCM side unchanged.
+
+### LEDS page: BEEPER above SNOOZE, shorter STATUS BAR tile (v1.2.3-rf152)
+- Refloat view of the LEDS page: the BEEPER and SNOOZE cards swapped
+  places (BEEPER now first). The STATUS BAR tile is the same height as
+  HEAD/TAIL LIGHTS (was taller); same picture, same live status bar, same
+  function. SLCM view unchanged. UI only.
