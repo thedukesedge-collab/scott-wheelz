@@ -20,7 +20,7 @@ HK32F030M-based LCM, with Refloat Glow changes (`VP_LIGHT_CONTROL`):
   Click-hold (config mode) no longer does anything, and the footpads no
   longer adjust settings.
 
-**On stock Refloat** (no VP block in the poll reply; SLCM r25+) the SLCM
+**On stock Refloat** (no VP block in the poll reply; SLCM r26+) the SLCM
 follows Refloat's own light settings from the first poll: Lights On/Off,
 headlights at Refloat's riding brightness while riding and its idle
 brightness otherwise, and the status bar brightness (Refloat Cfg › LEDs).

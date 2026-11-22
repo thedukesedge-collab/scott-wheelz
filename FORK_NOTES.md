@@ -1659,7 +1659,7 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   a few things simpler, like the LED controls. It's not an official Refloat
   release." UI text only.
 
-### SLCM r25: works properly with stock Refloat (LCM firmware only)
+### SLCM r26: works properly with stock Refloat (LCM firmware only)
 - With stock Refloat 1.2.3 (no VP settings block) the SLCM now follows
   Refloat's light settings from the first poll instead of only after they
   change: Lights On/Off, headlights at the riding level while riding and
