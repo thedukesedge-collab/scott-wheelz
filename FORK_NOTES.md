@@ -1806,3 +1806,8 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   https://riddimrider.one/donate/ (Refloat's donation page, lukash) in the
   external browser (Qt.openUrlExternally). No reminders, no extra popups;
   the rest of the notice, its scrolling and NEXT are unchanged. UI only.
+
+### Start notice picture back to the original (v1.2.3-rf164)
+- rf163 (picture with "vibe code" and pixel sunglasses) reverted at the
+  user's request: page 2 of BEFORE YOU START shows the original
+  "don't trust the AI code" picture again. Nothing else changed.
