@@ -235,6 +235,13 @@ Do not begin changing safety-critical firmware behavior as part of this naming a
   TUNES / CONTROL / MIXER / DATA / BOARD STYLE / LEDS (`bottomSheet`).
   "Onboarding Tour" = the multi-slide guided walkthrough (`rinkTour`, BACK /
   NEXT / SKIP, dots, Replay Tour). Never "start-up wizard".
+- Onboarding Tour self-check after EVERY revision (user, 2026-11-22): check
+  each tour page (rinkTour pages/steps in ui.qml.in, TOUR/TOUR_STEPS in the
+  simulator) against the change: names, locations (tab / window / Settings),
+  wording, what it spotlights, and the little pictures (e.g. the UPDATES and
+  RIDE SETTINGS mock-ups must match the real UI's look and text). Keep the
+  tour as it is otherwise; only update it for new features or for
+  accuracy. Say in the update note that the tour was checked and what changed.
 - Piggyback on Refloat's own settings instead of reinventing them.
 - Don't touch the balance code; config writes only when the board is stopped.
 - New LED features only in the Refloat (controller-driven LED) view; the SLCM
