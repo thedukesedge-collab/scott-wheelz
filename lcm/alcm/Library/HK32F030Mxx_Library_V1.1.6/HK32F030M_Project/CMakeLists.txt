@@ -190,7 +190,7 @@ add_library(command_processor_vp STATIC
 )
 target_include_directories(alcm_vp PUBLIC inc tests/mocks)
 target_include_directories(command_processor_vp PUBLIC inc tests/mocks)
-target_compile_definitions(alcm_vp PUBLIC VP_LIGHT_CONTROL)
+target_compile_definitions(alcm_vp PUBLIC VP_LIGHT_CONTROL ALCM_UNIT_TEST)
 target_compile_definitions(command_processor_vp PUBLIC VP_LIGHT_CONTROL)
 
 # Enable testing

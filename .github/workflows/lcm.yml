@@ -56,23 +56,6 @@ jobs:
           # the app's own .hex parser (ui.qml.in) must produce the same update image
           node tools/hexparse/test.js ui.qml.in lcm/alcm/gcc/build/
 
-      - name: TEMP size diff vs main (BL build, per symbol)
-        if: always()
-        run: |
-          git worktree add /tmp/m origin/main >/dev/null 2>&1
-          make -C /tmp/m/lcm/alcm/gcc VP=1 BL=1 >/dev/null 2>&1 || true
-          arm-none-eabi-nm --size-sort -S /tmp/m/lcm/alcm/gcc/build/ALCM_VP_BL_app_measure.elf | awk '{print $4, strtonum("0x"$2)}' | sort > /tmp/a.txt
-          arm-none-eabi-nm --size-sort -S lcm/alcm/gcc/build/ALCM_VP_BL_app_measure.elf | awk '{print $4, strtonum("0x"$2)}' | sort > /tmp/b.txt
-          echo "== symbol size changes (main -> branch)"
-          join -a1 -a2 -e0 -o 0,1.2,2.2 /tmp/a.txt /tmp/b.txt | awk '$2 != $3 {print $1, $2, $3, $3-$2}'
-          echo "== sections main / branch"
-          arm-none-eabi-size -A /tmp/m/lcm/alcm/gcc/build/ALCM_VP_BL_app_measure.elf
-          arm-none-eabi-size -A lcm/alcm/gcc/build/ALCM_VP_BL_app_measure.elf
-          echo "== symbol size sums main / branch"
-          awk '{s+=$2} END {print s}' /tmp/a.txt; awk '{s+=$2} END {print s}' /tmp/b.txt
-          echo "== all symbols (branch)"
-          cat /tmp/b.txt | sort -k2 -n -r
-
       - name: Runtime replacements (host test)
         if: always()
         working-directory: lcm/alcm/Library/HK32F030Mxx_Library_V1.1.6/HK32F030M_Project

@@ -190,7 +190,6 @@ static uint32_t stock_key = 0xFFFFFFFFU; // Refloat's last 3 brightness bytes
 #endif
 #ifdef VP_LIGHT_CONTROL
 static uint8_t vp_test_beep_last = 0xFFU; // 0xFF: no VP block seen yet
-static uint8_t vp_click_pending = 0U;     // click count to send with the next poll
 // app changes are written to the LCM's EEPROM this many polls (250 ms)
 // later, idle only - so they also apply with the package off, power cut or not
 #define VP_SAVE_POLLS 12U
@@ -234,14 +233,14 @@ lcm_status_t vesc_serial_init(void)
 #ifndef VP_LIGHT_CONTROL
     headlight_remote_baseline = LCM_BASELINE_UNSET;
     status_remote_baseline = LCM_BASELINE_UNSET;
-#else
+#elif defined(ALCM_UNIT_TEST)
+    // On the LCM these already hold their initial values (static
+    // initializers, set at reset) and init runs once: resetting them is only
+    // needed between unit tests (36 bytes of flash the SLCM needs)
     stock_level = 0U;
     stock_key = 0xFFFFFFFFU;
-#endif
-#ifdef VP_LIGHT_CONTROL
     vp_test_beep_last = 0xFFU;
     vp_battery_level = -1;
-    vp_click_pending = 0U;
 #endif
     vesc_locked = false;
 #endif
@@ -1008,10 +1007,11 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
  * @brief A power-button click series (any count)
  *
  * With the VP block (Refloat Glow): 2 and 3 clicks are sent to the package
- * right after the next poll (COMM_CUSTOM_APP_DATA, refloat id 101, command
- * 133, the count; no reply), which does the rider's click action (light
- * levels, lights / beeper on-off; never anything else) and asks for the ACK
- * beep in a poll reply. Riding or not, as on the stock LCM.
+ * at once (COMM_CUSTOM_APP_DATA, refloat id 101, command 133, the count),
+ * which does the rider's click action (light levels, lights / beeper on-off;
+ * never anything else) and asks for the ACK beep in its next poll reply.
+ * Riding or not, as on the stock LCM. Sent from the main loop, like the
+ * poll (no interleaving); no reply is expected.
  *
  * Stock Refloat (no VP block): click-click steps the light level (1, 2, 3,
  * 1, ...), never while riding. Takes effect with the next poll reply.
@@ -1023,7 +1023,15 @@ bool_t vesc_serial_stock_level_step(uint8_t clicks)
     // vp_test_beep_last is 0xFF only while no VP block arrives
     if (vp_test_beep_last != 0xFFU)
     {
-        vp_click_pending = clicks; // 2 / 3 go out with the next poll
+        // precomputed packets (CRC-16/XMODEM) for 2 and 3 clicks
+        static const uint8_t click_packet[2][9] = {
+            {0x02, 0x04, 0x24, 0x65, 0x85, 0x02, 0x49, 0x0b, 0x03},
+            {0x02, 0x04, 0x24, 0x65, 0x85, 0x03, 0x59, 0x2a, 0x03}};
+
+        if ((clicks == 2U) || (clicks == 3U))
+        {
+            vesc_serial_hw_send((uint8_t *)&click_packet[0][0] + ((clicks - 2U) * 9U), 9U);
+        }
         return false;
     }
     if ((clicks != 2U) || (board_mode_get() == BOARD_MODE_RIDING))
@@ -1278,21 +1286,11 @@ TIMER_CALLBACK(vesc_serial, tx)
 #define LCM_POLL_SEGMENT 0x02, 0x03, 0x24, 0x65, 0x18, 0x3d, 0xe0, 0x03
 #define LCM_POLL_SEGMENT_LENGTH 8U
 #endif
-#ifdef VP_LIGHT_CONTROL
-    /* + a power-button click for the package (COMM_CUSTOM_APP_DATA, refloat
-     * id 101, command 133, the count; CRC-16/XMODEM precomputed for 2 and
-     * 3), sent only with a click pending - see vesc_serial_stock_level_step */
-#define VP_CLICK_SEGMENT , 0x02, 0x04, 0x24, 0x65, 0x85, 0x02, 0x49, 0x0b, 0x03
-#define VP_CLICK_LENGTH 9U
-#else
-#define VP_CLICK_SEGMENT
-#define VP_CLICK_LENGTH 0U
-#endif
-#define BYTE_LENGTH (18U + LCM_POLL_SEGMENT_LENGTH + VP_CLICK_LENGTH)
+#define BYTE_LENGTH (18U + LCM_POLL_SEGMENT_LENGTH)
     uint8_t buffer[BYTE_LENGTH] = {
         0x02, 0x05, 0x33, 0x00, 0x01, 0x01, 0xb8, 0xc0, 0xee, 0x03,
         0x02, 0x03, 0x41, 0x00, 0x03, 0x1a, 0xfe, 0x03,
-        LCM_POLL_SEGMENT VP_CLICK_SEGMENT
+        LCM_POLL_SEGMENT
     };
 #elif defined(ENABLE_IMU_EVENTS)
 #define BYTE_LENGTH 18U
@@ -1329,26 +1327,7 @@ TIMER_CALLBACK(vesc_serial, tx)
             clear_outstanding_packets();
         }
     }
-#if defined(VP_LIGHT_CONTROL) && defined(ENABLE_IMU_EVENTS) && defined(ENABLE_APP_INTEGRATION)
-    {
-        uint8_t length = BYTE_LENGTH - VP_CLICK_LENGTH;
-
-        if (vp_click_pending == 3U)
-        {
-            buffer[BYTE_LENGTH - 4U] = 3U;
-            buffer[BYTE_LENGTH - 3U] = 0x59U;
-            buffer[BYTE_LENGTH - 2U] = 0x2aU;
-        }
-        if ((uint8_t)(vp_click_pending - 2U) < 2U)
-        {
-            length = BYTE_LENGTH;
-        }
-        vp_click_pending = 0U;
-        vesc_serial_hw_send(buffer, length);
-    }
-#else
     vesc_serial_hw_send(buffer, BYTE_LENGTH);
-#endif
 }
 
 /**
