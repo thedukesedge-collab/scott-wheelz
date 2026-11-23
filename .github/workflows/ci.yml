@@ -93,6 +93,21 @@ jobs:
             --notes "Untested development build of Refloat Glow $(cat version) from commit ${GITHUB_SHA::7}. For bench testing with the wheel off the ground only. Riders: use the latest release (Releases > Latest). Refloat Glow is an unofficial modification of Refloat by Lukas Hrazky, not affiliated with or endorsed by the Refloat developers. License: GPL-3.0-or-later (LICENSE); full source of this build: https://github.com/thedukesedge-collab/scott-wheelz/tree/${GITHUB_SHA}; third-party notices: THIRD_PARTY_NOTICES.md." \
             --target "$GITHUB_SHA"
 
+      # lcm-powerclicks: firmware experiment (SLCM power-button click actions)
+      # on its own pre-release; main's dev-build is untouched
+      - name: Publish lcm-powerclicks dev build (branch lcm-powerclicks only)
+        if: always() && steps.build.outcome == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/lcm-powerclicks'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete powerclicks-dev --yes --cleanup-tag || true
+          cp refloatrm.vescpkg refloatglow-powerclicks-dev.vescpkg
+          gh release create powerclicks-dev refloatglow-powerclicks-dev.vescpkg \
+            --prerelease --latest=false \
+            --title "powerclicks DEV $(cat version) (${GITHUB_SHA::7}) - package + SLCM firmware change, bench testing only, NOT for riding" \
+            --notes "Experimental Refloat Glow build (branch lcm-powerclicks): power-button click actions for SLCM boards. Needs the SLCM from the lcm-powerclicks-dev release. Bench test with the wheel off the ground first. Refloat Glow is an unofficial modification of Refloat by Lukas Hrazky, not affiliated with or endorsed by the Refloat developers. License: GPL-3.0-or-later (LICENSE); full source of this build: https://github.com/thedukesedge-collab/scott-wheelz/tree/${GITHUB_SHA}; third-party notices: THIRD_PARTY_NOTICES.md." \
+            --target "$GITHUB_SHA"
+
       - name: Publish rider release (tag v<version>)
         if: steps.build.outcome == 'success' && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         env:

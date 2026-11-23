@@ -95,6 +95,19 @@ jobs:
             --title "DEV LCM firmware (${GITHUB_SHA::7}) - bench testing only, NOT for riding" \
             --notes "Untested SLCM build from ${GITHUB_SHA::7}. Riders: use SLCM.hex from the lcm-latest release. Light firmware: ALCM by Mitchell White (GPL-3.0) with Refloat Glow changes; contains ARM CMSIS (BSD-3-Clause). Refloat Glow is an unofficial modification of Refloat by Lukas Hrazky, not affiliated with or endorsed by the Refloat developers. License: GPL-3.0-or-later (LICENSE); full source of this build: https://github.com/thedukesedge-collab/scott-wheelz/tree/${GITHUB_SHA}; third-party notices: THIRD_PARTY_NOTICES.md."
 
+      - name: Publish lcm-powerclicks SLCM (branch lcm-powerclicks only)
+        if: success() && github.ref == 'refs/heads/lcm-powerclicks'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          F=lcm/alcm/gcc/build
+          cp $F/ALCM_VP_BL_full.hex $F/SLCM.hex
+          gh release delete lcm-powerclicks-dev --yes --cleanup-tag || true
+          gh release create lcm-powerclicks-dev $F/SLCM.hex $F/ALCM_VP_app.bin \
+            --prerelease --latest=false --target "$GITHUB_SHA" \
+            --title "powerclicks DEV SLCM (${GITHUB_SHA::7}) - power-button click actions, bench testing only, NOT for riding" \
+            --notes "Experimental SLCM build (branch lcm-powerclicks): reports power-button click series to the package. Flash from the app (LEDS > LCM firmware tools > PICK .HEX FILE: SLCM.hex) or with the ST-Link. Light firmware: ALCM by Mitchell White (GPL-3.0) with Refloat Glow changes; contains ARM CMSIS (BSD-3-Clause). Refloat Glow is an unofficial modification of Refloat by Lukas Hrazky, not affiliated with or endorsed by the Refloat developers. License: GPL-3.0-or-later (LICENSE); full source of this build: https://github.com/thedukesedge-collab/scott-wheelz/tree/${GITHUB_SHA}; third-party notices: THIRD_PARTY_NOTICES.md."
+
       - name: Publish LCM rider release (tag v<version>)
         if: success() && startsWith(github.ref, 'refs/tags/v')
         env:
