@@ -1020,7 +1020,7 @@ bool_t vesc_serial_stock_level_step(uint8_t clicks)
     // vp_test_beep_last is 0xFF only while no VP block arrives
     if (vp_test_beep_last != 0xFFU)
     {
-        vp_click = (uint8_t)(((vp_click + 0x10U) & 0xF0U) | (clicks & 0x0FU));
+        vp_click = (uint8_t)(((vp_click + 0x10U) & 0xF0U) | clicks);
         return false;
     }
     if ((clicks != 2U) || (board_mode_get() == BOARD_MODE_RIDING))
@@ -1276,6 +1276,9 @@ TIMER_CALLBACK(vesc_serial, tx)
 #define LCM_POLL_SEGMENT_LENGTH 8U
 #endif
 #define BYTE_LENGTH (18U + LCM_POLL_SEGMENT_LENGTH)
+#ifdef LCM_POLL_CLICK
+    static // set in place below (no copy to the stack: smaller)
+#endif
     uint8_t buffer[BYTE_LENGTH] = {
         0x02, 0x05, 0x33, 0x00, 0x01, 0x01, 0xb8, 0xc0, 0xee, 0x03,
         0x02, 0x03, 0x41, 0x00, 0x03, 0x1a, 0xfe, 0x03,
@@ -1318,13 +1321,13 @@ TIMER_CALLBACK(vesc_serial, tx)
     }
 #if defined(LCM_POLL_CLICK) && defined(VP_LIGHT_CONTROL)
     {
-        // The click byte is the last one before the CRC (sent as 0 by
-        // lcm_tag.py). CRC-16/XMODEM (init 0) is linear, so the CRC with
-        // the byte set is the precomputed CRC ^ crc16(byte).
-        uint16_t c = crc16_ccitt(&vp_click, 1U);
+        // The click byte is the last one before the CRC (0 in lcm_tag.py's
+        // segment). CRC-16/XMODEM (init 0) is linear, so the CRC with the
+        // byte set is the precomputed CRC ^ crc16(byte).
+        uint16_t c = crc16_ccitt(&vp_click, 1U) ^ LCM_POLL_CRC;
         buffer[BYTE_LENGTH - 4U] = vp_click;
-        buffer[BYTE_LENGTH - 3U] ^= (uint8_t)(c >> 8);
-        buffer[BYTE_LENGTH - 2U] ^= (uint8_t)c;
+        buffer[BYTE_LENGTH - 3U] = (uint8_t)(c >> 8);
+        buffer[BYTE_LENGTH - 2U] = (uint8_t)c;
     }
 #endif
     vesc_serial_hw_send(buffer, BYTE_LENGTH);

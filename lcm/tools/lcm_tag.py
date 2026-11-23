@@ -36,4 +36,5 @@ with open(out, "w") as f:
     f.write("#define LCM_POLL_SEGMENT " + ", ".join(f"0x{b:02x}" for b in packet) + "\n")
     f.write(f"#define LCM_POLL_SEGMENT_LENGTH {len(packet)}U\n")
     f.write("#define LCM_POLL_CLICK 1\n")
+    f.write(f"#define LCM_POLL_CRC 0x{c:04x}U\n")
     f.write(f"#define LCM_FIRMWARE_NAME \"{name}\"\n")
