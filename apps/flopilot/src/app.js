@@ -5,6 +5,7 @@
 import { BleClient } from '@capacitor-community/bluetooth-le';
 import { Board } from './board.js';
 import { initLock } from './lock.js';
+import { searchBoard, boardName } from './scan.js';
 
 const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';  // phone -> VESC
@@ -95,7 +96,7 @@ async function connectOnce(deviceId, name) {
   setPill('CONNECTING…', 'busy');
   await BleClient.connect(deviceId, () => onDisconnected(true), { timeout: 8000 });
   link.deviceId = deviceId;
-  link.name = name || 'BOARD';
+  link.name = boardName(deviceId, name);
   try {
     const mtu = await BleClient.getMtu(deviceId);
     link.chunk = Math.max(20, Math.min(244, mtu - 3));
@@ -156,14 +157,17 @@ async function disconnect() {
 
 async function pickAndConnect() {
   try {
-    await BleClient.initialize();  // also asks for location: the manifest has no neverForLocation flag
-    const dev = await BleClient.requestDevice({ services: [NUS] });
+    let last = null;
+    try { last = JSON.parse(localStorage.getItem(SAVED) || 'null'); } catch (e) {}
+    const dev = await searchBoard({ lastId: last && last.deviceId, toast: toastMsg });
+    if (!dev) return;
     userOff = false;
+    clearTimeout(retry);
     await connect(dev.deviceId, dev.name);
   } catch (e) {
     console.warn(e);
-    setPill('CONNECT BOARD', 'off');
-    toastMsg(String(e && e.message || e).includes('cancel') ? 'No board picked' : 'Could not connect: ' + (e && e.message || e));
+    if (!link.deviceId) setPill('CONNECT BOARD', 'off');
+    toastMsg('Could not connect: ' + (e && e.message || e));
   }
 }
 
