@@ -1961,8 +1961,9 @@ function renderLedsSoft() {
   $('lcmTools').style.display = (P.simSetup || 'slcm') === 'slcm' || FW.active ? '' : 'none';
   $('fwOnlySlcm').style.display = (P.simSetup || 'slcm') === 'slcm' ? 'none' : '';
   if (!lcmHold.t) { $('lcmToolsText').textContent = FW.active ? 'LCM FIRMWARE · FLASHING ' + Math.round(FW.p * 100) + '%' : (lcmHold.hint ? 'HOLD 2 s TO OPEN' : 'LCM firmware tools'); $('lcmToolsText').style.color = FW.active ? 'var(--green)' : ''; }
-  document.querySelectorAll('.ledTile').forEach(t => t.classList.toggle('lit', t.dataset.w === 'head' ? P.ledHead : t.dataset.w === 'bar' ? P.ledBar : t.dataset.w === 'sound' ? P.ledBeep : t.dataset.w === 'power' ? !!P.pcOn : true));
-  pcInit(); $('ltPower').textContent = P.pcOn ? '2\u00D7 ' + PC_ACTS[P.pcA0] + ' \u00B7 3\u00D7 ' + PC_ACTS[P.pcA1] : 'CLICKS OFF';  // lcm-powerclicks
+  document.querySelectorAll('.ledTile').forEach(t => t.classList.toggle('lit', t.dataset.w === 'head' ? P.ledHead : t.dataset.w === 'bar' ? P.ledBar : t.dataset.w === 'sound' ? P.ledBeep : t.dataset.w === 'power' ? !!P.pcOn && simCanClicks() : true));
+  pcInit(); $('ltPower').textContent = !simCanClicks() ? 'LCM UPDATE NEEDED' : P.pcOn ? '2\u00D7 ' + PC_ACTS[P.pcA0] + ' \u00B7 3\u00D7 ' + PC_ACTS[P.pcA1] : 'CLICKS OFF';  // lcm-powerclicks
+  $('ltPower').closest('.ledTile').style.opacity = simCanClicks() ? 1 : 0.5;
   if (curLedWin === 'power') { if (pcRender.sig !== P.pcA0 + ',' + P.pcA1) setTimeout(renderPower, 0); pcSaved(); }
   $('ledBeepHint').textContent = P.ledBeep ? "The light module plays one short beep. No beep = the module isn't running the SLCM firmware or isn't connected."
     : 'The LCM beeper is off, so the test beep is silent. Turn it on above first.';
@@ -1998,6 +1999,23 @@ function renderPower() {
     box.appendChild(t);
   }
   $('ltPower').textContent = P.pcOn ? '2\u00D7 ' + PC_ACTS[P.pcA0] + ' \u00B7 3\u00D7 ' + PC_ACTS[P.pcA1] : 'CLICKS OFF';
+}
+// lcm-powerclicks: SLCM features (the real ones: slcmDetect in ui.qml.in).
+// Pretend LCMs (LCM firmware tools): this package's build has the clicks,
+// the older one doesn't, the newer one has a feature this package doesn't know.
+const simFeat = () => (P.simSetup || 'slcm') !== 'slcm' ? 0 : ({ vpbl: 1, vpbl_old: 0, vpbl_new: 3 })[FW.kind] || 0;
+const simCanClicks = () => (simFeat() & 1) !== 0;
+const simPkgBehind = () => (simFeat() & ~1) !== 0;
+function simLcmVerTxt() { return verTxt(({ vpbl: 'r23-4db43fd', vpbl_old: 'r21-3b9e0a2', vpbl_new: 'r25-c1f07d9' })[FW.kind] || ''); }
+function lcmUpdateNeeded(f) {
+  modal('<h3 style="color:#FFB300">LCM REQUIRES UPDATE FOR THIS</h3><p class="ledHint">' + f + ' needs newer SLCM firmware than your light module has (' + simLcmVerTxt() + ').<br><br>Everything else keeps working as it is. Go to UPDATES and check for an LCM update?</p><div class="btns"><button data-close>NOT NOW</button><button class="pri" data-ok>GO TO UPDATES</button></div>',
+    () => { setTimeout(() => { ledWin('updates'); updCheck(); }, 0); });
+}
+function pkgBehindCheck() {
+  if (!simPkgBehind() || P.pkgBehindSeen === FW.kind) return;
+  P.pkgBehindSeen = FW.kind; save();
+  modal('<h3 style="color:#FFB300">PACKAGE UPDATE NEEDED</h3><p class="ledHint">Your light module runs newer SLCM firmware (' + simLcmVerTxt() + ') with features this Refloat Glow package can\'t use yet.<br><br>All your current light settings keep working. Update the Refloat Glow package to use the new features.</p><div class="btns"><button data-close>OK</button><button class="pri" data-ok>GO TO UPDATES</button></div>',
+    () => { setTimeout(() => { ledWin('updates'); updCheck(); }, 0); });
 }
 function renderLeds() {
   const pct = v => v + '%';
@@ -2213,6 +2231,7 @@ const ledWin = w => {
   $('slcmFooter').style.display = w === 'updates' || w === 'rgb' || ((P.simSetup || 'slcm') !== 'slcm' && (w === 'head' || w === 'bar')) ? 'none' : '';
 };
 document.querySelectorAll('.ledTile').forEach(t => t.onclick = () => ledWin(t.dataset.w));
+document.querySelector('.ledTile[data-w="power"]').onclick = () => simCanClicks() ? ledWin('power') : lcmUpdateNeeded('POWER BUTTON');  // lcm-powerclicks
 $('ledWinBack').onclick = () => { if (document.querySelector('.ledSec.on[data-s="custom"]')) { ledWin('anim'); renderLeds(); return; } fwForget(); ledWin(null); };
 $('ledWinDim').onclick = () => { fwForget(); ledWin(null); };
 $('cuOpen').onclick = () => { ledWin('custom'); renderCustom(); };
@@ -2325,7 +2344,7 @@ function fwFitPaint() {
   $('fwCan').style.display = fwCan() ? 'block' : 'none';
   document.querySelectorAll('#fwSimLcm .pill').forEach(x => x.classList.toggle('on', x.dataset.k === k));
 }
-document.querySelectorAll('#fwSimLcm .pill').forEach(x => x.onclick = () => { if (FW.active) return; FW.kind = x.dataset.k; FW.check = 0; FW.unlocked = false; fwFitPaint(); });
+document.querySelectorAll('#fwSimLcm .pill').forEach(x => x.onclick = () => { if (FW.active) return; FW.kind = x.dataset.k; FW.check = 0; FW.unlocked = false; fwFitPaint(); renderLedsSoft(); if (typeof updPaint === 'function') updPaint(); setTimeout(pkgBehindCheck, 300); });
 const fwForget = () => { if (FW.active) return; FW.check = 0; FW.unlocked = false; };
 const fwChk = on => { $('fwChk').style.display = $('fwAckBack').style.display = on ? 'block' : 'none'; };
 $('fwCheckBtn').onclick = () => {
@@ -2491,7 +2510,7 @@ function fwStart() {
   FW.t = setInterval(() => {
     if (++k < 15) return;
     FW.p = Math.min(1, FW.p + 1 / 115);
-    if (FW.p >= 1) { clearInterval(FW.t); FW.active = false; FW.kind = (FW.usePicked && FW.picked && ({ 'r21-3b9e0a2': 'vpbl_old', 'r25-c1f07d9': 'vpbl_new' })[FW.picked.slcm]) || 'vpbl'; if (typeof updPaint === 'function') updPaint(); fwPaint('Done: the LCM firmware is updated and running.'); return; }
+    if (FW.p >= 1) { clearInterval(FW.t); FW.active = false; FW.kind = (FW.usePicked && FW.picked && ({ 'r21-3b9e0a2': 'vpbl_old', 'r25-c1f07d9': 'vpbl_new' })[FW.picked.slcm]) || 'vpbl'; if (typeof updPaint === 'function') updPaint(); renderLedsSoft(); fwPaint('Done: the LCM firmware is updated and running.'); return; }
     fwPaint('Updating the LCM: ' + Math.round(FW.p * 100) + "%. Keep the app connected, don't ride.");
   }, 80);
 }
@@ -2524,7 +2543,7 @@ function updLcmFit() {
 function updPaint() {
   const l = updLcmVer();
   { const pf = updPkgFit(), lf = updLcmFit();
-    $('ltUpd').textContent = UPD.phase === 1 ? 'CHECKING...' : UPD.phase !== 2 ? 'CHECK FOR UPDATES'
+    $('ltUpd').textContent = simPkgBehind() ? 'PACKAGE UPDATE NEEDED' : UPD.phase === 1 ? 'CHECKING...' : UPD.phase !== 2 ? 'CHECK FOR UPDATES'
       : pf === 'newer' && lf === 'newer' ? 'PACKAGE + LCM UPDATE AVAILABLE' : pf === 'newer' ? 'PACKAGE UPDATE AVAILABLE' : lf === 'newer' ? 'LCM UPDATE AVAILABLE' : 'UP TO DATE · CHECK AGAIN'; }
   $('updInstalled').textContent = 'This package: Refloat Glow ' + PKG_VER + '\nLight module: ' + (l ? 'SLCM ' + verTxt(l) : 'no SLCM with the bootloader');
   $('updInstalled').style.whiteSpace = 'pre-wrap';

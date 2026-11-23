@@ -901,6 +901,15 @@ Item {
         id: slcmDetect
         readonly property bool present: lcmFw.lcmName.indexOf("VP-") === 0 || lcmFw.lcmName.indexOf("VPBL-") === 0 || lcmFw.legacy
         onPresentChanged: if (present) powerClicks.get()  // lcm-powerclicks: tile summary
+        // lcm-powerclicks: SLCM features (bits, see SLCM_FEATURES in the SLCM's
+        // config.h). pkgFeatures = the ones this package can use. A feature the
+        // SLCM lacks: its tile asks for an LCM update; SLCM bits this package
+        // doesn't know: the package is behind (notice once per SLCM build).
+        readonly property int pkgFeatures: 0x1  // bit 0: POWER BUTTON clicks
+        readonly property int features: lcmFw.lcmVer.features
+        readonly property bool canClicks: (features & 0x1) !== 0
+        readonly property bool pkgBehind: present && lcmFw.hasBootloader && (features & ~pkgFeatures) !== 0
+        onPkgBehindChanged: if (pkgBehind && swSettings.pkgBehindSeen !== lcmFw.lcmName) pkgBehindNotice.open()
         readonly property bool known: lcmFw.nameKnown
         readonly property string version: lcmFw.legacy ? "older build (before r15)" : lcmFw.verText(lcmFw.lcmVer)
         property bool tabOpen: false
@@ -1002,9 +1011,13 @@ Item {
         // code exactly. rf63/rf64 builds named themselves with the hash only:
         // those are older than any r<N> build.
         readonly property string pkgVersion: "{{VERSION}}"
+        // lcm-powerclicks: after the 7-digit hash, newer SLCMs add their
+        // feature mask in hex (lcm/tools/lcm_version.sh, SLCM_FEATURES), e.g.
+        // r36-2fcd8f51 = features 0x1. hash keeps the whole string (build identity).
         function parseVer(v) {
             var m = /^r(\d+)-([0-9a-f]+)$/.exec(v || "");
-            return m ? {rev: parseInt(m[1]), hash: m[2]} : {rev: -1, hash: v || ""};
+            return m ? {rev: parseInt(m[1]), hash: m[2], features: m[2].length > 7 ? parseInt(m[2].substr(7), 16) : 0}
+                : {rev: -1, hash: v || "", features: 0};
         }
         function verText(v) { return v.rev > 0 ? "r" + v.rev + " (" + v.hash + ")" : (v.rev === 0 ? v.hash : v.hash + ", pre-rf65"); }
         readonly property var lcmVer: parseVer(hasBootloader ? lcmName.substr(5) : (lcmName.indexOf("VP-") === 0 ? lcmName.substr(3) : ""))
@@ -1277,8 +1290,11 @@ Item {
     QtObject {
         id: updater
         readonly property string repo: "thedukesedge-collab/scott-wheelz"
-        readonly property string latestApi: "https://api.github.com/repos/" + repo + "/releases/latest"
-        readonly property string releasesPage: "https://github.com/" + repo + "/releases/latest"
+        // lcm-powerclicks TEST package: CHECK FOR UPDATES looks only at the
+        // powerclicks test release (package + SLCM with the click feature),
+        // not the rider releases. Main keeps releases/latest.
+        readonly property string latestApi: "https://api.github.com/repos/" + repo + "/releases/tags/powerclicks-dev"
+        readonly property string releasesPage: "https://github.com/" + repo + "/releases/tag/powerclicks-dev"
 
         property int phase: 0  // 0 not checked, 1 checking, 2 checked, 3 failed
         property int dlState: 0  // 0 -, 1 downloading, 2 downloaded, 3 failed
@@ -1369,7 +1385,7 @@ Item {
             get(latestApi, "application/vnd.github+json", function(status, text) {
                 if (status === 404) {
                     phase = 3;
-                    message = "No rider release has been published yet.";
+                    message = "The powerclicks test release isn't published yet.";
                     return;
                 }
                 if (status !== 200) {
@@ -1401,7 +1417,7 @@ Item {
                 }
                 rel = r;
                 phase = 2;
-                message = "Latest release: " + r.name + ".";
+                message = "Test release: " + r.name + ".";
             });
         }
 
@@ -2720,6 +2736,7 @@ Item {
         property real hapticLast: 3  // rf108: strength brought back by HAPTIC FEEDBACK ON
         property real pbLastAngle: 5  // rf171: pushback angle brought back by PUSHBACK ON
         property bool nonRgbHeadTail: false  // rf175: plain (single-color) head/tail lights: simple view
+        property string pkgBehindSeen: ""  // lcm-powerclicks: SLCM name the "package update needed" notice was shown for
         property int rfBgLast: 1  // rf101: background color brought back by BACKGROUND ON (WHITE)  // rf86: controller-driven LEDs snooze after this many idle minutes (0 = never)
         property string ledCustom: ""  // CUSTOM animation, 8 numbers (JSON), see ledSender.custom()
         property int ledAnimBoot: 11
@@ -9042,6 +9059,49 @@ Item {
                 if (val("tiltback_duty_angle") > 0) swSettings.pbLastAngle = val("tiltback_duty_angle");
                 set("tiltback_duty_angle", 0);
             }
+        }
+    }
+
+    // lcm-powerclicks: a feature the fitted SLCM can't do yet
+    BaseDialog {
+        id: lcmUpdateNeeded
+        parent: ApplicationWindow.overlay
+        title: "LCM requires update for this"
+        titleColor: "#FFB300"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        property string feature: ""
+        function ask(f) { feature = f; open(); }
+        onOpened: { standardButton(Dialog.Ok).text = "Go to UPDATES"; standardButton(Dialog.Cancel).text = "Not now"; }
+        onAccepted: { ledWindow.show("updates"); updater.check(); }
+        Text {
+            width: lcmUpdateNeeded.availableWidth
+            wrapMode: Text.WordWrap
+            color: "#ead6ff"
+            font.pixelSize: 0.3 * unit
+            lineHeight: 1.15
+            text: lcmUpdateNeeded.feature + " needs newer SLCM firmware than your light module has (" + slcmDetect.version + ").\n\n"
+                + "Everything else keeps working as it is. Go to UPDATES and check for an LCM update?"
+        }
+    }
+
+    // lcm-powerclicks: the SLCM has features this package doesn't know yet
+    BaseDialog {
+        id: pkgBehindNotice
+        parent: ApplicationWindow.overlay
+        title: "Package update needed"
+        titleColor: "#FFB300"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onOpened: { standardButton(Dialog.Ok).text = "Go to UPDATES"; standardButton(Dialog.Cancel).text = "OK"; }
+        onClosed: swSettings.pkgBehindSeen = lcmFw.lcmName  // once per SLCM build
+        onAccepted: { ledWindow.show("updates"); updater.check(); }
+        Text {
+            width: pkgBehindNotice.availableWidth
+            wrapMode: Text.WordWrap
+            color: "#ead6ff"
+            font.pixelSize: 0.3 * unit
+            lineHeight: 1.15
+            text: "Your light module runs newer SLCM firmware (" + slcmDetect.version + ") with features this Refloat Glow package can't use yet.\n\n"
+                + "All your current light settings keep working. Update the Refloat Glow package to use the new features."
         }
     }
 
@@ -18097,10 +18157,12 @@ Item {
                                 Layout.columnSpan: 2
                                 title: "POWER BUTTON"
                                 glyph: "\u25C9"
-                                lit: powerClicks.on
-                                summary: !powerClicks.on ? "CLICKS OFF"
+                                lit: powerClicks.on && slcmDetect.canClicks
+                                opacity: slcmDetect.canClicks ? 1 : 0.5
+                                summary: !slcmDetect.canClicks ? "LCM UPDATE NEEDED"
+                                    : !powerClicks.on ? "CLICKS OFF"
                                     : "2\u00D7 " + powerClicks.actNames[powerClicks.act[0]] + " \u00B7 3\u00D7 " + powerClicks.actNames[powerClicks.act[1]]
-                                onClicked: ledWindow.show("power")
+                                onClicked: slcmDetect.canClicks ? ledWindow.show("power") : lcmUpdateNeeded.ask("POWER BUTTON")
                             }
                         }
 
@@ -18119,7 +18181,8 @@ Item {
                                 title: "UPDATES"
                                 glyph: "\u21BB"
                                 lit: updater.pkgFit === "newer" || updater.lcmFit === "newer"
-                                summary: updater.phase === 1 ? "CHECKING..."
+                                summary: slcmDetect.pkgBehind ? "PACKAGE UPDATE NEEDED"
+                                    : updater.phase === 1 ? "CHECKING..."
                                     : updater.phase !== 2 ? "CHECK FOR UPDATES"
                                     : updater.pkgFit === "newer" && updater.lcmFit === "newer" ? "PACKAGE + LCM UPDATE AVAILABLE"
                                     : updater.pkgFit === "newer" ? "PACKAGE UPDATE AVAILABLE"

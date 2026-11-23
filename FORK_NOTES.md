@@ -2038,3 +2038,20 @@ bench testing; not on main. SLCM boards only.
   available" on a test board: that's main's SLCM, without the clicks.
 - Onboarding Tour checked: LIGHTS page's SLCM line now mentions POWER
   BUTTON clicks; nothing else changed.
+- Follow-up (same branch): SLCM feature tags and the first BLE test flash.
+  - The SLCM's version gets its feature mask in hex after the 7-digit hash
+    (SLCM_FEATURES in config.h, bit 0 = power-button clicks), e.g.
+    VPBL-r37-1a2b3c41. Still "r<N>-<hex>": older packages read the same
+    revision and compare builds as before (the hash is cut to 7 digits).
+  - The package knows its features (pkgFeatures = 0x1). SLCM without the
+    click feature: the POWER BUTTON tile is dimmed, "LCM UPDATE NEEDED"; a
+    tap asks "LCM requires update for this" -> GO TO UPDATES (and checks).
+    Every other LED setting works as before on any SLCM.
+  - SLCM with features this package doesn't know: "Package update needed"
+    notice once per SLCM build (GO TO UPDATES / OK), and the UPDATES tile
+    says PACKAGE UPDATE NEEDED.
+  - Test package's CHECK FOR UPDATES reads the powerclicks-dev release only
+    (package + SLCM.hex + slcm-<version>.txt, both workflows add to it), so
+    a board on main's SLCM (r27) is offered this SLCM to flash over BLE.
+  - Simulator: LCM firmware tools › pretend older LCM shows the locked tile
+    and prompt; pretend newer LCM shows the package notice.

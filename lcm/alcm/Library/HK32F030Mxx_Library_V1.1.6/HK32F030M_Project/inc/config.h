@@ -83,6 +83,14 @@
 // board like an XR.
 #define ENABLE_STATUS_LEDS 1                      // Enable the status LEDs
 #define STATUS_LEDS_FADE_TO_BLACK_TIMEOUT (1000U) // Time to fade to black when shutting down
+// Refloat Glow (SLCM): what this light firmware can do, beyond the base
+// VP light control. lcm/tools/lcm_version.sh adds it to the version the
+// LCM reports ("VPBL-r<N>-<hash><features hex>"), so the package can offer
+// only what the fitted SLCM supports (and say when the package is behind).
+// Bit 0: power-button click series sent to the package (COMMAND_LCM_CLICK).
+// Only ever add bits; the package lists the ones it knows (pkgFeatures).
+#define SLCM_FEATURES 0x1U
+
 #ifdef VP_LIGHT_CONTROL
 // Refloat Glow battery gauge colors: white above 55 %, yellow 55-41 %,
 // orange 40-30 %, red below 30 %, flashing red 5 % and below. The gauge
