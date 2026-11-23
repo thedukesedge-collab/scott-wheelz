@@ -1390,7 +1390,7 @@ Item {
                 var assets = j.assets || [];
                 for (var i = 0; i < assets.length; i++) {
                     var n = assets[i].name || "";
-                    if (n === "refloatrm.vescpkg") r.pkgUrl = assets[i].browser_download_url;
+                    if (n === "refloatglow.vescpkg" || (n === "refloatrm.vescpkg" && !r.pkgUrl)) r.pkgUrl = assets[i].browser_download_url;  // rf179: new name, old one as fallback
                     else if (n === "SLCM.hex") r.hexUrl = assets[i].browser_download_url;
                     else {
                         // CI adds "slcm-r<N>-<hash>.txt": the SLCM version, readable without a download

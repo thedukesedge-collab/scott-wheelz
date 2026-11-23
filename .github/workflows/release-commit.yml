@@ -30,7 +30,7 @@ jobs:
         run: |
           sha=$(git rev-parse HEAD)
           ver=$(cat version)
-          cp refloatrm.vescpkg refloatrm-$ver.vescpkg
+          cp refloatglow.vescpkg refloatglow-$ver.vescpkg
           gh release delete "${{ inputs.name }}" --yes --cleanup-tag || true
-          gh release create "${{ inputs.name }}" refloatrm-$ver.vescpkg --prerelease \
+          gh release create "${{ inputs.name }}" refloatglow-$ver.vescpkg --prerelease \
             --title "Refloat Glow $ver (${sha::7})" --notes "Build of ${sha::7}." --target "$sha"

@@ -4,7 +4,7 @@ Permanent Project Instructions & Development Standards
 
 The official name of this project is Refloat Glow (renamed by the user on 2026-11-21; it was Refloat rink-mixed, abbreviated refloatRM, and before that “Scott Wheels” / Scott Wheelz).
 
-This replaces all previous project names. Download file names (`refloatrm.vescpkg`, `refloatrm-dev.vescpkg`) keep the old abbreviation so existing links and the in-app update check keep working.
+This replaces all previous project names. Download file names are `refloatglow.vescpkg` / `refloatglow-dev.vescpkg` (user, 2026-11-22, rf179); releases also carry the old `refloatrm` names as copies so old links and older packages' update check keep working.
 
 These instructions apply to all future development, modifications, firmware builds, documentation, testing, and releases.
 
@@ -202,7 +202,7 @@ Do not begin changing safety-critical firmware behavior as part of this naming a
   - QML Settings category `scottWheelz` (renaming wipes every user's saved app
     settings).
   - Historical entries in FORK_NOTES.md.
-  - Download file names `refloatrm.vescpkg` / `refloatrm-dev.vescpkg` (links,
+  - Old download names `refloatrm.vescpkg` / `refloatrm-dev.vescpkg` uploaded as copies next to the refloatglow ones (links,
     in-app update check).
 - Git history: upstream Refloat history through v1.2.3 is joined into `main`
   (merge -s ours, rf144). Remote `upstream` = lukash/refloat with

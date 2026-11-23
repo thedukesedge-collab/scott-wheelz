@@ -2020,3 +2020,11 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   "Don't show this again (until the next update)" stops both; then the tour
   still opens once per new version as before. Replay: Settings › SHOW TIPS
   & TRICKS. qmltest shot 18 checks CONTINUE opens the tour.
+
+### Download file named refloatglow (v1.2.3-rf179)
+- The package builds as `refloatglow.vescpkg`; the dev build downloads as
+  `refloatglow-dev.vescpkg`, rider releases as `refloatglow.vescpkg` /
+  `refloatglow-<version>.vescpkg`. The old `refloatrm` names are uploaded too
+  (same file) so links already shared and older packages' CHECK FOR UPDATES
+  keep working. CHECK FOR UPDATES takes refloatglow.vescpkg first.
+- Onboarding Tour checked: no file names shown; no change.

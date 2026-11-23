@@ -2215,7 +2215,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf178';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf179';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
@@ -2506,7 +2506,7 @@ function updCheck() {
         : res.status !== 200 ? done(null, 'GitHub answered ' + res.status + '. Try again later.')
         : res.json().then(j => {
           const r = { tag: j.tag_name, version: j.tag_name.replace(/^v/, ''), name: j.name || j.tag_name, notes: j.body || '', page: j.html_url, pkgUrl: '', hexUrl: '', slcm: '' };
-          (j.assets || []).forEach(a => { if (a.name === 'refloatrm.vescpkg') r.pkgUrl = a.browser_download_url; else if (a.name === 'SLCM.hex') r.hexUrl = a.browser_download_url; else { const m = /^slcm-(r\d+-[0-9a-f]+)\.txt$/.exec(a.name); if (m) r.slcm = m[1]; } });
+          (j.assets || []).forEach(a => { if (a.name === 'refloatglow.vescpkg' || (a.name === 'refloatrm.vescpkg' && !r.pkgUrl)) r.pkgUrl = a.browser_download_url; else if (a.name === 'SLCM.hex') r.hexUrl = a.browser_download_url; else { const m = /^slcm-(r\d+-[0-9a-f]+)\.txt$/.exec(a.name); if (m) r.slcm = m[1]; } });
           done(r);
         }))
       .catch(() => done(null, 'Couldn’t reach GitHub. Check the phone’s internet connection and try again.'));
@@ -2517,7 +2517,7 @@ function updCheck() {
     if (k === 'none') return done(null, 'No rider release has been published yet.');
     const v = k === 'newer' ? '1.2.3-rf143' : PKG_VER, sl = k === 'newer' ? 'r25-c1f07d9' : 'r23-4db43fd';
     done({ tag: 'v' + v, version: v, name: 'Refloat Glow ' + v + ' (PRETEND - simulator only, not a real release)', page: 'https://github.com/' + UPD_REPO + '/releases',
-      pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatrm.vescpkg', hexUrl: 'sim', slcm: sl,
+      pkgUrl: 'https://github.com/' + UPD_REPO + '/releases/download/v' + v + '/refloatglow.vescpkg', hexUrl: 'sim', slcm: sl,
       notes: 'Refloat Glow rider release (simulated). Tested on the bench checklist in RELEASING.md before it was tagged.' });
   }, 1200);
 }

@@ -3,7 +3,7 @@ Refloat Glow rider release: a custom remix of Refloat, vibe-coded on top of Refl
 **Use at your own risk.** Back up your Refloat config first, and test with the wheel off the ground after installing.
 
 Files:
-- `refloatrm.vescpkg`: the VESC package (VESC Tool > VESC Packages > load custom).
+- `refloatglow.vescpkg`: the VESC package (VESC Tool > VESC Packages > load custom).
 - `SLCM.hex`: light module firmware with bootloader (ST-Link once; after that, update from the app: LEDS > LCM firmware tools).
 - `ALCM_VP_app.bin`: the light module update image.
 

@@ -5,7 +5,7 @@ It contains or builds with the third-party code listed below. Each part keeps
 its own copyright and license. "Status" is our own review status, not legal
 advice. Anything marked **NEEDS REVIEW** has not been fully checked yet.
 
-## VESC package (`refloatrm.vescpkg`)
+## VESC package (`refloatglow.vescpkg`)
 
 | Component | Where | Copyright | License | Status |
 |---|---|---|---|---|

@@ -20,7 +20,7 @@ Every tagged release stays on GitHub, so the previous build is always one tap
 away if a new one misbehaves.
 
 Rider download link (always the newest tagged release):
-`https://github.com/thedukesedge-collab/scott-wheelz/releases/latest/download/refloatrm.vescpkg`
+`https://github.com/thedukesedge-collab/scott-wheelz/releases/latest/download/refloatglow.vescpkg`
 
 ## Steps
 

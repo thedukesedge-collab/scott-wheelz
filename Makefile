@@ -10,11 +10,11 @@ OLDVT ?= 0
 # and the rider picks SLCM.hex (lcm-latest release) to flash.
 LCM_FW ?= 0
 
-all: refloatrm.vescpkg
+all: refloatglow.vescpkg
 
-refloatrm.vescpkg: src lisp/package.lisp package_README-gen.md ui.qml
+refloatglow.vescpkg: src lisp/package.lisp package_README-gen.md ui.qml
 ifeq ($(OLDVT), 1)
-	"$(VESC_TOOL)" --buildPkg "refloatrm.vescpkg:lisp/package.lisp:ui.qml:0:package_README-gen.md:Refloat Glow"
+	"$(VESC_TOOL)" --buildPkg "refloatglow.vescpkg:lisp/package.lisp:ui.qml:0:package_README-gen.md:Refloat Glow"
 else
 	"$(VESC_TOOL)" --buildPkgFromDesc pkgdesc.qml
 endif
@@ -60,7 +60,7 @@ ui.qml: ui.qml.in package_name version $(LCM_FW_DEP)
 	${MINIFY_CMD} > $@
 
 clean:
-	rm -f refloatrm.vescpkg package_README-gen.md ui.qml
+	rm -f refloatglow.vescpkg package_README-gen.md ui.qml
 	rm -rf lcm/bootloader/build lcm/alcm/gcc/build
 	$(MAKE) -C src clean
 

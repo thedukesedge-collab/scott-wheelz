@@ -71,8 +71,8 @@ jobs:
         if: always() && steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
-          name: refloatrm-vescpkg
-          path: refloatrm.vescpkg
+          name: refloatglow-vescpkg
+          path: refloatglow.vescpkg
 
       # E1 (rf77): riders only get TAGGED releases. A push to main is a dev
       # build for bench testing; a tag v<version> (e.g. v1.2.3-rf77, must
@@ -86,8 +86,11 @@ jobs:
           # the old "Latest build" (main builds for riders) is retired
           gh release delete latest-build --yes --cleanup-tag || true
           gh release delete dev-build --yes --cleanup-tag || true
-          cp refloatrm.vescpkg refloatrm-dev.vescpkg
-          gh release create dev-build refloatrm-dev.vescpkg \
+          # rf179: refloatglow-dev.vescpkg; refloatrm-dev.vescpkg (the old name)
+          # is the same file, kept so links already shared keep working
+          cp refloatglow.vescpkg refloatglow-dev.vescpkg
+          cp refloatglow.vescpkg refloatrm-dev.vescpkg
+          gh release create dev-build refloatglow-dev.vescpkg refloatrm-dev.vescpkg \
             --prerelease --latest=false \
             --title "DEV build $(cat version) (${GITHUB_SHA::7}) - bench testing only, NOT for riding" \
             --notes "Untested development build of Refloat Glow $(cat version) from commit ${GITHUB_SHA::7}. For bench testing with the wheel off the ground only. Riders: use the latest release (Releases > Latest). Refloat Glow is an unofficial modification of Refloat by Lukas Hrazky, not affiliated with or endorsed by the Refloat developers. License: GPL-3.0-or-later (LICENSE); full source of this build: https://github.com/thedukesedge-collab/scott-wheelz/tree/${GITHUB_SHA}; third-party notices: THIRD_PARTY_NOTICES.md." \
@@ -112,5 +115,7 @@ jobs:
                 --notes-file tools/release_notes.md && break
             sleep 15
           done
-          gh release upload "$TAG" refloatrm.vescpkg --clobber
+          # rf179: also under the old name: packages up to rf178 look for refloatrm.vescpkg
+          cp refloatglow.vescpkg refloatrm.vescpkg
+          gh release upload "$TAG" refloatglow.vescpkg refloatrm.vescpkg --clobber
           gh release edit "$TAG" --latest

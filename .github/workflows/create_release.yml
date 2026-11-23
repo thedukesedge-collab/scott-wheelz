@@ -56,8 +56,8 @@ jobs:
 
       - name: Rename Package File
         run: |
-          mv refloatrm.vescpkg refloatrm-${{env.VERSION}}.vescpkg
-          mv src/package_lib.elf refloatrm-${{env.VERSION}}.elf
+          mv refloatglow.vescpkg refloatglow-${{env.VERSION}}.vescpkg
+          mv src/package_lib.elf refloatglow-${{env.VERSION}}.elf
 
       - name: Install Changelog Generation Dependencies
         run: sudo apt-get install python3-git
@@ -79,7 +79,7 @@ jobs:
           tag: ${{github.ref}}
           name: Refloat Glow ${{env.VERSION}}
           draft: true
-          artifacts: "refloatrm-${{env.VERSION}}.vescpkg,refloatrm-${{env.VERSION}}.elf,config_signature.txt"
+          artifacts: "refloatglow-${{env.VERSION}}.vescpkg,refloatglow-${{env.VERSION}}.elf,config_signature.txt"
           bodyFile: "release_notes.md"
           prerelease: ${{env.PRERELEASE}}
           allowUpdates: true
