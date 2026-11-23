@@ -4,6 +4,7 @@
 // keeps running as the demo board.
 import { BleClient } from '@capacitor-community/bluetooth-le';
 import { Board } from './board.js';
+import { initLock } from './lock.js';
 
 const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';  // phone -> VESC
@@ -147,6 +148,7 @@ async function disconnect() {
   const id = link.deviceId;
   userOff = true;
   clearTimeout(retry);
+  if (link.onUserDisconnect) link.onUserDisconnect();
   onDisconnected(false);
   if (id) try { await BleClient.disconnect(id); } catch (e) {}
   setPill('CONNECT BOARD', 'off');
@@ -252,6 +254,7 @@ function addUi() {
   refresh();
   setInterval(refresh, 500);
   window.addEventListener('resize', placePill);
+  initLock(link, toastMsg);
   reconnectSaved().then(ok => ok || (link.snap && scheduleRetry()));
 }
 

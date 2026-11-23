@@ -15,6 +15,7 @@ export const Rf = {
   info: 0,
   realtimeData: 31,
   realtimeDataIds: 32,
+  lights: 20,  // Refloat COMMAND_LIGHTS_CONTROL (stock 1.2.3): u32 mask, u8 value -> u8 state
   horn: 120,
   sDisabled: 0, sStartup: 1, sReady: 2, sRunning: 3,
   mNormal: 0, mHandtest: 1, mFlywheel: 2,

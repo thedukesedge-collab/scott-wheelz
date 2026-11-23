@@ -53,6 +53,18 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" "$PL" || true
           /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string bluetooth-central" "$PL"
           npx cap sync ios
+          /usr/libexec/PlistBuddy -c "Add :NSSupportsLiveActivities bool true" "$PL"
+      - name: Native parts (lock-screen card + FloLive plugin)
+        working-directory: ${{ env.APP }}
+        run: |
+          cp native/App/*.swift ios/App/App/
+          mkdir -p ios/App/FloPilotWidget && cp native/FloPilotWidget/* ios/App/FloPilotWidget/
+          ruby -rxcodeproj -e '' 2>/dev/null || gem install xcodeproj --no-document
+          ruby native/add_native.rb ios/App/App.xcodeproj
+          SB=ios/App/App/Base.lproj/Main.storyboard
+          grep -q 'customClass="CAPBridgeViewController" customModule="Capacitor"' "$SB"
+          sed -i '' 's/customClass="CAPBridgeViewController" customModule="Capacitor"/customClass="FloBridgeViewController" customModule="App" customModuleProvider="target"/' "$SB"
+          grep -q FloBridgeViewController "$SB"
       - name: API key
         env:
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}

@@ -28,6 +28,8 @@ export class Board {
 
   get live() { return this.comms === 'ready' && Date.now() - this.lastRt < 3000; }
 
+  // lights (Refloat's own LIGHTS_CONTROL): mask 1 = all lights, 2 = headlights; mask 0 = just ask
+  lightsSet(mask, value) { this.app([Rf.lights, 0, 0, 0, mask & 0xff, value & 0xff]); }
   app(bytes) { this.send([Comm.customAppData, Rf.pkgId, ...bytes]); }
   send(payload) { this.t.send(encodePacket(payload)); }
   receive(bytes) { this.decoder.add(bytes); }
@@ -38,6 +40,7 @@ export class Board {
     if (this.comms === 'info') this.app([Rf.info, 2]);
     else if (this.comms === 'ids') this.app([Rf.realtimeDataIds]);
     else this.app([Rf.realtimeData]);
+    if (this.comms === 'ready' && (this.n = (this.n || 0) + 1) % 20 === 1) this.lightsSet(0, 0);  // light state every 2 s
     if (this.comms !== 'ready' && Date.now() - this.started > 5000) this.packageMissing = true;
 
     if (!S) return;
@@ -87,6 +90,8 @@ export class Board {
       const n1 = r.u8(); this.idleIds = Array.from({ length: n1 }, () => r.lenString());
       const n2 = r.u8(); this.runtimeIds = Array.from({ length: n2 }, () => r.lenString());
       this.comms = 'ready';
+    } else if (msg === Rf.lights) {
+      this.lights = r.u8();  // bit 0 = lights on, bit 1 = headlights on
     } else if (msg === Rf.realtimeData) {
       if (this.comms !== 'ready') return;
       this.lastRt = Date.now();
