@@ -1970,8 +1970,9 @@ pre-release `hapticspeedsplit-dev`. Bench test before riding.
   vibrate current tone (same rule as the horn). Silent with haptic strength 0.
 - Limits in firmware: 0 = off, under 16 km/h (10 mph) = off, max 100 km/h.
 - Not in Refloat's config (adding a config field would change its layout
-  and reset every board to defaults): custom EEPROM word 127 (free since
-  rf71), 0xC1 << 24 | km/h, loaded at boot, saved 2 s after a change only
+  and reset every board to defaults): custom EEPROM word 124 (127 at first,
+  but that word holds the light settings' colors since rf114: fixed, a saved
+  speed tone from the first builds is lost once), 0xC1 << 24 | km/h, loaded at boot, saved 2 s after a change only
   at rest (flash_begin, like the horn / battery curve).
 - Command 131 (COMMAND_HAPTIC_SPEED): [2] 0 = get, 1 = set ([3] km/h);
   reply 101, 131, km/h, min, max, saved. The app sends only while the

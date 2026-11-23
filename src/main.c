@@ -1576,10 +1576,13 @@ static __attribute__((noinline)) void battery_curve_save_if_due(Data *d) {
 }
 
 // hapticspeedsplit: the speed reminder (haptic tone with its own threshold,
-// separate from Speed Pushback) in custom EEPROM word 127 (left free in rf71):
-// 0xC1 << 24 | km/h. Not part of Refloat's config, so adding it doesn't
-// change the config layout (which would reset every board to defaults).
-#define SPEED_TONE_EEPROM_ADDR 127
+// separate from Speed Pushback) in custom EEPROM word 124: 0xC1 << 24 |
+// km/h. Not part of Refloat's config, so adding it doesn't change the config
+// layout (which would reset every board to defaults). Word 127 (used before)
+// holds the light settings' colors since rf114 (LCM_VP_EEPROM_WORDS); 122-123
+// are taken by the lcm-powerclicks branch; 124 was only ever read to migrate
+// an old B1 horn save, and a leftover there fails the magic check.
+#define SPEED_TONE_EEPROM_ADDR 124
 #define SPEED_TONE_MAGIC 0xC1u
 #define CMD_HAPTIC_SPEED 131  // = COMMAND_HAPTIC_SPEED below
 
