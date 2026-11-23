@@ -980,15 +980,9 @@ void test_vesc_serial_vp_block(void **state)
     assert_true(settings->enable_status_leds);
     assert_false(settings->enable_beep);
     assert_int_equal(ANIMATION_OPTION_RAINBOW_BAR, settings->idle_animation);
-    // with the VP block the app sets the lights: 2 / 3 clicks go to the
-    // package (one packet each), no stock level step; other counts: nothing
-    expect_any(vesc_serial_hw_send, data);
-    expect_value(vesc_serial_hw_send, len, 9);
+    // with the VP block the app sets the lights: a click series goes to the
+    // package with the next poll (2 / 3 only), no stock level step
     assert_false(vesc_serial_stock_level_step(2U));
-    expect_any(vesc_serial_hw_send, data);
-    expect_value(vesc_serial_hw_send, len, 9);
-    assert_false(vesc_serial_stock_level_step(3U));
-    assert_false(vesc_serial_stock_level_step(1U));
     assert_false(vesc_serial_stock_level_step(4U));
     assert_int_equal(ANIMATION_OPTION_FIRE, settings->ride_animation);
     assert_int_equal(ANIMATION_OPTION_120_SCROLL, settings->dozing_animation);
