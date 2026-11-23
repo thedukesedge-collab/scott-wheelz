@@ -54,18 +54,9 @@ typedef int32_t fixed16_t;
  * animation whose range brushes the boundary) can't wrap instead of
  * saturating.
  */
-static inline uint8_t fixed16_to_frac8(fixed16_t x)
-{
-    if (x <= 0)
-    {
-        return 0U;
-    }
-    if (x >= FIXED16(1.0))
-    {
-        return 255U;
-    }
-    return (uint8_t)((x * 255) >> 16);
-}
+// Refloat Glow: defined once in function_generator.c (as a static inline
+// here, GCC kept one 28-byte copy per file that uses it)
+uint8_t fixed16_to_frac8(fixed16_t x);
 
 /**
  * @brief Widens a scale8()-domain uint8_t fraction [0,255] back to Q16.16.

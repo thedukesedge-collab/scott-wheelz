@@ -21,6 +21,23 @@
 #include "function_generator.h"
 
 /**
+ * @brief Narrows a Q16.16 fraction in [0.0, 1.0] to a scale8()-ready uint8_t
+ * (see function_generator.h)
+ */
+uint8_t fixed16_to_frac8(fixed16_t x)
+{
+    if (x <= 0)
+    {
+        return 0U;
+    }
+    if (x >= FIXED16(1.0))
+    {
+        return 255U;
+    }
+    return (uint8_t)((x * 255) >> 16);
+}
+
+/**
  * @brief Quarter-wave sine lookup table.
  *
  * sine_lut[i] = round(sin(i * 90/64 degrees) * 32767), i.e. Q15 amplitude
