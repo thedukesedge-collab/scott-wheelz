@@ -2012,3 +2012,11 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   texts and the Onboarding Tour texts unchanged. Saves 1.4 KB.
 - Onboarding Tour checked: no page shows the start notice or the removed
   page; no change.
+
+### Onboarding Tour after every start notice (v1.2.3-rf178)
+- CONTINUE on BEFORE YOU START now always opens the Onboarding Tour (SKIP
+  to leave), not only on the first open of a version: reinstalling the same
+  version (e.g. a rebuilt dev package) left the notice without the tour.
+  "Don't show this again (until the next update)" stops both; then the tour
+  still opens once per new version as before. Replay: Settings › SHOW TIPS
+  & TRICKS. qmltest shot 18 checks CONTINUE opens the tour.

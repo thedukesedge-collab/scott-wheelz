@@ -8294,7 +8294,7 @@ Item {
             mainItem.startNoticeDone = true;  // rf150: the tab watcher stops
             if (disclaimerHide.checked) swSettings.hideDisclaimerVer = "{{VERSION}}";
             close();
-            if (swSettings.tourSeenVer !== "{{VERSION}}") rinkTour.open();  // rf170: tour right after, SKIP to leave
+            rinkTour.open();  // rf178: the tour follows every start notice (SKIP to leave; "don't show again" stops both)
         }
 
         Column {
