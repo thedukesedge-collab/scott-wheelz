@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License along
  * with ALCM. If not, see <https://www.gnu.org/licenses/>.
  */
+#include <stddef.h>
 #include <string.h>
 
 #include "vesc_serial.h"
@@ -819,25 +820,23 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
         event_queue_push(EVENT_COMMAND_TOGGLE_BEEPER, NULL);
     }
 
-    if (vp_apply_animation(&settings->idle_animation, block[3]))
+    // block bytes 3-7: idle, riding, dozing, boot, shutdown animation; in
+    // settings_t they are consecutive fields from boot_animation: boot,
+    // idle, dozing, shutdown, ride (a loop: smaller than five calls)
     {
-        refresh = true;
-    }
-    if (vp_apply_animation(&settings->ride_animation, block[4]))
-    {
-        refresh = true;
-    }
-    if (vp_apply_animation(&settings->dozing_animation, block[5]))
-    {
-        refresh = true;
-    }
-    if (vp_apply_animation(&settings->boot_animation, block[6]))
-    {
-        refresh = true;
-    }
-    if (vp_apply_animation(&settings->shutdown_animation, block[7]))
-    {
-        refresh = true;
+        static const uint8_t field[5] = {1U, 4U, 2U, 0U, 3U};
+        _Static_assert(offsetof(settings_t, ride_animation) ==
+                           offsetof(settings_t, boot_animation) + 4U * sizeof(animation_option_t),
+                       "animation fields must stay consecutive");
+        animation_option_t *anim = &settings->boot_animation;
+
+        for (uint8_t i = 0U; i < 5U; i++)
+        {
+            if (vp_apply_animation(&anim[field[i]], block[3U + i]))
+            {
+                refresh = true;
+            }
+        }
     }
 
     if ((color < 360U) && (color != settings->personal_color))

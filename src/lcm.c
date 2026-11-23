@@ -27,6 +27,8 @@
 #include <string.h>
 
 static uint8_t refloat_idle_anim(const LcmData *lcm, uint8_t custom[LCM_VP_CUSTOM_LENGTH]);
+static void lcm_click_reset(LcmData *lcm);
+static void lcm_click(LcmData *lcm, uint8_t b);
 
 void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg) {
     lcm->enabled = hw_cfg->mode & LED_MODE_EXTERNAL;
@@ -40,6 +42,9 @@ void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg) {
     lcm->vp_test_beep = false;
     lcm->vp_update = false;
     lcm->vp_battery = 0xFF;
+    lcm_click_defaults(&lcm->click);
+    lcm->click_last = 0xFF;
+    lcm_click_reset(lcm);
 }
 
 void lcm_configure(LcmData *lcm, const Leds *leds) {
@@ -115,6 +120,191 @@ void lcm_poll_request(LcmData *lcm, uint8_t *buffer, size_t len) {
             lcm->name[i] = buffer[i];
         }
     }
+
+    // lcm-powerclicks: an SLCM sends its click byte right after the name's
+    // terminator (older LCMs send nothing there)
+    for (size_t i = 0; i + 1 < len && i < MAX_LCM_NAME_LENGTH; i++) {
+        if (buffer[i] == '\0') {
+            lcm_click(lcm, buffer[i + 1]);
+            break;
+        }
+    }
+}
+
+void lcm_click_defaults(LcmClickCfg *c) {
+    static const LcmClickCfg def = {
+        .on = false,
+        .action = {LCM_CLICK_HEADLIGHTS, LCM_CLICK_STATUS},
+        .slots = {5, 3},
+        .level = {{100, 75, 50, 25, 0}, {100, 60, 30, 0, 0}},
+    };
+    *c = def;
+}
+
+static void lcm_click_reset(LcmData *lcm) {
+    for (int p = 0; p < LCM_CLICK_PATTERNS; ++p) {
+        lcm->click_idx[p] = LCM_CLICK_NONE_OVR;
+    }
+    lcm->head_ovr = LCM_CLICK_NONE_OVR;
+    lcm->status_ovr = LCM_CLICK_NONE_OVR;
+    lcm->lights_ovr = LCM_CLICK_NONE_OVR;
+    lcm->beep_ovr = LCM_CLICK_NONE_OVR;
+}
+
+// Next slot: the first time, the one after the slot matching the current
+// level (so 100 -> 75 when the lights are at 100 %), else slot 1
+static uint8_t click_step(LcmData *lcm, int p, uint8_t current) {
+    const LcmClickCfg *c = &lcm->click;
+    uint8_t n = c->slots[p];
+    uint8_t i = lcm->click_idx[p];
+    if (i >= n) {
+        i = n - 1;  // -> slot 1 if no slot matches
+        for (uint8_t k = 0; k < n; ++k) {
+            if (c->level[p][k] == current) {
+                i = k;
+                break;
+            }
+        }
+    }
+    i = (i + 1) % n;
+    lcm->click_idx[p] = i;
+    return c->level[p][i];
+}
+
+static void lcm_click(LcmData *lcm, uint8_t b) {
+    uint8_t last = lcm->click_last;
+    lcm->click_last = b;
+    // the first poll only records (a package restart sees the old click);
+    // 0 = no click since the SLCM powered on
+    if (last == 0xFF || b == last || b == 0 || !lcm->click.on || !lcm->vp.valid) {
+        return;
+    }
+    int p = (b & 0x0F) - 2;
+    if (p < 0 || p >= LCM_CLICK_PATTERNS) {
+        return;
+    }
+
+    const LcmVpSettings *vp = &lcm->vp;
+    bool lights = lcm->lights_ovr != LCM_CLICK_NONE_OVR
+        ? lcm->lights_ovr
+        : (vp->flags & (LCM_VP_FLAG_HEADLIGHTS | LCM_VP_FLAG_STATUS_BAR)) != 0;
+    switch (lcm->click.action[p]) {
+    case LCM_CLICK_HEADLIGHTS:
+        lcm->head_ovr = click_step(
+            lcm,
+            p,
+            lcm->head_ovr != LCM_CLICK_NONE_OVR       ? lcm->head_ovr
+                : (vp->flags & LCM_VP_FLAG_HEADLIGHTS) ? vp->headlight_brightness
+                                                       : 0
+        );
+        break;
+    case LCM_CLICK_STATUS:
+        lcm->status_ovr = click_step(
+            lcm,
+            p,
+            lcm->status_ovr != LCM_CLICK_NONE_OVR ? lcm->status_ovr : vp->status_idle_brightness
+        );
+        break;
+    case LCM_CLICK_LIGHTS:
+        lcm->lights_ovr = !lights;
+        break;
+    case LCM_CLICK_BEEP:
+        lcm->beep_ovr = lcm->beep_ovr != LCM_CLICK_NONE_OVR ? !lcm->beep_ovr
+                                                             : !(vp->flags & LCM_VP_FLAG_BEEP);
+        break;
+    default:
+        return;  // no action for this click count: no beep
+    }
+    lcm->vp_test_beep = !lcm->vp_test_beep;  // the SLCM's ACK beep (beeper on)
+}
+
+bool lcm_click_set(LcmData *lcm, const uint8_t *buffer, int len) {
+    if (len < LCM_CLICK_LENGTH) {
+        return false;
+    }
+    LcmClickCfg c;
+    memset(&c, 0, sizeof(c));
+    c.on = buffer[0] != 0;
+    for (int p = 0; p < LCM_CLICK_PATTERNS; ++p) {
+        const uint8_t *b = &buffer[1 + p * (2 + LCM_CLICK_SLOTS)];
+        c.action[p] = b[0] < LCM_CLICK_ACTIONS ? b[0] : LCM_CLICK_NONE;
+        c.slots[p] = b[1] < 1 ? 1 : b[1] > LCM_CLICK_SLOTS ? LCM_CLICK_SLOTS : b[1];
+        for (int k = 0; k < LCM_CLICK_SLOTS; ++k) {
+            uint8_t v = b[2 + k] > 100 ? 100 : b[2 + k];
+            c.level[p][k] = (v + LCM_CLICK_STEP / 2) / LCM_CLICK_STEP * LCM_CLICK_STEP;
+        }
+    }
+    if (memcmp(&c, &lcm->click, sizeof(c)) == 0) {
+        return false;
+    }
+    lcm->click = c;
+    lcm_click_reset(lcm);  // back to the app's own light settings
+    return true;
+}
+
+void lcm_click_get(const LcmData *lcm, uint8_t out[LCM_CLICK_LENGTH]) {
+    const LcmClickCfg *c = &lcm->click;
+    out[0] = c->on;
+    for (int p = 0; p < LCM_CLICK_PATTERNS; ++p) {
+        uint8_t *b = &out[1 + p * (2 + LCM_CLICK_SLOTS)];
+        b[0] = c->action[p];
+        b[1] = c->slots[p];
+        for (int k = 0; k < LCM_CLICK_SLOTS; ++k) {
+            b[2 + k] = c->level[p][k];
+        }
+    }
+}
+
+// 64 bits: on (1), per pattern action (3) + slots (3), 10 levels x 5 bits
+// (in 5 % steps), bit 63 = 1 (written)
+void lcm_click_pack(const LcmClickCfg *c, uint32_t words[LCM_CLICK_EEPROM_WORDS]) {
+    uint64_t v = c->on ? 1 : 0;
+    int bit = 1;
+    for (int p = 0; p < LCM_CLICK_PATTERNS; ++p) {
+        v |= (uint64_t) (c->action[p] & 7) << bit;
+        v |= (uint64_t) (c->slots[p] & 7) << (bit + 3);
+        bit += 6;
+    }
+    for (int p = 0; p < LCM_CLICK_PATTERNS; ++p) {
+        for (int k = 0; k < LCM_CLICK_SLOTS; ++k) {
+            v |= (uint64_t) ((c->level[p][k] / LCM_CLICK_STEP) & 31) << bit;
+            bit += 5;
+        }
+    }
+    v |= (uint64_t) 1 << 63;
+    words[0] = (uint32_t) v;
+    words[1] = (uint32_t) (v >> 32);
+}
+
+bool lcm_click_unpack(LcmClickCfg *c, const uint32_t words[LCM_CLICK_EEPROM_WORDS]) {
+    uint64_t v = words[0] | ((uint64_t) words[1] << 32);
+    LcmClickCfg t;
+    memset(&t, 0, sizeof(t));
+    if (!(v >> 63)) {
+        return false;
+    }
+    t.on = v & 1;
+    int bit = 1;
+    for (int p = 0; p < LCM_CLICK_PATTERNS; ++p) {
+        t.action[p] = (v >> bit) & 7;
+        t.slots[p] = (v >> (bit + 3)) & 7;
+        if (t.action[p] >= LCM_CLICK_ACTIONS || t.slots[p] < 1 || t.slots[p] > LCM_CLICK_SLOTS) {
+            return false;
+        }
+        bit += 6;
+    }
+    for (int p = 0; p < LCM_CLICK_PATTERNS; ++p) {
+        for (int k = 0; k < LCM_CLICK_SLOTS; ++k) {
+            uint8_t l = ((v >> bit) & 31) * LCM_CLICK_STEP;
+            if (l > 100) {
+                return false;
+            }
+            t.level[p][k] = l;
+            bit += 5;
+        }
+    }
+    *c = t;
+    return true;
 }
 
 void lcm_poll_response(
@@ -164,19 +354,35 @@ void lcm_poll_response(
             // and idle levels here, so the LCM just follows the first one.
             const LcmVpSettings *vp = &lcm->vp;
             const bool riding = state->state == STATE_RUNNING;
+            // lcm-powerclicks: click actions (RAM only) over the app's settings
+            uint8_t flags = vp->flags;
+            if (lcm->lights_ovr != LCM_CLICK_NONE_OVR) {
+                flags = lcm->lights_ovr ? flags | LCM_VP_FLAG_HEADLIGHTS | LCM_VP_FLAG_STATUS_BAR
+                                        : flags & ~(LCM_VP_FLAG_HEADLIGHTS | LCM_VP_FLAG_STATUS_BAR);
+            }
+            if (lcm->beep_ovr != LCM_CLICK_NONE_OVR) {
+                flags = lcm->beep_ovr ? flags | LCM_VP_FLAG_BEEP : flags & ~LCM_VP_FLAG_BEEP;
+            }
+            if (lcm->head_ovr != LCM_CLICK_NONE_OVR && lcm->lights_ovr == LCM_CLICK_NONE_OVR) {
+                flags |= LCM_VP_FLAG_HEADLIGHTS;  // a level from the button turns them on
+            }
+            const bool head = lcm->head_ovr != LCM_CLICK_NONE_OVR;
             // headlights off: 0 too, so "off" is off even on an LCM that only
             // follows the brightness (the SLCM also switches off on the flag)
-            const bool head_on = vp->flags & LCM_VP_FLAG_HEADLIGHTS;
+            const bool head_on = flags & LCM_VP_FLAG_HEADLIGHTS;
             buffer[ind++] = !head_on ? 0
+                : head               ? lcm->head_ovr
                 : riding             ? vp->headlight_brightness
                                      : vp->headlight_idle_brightness;
-            buffer[ind++] = head_on ? vp->headlight_idle_brightness : 0;
-            buffer[ind++] = riding ? vp->status_riding_brightness : vp->status_idle_brightness;
+            buffer[ind++] = !head_on ? 0 : head ? lcm->head_ovr : vp->headlight_idle_brightness;
+            buffer[ind++] = lcm->status_ovr != LCM_CLICK_NONE_OVR ? lcm->status_ovr
+                : riding                                          ? vp->status_riding_brightness
+                                                                  : vp->status_idle_brightness;
             buffer[ind++] = 0x56;  // 'V'
             buffer[ind++] = 1;  // version
             // rf77: bit 6 (power off, SLCM r22) is never set - the package
             // can't power the board off
-            buffer[ind++] = vp->flags | (lcm->vp_test_beep ? LCM_VP_FLAG_TEST_BEEP : 0) |
+            buffer[ind++] = flags | (lcm->vp_test_beep ? LCM_VP_FLAG_TEST_BEEP : 0) |
                 (lcm->vp_update ? LCM_VP_FLAG_UPDATE : 0);
             // idle following Refloat: its animation, translated (the
             // fill / scan ones need SLCM r19+, older builds get STANDARD)
@@ -470,6 +676,9 @@ bool lcm_vp_set(LcmData *lcm, const uint8_t *buffer, int len) {
     bool changed =
         memcmp(&vp, &lcm->vp, sizeof(vp)) != 0;  // NOLINT(bugprone-suspicious-memory-comparison)
     lcm->vp = vp;
+    if (changed) {
+        lcm_click_reset(lcm);  // lcm-powerclicks: the app's settings win again
+    }
     return changed;
 }
 

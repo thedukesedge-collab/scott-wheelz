@@ -98,6 +98,33 @@ typedef struct {
     uint8_t snooze_c1, snooze_c2, snooze_speed;
 } LcmVpSettings;
 
+// Refloat Glow (lcm-powerclicks): power-button click actions on an SLCM.
+// The SLCM reports each click series after its name in the poll ((sequence
+// << 4) | count, SLCM r?+); the package applies the rider's action for 2 and
+// 3 clicks to the poll reply. RAM only: the app's own settings come back
+// when they're changed in the app or the board powers off.
+#define LCM_CLICK_PATTERNS 2  // 2 clicks, 3 clicks
+#define LCM_CLICK_SLOTS 5
+#define LCM_CLICK_STEP 5  // slot levels are stored in 5 % steps
+#define LCM_CLICK_EEPROM_WORDS 2  // custom EEPROM words 122-123
+#define LCM_CLICK_LENGTH 15  // on, then per pattern: action, slot count, 5 slots (%)
+#define LCM_CLICK_NONE_OVR 0xFF
+enum {
+    LCM_CLICK_NONE = 0,
+    LCM_CLICK_HEADLIGHTS,  // head + tail light brightness through the slots
+    LCM_CLICK_STATUS,  // status bar brightness through the slots
+    LCM_CLICK_LIGHTS,  // lights (head, tail and status bar) on / off
+    LCM_CLICK_BEEP,  // LCM beeper on / off
+    LCM_CLICK_ACTIONS
+};
+
+typedef struct {
+    bool on;
+    uint8_t action[LCM_CLICK_PATTERNS];
+    uint8_t slots[LCM_CLICK_PATTERNS];  // 1-5
+    uint8_t level[LCM_CLICK_PATTERNS][LCM_CLICK_SLOTS];  // % (multiples of 5)
+} LcmClickCfg;
+
 typedef struct {
     bool enabled;
     uint8_t brightness;
@@ -114,9 +141,25 @@ typedef struct {
     bool vp_test_beep;  // toggled by COMMAND_LCM_TEST_BEEP, sent as LCM_VP_FLAG_TEST_BEEP
     bool vp_update;  // set from lcm_fw_update_flag() before each poll reply
     uint8_t vp_battery;  // battery % from the curve (battery_curve.h), 0xFF = VESC's own
+
+    LcmClickCfg click;
+    uint8_t click_last;  // last click byte from the SLCM, 0xFF = none seen yet
+    uint8_t click_idx[LCM_CLICK_PATTERNS];  // current slot, 0xFF = not stepped yet
+    uint8_t head_ovr;  // headlight % from a click action, LCM_CLICK_NONE_OVR = app's
+    uint8_t status_ovr;  // status bar %
+    uint8_t lights_ovr;  // 0 off, 1 on
+    uint8_t beep_ovr;  // 0 off, 1 on
 } LcmData;
 
 void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg);
+
+// Click actions: defaults, set from the app (LCM_CLICK_LENGTH bytes; true if
+// it changed), reply bytes, EEPROM words
+void lcm_click_defaults(LcmClickCfg *c);
+bool lcm_click_set(LcmData *lcm, const uint8_t *buffer, int len);
+void lcm_click_get(const LcmData *lcm, uint8_t out[LCM_CLICK_LENGTH]);
+void lcm_click_pack(const LcmClickCfg *c, uint32_t words[LCM_CLICK_EEPROM_WORDS]);
+bool lcm_click_unpack(LcmClickCfg *c, const uint32_t words[LCM_CLICK_EEPROM_WORDS]);
 
 void lcm_configure(LcmData *lcm, const Leds *leds);
 

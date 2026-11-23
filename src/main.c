@@ -1259,6 +1259,7 @@ static void cfg_write_now(Data *d) {
 
 static __attribute__((noinline)) void horn_settings_save_if_due(Data *d);
 static __attribute__((noinline)) void lcm_vp_save_if_due(Data *d);
+static __attribute__((noinline)) void lcm_click_save_if_due(Data *d);
 
 static __attribute__((noinline)) void battery_curve_save_if_due(Data *d);
 
@@ -1333,6 +1334,7 @@ static void aux_thd(void *arg) {
         cfg_save_if_due(d);
         horn_settings_save_if_due(d);
         lcm_vp_save_if_due(d);
+        lcm_click_save_if_due(d);
         battery_curve_save_if_due(d);
 
         if (timer_older(&d->time, motor_config_refresh_timer, 0.5)) {
@@ -1532,6 +1534,46 @@ static __attribute__((noinline)) void lcm_vp_save_if_due(Data *d) {
     flash_end(d);
 }
 
+// lcm-powerclicks: SLCM power-button click actions in custom EEPROM words
+// 122-123 (the old B1 horn layout's melody words: only read to migrate a B1
+// save, at boot; leftovers fail lcm_click_unpack's checks -> defaults).
+// Saved like the light settings: 2 s after the last change, never while
+// riding (flash_begin).
+#define LCM_CLICK_EEPROM_ADDR 122
+
+static void lcm_click_load(Data *d) {
+    uint32_t w[LCM_CLICK_EEPROM_WORDS];
+    for (int i = 0; i < LCM_CLICK_EEPROM_WORDS; ++i) {
+        eeprom_var v;
+        w[i] = VESC_IF->read_eeprom_var(&v, LCM_CLICK_EEPROM_ADDR + i) ? v.as_u32 : 0;
+        d->lcm_click_saved[i] = w[i];
+    }
+    if (!lcm_click_unpack(&d->lcm.click, w)) {
+        lcm_click_defaults(&d->lcm.click);
+    }
+}
+
+static __attribute__((noinline)) void lcm_click_save_if_due(Data *d) {
+    if (!d->lcm_click_save_pending || !timer_older(&d->time, d->lcm_click_change_time, 2.0f) ||
+        !flash_begin(d)) {
+        return;
+    }
+    d->lcm_click_save_pending = false;
+    uint32_t w[LCM_CLICK_EEPROM_WORDS];
+    lcm_click_pack(&d->lcm.click, w);
+    for (int i = 0; i < LCM_CLICK_EEPROM_WORDS; ++i) {
+        if (w[i] != d->lcm_click_saved[i]) {
+            eeprom_var v = {.as_u32 = w[i]};
+            if (!VESC_IF->store_eeprom_var(&v, LCM_CLICK_EEPROM_ADDR + i)) {
+                log_error("Failed to save power button settings.");
+                break;
+            }
+            d->lcm_click_saved[i] = w[i];
+        }
+    }
+    flash_end(d);
+}
+
 // Refloat Glow: battery curve in 4 custom EEPROM words (84-87),
 // saved like the light settings: 2 s after the last change, never while riding
 #define BATTERY_EEPROM_ADDR 84
@@ -1666,6 +1708,7 @@ static void data_init(Data *d) {
     lcm_init(&d->lcm, &d->float_conf.hardware.leds);
     lcm_fw_init(&d->lcm_fw);
     lcm_vp_load(d);
+    lcm_click_load(d);
     battery_curve_init(&d->battery_curve);
     battery_curve_load(d);
     charging_init(&d->charging);
@@ -1735,10 +1778,30 @@ enum {
     COMMAND_LCM_FW = 128,  // LCM firmware update relay, see lcm_fw.h
     COMMAND_LCM_BATTERY = 129,  // battery curve: 0 = get, 1 = set (13 bytes), see battery_curve.h
     COMMAND_LCM_POWER_OFF = 130,  // rf74-rf76 power off from the app: removed, ignored
+    // lcm-powerclicks: SLCM power-button click actions. [2] 0 = get, 1 = set
+    // (+ LCM_CLICK_LENGTH bytes, taken only while not riding). Reply: 101, 132,
+    // LCM_CLICK_LENGTH bytes, saved (1 = in EEPROM). 131 = hapticspeedsplit.
+    COMMAND_LCM_CLICKS = 132,
     COMMAND_LIVE_TONE = 125,  // melody tiles: u8 pitch level (0 = stop), resent every 100 ms
 
     // commands above 200 are unstable and can change protocol at any time
 } Commands;
+
+static void lcm_click_reply(Data *d) {
+    uint8_t buffer[3 + LCM_CLICK_LENGTH];
+    int32_t ind = 0;
+    buffer[ind++] = 101;
+    buffer[ind++] = COMMAND_LCM_CLICKS;
+    lcm_click_get(&d->lcm, &buffer[ind]);
+    ind += LCM_CLICK_LENGTH;
+    uint32_t w[LCM_CLICK_EEPROM_WORDS];
+    lcm_click_pack(&d->lcm.click, w);
+    // 1 = what the board has is in its EEPROM (the app's "saved" check)
+    buffer[ind++] = !d->lcm_click_save_pending && w[0] == d->lcm_click_saved[0] &&
+        w[1] == d->lcm_click_saved[1];
+    SEND_APP_DATA(buffer, sizeof(buffer), ind);
+}
+
 
 // rf75: noinline keeps its buffer out of on_command_received's frame (live
 // under data_recorder_request); the reply grew by one item (imu.yaw)
@@ -2783,6 +2846,17 @@ static __attribute__((noinline)) bool rm_command(
         } else {
             lcm_vp_test_beep(&d->lcm);
         }
+        return true;
+    }
+    case COMMAND_LCM_CLICKS: {
+        if (len >= 3 && buffer[2] == 1) {
+            if (d->state.state != STATE_RUNNING &&
+                lcm_click_set(&d->lcm, &buffer[3], len - 3)) {
+                d->lcm_click_change_time = d->time.now;
+                d->lcm_click_save_pending = true;
+            }
+        }
+        lcm_click_reply(d);
         return true;
     }
     case COMMAND_LCM_POWER_OFF: {
