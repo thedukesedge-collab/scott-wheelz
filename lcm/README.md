@@ -64,6 +64,16 @@ Animation numbers (`animation_option_t`, all animations enabled):
 5 the fuzz, 6 fire, 7 expanding pulse, 8 imploding pulse, 9 120 scroll,
 10 complementary wave, 11 floatwheel classic, 12 personal scan.
 
+## Power-button clicks (branch `lcm-powerclicks`)
+
+With the VP block present, a 2- or 3-click series of the power button
+sends one fixed packet to the package: `02 04 24 65 85 <n> <crc> 03`
+(COMM_CUSTOM_APP_DATA, refloat id 101, command 133, n = 2 or 3; CRC-16/XMODEM
+precomputed, `49 0b` for 2, `59 2a` for 3). The package applies the rider's
+click action (light levels, lights / beeper on-off) to its poll replies and
+toggles the test-beep bit for the confirmation beep. Holding the button is
+unchanged.
+
 ## Building
 
 `alcm/gcc/` builds with arm-none-eabi-gcc (`make` → `build/ALCM_VP.hex`,

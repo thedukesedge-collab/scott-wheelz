@@ -13323,7 +13323,7 @@ Item {
         // rf174: LIGHTS page, by board: Floatwheel kits with the SLCM light
         // module vs controller-driven LEDs (Thor and every other controller)
         // rf175: LIGHTS page: both kinds of boards, yours first (bold), the other below
-        readonly property string lightsSlcm: "<b>Floatwheel kit (SLCM)</b>: HEAD/TAIL LIGHTS on/off and brightness, STATUS BAR animations, BATTERY GAUGE and the light module's BEEPER, sent straight to your light module."
+        readonly property string lightsSlcm: "<b>Floatwheel kit (SLCM)</b>: HEAD/TAIL LIGHTS on/off and brightness, STATUS BAR animations, BATTERY GAUGE, the light module's BEEPER and POWER BUTTON clicks, sent straight to your light module."
         readonly property string lightsCtl: "<b>Controller LEDs</b> (most non-Floatwheel setups, e.g. Thor): effects, colors and brightness for HEAD/TAIL LIGHTS, a STATUS BAR with battery and idle animations, and SNOOZE, linked with Refloat's LED settings. Plain lights: NON-RGB HEAD/TAIL LIGHTS at the bottom of LEDS."
         readonly property string lightsText: slcmDetect.present
             ? "Your board: " + lightsSlcm + "<br><br><font color=\"#9a86b8\">" + lightsCtl + "</font>"

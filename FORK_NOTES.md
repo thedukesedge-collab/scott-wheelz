@@ -1998,3 +1998,43 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   wrong speed reading = the limit (and a nosedive) at a different real
   speed; how to check with a GPS speed app first. The window scrolls on
   small screens. Onboarding Tour checked: no change needed.
+
+### lcm-powerclicks (branch only, v1.2.3-rf176-powerclicks): POWER BUTTON clicks (SLCM)
+Firmware change on a separate branch (SLCM light firmware + package), for
+bench testing; not on main. SLCM boards only.
+- LEDS › SLCM extras › POWER BUTTON: BUTTON CLICKS ON / OFF (off by
+  default), then for 2 CLICKS and 3 CLICKS what they DO: NOTHING,
+  HEAD/TAIL LEVEL, STATUS BAR LEVEL, LIGHTS ON/OFF or BEEPER ON/OFF. The two
+  LEVEL actions step through 1-5 SETTINGS (0-100 % in 5 % steps, 0 = off;
+  + ADD SETTING / − REMOVE), then back to the first. Defaults: 2 clicks
+  head/tail 100 / 75 / 50 / 25 / OFF, 3 clicks status bar 100 / 60 / 30.
+  The first click goes to the setting after the one matching the current
+  level (100 % -> 75 %).
+- Works while riding, like the stock LCM's click toggle. Only light and
+  beeper bytes of the LCM poll reply change: no motor, balance or config
+  code is touched. Holding the button (power off) and the factory reset
+  gesture are unchanged in the SLCM (a click is 10-180 ms, a hold 500 ms).
+- Click changes are RAM only: the app's own light settings come back when
+  they change in the app, the click settings change, or the board powers
+  off. A short LCM beep (beeper on) confirms each action.
+- SLCM: a 2- or 3-click series with the VP block present sends one fixed
+  9-byte packet to the package (COMM_CUSTOM_APP_DATA, refloat id 101,
+  command 133, the count; CRC-16/XMODEM precomputed), from the main loop
+  like the poll. Without the VP block (stock Refloat) click-click still
+  steps the light level as before. Flash: the SLCM with the bootloader was
+  16 bytes from full, so to fit: the five animation fields in a loop,
+  fixed16_to_frac8 defined once (was two copies), and vesc_serial_init's
+  resets of already-initialised statics kept for the unit tests only
+  (ALCM_UNIT_TEST). BL app now 14696 / 14720 bytes.
+- Package: COMMAND_LCM_CLICK (133) from the SLCM; COMMAND_LCM_CLICKS (132)
+  from the app: [2] 0 = get, 1 = set (15 bytes, taken only while not
+  riding), reply = the 15 bytes + saved. Stored in custom EEPROM words
+  122-123 (64 bits, bit 63 = written; leftovers from the old B1 horn layout
+  fail the checks and give the defaults), saved 2 s after a change, at rest
+  only (flash_begin). Host tests: tools/lcm_vp_test (actions, wrap, riding,
+  overrides cleared, EEPROM round trip).
+- Needs the SLCM from the lcm-powerclicks-dev release (PICK .HEX FILE in
+  LCM firmware tools, or ST-Link). Don't take the app's "LCM update
+  available" on a test board: that's main's SLCM, without the clicks.
+- Onboarding Tour checked: LIGHTS page's SLCM line now mentions POWER
+  BUTTON clicks; nothing else changed.

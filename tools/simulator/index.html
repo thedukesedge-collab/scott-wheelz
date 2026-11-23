@@ -875,7 +875,7 @@ let tourI = 0, tourX = null;
 // rf175: LIGHTS page: both kinds of boards, yours first (lightsText in ui.qml.in)
 function tourLightsHtml() {
   const setup = P.simSetup || 'slcm';
-  const sl = '<b>Floatwheel kit (SLCM)</b>: HEAD/TAIL LIGHTS on/off and brightness, STATUS BAR animations, BATTERY GAUGE and the light module\'s BEEPER, sent straight to your light module.';
+  const sl = '<b>Floatwheel kit (SLCM)</b>: HEAD/TAIL LIGHTS on/off and brightness, STATUS BAR animations, BATTERY GAUGE, the light module\'s BEEPER and POWER BUTTON clicks, sent straight to your light module.';
   const ct = '<b>Controller LEDs</b> (most non-Floatwheel setups, e.g. Thor): effects, colors and brightness for HEAD/TAIL LIGHTS, a STATUS BAR with battery and idle animations, and SNOOZE, linked with Refloat\'s LED settings. Plain lights: NON-RGB HEAD/TAIL LIGHTS at the bottom of LEDS.';
   const dim = t => '<span style="color:#9a86b8">' + t + '</span>';
   return setup === 'slcm' ? 'Your board: ' + sl + '<br><br>' + dim(ct)
