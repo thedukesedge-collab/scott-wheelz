@@ -1998,3 +1998,17 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   wrong speed reading = the limit (and a nosedive) at a different real
   speed; how to check with a GPS speed app first. The window scrolls on
   small screens. Onboarding Tour checked: no change needed.
+
+### Space trim: one-page start notice, shorter help texts (v1.2.3-rf177)
+- The package's screen code (QML) is stored compressed in a 128 KB flash
+  area on the VESC; it had reached 116.7 KB. Now 99.5 KB.
+- BEFORE YOU START is one page again: the "don't trust the AI code" page
+  (its picture was ~14 KB) and BACK TO REFLOAT 1.2.3 (the stock-package
+  installer, its SHA-256 check and confirm window) are removed. Refloat 1.2.3
+  stays installable from VESC Tool's package store. Saves 15.7 KB.
+- Long help / info texts rewritten shorter, same meaning (LCM tools, LED
+  help, pushback / haptic help, battery gauge, max speed info; every safety
+  warning kept). Credit / disclaimer / donation texts, upstream Refloat
+  texts and the Onboarding Tour texts unchanged. Saves 1.4 KB.
+- Onboarding Tour checked: no page shows the start notice or the removed
+  page; no change.
