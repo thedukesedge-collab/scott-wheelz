@@ -3116,7 +3116,7 @@ function updateDom() {
   $('motorV').textContent = fx1(tC(S.motorT)) + tU; $('motorV').style.color = mw ? RED : '#ead6ff';
   $('engine').firstChild.setAttribute('stroke', mw ? RED : '#c98bff');
   $('escV').textContent = fx1(tC(S.escT)) + tU; $('escV').style.color = ew ? RED : '#ead6ff';
-  let st = S.mode === 'flywheel' ? 'FLYWHEEL' : running() ? (S.nose ? 'PUSHBACK: DUTY' : 'RUNNING') : 'READY';
+  let st = window.RF_LINK && window.RF_LINK.blank ? 'NO BOARD' : S.mode === 'flywheel' ? 'FLYWHEEL' : running() ? (S.nose ? 'PUSHBACK: DUTY' : 'RUNNING') : 'READY';
   $('status').textContent = st; $('status').style.color = S.nose ? ORANGE : '#d6ffe4';
   // tilt
   const tv = S.tilt, tOn = tv !== 0;
@@ -3156,7 +3156,8 @@ let lastFrame = performance.now();
 function frame(now) {
   const fdt = Math.min(0.25, (now - lastFrame) / 1000); lastFrame = now;
   // FloPilot app: a real board replaces the simulation (window.RF_LINK, see apps/flopilot)
-  if (window.RF_LINK && window.RF_LINK.live) { window.RF_LINK.apply(S, now); last = now; postStep(now, fdt); }
+  // (RF_LINK.blank: app with no board and the demo off: all readings at zero)
+  if (window.RF_LINK && (window.RF_LINK.live || window.RF_LINK.blank)) { window.RF_LINK.apply(S, now); last = now; postStep(now, fdt); }
   else step(now);
   plotSample(fdt);
   drawSpeedo(); drawFootpad(); drawRoll(); drawPitch();

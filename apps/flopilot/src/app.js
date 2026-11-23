@@ -19,12 +19,26 @@ const link = {
   writing: Promise.resolve(),
   poll: null,
   S: null,
+  demo: false,  // no board: run the demo board (DEMO pill), otherwise all zeros
+  get blank() { return !this.live && !this.demo; },
   apply(S, now) {
     this.S = S;
-    if (this.board) this.board.apply(S, now);
+    if (this.live && this.board) this.board.apply(S, now);
+    else if (this.blank) blankBoard(S);
   },
 };
 window.RF_LINK = link;
+const DEMO = 'fpDemo';
+try { link.demo = localStorage.getItem(DEMO) === '1'; } catch (e) {}
+
+// no board connected: every reading at zero, nothing moving
+function blankBoard(S) {
+  Object.assign(S, {
+    mode: 'ready', speed: 0, erpm: 0, duty: 0, motorA: 0, battA: 0, volts: 0, battPct: 0,
+    pitch: 0, balance: 0, roll: 0, setpoint: 0, tilt: 0, fpL: false, fpR: false, wheelslip: false,
+    motorT: 0, escT: 0, trip: 0, life: 0, whmi: 0, auto: false, scen: null, nose: false,
+  });
+}
 
 // ---------- transport ----------
 function send(bytes) {
@@ -128,6 +142,7 @@ function toastMsg(m) {
   clearTimeout(toastMsg.h); toastMsg.h = setTimeout(() => (t.style.opacity = 0), 2200);
 }
 
+let demoPill = null;
 function addUi() {
   const style = document.createElement('style');
   style.textContent = `
@@ -137,8 +152,15 @@ function addUi() {
     #rmConnect[data-look=on] { border-color: #39ff7a; color: #39ff7a; box-shadow: 0 0 10px rgba(57,255,122,.45); }
     #rmConnect[data-look=busy] { border-color: #ffd23f; color: #ffd23f; }
     #rmConnect[data-look=warn] { border-color: #ff8a1f; color: #ff8a1f; }
+    /* no board: a bigger CONNECT prompt */
+    body.rmBlank #rmConnect { font-size: 15px; padding: 12px 26px; border-color: #39ff7a; color: #39ff7a;
+      box-shadow: 0 0 14px rgba(57,255,122,.5); }
+    #rmDemo { position: fixed; left: 50%; transform: translateX(-50%); z-index: 60; font: 700 10px Orbitron, monospace;
+      letter-spacing: 1px; padding: 4px 12px; border-radius: 999px; border: 1px solid #7a3fc0; color: #b98cff;
+      background: rgba(10,6,20,.85); white-space: nowrap; }
+    body.rmLive #rmDemo { display: none; }
     /* the simulator's drive panel is for the demo board only */
-    body.rmLive #simBtn, body.rmLive #sim { display: none !important; }`;
+    body.rmLive #simBtn, body.rmLive #sim, body.rmBlank #simBtn, body.rmBlank #sim { display: none !important; }`;
   document.head.appendChild(style);
   pill = document.createElement('div');
   pill.id = 'rmConnect';
@@ -146,11 +168,31 @@ function addUi() {
   document.body.appendChild(pill);
   setPill('CONNECT BOARD', 'off');
   // sit just under the board name row (clear of the battery bar and the buttons)
+  demoPill = document.createElement('div');
+  demoPill.id = 'rmDemo';
+  demoPill.onclick = () => {
+    link.demo = !link.demo;
+    try { localStorage.setItem(DEMO, link.demo ? '1' : '0'); } catch (e) {}
+    if (link.demo && link.S) Object.assign(link.S, { battPct: 90, motorT: 19.5, escT: 27.7 });  // demo start values
+    refresh();
+    toastMsg(link.demo ? 'Demo board on' : 'Demo board off');
+  };
+  document.body.appendChild(demoPill);
   const placePill = () => {
     const row = document.getElementById('nameRow');
-    if (row) pill.style.top = Math.round(row.getBoundingClientRect().bottom + 6) + 'px';
+    if (!row) return;
+    const top = Math.round(row.getBoundingClientRect().bottom + 6);
+    pill.style.top = top + 'px';
+    demoPill.style.top = (top + pill.offsetHeight + 6) + 'px';
   };
-  setInterval(() => { document.body.classList.toggle('rmLive', !!link.live); placePill(); }, 500);
+  const refresh = () => {
+    document.body.classList.toggle('rmLive', !!link.live);
+    document.body.classList.toggle('rmBlank', link.blank);
+    demoPill.textContent = link.demo ? 'DEMO ON · TAP TO STOP' : 'TRY DEMO';
+    placePill();
+  };
+  refresh();
+  setInterval(refresh, 500);
   window.addEventListener('resize', placePill);
   reconnectSaved();
 }
