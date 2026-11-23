@@ -41,6 +41,7 @@ jobs:
         working-directory: ${{ env.APP }}
         run: |
           npx cap add ios
+          cp assets/icon.png ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
           PL=ios/App/App/Info.plist
           BT='FloPilot connects to your board over Bluetooth.'
           /usr/libexec/PlistBuddy -c "Add :NSBluetoothAlwaysUsageDescription string '$BT'" "$PL"
