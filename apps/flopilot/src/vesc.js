@@ -7,6 +7,8 @@ export const Comm = {
   getValuesSetup: 47,
   customAppData: 36,
   lispReplCmd: 138,
+  getCustomConfig: 93,
+  setCustomConfig: 95,
 };
 
 // Refloat custom app data (package id 101), as in the package UI

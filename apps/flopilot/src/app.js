@@ -6,6 +6,7 @@ import { BleClient } from '@capacitor-community/bluetooth-le';
 import { Board } from './board.js';
 import { initLock } from './lock.js';
 import { searchBoard, boardName } from './scan.js';
+import { LedSync } from './ledsync.js';
 
 const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';  // phone -> VESC
@@ -34,6 +35,13 @@ const link = {
   },
 };
 window.RF_LINK = link;
+// LEDS tab <-> Refloat's own LED settings on the board (stock Refloat 1.2.3 too)
+const ledSync = new LedSync({
+  getP: () => (window.__simP ? window.__simP() : null),
+  render: () => { try { window.__simRender && window.__simRender(); } catch (e) { console.warn(e); } },
+  toast: m => toastMsg(m),
+});
+setInterval(() => ledSync.tick(link.live), 1000);
 const DEMO = 'fpDemo';
 try { link.demo = localStorage.getItem(DEMO) === '1'; } catch (e) {}
 
@@ -104,6 +112,7 @@ async function connectOnce(deviceId, name) {
     link.chunk = 20;
   }
   link.board = new Board({ send });
+  ledSync.reset(link.board);
   await BleClient.startNotifications(deviceId, NUS, TX, dv => {
     link.board && link.board.receive(new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength));
   });
@@ -127,6 +136,7 @@ function onDisconnected(lost) {
   link.poll = null;
   link.live = false;
   link.board = null;
+  ledSync.reset(null);
   link.deviceId = null;
   if (lost && !userOff) {
     setPill('RECONNECTING…', 'busy');

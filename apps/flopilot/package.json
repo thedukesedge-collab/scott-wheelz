@@ -5,8 +5,8 @@
   "description": "FloPilot phone app (iPhone + Android): the Refloat Glow UI wrapped with Capacitor, talking to the board over VESC Express BLE.",
   "license": "GPL-3.0-or-later",
   "scripts": {
-    "www": "node scripts/build-www.mjs && esbuild src/app.js --bundle --format=iife --target=es2020 --outfile=www/app.js",
-    "test": "node scripts/test-protocol.mjs"
+    "www": "node scripts/gen-layout.mjs && node scripts/build-www.mjs && esbuild src/app.js --bundle --format=iife --target=es2020 --outfile=www/app.js",
+    "test": "node scripts/test-protocol.mjs && esbuild scripts/test-config.mjs --bundle --platform=node --format=esm --outfile=.test/config.mjs --log-level=warning && node .test/config.mjs"
   },
   "dependencies": {
     "@capacitor-community/bluetooth-le": "^6.0.1",

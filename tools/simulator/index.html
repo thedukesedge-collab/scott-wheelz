@@ -656,6 +656,7 @@ const S = {
 const running = () => S.mode === 'running';
 window.__sim = S;  // for automated checks
 window.__simP = () => P;  // FloPilot app: ride peaks / units for the lock screen
+window.__simRender = () => { save(); renderLeds(); renderRgb(); renderCtl(); };  // FloPilot app: LED settings read from the board
 
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.style.opacity = 1;

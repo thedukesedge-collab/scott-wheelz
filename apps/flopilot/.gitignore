@@ -4,3 +4,4 @@ www/
 *.apk
 ios/
 *.ipa
+.test/

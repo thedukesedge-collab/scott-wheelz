@@ -30,6 +30,9 @@ export class Board {
 
   // lights (Refloat's own LIGHTS_CONTROL): mask 1 = all lights, 2 = headlights; mask 0 = just ask
   lightsSet(mask, value) { this.app([Rf.lights, 0, 0, 0, mask & 0xff, value & 0xff]); }
+  // Refloat's own config (VESC custom config 0): read / write, see ledsync.js
+  getConfig() { this.send([Comm.getCustomConfig, 0]); }
+  setConfig(raw) { this.send([Comm.setCustomConfig, 0, ...raw]); }
   app(bytes) { this.send([Comm.customAppData, Rf.pkgId, ...bytes]); }
   send(payload) { this.t.send(encodePacket(payload)); }
   receive(bytes) { this.decoder.add(bytes); }
@@ -71,6 +74,10 @@ export class Board {
           const wh = Math.max(-60, Math.min(60, v.currentIn * v.vIn / Math.max(mph, 1e-6)));
           this.whmi += (wh - this.whmi) * 0.1;
         }
+      } else if (p[0] === Comm.getCustomConfig) {
+        if (p[1] === 0 && this.onConfig) this.onConfig(p.slice(2));
+      } else if (p[0] === Comm.setCustomConfig) {
+        if (this.onConfigAck) this.onConfigAck();
       } else if (p[0] === Comm.customAppData) {
         this.onAppData(r);
       }
