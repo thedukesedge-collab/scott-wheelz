@@ -799,10 +799,12 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
     bool_t beep = ((flags & VP_FLAG_BEEP) != 0U) ? true : false;
     uint16_t color = (uint16_t)(((uint16_t)block[8] << 8) | block[9]);
 
+    bool_t save = false;
+
     if ((flags & VP_FLAG_DOZE_DARK) != settings->doze_dark) // from the next snooze
     {
         settings->doze_dark = flags & VP_FLAG_DOZE_DARK;
-        vp_save_countdown = VP_SAVE_POLLS;
+        save = true;
     }
 
     if ((headlights != settings->enable_headlights) ||
@@ -815,7 +817,7 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
 
     if (beep != settings->enable_beep)
     {
-        vp_save_countdown = VP_SAVE_POLLS;
+        save = true;
         settings->enable_beep = beep;
         event_queue_push(EVENT_COMMAND_TOGGLE_BEEPER, NULL);
     }
@@ -851,8 +853,12 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
 
     if (refresh)
     {
-        vp_save_countdown = VP_SAVE_POLLS;
+        save = true;
         event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
+    }
+    if (save)
+    {
+        vp_save_countdown = VP_SAVE_POLLS;
     }
 
 #ifdef LCM_BOOTLOADER
@@ -1003,7 +1009,7 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
 
 #ifdef VP_LIGHT_CONTROL
 /**
- * @brief A power-button click series (2+ clicks)
+ * @brief A power-button click series (any count)
  *
  * With the VP block (Refloat Glow): reported to the package in the next
  * LCM_POLL (<= 250 ms), which decides what it does (the rider's click

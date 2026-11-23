@@ -69,13 +69,10 @@ static void test_vp_clicks_do_nothing(void **state)
         event_data_t data = cpvp_count(count);
 
         will_return(board_mode_get, BOARD_MODE_IDLE);
-        if (count >= 2U)
-        {
-            // a click series goes to vesc_serial (VP: reported to the
-            // package; stock: refused while riding), no ACK here
-            expect_value(vesc_serial_stock_level_step, clicks, count);
-            will_return(vesc_serial_stock_level_step, false);
-        }
+        // every click series goes to vesc_serial (VP: reported to the
+        // package; stock: click-click only, refused while riding), no ACK here
+        expect_value(vesc_serial_stock_level_step, clicks, count);
+        will_return(vesc_serial_stock_level_step, false);
         command_processor_button_event_handler(EVENT_BUTTON_CLICK, &data);
     }
 

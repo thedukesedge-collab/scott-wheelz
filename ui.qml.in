@@ -900,6 +900,7 @@ Item {
     QtObject {
         id: slcmDetect
         readonly property bool present: lcmFw.lcmName.indexOf("VP-") === 0 || lcmFw.lcmName.indexOf("VPBL-") === 0 || lcmFw.legacy
+        onPresentChanged: if (present) powerClicks.get()  // lcm-powerclicks: tile summary
         readonly property bool known: lcmFw.nameKnown
         readonly property string version: lcmFw.legacy ? "older build (before r15)" : lcmFw.verText(lcmFw.lcmVer)
         property bool tabOpen: false
@@ -1450,6 +1451,79 @@ Item {
     // the pack voltage into a % with this per-cell curve and sends it to the
     // LCM in the VP block (src/battery_curve.c). Presets are floatwheel's own
     // tables (as in lcm/alcm/tools/battery_lut_patch/examples).
+    // lcm-powerclicks: what a series of power-button clicks does on an SLCM.
+    // Kept on the board (package EEPROM); the SLCM reports the clicks, the
+    // package changes the lights / beeper (RAM only, never the motor).
+    QtObject {
+        id: powerClicks
+        property bool known: false  // the package answered (has the feature)
+        property bool on: false
+        property var act: [1, 2]  // 2 clicks, 3 clicks
+        property var slots: [5, 3]
+        property var lv: [[100, 75, 50, 25, 0], [100, 60, 30, 0, 0]]
+        property bool saved: false
+        property bool waiting: false
+        property string text: ""
+        readonly property var actNames: ["NOTHING", "HEAD/TAIL LEVEL", "STATUS BAR LEVEL", "LIGHTS ON/OFF", "BEEPER ON/OFF"]
+        function get() {
+            var data = commands.createData(3, commands.c_LCM_CLICKS);
+            data.setUint8(2, 0);
+            vescCommands.sendCustomAppData(data.buffer);
+        }
+        function copy2(a) { return [a[0].slice(), a[1].slice()]; }
+        function setOn(v) { on = v; changed(); }
+        function setAct(p, v) { var a = act.slice(); a[p] = (v + 5) % 5; act = a; changed(); }
+        function setLevel(p, k, v) { var l = copy2(lv); l[p][k] = Math.max(0, Math.min(100, Math.round(v / 5) * 5)); lv = l; changed(); }
+        function addSlot(p) {
+            if (slots[p] >= 5) return;
+            var n = slots.slice(); n[p]++; slots = n;
+            var l = copy2(lv); l[p][n[p] - 1] = 0; lv = l; changed();
+        }
+        function removeSlot(p) { if (slots[p] <= 1) return; var n = slots.slice(); n[p]--; slots = n; changed(); }
+        function changed() {
+            waiting = true;
+            text = mainItem.boardRunning ? "Waiting for the board to stop\u2026" : "Saving to the board\u2026";
+            powerClicksSend.restart();
+        }
+        function onReply(dv, ind) {
+            var o = dv.getUint8(ind++) === 1, a = [], n = [], l = [[], []];
+            for (var p = 0; p < 2; ++p) {
+                a.push(dv.getUint8(ind++)); n.push(dv.getUint8(ind++));
+                for (var k = 0; k < 5; ++k) l[p].push(dv.getUint8(ind++));
+            }
+            saved = dv.getUint8(ind++) === 1;
+            known = true;
+            if (powerClicksSend.running) return;  // the rider is still changing it
+            if (waiting) {
+                var same = o === on && a[0] === act[0] && a[1] === act[1] && n[0] === slots[0] && n[1] === slots[1];
+                for (p = 0; p < 2 && same; ++p) for (k = 0; k < n[p]; ++k) if (l[p][k] !== lv[p][k]) same = false;
+                if (!same) { text = "\u26A0 The board didn't take it. Try again with the board stopped."; waiting = false; }
+                else if (saved) { text = "\u2714 Saved and confirmed on the board"; waiting = false; }
+                else { powerClicksCheck.restart(); return; }  // saved 2 s after the change, at rest
+            }
+            on = o; act = a; slots = n; lv = l;
+        }
+        property Timer sendTimer: Timer {
+            id: powerClicksSend
+            interval: 600
+            onTriggered: {
+                if (mainItem.boardRunning) { restart(); return; }  // never mid-ride
+                var data = commands.createData(3 + 15, commands.c_LCM_CLICKS);
+                var ind = 2;
+                data.setUint8(ind++, 1);
+                data.setUint8(ind++, powerClicks.on ? 1 : 0);
+                for (var p = 0; p < 2; ++p) {
+                    data.setUint8(ind++, powerClicks.act[p]);
+                    data.setUint8(ind++, powerClicks.slots[p]);
+                    for (var k = 0; k < 5; ++k) data.setUint8(ind++, powerClicks.lv[p][k]);
+                }
+                vescCommands.sendCustomAppData(data.buffer);
+                powerClicksCheck.restart();
+            }
+        }
+        property Timer checkTimer: Timer { id: powerClicksCheck; interval: 2600; onTriggered: powerClicks.get() }
+    }
+
     QtObject {
         id: batteryCurve
 
@@ -2206,6 +2280,7 @@ Item {
         readonly property int c_LCM_TEST_BEEP: 127  // Refloat Glow: light module test beep
         readonly property int c_LCM_FW: 128  // Refloat Glow: LCM firmware update relay
         readonly property int c_LCM_BATTERY: 129  // Refloat Glow: battery curve for the LCM status bar
+        readonly property int c_LCM_CLICKS: 132  // lcm-powerclicks: SLCM power-button click actions
         readonly property int c_LCM_DEVICE_INFO: 27  // Refloat: the LCM's own name (Re-Float: "VPBL-<hash>")
 
         // IEEE-754 16-bit floating-point format (without infinity and NaNs)
@@ -2432,6 +2507,8 @@ Item {
                 lcmFw.onName(dv, ind);
             } else if (msgtype === c_LCM_BATTERY) {
                 batteryCurve.onReply(dv, ind);
+            } else if (msgtype === c_LCM_CLICKS) {
+                powerClicks.onReply(dv, ind);
             } else if (msgtype == c_LIGHTS_CONTROL) {
                 var values = dv.getUint8(ind++);
                 lights.on = values & 0b01;
@@ -9534,13 +9611,14 @@ Item {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         property string section: "head"
-        readonly property var titles: ({"head": "HEAD/TAIL LIGHTS", "bar": "STATUS BAR", "anim": "STATUS BAR ANIMATIONS", "sound": "BEEPER", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "custom": "CUSTOM ANIMATION", "updates": "UPDATES", "rgb": "HEAD/TAIL LIGHTS"})
+        readonly property var titles: ({"head": "HEAD/TAIL LIGHTS", "bar": "STATUS BAR", "anim": "STATUS BAR ANIMATIONS", "sound": "BEEPER", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "custom": "CUSTOM ANIMATION", "updates": "UPDATES", "rgb": "HEAD/TAIL LIGHTS", "power": "POWER BUTTON"})
 
         function show(which) {
             section = which;
             ledWindowFlick.contentY = 0;
             ledSender.fromConfig();  // Refloat's LED settings may have changed in VESC Tool
             if (which === "fw") lcmFw.forgetCheck();
+            if (which === "power") powerClicks.get();
             open();
         }
 
@@ -10684,6 +10762,105 @@ Item {
                             text: swSettings.ledBeep
                             ? "The light module plays one short beep. No beep = the module isn't running the SLCM firmware or isn't connected."
                             : "The LCM beeper is off, so the test beep is silent. Turn it on above first."
+                        }
+                    }
+
+                    // lcm-powerclicks: power-button click actions (SLCM)
+                    Column {
+                        width: parent.width
+                        spacing: 0.14 * unit
+                        visible: ledWindow.section === "power"
+
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 4.6 * unit
+                            label: powerClicks.on ? "BUTTON CLICKS: ON" : "BUTTON CLICKS: OFF"
+                            lit: powerClicks.on
+                            onClicked: powerClicks.setOn(!powerClicks.on)
+                        }
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "Quick clicks on the power button change your lights, no phone needed. Works while riding. Holding the button still powers the board off, as always."
+                        }
+
+                        Repeater {
+                            model: 2
+                            Column {
+                                id: pcCol
+                                readonly property int p: index
+                                readonly property bool level: powerClicks.act[p] === 1 || powerClicks.act[p] === 2
+                                width: parent.width
+                                spacing: 0.14 * unit
+                                opacity: powerClicks.on ? 1 : 0.45
+
+                                LedHeading { text: (pcCol.p + 2) + " CLICKS" }
+
+                                SwStepper {
+                                    label: "DOES"
+                                    value: powerClicks.act[pcCol.p]
+                                    from: -1; to: 5
+                                    valueWidth: 3.4 * unit
+                                    valueText: powerClicks.actNames[powerClicks.act[pcCol.p]]
+                                    onMoved: powerClicks.setAct(pcCol.p, Math.round(newValue))
+                                }
+
+                                Repeater {
+                                    model: pcCol.level ? powerClicks.slots[pcCol.p] : 0
+                                    SwStepper {
+                                        label: "SETTING " + (index + 1)
+                                        value: powerClicks.lv[pcCol.p][index]
+                                        from: 0; to: 100; step: 5
+                                        valueText: powerClicks.lv[pcCol.p][index] === 0 ? "OFF" : powerClicks.lv[pcCol.p][index] + " %"
+                                        onMoved: powerClicks.setLevel(pcCol.p, index, newValue)
+                                    }
+                                }
+
+                                Row {
+                                    visible: pcCol.level
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    spacing: 0.2 * unit
+                                    SwPill {
+                                        visible: powerClicks.slots[pcCol.p] < 5
+                                        minWidth: 2.6 * unit
+                                        label: "+ ADD SETTING"
+                                        onClicked: powerClicks.addSlot(pcCol.p)
+                                    }
+                                    SwPill {
+                                        visible: powerClicks.slots[pcCol.p] > 1
+                                        minWidth: 2.6 * unit
+                                        label: "\u2212 REMOVE"
+                                        onClicked: powerClicks.removeSlot(pcCol.p)
+                                    }
+                                }
+
+                                SwLText {
+                                    width: parent.width
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.WordWrap
+                                    font.pixelSize: fontSizeSmall
+                                    text: pcCol.level ? "Each " + (pcCol.p + 2) + "-click goes to the next setting, then back to the first. OFF = lights off."
+                                        : powerClicks.act[pcCol.p] === 0 ? "" : "Each " + (pcCol.p + 2) + "-click switches it."
+                                }
+                            }
+                        }
+
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            text: "A short beep = click taken (LCM beeper on). The app's own light settings come back when you change them here or power off."
+                        }
+                        SwLText {
+                            width: parent.width
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: fontSizeSmall
+                            color: powerClicks.text.indexOf("\u26A0") === 0 ? "#FFB300" : swTheme.neonGreen
+                            text: !powerClicks.known ? "\u26A0 No answer from the board. This needs the power-button test build of the package and the SLCM." : powerClicks.text
                         }
                     }
 
@@ -17914,6 +18091,16 @@ Item {
                                         + " \u00B7 " + swSettings.batParallel + "P \u00B7 " + batteryCurve.styleNames[swSettings.batStyle + 1]
                                     : "VESC BATTERY %"
                                 onClicked: ledWindow.show("battery")
+                            }
+                            LedTile {
+                                id: slcmPowerTile  // lcm-powerclicks
+                                Layout.columnSpan: 2
+                                title: "POWER BUTTON"
+                                glyph: "\u25C9"
+                                lit: powerClicks.on
+                                summary: !powerClicks.on ? "CLICKS OFF"
+                                    : "2\u00D7 " + powerClicks.actNames[powerClicks.act[0]] + " \u00B7 3\u00D7 " + powerClicks.actNames[powerClicks.act[1]]
+                                onClicked: ledWindow.show("power")
                             }
                         }
 
