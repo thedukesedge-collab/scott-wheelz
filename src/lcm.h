@@ -99,10 +99,10 @@ typedef struct {
 } LcmVpSettings;
 
 // Refloat Glow (lcm-powerclicks): power-button click actions on an SLCM.
-// The SLCM reports each click series after its name in the poll ((sequence
-// << 4) | count, SLCM r?+); the package applies the rider's action for 2 and
-// 3 clicks to the poll reply. RAM only: the app's own settings come back
-// when they're changed in the app or the board powers off.
+// The SLCM sends each 2- / 3-click series as COMMAND_LCM_CLICK (133, one
+// byte: the count); the package applies the rider's action to its poll
+// replies. RAM only: the app's own settings come back when they're changed
+// in the app or the board powers off. Lights and beeper only.
 #define LCM_CLICK_PATTERNS 2  // 2 clicks, 3 clicks
 #define LCM_CLICK_SLOTS 5
 #define LCM_CLICK_STEP 5  // slot levels are stored in 5 % steps
@@ -143,7 +143,6 @@ typedef struct {
     uint8_t vp_battery;  // battery % from the curve (battery_curve.h), 0xFF = VESC's own
 
     LcmClickCfg click;
-    uint8_t click_last;  // last click byte from the SLCM, 0xFF = none seen yet
     uint8_t click_idx[LCM_CLICK_PATTERNS];  // current slot, 0xFF = not stepped yet
     uint8_t head_ovr;  // headlight % from a click action, LCM_CLICK_NONE_OVR = app's
     uint8_t status_ovr;  // status bar %
@@ -160,6 +159,9 @@ bool lcm_click_set(LcmData *lcm, const uint8_t *buffer, int len);
 void lcm_click_get(const LcmData *lcm, uint8_t out[LCM_CLICK_LENGTH]);
 void lcm_click_pack(const LcmClickCfg *c, uint32_t words[LCM_CLICK_EEPROM_WORDS]);
 bool lcm_click_unpack(LcmClickCfg *c, const uint32_t words[LCM_CLICK_EEPROM_WORDS]);
+// A click series from the SLCM (COMMAND_LCM_CLICK): the rider's action for 2
+// or 3 clicks (anything else: nothing), with the SLCM's ACK beep
+void lcm_click(LcmData *lcm, uint8_t clicks);
 
 void lcm_configure(LcmData *lcm, const Leds *leds);
 

@@ -1782,6 +1782,8 @@ enum {
     // (+ LCM_CLICK_LENGTH bytes, taken only while not riding). Reply: 101, 132,
     // LCM_CLICK_LENGTH bytes, saved (1 = in EEPROM). 131 = hapticspeedsplit.
     COMMAND_LCM_CLICKS = 132,
+    // lcm-powerclicks: from the SLCM over UART: [2] = click count (2 / 3)
+    COMMAND_LCM_CLICK = 133,
     COMMAND_LIVE_TONE = 125,  // melody tiles: u8 pitch level (0 = stop), resent every 100 ms
 
     // commands above 200 are unstable and can change protocol at any time
@@ -2855,6 +2857,12 @@ static __attribute__((noinline)) bool rm_command(
             }
         }
         lcm_click_reply(d);
+        return true;
+    }
+    case COMMAND_LCM_CLICK: {
+        if (len >= 3) {
+            lcm_click(&d->lcm, buffer[2]);  // lights / beeper only (poll reply)
+        }
         return true;
     }
     case COMMAND_LCM_POWER_OFF: {

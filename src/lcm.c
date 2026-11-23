@@ -28,7 +28,6 @@
 
 static uint8_t refloat_idle_anim(const LcmData *lcm, uint8_t custom[LCM_VP_CUSTOM_LENGTH]);
 static void lcm_click_reset(LcmData *lcm);
-static void lcm_click(LcmData *lcm, uint8_t b);
 
 void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg) {
     lcm->enabled = hw_cfg->mode & LED_MODE_EXTERNAL;
@@ -43,7 +42,6 @@ void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg) {
     lcm->vp_update = false;
     lcm->vp_battery = 0xFF;
     lcm_click_defaults(&lcm->click);
-    lcm->click_last = 0xFF;
     lcm_click_reset(lcm);
 }
 
@@ -120,15 +118,6 @@ void lcm_poll_request(LcmData *lcm, uint8_t *buffer, size_t len) {
             lcm->name[i] = buffer[i];
         }
     }
-
-    // lcm-powerclicks: an SLCM sends its click byte right after the name's
-    // terminator (older LCMs send nothing there)
-    for (size_t i = 0; i + 1 < len && i < MAX_LCM_NAME_LENGTH; i++) {
-        if (buffer[i] == '\0') {
-            lcm_click(lcm, buffer[i + 1]);
-            break;
-        }
-    }
 }
 
 void lcm_click_defaults(LcmClickCfg *c) {
@@ -171,16 +160,9 @@ static uint8_t click_step(LcmData *lcm, int p, uint8_t current) {
     return c->level[p][i];
 }
 
-static void lcm_click(LcmData *lcm, uint8_t b) {
-    uint8_t last = lcm->click_last;
-    lcm->click_last = b;
-    // the first poll only records (a package restart sees the old click);
-    // 0 = no click since the SLCM powered on
-    if (last == 0xFF || b == last || b == 0 || !lcm->click.on || !lcm->vp.valid) {
-        return;
-    }
-    int p = (b & 0x0F) - 2;
-    if (p < 0 || p >= LCM_CLICK_PATTERNS) {
+void lcm_click(LcmData *lcm, uint8_t clicks) {
+    int p = clicks - 2;
+    if (!lcm->click.on || !lcm->vp.valid || p < 0 || p >= LCM_CLICK_PATTERNS) {
         return;
     }
 

@@ -238,48 +238,41 @@ int main(void){
         assert(battery_curve_update(&bc, 70, 0, 18) == 0xFF);
         printf("battery curve tests passed\n");
     }
-    {   /* lcm-powerclicks: click byte after the name, actions, EEPROM */
+    {   /* lcm-powerclicks: click actions (COMMAND_LCM_CLICK), EEPROM */
         LcmData k; memset(&k,0,sizeof k); CfgHwLeds hw2 = { 0x1 }; lcm_init(&k, &hw2);
         State rs = { STATE_READY, MODE_NORMAL }; MotorData m0 = {0};
         uint8_t vin[11] = {0x07, 100, 40, 90, 0, 0, 0, 0, 0, 0x01, 0x2C}; /* head+bar+beep on, head 100 */
         lcm_vp_set(&k, vin, 11);
-        uint8_t pr[] = {'V','P','B','L','-','r','9','9','\0', 0x00};
-#define POLL(b) do { pr[9] = (b); lcm_poll_request(&k, pr, sizeof pr); lcm_poll_response(&k, &rs, 0, &m0, 0); } while (0)
-        POLL(0); assert(strcmp(k.name, "VPBL-r99") == 0);
-        assert(sent[11] == 100 && sent[13] == 40);
-        POLL(0x12); assert(sent[11] == 100);           /* feature off: nothing */
+        uint8_t nm[] = "VPBL-r99"; lcm_poll_request(&k, nm, sizeof nm - 1);
+#define CLICK(n) do { lcm_click(&k, (n)); lcm_poll_response(&k, &rs, 0, &m0, 0); } while (0)
+        CLICK(0); assert(sent[11] == 100 && sent[13] == 40);
+        CLICK(2); assert(sent[11] == 100);              /* feature off: nothing */
         uint8_t cfg[LCM_CLICK_LENGTH] = {1, LCM_CLICK_HEADLIGHTS, 5, 100, 75, 50, 25, 0,
                                          LCM_CLICK_STATUS, 3, 100, 61, 30, 0, 0};
         assert(lcm_click_set(&k, cfg, LCM_CLICK_LENGTH));
-        assert(k.click.level[1][1] == 60);             /* rounded to 5 % */
+        assert(k.click.level[1][1] == 60);              /* rounded to 5 % */
         assert(!lcm_click_set(&k, cfg, LCM_CLICK_LENGTH));
         bool tb = k.vp_test_beep;
-        POLL(0x22); assert(sent[11] == 75 && sent[12] == 75 && k.vp_test_beep != tb); /* 100 -> 75 */
-        POLL(0x22); assert(sent[11] == 75);            /* same byte again: no step */
-        POLL(0x32); assert(sent[11] == 50);
-        POLL(0x42); POLL(0x52); assert(sent[11] == 0 && (sent[16] & 1));  /* 25, then 0 % */
-        POLL(0x62); assert(sent[11] == 100);           /* wraps */
-        POLL(0x73); assert(sent[13] == 100);           /* 3 clicks: bar 40 (no match) -> slot 1 */
-        POLL(0x83); assert(sent[13] == 60);
-        rs.state = STATE_RUNNING; POLL(0x93); assert(sent[13] == 30); rs.state = STATE_READY; /* riding too */
-        POLL(0xA4); assert(sent[13] == 30);            /* 4 clicks: no action */
+        CLICK(2); assert(sent[11] == 75 && sent[12] == 75 && k.vp_test_beep != tb); /* 100 -> 75, beep */
+        CLICK(2); assert(sent[11] == 50);
+        CLICK(2); CLICK(2); assert(sent[11] == 0 && (sent[16] & 1));  /* 25, then 0 % */
+        CLICK(2); assert(sent[11] == 100);              /* wraps */
+        CLICK(3); assert(sent[13] == 100);              /* bar 40 (no match) -> slot 1 */
+        CLICK(3); assert(sent[13] == 60);
+        rs.state = STATE_RUNNING; CLICK(3); assert(sent[13] == 30); rs.state = STATE_READY; /* riding too */
+        tb = k.vp_test_beep; CLICK(4); CLICK(1); assert(sent[13] == 30 && k.vp_test_beep == tb); /* no action, no beep */
         cfg[8] = LCM_CLICK_LIGHTS; lcm_click_set(&k, cfg, LCM_CLICK_LENGTH);
-        assert(k.head_ovr == LCM_CLICK_NONE_OVR);      /* new config: overrides cleared */
-        POLL(0xB3); assert((sent[16] & 3) == 0 && sent[11] == 0);   /* lights off */
-        POLL(0xC2); assert((sent[16] & 3) == 0 && sent[11] == 0);   /* level while off: stays off */
-        POLL(0xD3); assert((sent[16] & 3) == 3 && sent[11] == 75);  /* on again, at the level */
+        assert(k.head_ovr == LCM_CLICK_NONE_OVR);       /* new config: overrides cleared */
+        CLICK(3); assert((sent[16] & 3) == 0 && sent[11] == 0);   /* lights off */
+        CLICK(2); assert((sent[16] & 3) == 0 && sent[11] == 0);   /* level while off: stays off */
+        CLICK(3); assert((sent[16] & 3) == 3 && sent[11] == 75);  /* on again, at the level */
         cfg[1] = LCM_CLICK_BEEP; lcm_click_set(&k, cfg, LCM_CLICK_LENGTH);
-        POLL(0xE2); assert((sent[16] & 4) == 0); POLL(0xF2); assert(sent[16] & 4);
-        POLL(0x02); assert(!(sent[16] & 4));           /* sequence wraps */
-        vin[1] = 80; lcm_vp_set(&k, vin, 11); lcm_poll_response(&k, &rs, 0, &m0, 0);
-        assert(sent[11] == 80 && (sent[16] & 4));      /* app change: its settings again */
-        /* package restart: first poll only records */
-        LcmData k2; memset(&k2,0,sizeof k2); lcm_init(&k2, &hw2); lcm_vp_set(&k2, vin, 11);
-        lcm_click_set(&k2, cfg, LCM_CLICK_LENGTH); pr[9] = 0x55; lcm_poll_request(&k2, pr, sizeof pr);
-        assert(k2.beep_ovr == LCM_CLICK_NONE_OVR);
-        /* older SLCM: name only, no click byte */
-        uint8_t old[] = "VPBL-r26-abc"; lcm_poll_request(&k2, old, sizeof old - 1);
-        assert(strcmp(k2.name, "VPBL-r26-abc") == 0 && k2.click_last == 0x55);
+        CLICK(2); assert((sent[16] & 4) == 0); CLICK(2); assert(sent[16] & 4);
+        CLICK(2); vin[1] = 80; lcm_vp_set(&k, vin, 11); lcm_poll_response(&k, &rs, 0, &m0, 0);
+        assert(sent[11] == 80 && (sent[16] & 4));       /* app change: its settings again */
+        /* no VP settings from the app yet: clicks do nothing */
+        LcmData k2; memset(&k2,0,sizeof k2); lcm_init(&k2, &hw2); lcm_click_set(&k2, cfg, LCM_CLICK_LENGTH);
+        lcm_click(&k2, 2); assert(k2.beep_ovr == LCM_CLICK_NONE_OVR);
         /* EEPROM round trip, blank / garbage -> defaults */
         uint32_t w[2]; lcm_click_pack(&k.click, w); LcmClickCfg c2;
         assert(lcm_click_unpack(&c2, w) && memcmp(&c2, &k.click, sizeof c2) == 0);
