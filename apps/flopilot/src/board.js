@@ -40,6 +40,7 @@ export class Board {
   // every 100 ms; S = the simulator's state (tilt slider, horn)
   tick(S) {
     this.send([Comm.getValuesSetup]);
+    if (!this.fw && (this.fwAsk = (this.fwAsk || 0) + 1) % 10 === 1) this.send([Comm.fwVersion]);  // VESC firmware version
     if (this.comms === 'info') this.app([Rf.info, 2]);
     else if (this.comms === 'ids') this.app([Rf.realtimeDataIds]);
     else this.app([Rf.realtimeData]);
@@ -71,6 +72,8 @@ export class Board {
           const wh = Math.max(-60, Math.min(60, v.currentIn * v.vIn / Math.max(mph, 1e-6)));
           this.whmi += (wh - this.whmi) * 0.1;
         }
+      } else if (p[0] === Comm.fwVersion && p.length >= 3) {
+        this.fw = { major: p[1], minor: p[2] };
       } else if (p[0] === Comm.getCustomConfig) {
         if (p[1] === 0 && this.onConfig) this.onConfig(p.slice(2));
       } else if (p[0] === Comm.setCustomConfig) {

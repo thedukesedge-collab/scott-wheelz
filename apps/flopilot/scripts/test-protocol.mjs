@@ -59,6 +59,14 @@ const repl = () => sent.map(b => [...b]).filter(b => b[2] === Comm.lispReplCmd)
   .map(b => String.fromCharCode(...b.slice(3, b.indexOf(0, 3))));
 globalThis.window = { __simP: () => ({ hBeep: 9, hBeepHz: 50 }) };
 const link = { live: true, board, S };
+board.fw = { major: 6, minor: 2 };
+let warn = '';
+const old = new Sound(link, m => (warn = m));
+clearInterval(old.timer);
+sent.length = 0; S.horn = true; old.tick(); S.horn = false;
+assert.equal(repl().length, 0);  // 6.02: nothing sent
+assert.ok(warn.includes('6.05') && warn.includes('6.02'));
+board.fw = { major: 6, minor: 5 };
 const snd = new Sound(link);
 clearInterval(snd.timer);
 sent.length = 0;
@@ -68,7 +76,8 @@ assert.ok(ex.some(e => e.startsWith('(defun fp-dog')) && ex.some(e => e.startsWi
 assert.equal(ex.filter(e => e.startsWith('(defun')).length, 2);
 assert.deepEqual(ex.filter(e => e.startsWith('(fp-tone')), ['(fp-tone 300 4.00 3.0)', '(fp-tone 300 4.00 3.0)']);
 assert.equal(ex[ex.length - 1], '(foc-play-stop)');
-assert.equal(snd.melody([[3, 200]], 1, l => 392), false);  // riding: no melody
+assert.equal(snd.melody([[3, 200]], 1, l => 392), true);  // riding: no melody (and not on the phone)
+assert.equal(snd.mel, null);
 S.mode = 'ready'; sent.length = 0;
 assert.equal(snd.melody([[3, 200], [0, 100]], 9, l => 392), true);
 snd.tick();

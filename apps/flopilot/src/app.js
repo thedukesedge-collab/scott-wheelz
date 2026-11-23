@@ -44,7 +44,7 @@ const ledSync = new LedSync({
 });
 setInterval(() => ledSync.tick(link.live), 1000);
 // horn / melodies / MIXER tiles through the motor (VESC firmware tones)
-const sound = new Sound(link);
+const sound = new Sound(link, m => toastMsg(m));
 window.RF_SOUND = sound;
 const DEMO = 'fpDemo';
 try { link.demo = localStorage.getItem(DEMO) === '1'; } catch (e) {}

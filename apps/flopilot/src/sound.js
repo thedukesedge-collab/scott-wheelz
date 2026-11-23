@@ -25,9 +25,14 @@ const DEFS = [
 ];
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+// foc-play-tone needs VESC firmware 6.05+
+export const toneFw = fw => !!fw && (fw.major > 6 || (fw.major === 6 && fw.minor >= 5));
+
 export class Sound {
-  constructor(link) {
+  constructor(link, toast = () => {}) {
     this.link = link;
+    this.toast = toast;
+    this.warned = null;
     this.board = null;
     this.ready = false;
     this.horn = false;
@@ -45,6 +50,14 @@ export class Sound {
   install() {
     const b = this.link.board;
     if (!b || !this.link.live) { this.ready = false; this.board = null; return false; }
+    if (!toneFw(b.fw)) {
+      // older firmware (or not known yet): no motor tones, say so once per board
+      if (b.fw && this.warned !== b) {
+        this.warned = b;
+        this.toast('Horn, melodies and MIXER need VESC firmware 6.05 or newer (this board: ' + b.fw.major + '.' + String(b.fw.minor).padStart(2, '0') + ')');
+      }
+      return false;
+    }
     if (this.board !== b) { this.board = b; this.ready = false; }
     if (!this.ready) { DEFS.forEach(d => this.repl(d)); this.ready = true; }
     return true;
@@ -55,7 +68,7 @@ export class Sound {
 
   // simulator hooks (window.RF_SOUND): true = the board plays it, skip the phone's audio
   melody(notes, volume, noteHz) {
-    if (!this.install() || this.running()) return false;
+    if (!this.install() || this.running()) return true;  // connected: never the phone speaker
     this.mel = {
       notes: notes.map(([l, ms]) => [l > 0 && l <= 10 ? noteHz(l) : 0, ms]),
       t0: Date.now(), v: clamp(volume, 0.25, 2.5),
@@ -64,7 +77,7 @@ export class Sound {
     return true;
   }
   live(hz, volume) {
-    if (!this.install() || this.running()) return false;
+    if (!this.install() || this.running()) return true;
     this.tile = { hz: clamp(hz, 300, 1000), v: clamp(volume, 0.25, 2.5), t0: Date.now() };
     this.mel = null;
     return true;
