@@ -145,6 +145,9 @@ static void lcm_click_reset(LcmData *lcm) {
 static uint8_t click_step(LcmData *lcm, int p, uint8_t current) {
     const LcmClickCfg *c = &lcm->click;
     uint8_t n = c->slots[p];
+    if (n == 0) {
+        return current;  // never: slots are 1-5 (set / unpack / defaults)
+    }
     uint8_t i = lcm->click_idx[p];
     if (i >= n) {
         i = n - 1;  // -> slot 1 if no slot matches
