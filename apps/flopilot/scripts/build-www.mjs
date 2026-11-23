@@ -14,7 +14,14 @@ const at = sim.lastIndexOf(marker);
 if (at < 0) throw new Error('simulator script not found');
 
 const app = '<script>window.RF_APP = true;</script>\n<script src="app.js"></script>\n';
-const html = sim.slice(0, at) + app + sim.slice(at);
+// iPhone: draw under the status bar / home bar, then keep the UI inside the
+// safe area (battery bar clear of the camera, swipe-up panel clear of the home bar)
+const safe = '<style>#phone { margin-top: env(safe-area-inset-top, 0px); ' +
+  'height: calc(100% - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }</style>\n';
+let html = sim.slice(0, at) + safe + app + sim.slice(at);
+const vp = 'user-scalable=no">';
+if (!html.includes(vp)) throw new Error('viewport meta not found');
+html = html.replace(vp, 'user-scalable=no, viewport-fit=cover">');
 
 mkdirSync(join(root, 'www'), { recursive: true });
 writeFileSync(join(root, 'www/index.html'), html);

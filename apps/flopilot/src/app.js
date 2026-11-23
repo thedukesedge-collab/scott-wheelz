@@ -131,7 +131,7 @@ function toastMsg(m) {
 function addUi() {
   const style = document.createElement('style');
   style.textContent = `
-    #rmConnect { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 6px); left: 50%; transform: translateX(-50%);
+    #rmConnect { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 80px); left: 50%; transform: translateX(-50%);
       z-index: 60; font: 700 11px Orbitron, monospace; letter-spacing: 1px; padding: 6px 14px; border-radius: 999px;
       border: 2px solid #b14cff; color: #ead6ff; background: rgba(10,6,20,.85); white-space: nowrap; }
     #rmConnect[data-look=on] { border-color: #39ff7a; color: #39ff7a; box-shadow: 0 0 10px rgba(57,255,122,.45); }
@@ -145,7 +145,13 @@ function addUi() {
   pill.onclick = () => (link.deviceId ? (confirm('Disconnect from ' + link.name + '?') && disconnect()) : pickAndConnect());
   document.body.appendChild(pill);
   setPill('CONNECT BOARD', 'off');
-  setInterval(() => document.body.classList.toggle('rmLive', !!link.live), 500);
+  // sit just under the board name row (clear of the battery bar and the buttons)
+  const placePill = () => {
+    const row = document.getElementById('nameRow');
+    if (row) pill.style.top = Math.round(row.getBoundingClientRect().bottom + 6) + 'px';
+  };
+  setInterval(() => { document.body.classList.toggle('rmLive', !!link.live); placePill(); }, 500);
+  window.addEventListener('resize', placePill);
   reconnectSaved();
 }
 
