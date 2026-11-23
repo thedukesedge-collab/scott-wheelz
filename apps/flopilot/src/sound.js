@@ -95,7 +95,10 @@ export class Sound {
     if (S && S.horn) {
       if (!this.install()) return;
       this.mel = null; this.tile = null;
-      this.tone(clamp(P.hBeepHz || 495, 300, 1000), clamp(P.hBeep || 2.5, 0.4, 4), this.running() ? 3.0 : 2.0);
+      // same values as the horn window: SIMPLE (VOLUME / PITCH 1-10) or ADVANCED (V / Hz)
+      const v = P.hAdv ? P.hBeep : (P.hsVol || 5) * 0.4;
+      const hz = P.hAdv ? P.hBeepHz : Math.round((300 + ((P.hsPitch || 3) - 1) * 700 / 9) / 25) * 25;
+      this.tone(clamp(hz || 495, 300, 1000), clamp(v || 2, 0.4, 4), this.running() ? 3.0 : 2.0);
       this.horn = true;
       return;
     }

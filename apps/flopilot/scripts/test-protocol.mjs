@@ -57,7 +57,8 @@ assert.ok(S.fpL && S.fpR);
 const { Sound } = await import('../src/sound.js');
 const repl = () => sent.map(b => [...b]).filter(b => b[2] === Comm.lispReplCmd)
   .map(b => String.fromCharCode(...b.slice(3, b.indexOf(0, 3))));
-globalThis.window = { __simP: () => ({ hBeep: 9, hBeepHz: 50 }) };
+let HP = { hAdv: true, hBeep: 9, hBeepHz: 50 };
+globalThis.window = { __simP: () => HP };
 const link = { live: true, board, S };
 board.fw = { major: 6, minor: 2 };
 let warn = '';
@@ -76,6 +77,9 @@ assert.ok(ex.some(e => e.startsWith('(defun fp-dog')) && ex.some(e => e.startsWi
 assert.equal(ex.filter(e => e.startsWith('(defun')).length, 2);
 assert.deepEqual(ex.filter(e => e.startsWith('(fp-tone')), ['(fp-tone 300 4.00 3.0)', '(fp-tone 300 4.00 3.0)']);
 assert.equal(ex[ex.length - 1], '(foc-play-stop)');
+HP = { hAdv: false, hsVol: 5, hsPitch: 10, hBeep: 9, hBeepHz: 50 };  // SIMPLE: VOLUME 5 = 2 V, PITCH 10 = 1000 Hz
+sent.length = 0; S.horn = true; snd.tick(); S.horn = false; snd.tick();
+assert.equal(repl().filter(e => e.startsWith('(fp-tone'))[0], '(fp-tone 1000 2.00 3.0)');
 assert.equal(snd.melody([[3, 200]], 1, l => 392), true);  // riding: no melody (and not on the phone)
 assert.equal(snd.mel, null);
 S.mode = 'ready'; sent.length = 0;
