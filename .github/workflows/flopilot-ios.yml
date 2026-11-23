@@ -1,0 +1,102 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# FloPilot iPhone app (apps/flopilot): builds the app, signs it with the
+# App Store Connect API key (automatic signing) and uploads it to TestFlight.
+# Secrets: APPLE_TEAM_ID, ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8.
+name: FloPilot (iOS TestFlight)
+
+on:
+  push:
+    branches: [flopilot]
+    paths: ['apps/flopilot/**', 'tools/simulator/**', '.github/workflows/flopilot-ios.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flopilot-ios
+  cancel-in-progress: false
+
+env:
+  APP: apps/flopilot
+
+jobs:
+  testflight:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install
+        working-directory: ${{ env.APP }}
+        run: npm install --no-audit --no-fund
+      - name: Protocol tests
+        working-directory: ${{ env.APP }}
+        run: npm test
+      - name: Build web app (simulator UI + app layer)
+        working-directory: ${{ env.APP }}
+        run: npm run www
+      - name: iOS project
+        working-directory: ${{ env.APP }}
+        run: |
+          npx cap add ios
+          PL=ios/App/App/Info.plist
+          BT='FloPilot connects to your board over Bluetooth.'
+          /usr/libexec/PlistBuddy -c "Add :NSBluetoothAlwaysUsageDescription string '$BT'" "$PL"
+          /usr/libexec/PlistBuddy -c "Add :NSBluetoothPeripheralUsageDescription string '$BT'" "$PL"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName FloPilot" "$PL" || \
+            /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string FloPilot" "$PL"
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PL"
+          npx cap sync ios
+      - name: API key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          test -n "$ASC_KEY_P8" || { echo "ASC_KEY_P8 secret missing"; exit 1; }
+          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/asc_key.p8"
+          grep -q 'BEGIN PRIVATE KEY' "$RUNNER_TEMP/asc_key.p8" || { echo "ASC_KEY_P8 does not look like a .p8 key"; exit 1; }
+      - name: Archive (signed)
+        working-directory: ${{ env.APP }}/ios/App
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/FloPilot.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/asc_key.p8" \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER" \
+            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic \
+            PRODUCT_BUNDLE_IDENTIFIER=com.flopilot.app \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            archive | tail -n 60
+      - name: Upload to TestFlight
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ISSUER: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          cat > "$RUNNER_TEMP/export.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/FloPilot.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/asc_key.p8" \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER" | tail -n 60
+      - name: Remove key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/asc_key.p8"

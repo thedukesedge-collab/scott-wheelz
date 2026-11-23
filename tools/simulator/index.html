@@ -2714,6 +2714,10 @@ function step(now) {
   if (running()) { S.motorT += (20 + S.motorA * 1.1 - S.motorT) * dt * 0.02; S.escT += (28 + S.motorA * 0.7 - S.escT) * dt * 0.02; }
   S.volts = 66 + (84 - 66) * S.battPct / 100;
 
+  postStep(now, dt);
+}
+// ride peaks + horn budget: also run with a real board (FloPilot app: window.RF_LINK)
+function postStep(now, dt) {
   // ride peaks with the free-spin filter (same rules as the package UI)
   const ok = running() && !S.wheelslip && (S.fpL || S.fpR) && Math.abs(S.motorA) >= 4;
   if (!ok) S.okSince = 0;
@@ -3151,7 +3155,9 @@ function updateDom() {
 let lastFrame = performance.now();
 function frame(now) {
   const fdt = Math.min(0.25, (now - lastFrame) / 1000); lastFrame = now;
-  step(now);
+  // FloPilot app: a real board replaces the simulation (window.RF_LINK, see apps/flopilot)
+  if (window.RF_LINK && window.RF_LINK.live) { window.RF_LINK.apply(S, now); last = now; postStep(now, fdt); }
+  else step(now);
   plotSample(fdt);
   drawSpeedo(); drawFootpad(); drawRoll(); drawPitch();
   updateDom();

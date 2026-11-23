@@ -1,0 +1,8 @@
+{
+  "appId": "com.flopilot.app",
+  "appName": "FloPilot",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}
