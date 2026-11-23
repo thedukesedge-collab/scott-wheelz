@@ -799,12 +799,10 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
     bool_t beep = ((flags & VP_FLAG_BEEP) != 0U) ? true : false;
     uint16_t color = (uint16_t)(((uint16_t)block[8] << 8) | block[9]);
 
-    bool_t save = false;
-
     if ((flags & VP_FLAG_DOZE_DARK) != settings->doze_dark) // from the next snooze
     {
         settings->doze_dark = flags & VP_FLAG_DOZE_DARK;
-        save = true;
+        vp_save_countdown = VP_SAVE_POLLS;
     }
 
     if ((headlights != settings->enable_headlights) ||
@@ -817,7 +815,7 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
 
     if (beep != settings->enable_beep)
     {
-        save = true;
+        vp_save_countdown = VP_SAVE_POLLS;
         settings->enable_beep = beep;
         event_queue_push(EVENT_COMMAND_TOGGLE_BEEPER, NULL);
     }
@@ -853,12 +851,8 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
 
     if (refresh)
     {
-        save = true;
-        event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
-    }
-    if (save)
-    {
         vp_save_countdown = VP_SAVE_POLLS;
+        event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
     }
 
 #ifdef LCM_BOOTLOADER
@@ -928,75 +922,78 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
     }
 
 #ifdef VP_LIGHT_CONTROL
-    if ((packet_length >= VP_REPLY_MIN_LENGTH) &&
-        (payload[VP_BLOCK_OFFSET] == VP_BLOCK_MAGIC) &&
-        (payload[VP_BLOCK_OFFSET + 1U] == VP_BLOCK_VERSION))
     {
-        vp_apply_brightness(payload[LCM_POLL_HEADLIGHT_BRIGHTNESS_OFFSET],
-                            &settings->headlight_brightness,
-                            COMMAND_PROCESSOR_CONTEXT_HEADLIGHT_BRIGHTNESS);
-        vp_apply_brightness(payload[LCM_POLL_STATUS_BRIGHTNESS_OFFSET],
-                            &settings->status_brightness,
-                            COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS);
-        vp_apply_block(&payload[VP_BLOCK_OFFSET], settings);
-
-        // CUSTOM animation parameters (package rf71+)
-        if ((packet_length >= VP_CUSTOM_OFFSET + sizeof(settings->custom_anim)) &&
-            (memcmp(settings->custom_anim, &payload[VP_CUSTOM_OFFSET],
-                    sizeof(settings->custom_anim)) != 0))
-        {
-            memcpy(settings->custom_anim, &payload[VP_CUSTOM_OFFSET],
-                   sizeof(settings->custom_anim));
-            vp_save_countdown = VP_SAVE_POLLS;
-            event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
-        }
-
-        // battery % from the package's curve (takes effect with the next
-        // values reply, at most 250 ms later)
-        vp_battery_level = ((packet_length > VP_BATTERY_OFFSET) &&
-                            (payload[VP_BATTERY_OFFSET] <= 100U))
-                               ? (int16_t)(payload[VP_BATTERY_OFFSET] * 10U)
-                               : -1;
-        return;
-    }
-    vp_battery_level = -1; // no VP block (any more): the VESC's battery %
-    vp_test_beep_last = 0xFFU; // = no VP block (a later one records, no beep)
-    {
-        // Stock Refloat: its Lights On/Off and LED brightness drive the
-        // SLCM - headlights at the riding level while riding, the idle level
-        // otherwise, and the status bar. A click-click level overrides them
-        // until Refloat sends different values. Lights are switched on here
-        // (RAM only, never saved) so a "headlights off" saved from the app
-        // can't keep them dark on stock Refloat.
-        uint32_t key = payload[LCM_POLL_HEADLIGHT_BRIGHTNESS_OFFSET] |
-                       ((uint32_t)payload[LCM_POLL_HEADLIGHT_IDLE_BRIGHTNESS_OFFSET] << 8) |
-                       ((uint32_t)payload[LCM_POLL_STATUS_BRIGHTNESS_OFFSET] << 16);
-        uint8_t head = payload[(board_mode_get() == BOARD_MODE_RIDING)
-                                   ? LCM_POLL_HEADLIGHT_BRIGHTNESS_OFFSET
-                                   : LCM_POLL_HEADLIGHT_IDLE_BRIGHTNESS_OFFSET];
+        // VP block: the app's brightness (bytes 12 / 14). Stock Refloat: its
+        // Lights On/Off and LED brightness drive the SLCM - headlights at the
+        // riding level while riding, the idle level otherwise, and the
+        // status bar. A click-click level overrides them until Refloat sends
+        // different values. Lights are switched on here (RAM only, never
+        // saved) so a "headlights off" saved from the app can't keep them
+        // dark on stock Refloat. One pair of brightness calls for both
+        // (smaller), in the same order as before.
+        bool_t vp = (packet_length >= VP_REPLY_MIN_LENGTH) &&
+                    (payload[VP_BLOCK_OFFSET] == VP_BLOCK_MAGIC) &&
+                    (payload[VP_BLOCK_OFFSET + 1U] == VP_BLOCK_VERSION);
+        uint8_t head = payload[LCM_POLL_HEADLIGHT_BRIGHTNESS_OFFSET];
         uint8_t status = payload[LCM_POLL_STATUS_BRIGHTNESS_OFFSET];
 
-        if (key != stock_key)
+        if (!vp)
         {
-            stock_key = key;
-            stock_level = 0U;
-        }
-        if (stock_level != 0U)
-        {
-            head = stock_level_pct[0][stock_level];
-            status = stock_level_pct[1][stock_level];
-        }
-        if (!settings->enable_headlights || !settings->enable_status_leds)
-        {
-            settings->enable_headlights = true;
-            settings->enable_status_leds = true;
-            event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
+            uint32_t key = payload[LCM_POLL_HEADLIGHT_BRIGHTNESS_OFFSET] |
+                           ((uint32_t)payload[LCM_POLL_HEADLIGHT_IDLE_BRIGHTNESS_OFFSET] << 8) |
+                           ((uint32_t)payload[LCM_POLL_STATUS_BRIGHTNESS_OFFSET] << 16);
+
+            vp_battery_level = -1; // no VP block (any more): the VESC's battery %
+            vp_test_beep_last = 0xFFU; // = no VP block (a later one records, no beep)
+            if (board_mode_get() != BOARD_MODE_RIDING)
+            {
+                head = payload[LCM_POLL_HEADLIGHT_IDLE_BRIGHTNESS_OFFSET];
+            }
+            if (key != stock_key)
+            {
+                stock_key = key;
+                stock_level = 0U;
+            }
+            if (stock_level != 0U)
+            {
+                head = stock_level_pct[0][stock_level];
+                status = stock_level_pct[1][stock_level];
+            }
+            if (!settings->enable_headlights || !settings->enable_status_leds)
+            {
+                settings->enable_headlights = true;
+                settings->enable_status_leds = true;
+                event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
+            }
         }
         vp_apply_brightness(head, &settings->headlight_brightness,
                             COMMAND_PROCESSOR_CONTEXT_HEADLIGHT_BRIGHTNESS);
         vp_apply_brightness(status, &settings->status_brightness,
                             COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS);
+        if (!vp)
+        {
+            return;
+        }
     }
+    vp_apply_block(&payload[VP_BLOCK_OFFSET], settings);
+
+    // CUSTOM animation parameters (package rf71+)
+    if ((packet_length >= VP_CUSTOM_OFFSET + sizeof(settings->custom_anim)) &&
+        (memcmp(settings->custom_anim, &payload[VP_CUSTOM_OFFSET],
+                sizeof(settings->custom_anim)) != 0))
+    {
+        memcpy(settings->custom_anim, &payload[VP_CUSTOM_OFFSET],
+               sizeof(settings->custom_anim));
+        vp_save_countdown = VP_SAVE_POLLS;
+        event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
+    }
+
+    // battery % from the package's curve (takes effect with the next
+    // values reply, at most 250 ms later)
+    vp_battery_level = ((packet_length > VP_BATTERY_OFFSET) &&
+                        (payload[VP_BATTERY_OFFSET] <= 100U))
+                           ? (int16_t)(payload[VP_BATTERY_OFFSET] * 10U)
+                           : -1;
 #else
     apply_lcm_brightness(&headlight_remote_baseline, payload[LCM_POLL_HEADLIGHT_BRIGHTNESS_OFFSET],
                           &settings->headlight_brightness,

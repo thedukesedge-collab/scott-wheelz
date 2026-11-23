@@ -1472,7 +1472,7 @@ Item {
         }
         function copy2(a) { return [a[0].slice(), a[1].slice()]; }
         function setOn(v) { on = v; changed(); }
-        function setAct(p, v) { var a = act.slice(); a[p] = (v + 5) % 5; act = a; changed(); }
+        function setAct(p, v) { var a = act.slice(); a[p] = Math.max(0, Math.min(4, v)); act = a; changed(); }
         function setLevel(p, k, v) { var l = copy2(lv); l[p][k] = Math.max(0, Math.min(100, Math.round(v / 5) * 5)); lv = l; changed(); }
         function addSlot(p) {
             if (slots[p] >= 5) return;
@@ -10801,7 +10801,7 @@ Item {
                                 SwStepper {
                                     label: "DOES"
                                     value: powerClicks.act[pcCol.p]
-                                    from: -1; to: 5
+                                    from: 0; to: 4
                                     valueWidth: 3.4 * unit
                                     valueText: powerClicks.actNames[powerClicks.act[pcCol.p]]
                                     onMoved: powerClicks.setAct(pcCol.p, Math.round(newValue))

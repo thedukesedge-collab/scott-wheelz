@@ -193,7 +193,7 @@ static void lcm_click(LcmData *lcm, uint8_t b) {
         lcm->head_ovr = click_step(
             lcm,
             p,
-            lcm->head_ovr != LCM_CLICK_NONE_OVR       ? lcm->head_ovr
+            lcm->head_ovr != LCM_CLICK_NONE_OVR        ? lcm->head_ovr
                 : (vp->flags & LCM_VP_FLAG_HEADLIGHTS) ? vp->headlight_brightness
                                                        : 0
         );
@@ -209,8 +209,8 @@ static void lcm_click(LcmData *lcm, uint8_t b) {
         lcm->lights_ovr = !lights;
         break;
     case LCM_CLICK_BEEP:
-        lcm->beep_ovr = lcm->beep_ovr != LCM_CLICK_NONE_OVR ? !lcm->beep_ovr
-                                                             : !(vp->flags & LCM_VP_FLAG_BEEP);
+        lcm->beep_ovr =
+            lcm->beep_ovr != LCM_CLICK_NONE_OVR ? !lcm->beep_ovr : !(vp->flags & LCM_VP_FLAG_BEEP);
         break;
     default:
         return;  // no action for this click count: no beep
@@ -357,8 +357,9 @@ void lcm_poll_response(
             // lcm-powerclicks: click actions (RAM only) over the app's settings
             uint8_t flags = vp->flags;
             if (lcm->lights_ovr != LCM_CLICK_NONE_OVR) {
-                flags = lcm->lights_ovr ? flags | LCM_VP_FLAG_HEADLIGHTS | LCM_VP_FLAG_STATUS_BAR
-                                        : flags & ~(LCM_VP_FLAG_HEADLIGHTS | LCM_VP_FLAG_STATUS_BAR);
+                flags = lcm->lights_ovr
+                    ? flags | LCM_VP_FLAG_HEADLIGHTS | LCM_VP_FLAG_STATUS_BAR
+                    : flags & ~(LCM_VP_FLAG_HEADLIGHTS | LCM_VP_FLAG_STATUS_BAR);
             }
             if (lcm->beep_ovr != LCM_CLICK_NONE_OVR) {
                 flags = lcm->beep_ovr ? flags | LCM_VP_FLAG_BEEP : flags & ~LCM_VP_FLAG_BEEP;

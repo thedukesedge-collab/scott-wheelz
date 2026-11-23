@@ -1802,7 +1802,6 @@ static void lcm_click_reply(Data *d) {
     SEND_APP_DATA(buffer, sizeof(buffer), ind);
 }
 
-
 // rf75: noinline keeps its buffer out of on_command_received's frame (live
 // under data_recorder_request); the reply grew by one item (imu.yaw)
 static __attribute__((noinline)) void send_realtime_data(Data *d) {
@@ -2850,8 +2849,7 @@ static __attribute__((noinline)) bool rm_command(
     }
     case COMMAND_LCM_CLICKS: {
         if (len >= 3 && buffer[2] == 1) {
-            if (d->state.state != STATE_RUNNING &&
-                lcm_click_set(&d->lcm, &buffer[3], len - 3)) {
+            if (d->state.state != STATE_RUNNING && lcm_click_set(&d->lcm, &buffer[3], len - 3)) {
                 d->lcm_click_change_time = d->time.now;
                 d->lcm_click_save_pending = true;
             }
