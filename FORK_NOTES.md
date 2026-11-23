@@ -2036,3 +2036,20 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   points there. LCM BEEPER stays in LEDS.
 - Onboarding Tour checked: its BEEPER page already shows Settings › RIDE ›
   BEEPER; no change.
+
+### Battery gauge: Linkdata 65P instead of DG40, 1-3P, curves checked (v1.2.3-rf181)
+- LEDS › BATTERY GAUGE (SLCM): DG40 replaced by the Linkdata 65P (21700,
+  6500 mAh, 2.5-4.2 V). Linkdata publishes no voltage-vs-charge table, so
+  it uses the 50S table (high-energy NMC 21700) and is marked approximate;
+  sag compensation uses 8 mOhm per cell (estimate: the datasheet only gives
+  AC IR <= 4.5 mOhm). A saved DG40 falls back to the first 21700 cell.
+- Pack: 1P / 2P / 3P (4P removed; a saved 4P counts as 3P).
+- Curves checked against floatwheel's own tables (P42A, VTC6, 50S, RS50):
+  all within 5 mV. P28A / P30B / P45B / P50B use the P42A table
+  (Molicel publishes none), as before. 0 % is 3.0 V per cell for all but
+  RS50 (2.7 V, floatwheel's own), matching Refloat's default low-voltage
+  pushback. The package computes the % and sends it in the VP block; the
+  SLCM shows it as is (no change in the SLCM).
+- The approximate-curve note now names its basis per cell. The P42A
+  example's description said LG; it's Molicel.
+- Onboarding Tour checked: no cell list or pack options shown; no change.

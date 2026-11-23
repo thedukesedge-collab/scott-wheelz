@@ -1454,23 +1454,28 @@ Item {
         id: batteryCurve
 
         // Per-cell curves: cell mV = 2500 + 10 * p at 100, 90, ... 0 %.
-        // Floatwheel's own tables (P42A, 50S, DG40, VTC6, RS50, as in
-        // lcm/alcm/tools/battery_lut_patch/examples). Molicel publishes no
-        // voltage-vs-charge tables, so P28A / P30B / P45B / P50B use the
-        // P42A table (same maker) and are marked approximate. ir = DC
-        // resistance per cell in mOhm: Molicel datasheets for P28A (20),
-        // P30B (17), P45B (15), P50B (12.8); the others are estimates.
+        // Floatwheel's own tables (P42A, 50S, VTC6, RS50, as in
+        // lcm/alcm/tools/battery_lut_patch/examples; checked against them,
+        // within 5 mV). Molicel publishes no voltage-vs-charge tables, so
+        // P28A / P30B / P45B / P50B use the P42A table (same maker) and are
+        // marked approximate (basis). rf181: DG40 replaced by the Linkdata
+        // 65P (21700, 6500 mAh, 2.5-4.2 V): Linkdata publishes no table
+        // either, so it uses the 50S table (high-energy NMC 21700), 0 % at
+        // 3.0 V like the others (= Refloat's default low-voltage pushback).
+        // ir = DC resistance per cell in mOhm: Molicel datasheets for P28A
+        // (20), P30B (17), P45B (15), P50B (12.8); the 65P's datasheet gives
+        // only AC IR (<= 4.5), so 8 is an estimate; the others are estimates.
         readonly property var p42a: [170, 156, 144, 135, 128, 120, 112, 104, 96, 84, 50]
         readonly property var cellList: [
-            {name: "P28A", size: "18650", points: p42a, ir: 20, approx: true, irEst: false},
-            {name: "P30B", size: "18650", points: p42a, ir: 17, approx: true, irEst: false},
+            {name: "P28A", size: "18650", points: p42a, ir: 20, approx: true, irEst: false, basis: "Molicel publishes none; based on P42A"},
+            {name: "P30B", size: "18650", points: p42a, ir: 17, approx: true, irEst: false, basis: "Molicel publishes none; based on P42A"},
             {name: "VTC6", size: "18650", points: [170, 156, 152, 140, 132, 124, 116, 106, 96, 79, 50], ir: 20, approx: false, irEst: true},
             {name: "P42A", size: "21700", points: p42a, ir: 19, approx: false, irEst: true},
-            {name: "P45B", size: "21700", points: p42a, ir: 15, approx: true, irEst: false},
-            {name: "P50B", size: "21700", points: p42a, ir: 13, approx: true, irEst: false},
+            {name: "P45B", size: "21700", points: p42a, ir: 15, approx: true, irEst: false, basis: "Molicel publishes none; based on P42A"},
+            {name: "P50B", size: "21700", points: p42a, ir: 13, approx: true, irEst: false, basis: "Molicel publishes none; based on P42A"},
             {name: "50S", size: "21700", points: [170, 158, 154, 140, 132, 124, 114, 102, 88, 66, 50], ir: 15, approx: false, irEst: true},
             {name: "RS50", size: "21700", points: [170, 156, 150, 139, 129, 117, 103, 89, 70, 49, 20], ir: 15, approx: false, irEst: true},
-            {name: "DG40", size: "21700", points: [170, 155, 144, 137, 130, 122, 110, 100, 88, 74, 50], ir: 20, approx: false, irEst: true}
+            {name: "65P", size: "21700", points: [170, 158, 154, 140, 132, 124, 114, 102, 88, 66, 50], ir: 8, approx: true, irEst: true, basis: "Linkdata publishes none; based on 50S"}
         ]
         readonly property var styleNames: ["CONSERVATIVE", "BALANCED", "OPTIMISTIC"]
 
@@ -1495,7 +1500,9 @@ Item {
             return null;
         }
 
-        readonly property var current: cell(swSettings.batCell) || cellList[2]
+        // a cell that's gone (DG40 until rf180): the first of its size
+        readonly property var current: cell(swSettings.batCell) || cell(cellsOfSize(swSettings.batSize)[0]) || cellList[2]
+        readonly property int parallel: Math.max(1, Math.min(3, swSettings.batParallel))  // rf181: 1-3P (4P removed)
 
         // the curve that is sent: the cell's, shifted by the gauge style
         // (conservative reads lower: every point 30 mV higher; optimistic
@@ -1514,7 +1521,7 @@ Item {
         property bool synced: false
 
         readonly property int series: cells > 0 ? cells : 18
-        readonly property int autoRes: Math.max(0, Math.min(255, Math.round(current.ir * series / Math.max(1, swSettings.batParallel) / 2)))
+        readonly property int autoRes: Math.max(0, Math.min(255, Math.round(current.ir * series / parallel / 2)))
         readonly property int resistance: swSettings.batResAuto ? autoRes : swSettings.batRes
 
         function mv(p) { return 2500 + 10 * p; }
@@ -10508,11 +10515,11 @@ Item {
                             anchors.horizontalCenter: parent.horizontalCenter
                             spacing: 0.12 * unit
                             Repeater {
-                                model: [1, 2, 3, 4]
+                                model: [1, 2, 3]  // rf181: 4P removed
                                 SwPill {
                                     minWidth: 1.2 * unit
                                     label: modelData + "P"
-                                    lit: swSettings.batParallel === modelData
+                                    lit: batteryCurve.parallel === modelData
                                     onClicked: { swSettings.batParallel = modelData; batteryCurve.changed(); }
                                 }
                             }
@@ -10539,8 +10546,8 @@ Item {
                             font.pixelSize: fontSizeSmall
                             text: (swSettings.batStyle < 0 ? "Conservative: reads a bit low, so it warns you earlier. "
                                     : swSettings.batStyle > 0 ? "Optimistic: reads a bit high, closer to the last bit of range. " : "Balanced: the cell's own curve. ")
-                                + (batteryCurve.current.approx ? batteryCurve.current.name + ": approximate curve (Molicel publishes none; based on P42A). " : "")
-                                + "Sag compensation: " + (swSettings.batResAuto ? "automatic, " + (2 * batteryCurve.resistance) + " m\u03A9 for " + batteryCurve.series + "s" + swSettings.batParallel + "p." : "manual (Advanced).")
+                                + (batteryCurve.current.approx ? batteryCurve.current.name + ": approximate curve (" + batteryCurve.current.basis + "). " : "")
+                                + "Sag compensation: " + (swSettings.batResAuto ? "automatic, " + (2 * batteryCurve.resistance) + " m\u03A9 for " + batteryCurve.series + "s" + batteryCurve.parallel + "p." : "manual (Advanced).")
                         }
 
                         SwPill {
@@ -11174,7 +11181,7 @@ Item {
                         wrapMode: Text.WordWrap
                         font.pixelSize: fontSizeSmall
                         text: "AUTO = cell resistance \u00D7 series \u00F7 parallel: " + batteryCurve.current.ir + " m\u03A9 \u00D7 " + batteryCurve.series
-                            + " \u00F7 " + swSettings.batParallel + " \u2248 " + (2 * batteryCurve.autoRes) + " m\u03A9"
+                            + " \u00F7 " + batteryCurve.parallel + " \u2248 " + (2 * batteryCurve.autoRes) + " m\u03A9"
                             + (batteryCurve.current.irEst ? " (cell resistance estimated)" : "") + ". "
                             + "Adds back the voltage drop under load. Raise it if the gauge drops when you accelerate, lower it if it jumps up.\n\n"
                             + "The curve turns voltage into a % for the SLCM status bar. Series cells come from the motor config (Additional Info)."
@@ -17652,7 +17659,7 @@ Item {
                                 lit: swSettings.batCurveOn
                                 summary: swSettings.batCurveOn
                                     ? (swSettings.batCell === "MY CELL" && batteryCurve.custom ? batteryCurve.custom.name : swSettings.batCell)
-                                        + " \u00B7 " + swSettings.batParallel + "P \u00B7 " + batteryCurve.styleNames[swSettings.batStyle + 1]
+                                        + " \u00B7 " + batteryCurve.parallel + "P \u00B7 " + batteryCurve.styleNames[swSettings.batStyle + 1]
                                     : "VESC BATTERY %"
                                 onClicked: ledWindow.show("battery")
                             }

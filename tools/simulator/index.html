@@ -1918,7 +1918,7 @@ function renderLedsSoft() {
   for (let i = 0; i < 11; i++) { const v = P['_pt' + i]; const c0 = P.batCustom || batCur(); if (v !== undefined && $('batAdv').style.display === 'flex' && v !== c0.points[i]) batEdit(x => { x.points[i] = v; }); }
   if ($('batAdv').style.display === 'flex' && P._ir !== undefined) { const c0 = P.batCustom || batCur(); if (P._ir !== c0.ir || (P.batCustom && P._cap !== P.batCustom.cap)) batEdit(x => { x.ir = P._ir; x.cap = P._cap; }); }
   const cc = batCur();
-  $('ltBat').textContent = P.batOn ? (P.batCell === 'MY CELL' && P.batCustom ? P.batCustom.name : P.batCell) + ' · ' + P.batPar + 'P · ' + STYLES[P.batStyle + 1] : 'VESC BATTERY %';
+  $('ltBat').textContent = P.batOn ? (P.batCell === 'MY CELL' && P.batCustom ? P.batCustom.name : P.batCell) + ' · ' + Math.max(1, Math.min(3, P.batPar)) + 'P · ' + STYLES[P.batStyle + 1] : 'VESC BATTERY %';
   $('batPill').textContent = 'BATTERY CURVE ' + (P.batOn ? 'ON' : 'OFF'); $('batPill').classList.toggle('on', P.batOn);
   $('batLive').textContent = batLive(); $('batAdvLive').textContent = batLive();
   // rf85: no light module set up (Thor on controller-driven LEDs / no LEDs): tools hidden
@@ -2071,21 +2071,22 @@ $('rfSensPill').onclick = () => { P.rfSens = !P.rfSens; save(); renderRf(); };
 const ledToggle = k => () => { P[k] = !P[k]; P.ledCfg = true; save(); renderLedsSoft(); };
 const P42A = [170, 156, 144, 135, 128, 120, 112, 104, 96, 84, 50];
 const CELLS = [
-  { name: 'P28A', size: '18650', points: P42A, ir: 20, approx: true }, { name: 'P30B', size: '18650', points: P42A, ir: 17, approx: true },
+  { name: 'P28A', size: '18650', points: P42A, ir: 20, approx: true, basis: 'Molicel publishes none; based on P42A' }, { name: 'P30B', size: '18650', points: P42A, ir: 17, approx: true, basis: 'Molicel publishes none; based on P42A' },
   { name: 'VTC6', size: '18650', points: [170, 156, 152, 140, 132, 124, 116, 106, 96, 79, 50], ir: 20, irEst: true },
-  { name: 'P42A', size: '21700', points: P42A, ir: 19, irEst: true }, { name: 'P45B', size: '21700', points: P42A, ir: 15, approx: true },
-  { name: 'P50B', size: '21700', points: P42A, ir: 13, approx: true },
+  { name: 'P42A', size: '21700', points: P42A, ir: 19, irEst: true }, { name: 'P45B', size: '21700', points: P42A, ir: 15, approx: true, basis: 'Molicel publishes none; based on P42A' },
+  { name: 'P50B', size: '21700', points: P42A, ir: 13, approx: true, basis: 'Molicel publishes none; based on P42A' },
   { name: '50S', size: '21700', points: [170, 158, 154, 140, 132, 124, 114, 102, 88, 66, 50], ir: 15, irEst: true },
   { name: 'RS50', size: '21700', points: [170, 156, 150, 139, 129, 117, 103, 89, 70, 49, 20], ir: 15, irEst: true },
-  { name: 'DG40', size: '21700', points: [170, 155, 144, 137, 130, 122, 110, 100, 88, 74, 50], ir: 20, irEst: true }];
+  { name: '65P', size: '21700', points: [170, 158, 154, 140, 132, 124, 114, 102, 88, 66, 50], ir: 8, approx: true, irEst: true, basis: 'Linkdata publishes none; based on 50S' }];  // rf181: DG40 -> Linkdata 65P
 const STYLES = ['CONSERVATIVE', 'BALANCED', 'OPTIMISTIC'];
 if (P.batSize === undefined) Object.assign(P, { batOn: false, batSize: '18650', batCell: 'VTC6', batStyle: 0, batPar: 2, batResAuto: true, batRes: 0, batCustom: null });
 const batCell = n => n === 'MY CELL' ? P.batCustom : CELLS.find(c => c.name === n);
-const batCur = () => batCell(P.batCell) || CELLS[2];
+const batCur = () => batCell(P.batCell) || batCell(batOfSize(P.batSize)[0]) || CELLS[2];
+const batPar = () => Math.max(1, Math.min(3, P.batPar));  // rf181: 1-3P
 const batOfSize = sz => CELLS.filter(c => c.size === sz).map(c => c.name).concat(P.batCustom && P.batCustom.size === sz ? ['MY CELL'] : []);
 function batPoints() { const b = batCur().points, sh = -3 * P.batStyle, p = b.map((x, i) => i ? Math.max(0, Math.min(255, x + sh)) : x); for (let i = 1; i < 11; i++) p[i] = Math.max(0, Math.min(p[i], p[i - 1] - 1)); return p; }
 const SIM_CELLS = 18;
-const batAutoRes = () => Math.round(batCur().ir * SIM_CELLS / P.batPar / 2);
+const batAutoRes = () => Math.round(batCur().ir * SIM_CELLS / batPar() / 2);
 function batLive() {
   const v = S.volts * 18 / 20, mv = v * 1000 / SIM_CELLS, p = batPoints().map(x => 2500 + 10 * x);
   let pct = mv >= p[0] ? 100 : 0; for (let i = 0; i < 10; i++) if (mv < p[i] && mv >= p[i + 1]) pct = 100 - 10 * i - 10 * (p[i] - mv) / (p[i] - p[i + 1]);
@@ -2096,12 +2097,12 @@ const pills = (box, list, on, click) => { $(box).innerHTML = ''; list.forEach(n 
 function renderBattery() {
   pills('batSizes', ['18650', '21700'], n => P.batSize === n, n => { P.batSize = n; const l = batOfSize(n); if (!l.includes(P.batCell)) P.batCell = l[0]; });
   pills('batCells', batOfSize(P.batSize), n => P.batCell === n, n => P.batCell = n);
-  pills('batPar', ['1P', '2P', '3P', '4P'], n => P.batPar === +n[0], n => P.batPar = +n[0]);
+  pills('batPar', ['1P', '2P', '3P'], n => batPar() === +n[0], n => P.batPar = +n[0]);
   pills('batStyles', STYLES, n => STYLES.indexOf(n) - 1 === P.batStyle, n => P.batStyle = STYLES.indexOf(n) - 1);
   const c = batCur();
   $('batNote').textContent = (P.batStyle < 0 ? 'Conservative: reads a bit low, so it warns you earlier. ' : P.batStyle > 0 ? 'Optimistic: reads a bit high, closer to the last bit of range. ' : "Balanced: the cell's own curve. ")
-    + (c.approx ? c.name + ': approximate curve (Molicel publishes none; based on P42A). ' : '')
-    + 'Sag compensation: ' + (P.batResAuto ? 'automatic, ' + 2 * batAutoRes() + ' mΩ for ' + SIM_CELLS + 's' + P.batPar + 'p.' : 'manual (Advanced).');
+    + (c.approx ? c.name + ': approximate curve (' + c.basis + '). ' : '')
+    + 'Sag compensation: ' + (P.batResAuto ? 'automatic, ' + 2 * batAutoRes() + ' mΩ for ' + SIM_CELLS + 's' + batPar() + 'p.' : 'manual (Advanced).');
   // advanced
   const mine = P.batCustom, ed = mine ? mine.points : c.points;
   $('batName').value = mine ? mine.name : 'MY CELL';
@@ -2116,7 +2117,7 @@ function renderBattery() {
   $('batUseMine').textContent = P.batCell === 'MY CELL' ? 'USING MY CELL' : 'USE MY CELL'; $('batUseMine').classList.toggle('on', P.batCell === 'MY CELL');
   $('batResAuto').classList.toggle('on', P.batResAuto); $('batResMan').classList.toggle('on', !P.batResAuto);
   $('batResStep').innerHTML = ''; if (!P.batResAuto) ledStep($('batResStep'), 'batRes', 'PACK RESISTANCE', 0, 250, 5, v => (2 * v) + ' mΩ');
-  $('batAdvNote').textContent = 'AUTO = cell resistance × series ÷ parallel: ' + c.ir + ' mΩ × ' + SIM_CELLS + ' ÷ ' + P.batPar + ' ≈ ' + 2 * batAutoRes() + ' mΩ' + (c.irEst ? ' (cell resistance estimated)' : '') + ". It adds back the voltage drop while riding so the gauge doesn't dip under load.";
+  $('batAdvNote').textContent = 'AUTO = cell resistance × series ÷ parallel: ' + c.ir + ' mΩ × ' + SIM_CELLS + ' ÷ ' + batPar() + ' ≈ ' + 2 * batAutoRes() + ' mΩ' + (c.irEst ? ' (cell resistance estimated)' : '') + ". It adds back the voltage drop while riding so the gauge doesn't dip under load.";
 }
 $('batPill').onclick = () => { P.batOn = !P.batOn; save(); renderLedsSoft(); };
 $('batAdvOpen').onclick = () => { $('batAdv').style.display = 'flex'; renderBattery(); };
@@ -2210,7 +2211,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf180';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf181';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],
