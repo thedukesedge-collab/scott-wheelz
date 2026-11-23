@@ -321,8 +321,6 @@
         <div class="page on" id="pgTunes"><div class="pills" style="justify-content:flex-end;margin:0 0 6px"><div class="pill" id="taOpen">TUNE ARCHIVE &#8615;</div></div><div class="tunes" id="tunes"></div></div>
         <div class="page" id="pgControl">
           <div class="secTitle">Move</div>
-          <div class="pills" style="margin-top:6px"><div class="pill" id="ctlBeep"></div></div>
-          <p class="ledHint" style="text-align:center">BEEPER OFF mutes the controller's beeper: settings-written, power on / off and warning beeps (Refloat's Enable Beeper).</p>
           <div id="moveBox"><div class="neonL" id="fwdL">FWD</div><div id="moveTrack"><div class="bar"></div><div id="moveKnob"></div></div><div class="neonL" id="revL">REV</div></div>
           <div style="display:none"><div class="secTitle neonL" style="font-size:16px;margin-top:14px">FREE-SPIN LIMITER</div>
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Holds the tire at this speed while wheelslip is detected (e.g. in the air off a jump): the motor eases off so the tire keeps spinning just under the limit. Normal riding is not limited. Minimum 40 mph.</p>
@@ -1165,10 +1163,7 @@ function drawStatusArt(c, w, h, t, lit) {
 })();
 // rf108: HAPTIC FEEDBACK window (hapticCfg in ui.qml.in) and the controller BEEPER in CONTROL
 if (P.hap === undefined) P.hap = { str: 3, duty: 80, spd: 0, last: 3 };
-function renderCtl() {
-  $('ctlBeep').textContent = 'BEEPER ' + (P.ctrlBeep !== false ? 'ON' : 'OFF'); $('ctlBeep').classList.toggle('on', P.ctrlBeep !== false);
-}
-$('ctlBeep').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); renderCtl(); renderLedsSoft(); };
+function renderCtl() {}  // rf180: controller BEEPER only in Settings › RIDE
 function hapticWin() {
   modal('<h3>HAPTIC FEEDBACK</h3><div class="pills"><div class="pill" id="hapOn"></div></div>'
     + '<div class="pills"><div class="pill" id="hapLink"></div></div><p class="ledHint" id="hapLinkNote" style="text-align:center"></p>'
@@ -1669,7 +1664,7 @@ $('mxBeep').onclick = () => {
   padRelease();
   if (mxRec && armed && !take) { take = { t0: Date.now(), ev: [] }; playT0 = 0; requestAnimationFrame(takeTick); }
   if (take) { const s = Date.now() - take.t0, e = Math.min(s + 200, REC_MS); if (e - s >= 40) take.ev.push([11, s, e]); }
-  toast(P.ctrlBeep === false ? 'Controller beeper is off (LEDS › BEEPER): the beep is silent' : 'Beep!');
+  toast(P.ctrlBeep === false ? 'Controller beeper is off (Settings › RIDE › BEEPER): the beep is silent' : 'Beep!');
   renderPad();
 };
 function mxMode(rec) { padRelease(); take = null; mxRec = rec; armed = rec && !P.rec.length; renderPad(); }
@@ -2215,7 +2210,7 @@ $('ledTestBeep').onclick = () => {
 };
 // simulated LCM firmware update (the real one: lcmFw in ui.qml.in)
 const FW = { active: false, p: 0, t: null, kind: 'vpbl', check: 0, unlocked: false };
-const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf179';
+const FW_BUILD = 'r23 (4db43fd)', FW_OLD = 'r21 (3b9e0a2)', FW_NEW = 'r25 (c1f07d9)', PKG_VER = '1.2.3-rf180';
 // simulated LCM -> version verdict (the real one: lcmFw.fit in ui.qml.in)
 const FW_FIT = {
   vpbl: ['UP TO DATE · BEST FIT', 'Your LCM runs SLCM ' + FW_BUILD + ', the exact LCM firmware built and tested with this package (Refloat Glow ' + PKG_VER + '). Nothing to update. You can still reflash it if you want.', 'REFLASH ANYWAY', 'up to date · best fit', FW_BUILD],

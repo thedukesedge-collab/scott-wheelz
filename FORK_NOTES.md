@@ -2028,3 +2028,11 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
   (same file) so links already shared and older packages' CHECK FOR UPDATES
   keep working. CHECK FOR UPDATES takes refloatglow.vescpkg first.
 - Onboarding Tour checked: no file names shown; no change.
+
+### Controller beeper only in Settings (v1.2.3-rf180)
+- The BEEPER ON/OFF pill and its note are gone from the SUW's CONTROL tab;
+  the controller beeper is only in Settings (gear) › RIDE › BEEPER (with
+  TEST BEEP and PERSISTENT FATAL BEEP). The "beeper is off" message now
+  points there. LCM BEEPER stays in LEDS.
+- Onboarding Tour checked: its BEEPER page already shows Settings › RIDE ›
+  BEEPER; no change.

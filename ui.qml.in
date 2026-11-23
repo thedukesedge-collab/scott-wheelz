@@ -16184,26 +16184,7 @@ Item {
                             text: "Tilt works while riding (engaged and moving)."
                         }
 
-                        // rf108: controller BEEPER (rf167: HAPTIC FEEDBACK moved to Settings › RIDE)
-                        Item { width: parent.width; height: 0.2 * unit }
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 0.2 * unit
-                            SwPill {
-                                minWidth: 2.8 * unit
-                                label: ledSender.ctrlBeep ? "BEEPER ON" : "BEEPER OFF"
-                                lit: ledSender.ctrlBeep
-                                onClicked: ledSender.setCtrlBeep(!ledSender.ctrlBeep)
-                            }
-                        }
-                        SwLText {
-                            width: parent.width
-                            horizontalAlignment: Text.AlignHCenter
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: fontSizeSmall
-                            text: "BEEPER OFF mutes the controller's beeper: settings-written, power on / off and warning beeps (Refloat's Enable Beeper)."
-                        }
-
+                        // rf180: controller BEEPER only in Settings (gear) › RIDE › BEEPER
                         Item {
                             width: parent.width
                             height: 0.3 * unit
@@ -16610,7 +16591,7 @@ Item {
                         }
                         ledSender.testCtrlBeep();
                         if (!ledSender.ctrlBeep)
-                            VescIf.emitStatusMessage("Controller beeper is off (LEDS \u203A BEEPER): the beep is silent", false);
+                            VescIf.emitStatusMessage("Controller beeper is off (Settings \u203A RIDE \u203A BEEPER): the beep is silent", false);
                     }
 
                     function tileColor(level) {
