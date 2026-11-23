@@ -72,7 +72,6 @@ jobs:
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/FloPilot.xcarchive" \
             DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            PRODUCT_BUNDLE_IDENTIFIER=com.flopilot.app \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             archive | tail -n 60
       - name: Upload to TestFlight
