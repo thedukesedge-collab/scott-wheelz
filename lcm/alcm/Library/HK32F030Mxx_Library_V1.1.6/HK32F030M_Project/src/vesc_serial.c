@@ -189,6 +189,9 @@ static uint32_t stock_key = 0xFFFFFFFFU; // Refloat's last 3 brightness bytes
 #endif
 #ifdef VP_LIGHT_CONTROL
 static uint8_t vp_test_beep_last = 0xFFU; // 0xFF: no VP block seen yet
+// Power-button clicks for the package (VP): (sequence << 4) | click count,
+// sent after the name in every LCM_POLL; 0 = no click since power-on
+static uint8_t vp_click = 0U;
 // app changes are written to the LCM's EEPROM this many polls (250 ms)
 // later, idle only - so they also apply with the package off, power cut or not
 #define VP_SAVE_POLLS 12U
@@ -1001,17 +1004,27 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
 
 #ifdef VP_LIGHT_CONTROL
 /**
- * @brief Click-click on stock Refloat: next light level (1, 2, 3, 1, ...)
+ * @brief A power-button click series (2+ clicks)
  *
- * Only without the VP block (with it, the app sets the lights) and never
- * while riding. Takes effect with the next poll reply (<= 250 ms).
+ * With the VP block (Refloat Glow): reported to the package in the next
+ * LCM_POLL (<= 250 ms), which decides what it does (the rider's click
+ * actions: light levels, lights / beeper on-off) and asks for the beep.
+ * Riding or not - clicks only change lights and beeper, as on the stock LCM.
  *
- * @return true if the level changed
+ * Stock Refloat (no VP block): click-click steps the light level (1, 2, 3,
+ * 1, ...), never while riding. Takes effect with the next poll reply.
+ *
+ * @return true if the stock level changed (ACK beep)
  */
-bool_t vesc_serial_stock_level_step(void)
+bool_t vesc_serial_stock_level_step(uint8_t clicks)
 {
     // vp_test_beep_last is 0xFF only while no VP block arrives
-    if ((vp_test_beep_last != 0xFFU) || (board_mode_get() == BOARD_MODE_RIDING))
+    if (vp_test_beep_last != 0xFFU)
+    {
+        vp_click = (uint8_t)(((vp_click + 0x10U) & 0xF0U) | (clicks & 0x0FU));
+        return false;
+    }
+    if ((clicks != 2U) || (board_mode_get() == BOARD_MODE_RIDING))
     {
         return false;
     }
@@ -1304,6 +1317,17 @@ TIMER_CALLBACK(vesc_serial, tx)
             clear_outstanding_packets();
         }
     }
+#if defined(LCM_POLL_CLICK) && defined(VP_LIGHT_CONTROL)
+    {
+        // The click byte is the last one before the CRC (sent as 0 by
+        // lcm_tag.py). CRC-16/XMODEM (init 0) is linear, so the CRC with
+        // the byte set is the precomputed CRC ^ crc16(byte).
+        uint16_t c = crc16_ccitt(&vp_click, 1U);
+        buffer[BYTE_LENGTH - 4U] = vp_click;
+        buffer[BYTE_LENGTH - 3U] ^= (uint8_t)(c >> 8);
+        buffer[BYTE_LENGTH - 2U] ^= (uint8_t)c;
+    }
+#endif
     vesc_serial_hw_send(buffer, BYTE_LENGTH);
 }
 

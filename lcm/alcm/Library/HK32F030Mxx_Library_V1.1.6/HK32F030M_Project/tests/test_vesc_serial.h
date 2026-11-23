@@ -981,7 +981,7 @@ void test_vesc_serial_vp_block(void **state)
     assert_false(settings->enable_beep);
     assert_int_equal(ANIMATION_OPTION_RAINBOW_BAR, settings->idle_animation);
     // with the VP block the app sets the lights: click-click does nothing
-    assert_false(vesc_serial_stock_level_step());
+    assert_false(vesc_serial_stock_level_step(2U));
     assert_int_equal(ANIMATION_OPTION_FIRE, settings->ride_animation);
     assert_int_equal(ANIMATION_OPTION_120_SCROLL, settings->dozing_animation);
     assert_int_equal(ANIMATION_OPTION_FLOATWHEEL_CLASSIC, settings->boot_animation);
@@ -1171,18 +1171,18 @@ void test_vesc_serial_stock_refloat(void **state)
 
     // no level step while riding
     will_return(board_mode_get, BOARD_MODE_RIDING);
-    assert_false(vesc_serial_stock_level_step());
+    assert_false(vesc_serial_stock_level_step(2U));
 
     // click-click: level 1 = headlights off, status bar 30 % (unchanged)
     will_return(board_mode_get, BOARD_MODE_IDLE);
-    assert_true(vesc_serial_stock_level_step());
+    assert_true(vesc_serial_stock_level_step(2U));
     stock_poll(50, 20, 30, BOARD_MODE_IDLE, true, false);
     assert_int_equal(0U, settings->headlight_brightness);
     assert_int_equal(76U, settings->status_brightness);
 
     // level 2: 60 % / 60 %, kept while Refloat sends the same values
     will_return(board_mode_get, BOARD_MODE_IDLE);
-    assert_true(vesc_serial_stock_level_step());
+    assert_true(vesc_serial_stock_level_step(2U));
     stock_poll(50, 20, 30, BOARD_MODE_IDLE, true, true);
     stock_poll(50, 20, 30, BOARD_MODE_RIDING, false, false);
     assert_int_equal(153U, settings->headlight_brightness);
@@ -1190,11 +1190,11 @@ void test_vesc_serial_stock_refloat(void **state)
 
     // level 3 (100 %), then it wraps to level 1
     will_return(board_mode_get, BOARD_MODE_IDLE);
-    assert_true(vesc_serial_stock_level_step());
+    assert_true(vesc_serial_stock_level_step(2U));
     stock_poll(50, 20, 30, BOARD_MODE_IDLE, true, true);
     assert_int_equal(255U, settings->headlight_brightness);
     will_return(board_mode_get, BOARD_MODE_IDLE);
-    assert_true(vesc_serial_stock_level_step());
+    assert_true(vesc_serial_stock_level_step(2U));
     stock_poll(50, 20, 30, BOARD_MODE_IDLE, true, true);
     assert_int_equal(0U, settings->headlight_brightness);
     assert_int_equal(76U, settings->status_brightness);

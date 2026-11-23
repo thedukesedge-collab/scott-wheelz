@@ -425,9 +425,10 @@ void command_processor_default_handler(event_type_t event, const event_data_t *d
     {
 #ifdef VP_LIGHT_CONTROL
     case EVENT_BUTTON_CLICK:
-        // Lights and beeper are set from the app (VP). Only on stock Refloat
-        // (no VP block) click-click steps the light level; nothing else.
-        if ((data->click_count == 2U) && vesc_serial_stock_level_step())
+        // Lights and beeper are set from the app (VP). A click series goes
+        // to the package (the rider's click actions, VP block) or, on stock
+        // Refloat, click-click steps the light level.
+        if ((data->click_count >= 2U) && vesc_serial_stock_level_step((uint8_t)data->click_count))
         {
             event_queue_push(EVENT_COMMAND_ACK, NULL);
         }

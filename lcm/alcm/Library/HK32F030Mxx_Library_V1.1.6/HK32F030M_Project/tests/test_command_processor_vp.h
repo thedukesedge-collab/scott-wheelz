@@ -69,9 +69,11 @@ static void test_vp_clicks_do_nothing(void **state)
         event_data_t data = cpvp_count(count);
 
         will_return(board_mode_get, BOARD_MODE_IDLE);
-        if (count == 2U)
+        if (count >= 2U)
         {
-            // click-click asks vesc_serial (refused: VP block, or riding)
+            // a click series goes to vesc_serial (VP: reported to the
+            // package; stock: refused while riding), no ACK here
+            expect_value(vesc_serial_stock_level_step, clicks, count);
             will_return(vesc_serial_stock_level_step, false);
         }
         command_processor_button_event_handler(EVENT_BUTTON_CLICK, &data);
@@ -90,6 +92,7 @@ static void test_vp_click_click_stock_level(void **state)
     event_data_t data = cpvp_count(2);
 
     will_return(board_mode_get, BOARD_MODE_IDLE);
+    expect_value(vesc_serial_stock_level_step, clicks, 2);
     will_return(vesc_serial_stock_level_step, true);
     expect_value(event_queue_push, event, EVENT_COMMAND_ACK);
     expect_any(event_queue_push, data);

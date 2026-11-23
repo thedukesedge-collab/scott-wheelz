@@ -39,7 +39,7 @@ int16_t vesc_serial_get_input_voltage(void); // Tenths of a volt
 #endif
 int16_t vesc_serial_get_battery_level(void); // Tenths of a percent
 #ifdef VP_LIGHT_CONTROL
-bool_t vesc_serial_stock_level_step(void); // click-click on stock Refloat
+bool_t vesc_serial_stock_level_step(uint8_t clicks); // click series (VP: to the package)
 #endif
 uint8_t vesc_serial_get_fault(void);
 lcm_status_t vesc_serial_check_busy_and_set_callback(vesc_serial_callback_t callback);

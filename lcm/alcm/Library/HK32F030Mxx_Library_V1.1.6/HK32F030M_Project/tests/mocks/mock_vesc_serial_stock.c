@@ -9,7 +9,8 @@
 #include <cmocka.h>
 #include "vesc_serial.h"
 
-bool_t vesc_serial_stock_level_step(void)
+bool_t vesc_serial_stock_level_step(uint8_t clicks)
 {
+    check_expected(clicks);
     return (bool_t)mock();
 }
