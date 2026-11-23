@@ -49,6 +49,9 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName FloPilot" "$PL" || \
             /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string FloPilot" "$PL"
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PL"
+          # keep the Bluetooth link to the board while the phone is locked / in a pocket
+          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" "$PL" || true
+          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string bluetooth-central" "$PL"
           npx cap sync ios
       - name: API key
         env:

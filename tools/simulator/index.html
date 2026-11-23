@@ -3116,7 +3116,7 @@ function updateDom() {
   $('motorV').textContent = fx1(tC(S.motorT)) + tU; $('motorV').style.color = mw ? RED : '#ead6ff';
   $('engine').firstChild.setAttribute('stroke', mw ? RED : '#c98bff');
   $('escV').textContent = fx1(tC(S.escT)) + tU; $('escV').style.color = ew ? RED : '#ead6ff';
-  let st = window.RF_LINK && window.RF_LINK.blank ? 'NO BOARD' : S.mode === 'flywheel' ? 'FLYWHEEL' : running() ? (S.nose ? 'PUSHBACK: DUTY' : 'RUNNING') : 'READY';
+  let st = window.RF_LINK && window.RF_LINK.blank ? (window.RF_LINK.status || 'NO BOARD') : S.mode === 'flywheel' ? 'FLYWHEEL' : running() ? (S.nose ? 'PUSHBACK: DUTY' : 'RUNNING') : 'READY';
   $('status').textContent = st; $('status').style.color = S.nose ? ORANGE : '#d6ffe4';
   // tilt
   const tv = S.tilt, tOn = tv !== 0;

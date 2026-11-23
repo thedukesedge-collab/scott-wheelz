@@ -20,16 +20,44 @@ const link = {
   poll: null,
   S: null,
   demo: false,  // no board: run the demo board (DEMO pill), otherwise all zeros
+  snap: null,   // last readings from the board, kept while the link is down
   get blank() { return !this.live && !this.demo; },
+  get held() { return this.blank && !!this.snap; },
+  get status() { return this.held ? (this.deviceId ? 'CONNECTING' : 'RECONNECTING') : 'NO BOARD'; },
   apply(S, now) {
     this.S = S;
-    if (this.live && this.board) this.board.apply(S, now);
+    if (this.live && this.board) { this.board.apply(S, now); takeSnap(S); }
+    else if (this.held) Object.assign(S, this.snap, MOTION_ZERO);
     else if (this.blank) blankBoard(S);
   },
 };
 window.RF_LINK = link;
 const DEMO = 'fpDemo';
 try { link.demo = localStorage.getItem(DEMO) === '1'; } catch (e) {}
+
+// link lost: keep the board's last readings (trip, battery, temps...) on screen
+// and saved on the phone, but show it standing still. Top speed / max duty are
+// the app's own ride peaks (saved by the UI), so they carry on too.
+const LAST = 'fpLast';
+const KEEP = ['volts', 'battPct', 'motorT', 'escT', 'trip', 'life', 'whmi'];
+const MOTION_ZERO = {
+  mode: 'ready', speed: 0, erpm: 0, duty: 0, motorA: 0, battA: 0, pitch: 0, balance: 0, roll: 0,
+  setpoint: 0, fpL: false, fpR: false, wheelslip: false, auto: false, scen: null, nose: false,
+};
+let snapSaved = 0;
+function takeSnap(S) {
+  const o = {};
+  for (const k of KEEP) o[k] = S[k];
+  link.snap = o;
+  if (Date.now() - snapSaved > 2000) {
+    snapSaved = Date.now();
+    try { localStorage.setItem(LAST, JSON.stringify({ t: snapSaved, id: link.deviceId, snap: o })); } catch (e) {}
+  }
+}
+try {
+  const l = JSON.parse(localStorage.getItem(LAST) || 'null');
+  if (l && l.snap && Date.now() - l.t < 12 * 3600 * 1000) link.snap = l.snap;  // from the last 12 h
+} catch (e) {}
 
 // no board connected: every reading at zero, nothing moving
 function blankBoard(S) {
@@ -52,9 +80,19 @@ function send(bytes) {
   }
 }
 
+let connecting = false;
 async function connect(deviceId, name) {
+  if (connecting) throw new Error('busy');
+  connecting = true;
+  try {
+    await connectOnce(deviceId, name);
+  } finally {
+    connecting = false;
+  }
+}
+async function connectOnce(deviceId, name) {
   setPill('CONNECTING…', 'busy');
-  await BleClient.connect(deviceId, () => onDisconnected());
+  await BleClient.connect(deviceId, () => onDisconnected(true), { timeout: 8000 });
   link.deviceId = deviceId;
   link.name = name || 'BOARD';
   try {
@@ -79,18 +117,37 @@ async function connect(deviceId, name) {
   updatePill();
 }
 
-function onDisconnected() {
+// lost = the board dropped (pocket, range...): keep trying the same board
+let retry = null;
+let userOff = false;
+function onDisconnected(lost) {
   clearInterval(link.poll);
   link.poll = null;
   link.live = false;
   link.board = null;
   link.deviceId = null;
-  setPill('DISCONNECTED · TAP TO RECONNECT', 'off');
+  if (lost && !userOff) {
+    setPill('RECONNECTING…', 'busy');
+    scheduleRetry();
+  } else setPill('CONNECT BOARD', 'off');
 }
+function scheduleRetry() {
+  clearTimeout(retry);
+  retry = setTimeout(async () => {
+    if (link.deviceId || userOff) return;
+    if (!(await reconnectSaved())) scheduleRetry();
+  }, 4000);
+}
+// back from the pocket / lock screen: try right away
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !link.deviceId && !userOff) reconnectSaved().then(ok => ok || scheduleRetry());
+});
 
 async function disconnect() {
   const id = link.deviceId;
-  onDisconnected();
+  userOff = true;
+  clearTimeout(retry);
+  onDisconnected(false);
   if (id) try { await BleClient.disconnect(id); } catch (e) {}
   setPill('CONNECT BOARD', 'off');
 }
@@ -99,6 +156,7 @@ async function pickAndConnect() {
   try {
     await BleClient.initialize();  // also asks for location: the manifest has no neverForLocation flag
     const dev = await BleClient.requestDevice({ services: [NUS] });
+    userOff = false;
     await connect(dev.deviceId, dev.name);
   } catch (e) {
     console.warn(e);
@@ -116,7 +174,7 @@ async function reconnectSaved() {
     await connect(saved.deviceId, saved.name);
     return true;
   } catch (e) {
-    setPill('CONNECT BOARD', 'off');
+    if (!link.deviceId) setPill(link.held && !userOff ? 'RECONNECTING… · TAP TO PICK' : 'CONNECT BOARD', link.held ? 'busy' : 'off');
     return false;
   }
 }
@@ -194,7 +252,7 @@ function addUi() {
   refresh();
   setInterval(refresh, 500);
   window.addEventListener('resize', placePill);
-  reconnectSaved();
+  reconnectSaved().then(ok => ok || (link.snap && scheduleRetry()));
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addUi);
