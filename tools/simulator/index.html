@@ -1481,6 +1481,10 @@ function playMelody(notes) {
   // default boot melody (rf106): Jingle Bells (same table as haptic_feedback.c)
   const dflt = false; notes = notes || DEFAULT_MELODY;
   if (toneRest) { toast('Board resting its motor for a moment'); return; }
+  // FloPilot app with a board: the board's motor plays it (apps/flopilot/src/sound.js)
+  if (window.RF_SOUND && window.RF_LINK && window.RF_LINK.live && window.RF_SOUND.melody(notes, melodyVolume(), noteHz)) {
+    playMelody.oscs = []; playMelody.until = Date.now() + notes.reduce((a, n) => a + n[1], 0) + 50; return;
+  }
   playMelody.oscs = [];
   try {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
@@ -1583,6 +1587,7 @@ const tileCol = l => l === 11 ? '#ff8a1f' : (l => { const f = (l - 1) / 9; retur
 let hold = null, liveOsc = null, mxRec = false, armed = false, take = null, playT0 = 0;
 function liveStart(level) {
   if (toneRest) return;
+  if (window.RF_SOUND && window.RF_LINK && window.RF_LINK.live && window.RF_SOUND.live(noteHz(level), melodyVolume())) return;  // FloPilot: the board plays it
   try {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     const ac = playMelody.ac || (playMelody.ac = new AC()); if (ac.state === 'suspended') ac.resume();
@@ -1590,7 +1595,7 @@ function liveStart(level) {
     g.gain.value = 0.02 + 0.06 * melodyVolume(); o.connect(g).connect(ac.destination); o.start(); liveOsc = o;
   } catch (e) {}
 }
-function liveStop() { try { if (liveOsc) liveOsc.stop(); } catch (e) {} liveOsc = null; }
+function liveStop() { if (window.RF_SOUND) window.RF_SOUND.liveStop(); try { if (liveOsc) liveOsc.stop(); } catch (e) {} liveOsc = null; }
 function buildTake(ev) {
   const out = []; let cur = 0;
   for (const [l, s0, e0] of ev) {

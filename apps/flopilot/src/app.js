@@ -7,6 +7,7 @@ import { Board } from './board.js';
 import { initLock } from './lock.js';
 import { searchBoard, boardName } from './scan.js';
 import { LedSync } from './ledsync.js';
+import { Sound } from './sound.js';
 
 const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';  // phone -> VESC
@@ -42,6 +43,9 @@ const ledSync = new LedSync({
   toast: m => toastMsg(m),
 });
 setInterval(() => ledSync.tick(link.live), 1000);
+// horn / melodies / MIXER tiles through the motor (VESC firmware tones)
+const sound = new Sound(link);
+window.RF_SOUND = sound;
 const DEMO = 'fpDemo';
 try { link.demo = localStorage.getItem(DEMO) === '1'; } catch (e) {}
 

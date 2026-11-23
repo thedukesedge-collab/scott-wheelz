@@ -47,10 +47,7 @@ export class Board {
     if (this.comms !== 'ready' && Date.now() - this.started > 5000) this.packageMissing = true;
 
     if (!S) return;
-    // horn: 2 = start, 1 = keep going, 0 = stop (the package caps it)
-    if (S.horn) this.app([Rf.horn, this.hornWas ? 1 : 2, 3]);
-    else if (this.hornWas) this.app([Rf.horn, 0, 3]);
-    this.hornWas = !!S.horn;
+    // horn: played through the VESC firmware's motor tones, see sound.js
 
     // tilt slider: Refloat's remote input via Lisp (the package only uses it
     // while engaged and moving); 4 deg at full slider, with a 10 deg limit

@@ -52,10 +52,30 @@ assert.equal(S.roll, -2);
 assert.equal(S.setpoint, 1.5);
 assert.ok(S.fpL && S.fpR);
 
-// horn: start (2), keep (1), stop (0)
+// horn / melody through VESC firmware tones (sound.js): watchdog installed once,
+// clamped values, a stop on release, melodies refused while running
+const { Sound } = await import('../src/sound.js');
+const repl = () => sent.map(b => [...b]).filter(b => b[2] === Comm.lispReplCmd)
+  .map(b => String.fromCharCode(...b.slice(3, b.indexOf(0, 3))));
+globalThis.window = { __simP: () => ({ hBeep: 9, hBeepHz: 50 }) };
+const link = { live: true, board, S };
+const snd = new Sound(link);
+clearInterval(snd.timer);
 sent.length = 0;
-S.horn = true; board.tick(S); board.tick(S); S.horn = false; board.tick(S);
-const horns = sent.map(b => [...b]).filter(b => b[2] === Comm.customAppData && b[4] === Rf.horn).map(b => b[5]);
-assert.deepEqual(horns, [2, 1, 0]);
+S.mode = 'running'; S.horn = true; snd.tick(); snd.tick(); S.horn = false; snd.tick();
+let ex = repl();
+assert.ok(ex.some(e => e.startsWith('(defun fp-dog')) && ex.some(e => e.startsWith('(defun fp-tone')));
+assert.equal(ex.filter(e => e.startsWith('(defun')).length, 2);
+assert.deepEqual(ex.filter(e => e.startsWith('(fp-tone')), ['(fp-tone 300 4.00 3.0)', '(fp-tone 300 4.00 3.0)']);
+assert.equal(ex[ex.length - 1], '(foc-play-stop)');
+assert.equal(snd.melody([[3, 200]], 1, l => 392), false);  // riding: no melody
+S.mode = 'ready'; sent.length = 0;
+assert.equal(snd.melody([[3, 200], [0, 100]], 9, l => 392), true);
+snd.tick();
+ex = repl();
+assert.deepEqual(ex, ['(fp-tone 392 2.50 4.5)']);  // volume capped at 2.5 V, idle limits
+S.mode = 'running'; sent.length = 0; snd.tick();
+assert.deepEqual(repl(), ['(foc-play-stop)']);  // started riding: stopped
+delete globalThis.window;
 
 console.log('protocol tests passed');
