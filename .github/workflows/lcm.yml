@@ -65,6 +65,11 @@ jobs:
           arm-none-eabi-nm --size-sort -S lcm/alcm/gcc/build/ALCM_VP_BL_app_measure.elf | awk '{print $4, strtonum("0x"$2)}' | sort > /tmp/b.txt
           echo "== symbol size changes (main -> branch)"
           join -a1 -a2 -e0 -o 0,1.2,2.2 /tmp/a.txt /tmp/b.txt | awk '$2 != $3 {print $1, $2, $3, $3-$2}'
+          echo "== sections main / branch"
+          arm-none-eabi-size -A /tmp/m/lcm/alcm/gcc/build/ALCM_VP_BL_app_measure.elf
+          arm-none-eabi-size -A lcm/alcm/gcc/build/ALCM_VP_BL_app_measure.elf
+          echo "== symbol size sums main / branch"
+          awk '{s+=$2} END {print s}' /tmp/a.txt; awk '{s+=$2} END {print s}' /tmp/b.txt
           echo "== all symbols (branch)"
           cat /tmp/b.txt | sort -k2 -n -r
 
