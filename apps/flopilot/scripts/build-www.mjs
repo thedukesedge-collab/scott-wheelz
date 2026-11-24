@@ -35,6 +35,8 @@ html = html.split(BRAND_OLD).join(BRAND_NEW)
   .replace('try the Refloat Glow screen without VESC Tool', 'try the FloPilot screen without a board')
   .replace('New Refloat Glow releases show up here too.', 'New RF Glow releases: gear icon › PACKAGE.')
   // the package: "RF Glow", so package and app are easy to tell apart
+  // the app keeps DATA in the gear icon, not in the swipe-up window
+  .replace('Drag the sheet up for TUNES, CONTROL, MIXER, DATA, BOARD STYLE and LEDS.', 'Drag the sheet up for TUNES, CONTROL, MIXER, BOARD STYLE and LEDS. DATA is in Settings (gear).')
   .replace(/Refloat Glow/g, 'RF Glow');
 if (html === before || /Refloat Glow|REFLOAT GLOW|>GLOW</.test(html)) throw new Error('app naming: something was not renamed');
 

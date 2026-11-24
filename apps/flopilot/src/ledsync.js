@@ -33,6 +33,7 @@ function desired(P) {
     'leds.status.show_sensors_while_running': P.rfSens !== false,
     'is_beeper_enabled': P.ctrlBeep !== false,
     'persistent_fatal_error': P.fatalPersist !== false,
+    'fault_moving_fault_disabled': !!P.dmf,  // CONTROL › DMF (confirmed in the UI before it's turned on)
   };
   if (typeof P.rfDutyTh === 'number') d['leds.status.duty_threshold'] = P.rfDutyTh / 100;
   // Settings › RIDE › HAPTIC FEEDBACK / PUSHBACK (RF Glow's hapticCfg / pushbackCfg)
@@ -75,6 +76,7 @@ function fromConfig(P, c) {
   P.rfSens = g('leds.status.show_sensors_while_running');
   P.ctrlBeep = g('is_beeper_enabled');
   P.fatalPersist = g('persistent_fatal_error');
+  P.dmf = g('fault_moving_fault_disabled');
   const r2 = v => Math.round(v * 100) / 100;
   P.hap = Object.assign(P.hap || {}, { str: r2(g('haptic.duty.strength')), duty: Math.round(g('tiltback_duty') * 100), spd: g('tiltback_speed') });
   if (P.hap.str > 0) P.hap.last = P.hap.str;

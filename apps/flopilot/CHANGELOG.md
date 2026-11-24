@@ -72,6 +72,10 @@ the board's own settings and features the way RF Glow's screen does.
   signatures checked against the firmware); backups on the phone (Refloat +
   motor settings); SLCM vs Refloat-strips view chosen like RF Glow (strip
   counts too).
+- Build 30: CONTROL › DMF toggle (Refloat's Disable Moving Faults, with
+  Refloat's warning before it turns on; saved with the board stopped); DATA
+  moved from the swipe-up window to Settings (gear) › DATA; Onboarding Tour
+  swipe-up page says so.
 
 **On hold**
 - Basic Tuning redesign (waiting for the user's example tunes).

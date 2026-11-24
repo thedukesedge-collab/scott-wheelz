@@ -344,6 +344,9 @@
           <div class="secTitle neonL" style="font-size:16px;margin-top:14px">MAGIC FLYWHEEL</div>
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Before enabling flywheel mode make sure that your board is nose up and perfectly balanced. To turn it off, you must disengage the board first.</p>
           <div class="fly" id="flyBtn">FLYWHEEL ON</div>
+          <div class="secTitle neonL" style="font-size:16px;margin-top:14px">DISABLE MOVING FAULTS</div>
+          <p style="font-size:12px;color:#d6ffe4;margin:0 4px">DMF: lifting your foot off the sensor won't stop the board while you ride forward (Refloat's Disable Moving Faults). Needs correct speed calibration and a tail-heavy board.</p>
+          <div class="pills"><div class="pill" id="dmfPill">DMF OFF</div></div>
           <div style="text-align:center;margin:18px 0 6px"><span id="msLink" style="font-size:11px;color:#5c5470;cursor:pointer"></span></div>
         </div>
         <div class="page" id="pgMixer">
@@ -656,7 +659,7 @@ const S = {
 const running = () => S.mode === 'running';
 window.__sim = S;  // for automated checks
 window.__simP = () => P;  // FloPilot app: ride peaks / units for the lock screen
-window.__simRender = () => { save(); renderLeds(); renderRgb(); renderCtl(); };  // FloPilot app: LED settings read from the board
+window.__simRender = () => { save(); renderLeds(); renderRgb(); renderCtl(); if (typeof renderDmf === 'function') renderDmf(); if (typeof renderMs === 'function') renderMs(); };  // FloPilot app: LED settings read from the board
 
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.style.opacity = 1;
@@ -2600,6 +2603,16 @@ $('statusPill2').onclick = () => { P.ledBar = !P.ledBar; if (P.ledBar) P.lightsO
 $('ledHeadPill').onclick = ledToggle('ledHead');
  $('ledBarPill').onclick = ledToggle('ledBar'); $('ledBeepPill').onclick = ledToggle('ledBeep');
 
+// ---------- DMF: Refloat's Disable Moving Faults (fault_moving_fault_disabled) ----------
+function renderDmf() { $('dmfPill').textContent = P.dmf ? 'DMF ON' : 'DMF OFF'; $('dmfPill').classList.toggle('on', !!P.dmf); }
+$('dmfPill').onclick = () => {
+  if (P.dmf) { P.dmf = false; save(); renderDmf(); toast('DMF off: the footpad can stop the board again'); return; }
+  modal('<h3 style="color:#ff2b4f">\u26A0 DISABLE MOVING FAULTS</h3><div style="font-size:13px;line-height:1.45;color:#d6ffe4">While you ride forward above twice the Half State Fault ERPM, with the board within 40\u00b0 of level, lifting off the footpad sensor won\'t disengage the board. Outside that, the sensor works as usual.<br><br>'
+    + '<b style="color:#ff2b4f">Refloat\'s warning: needs correct speed calibration and a tail-heavy board. The board WILL ghost if your normal speeds read negative or the board is nose-heavy.</b></div>'
+    + '<div class="btns"><button data-close>CANCEL</button><button class="pri" id="dmfYes">TURN DMF ON</button></div>');
+  $('dmfYes').onclick = () => { P.dmf = true; save(); renderDmf(); $('modal').classList.remove('on'); toast('DMF on'); };
+};
+renderDmf();
 // ---------- flywheel ----------
 $('flyBtn').onclick = () => {
   if (window.RF_ACTION && window.RF_ACTION('flywheel')) return;  // FloPilot: the real board
