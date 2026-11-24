@@ -16,6 +16,7 @@ import { initControl } from './control.js';
 import { initBackup } from './backup.js';
 import { initDataTab } from './datatab.js';
 import { initWatchdog } from './watchdog.js';
+import { initAir } from './airtime.js';
 
 const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';  // phone -> VESC
@@ -404,6 +405,7 @@ function addUi() {
   initControl(link, ledSync, toastMsg);
   initBackup(link, ledSync, toastMsg);
   initWatchdog(link, ledSync, toastMsg);
+  initAir(link, toastMsg);
   initDataTab();
   reconnectSaved().then(ok => ok || (link.snap && scheduleRetry()));
 }

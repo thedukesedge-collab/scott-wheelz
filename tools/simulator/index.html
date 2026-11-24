@@ -619,6 +619,7 @@
     <div class="simBtns">
       <div class="sb" id="scSprint">Sprint to 35 mph</div>
       <div class="sb" id="scFree">Free spin (mid-air)</div>
+      <div class="sb" id="scJump">Jump (air time)</div>
       <div class="sb" id="scSlip">Wheelslip burst</div>
       <div class="sb" id="scNose">Nosedive warning</div>
       <div class="sb" id="scPower">Power cycle</div>
@@ -854,7 +855,7 @@ $('btnEdit').onclick = () => {
 // rf87: Neon Future tour (SETTINGS > PREFERENCES > SHOW TIPS & TRICKS), same pages as rinkTour in ui.qml.in
 const TOUR = [
   ["✦", "REFLOAT GLOW", "WELCOME", "Built on Refloat 1.2.3 by Lukáš Hrázký (lukash) and the Refloat community, reimagined with a Neon Future style theme and a bunch of extra features. Swipe through what's new; it takes a minute."],
-  ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and MAX SPEED / DUTY right there."],
+  ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and MAX SPEED / DUTY right there (plus MAX AIR, if you turn it on in Settings › PREFERENCES)."],
   ["≡", "PULL-UP SHEET", "SWIPE UP", "Drag the sheet up for TUNES, CONTROL, MIXER, DATA, BOARD STYLE and LEDS. Tap anywhere on the main view (except HORN) to put it away."],
   ["♫", "HORN", "HOME + CONTROL", "Hold HORN to beep through the motor, no extra hardware. Sound and volume (10/10 = 4 V) in CONTROL › HORN SETTINGS. It stays well within safe, low motor current."],
   ["⚙", "RIDE SETTINGS", "SETTINGS › RIDE", "Tap the gear, then RIDE. HAPTIC FEEDBACK: the warning tone at your duty or speed. PUSHBACK: when and how much the nose lifts (duty, speed, battery voltage). Both are Refloat's own settings and only save while the board is stopped.", "ride"],
@@ -2658,6 +2659,7 @@ $('sbResetAll').onclick = () => { try { localStorage.removeItem('rrfSim'); } cat
 const startScen = name => { S.scen = name; S.scenT = 0; S.auto = false; };
 $('scSprint').onclick = () => startScen('sprint');
 $('scFree').onclick = () => startScen('free');
+$('scJump').onclick = () => startScen('jump');  // FloPilot: MAX AIR demo
 $('scSlip').onclick = () => startScen('slip');
 $('scNose').onclick = () => startScen('nose');
 $('scPower').onclick = () => { S.trip = 0; P.peakSpeed = 0; P.peakDuty = 0; save(); S.mode = 'ready'; S.speed = 0; S.fpL = S.fpR = false; S.auto = false; toast('Board power cycled: trip and peaks reset'); };
@@ -2680,6 +2682,13 @@ function step(now) {
       S.fpL = S.fpR = t < 0.25;
       if (t < 2.2) { tSpeed = 46; forcedAmps = 1.2; forcedDuty = 0.95; S.wheelslip = t > 0.1 && t < 1.6; }
       else { tSpeed = 0; if (t > 2.8) { S.mode = 'ready'; S.scen = null; } }
+    } else if (S.scen === 'jump') {
+      // FloPilot MAX AIR demo: rider on, off a ramp, ~0.7 s in the air, landing
+      S.fpL = S.fpR = true; S.mode = 'running';
+      if (t < 1.0) tSpeed = 14;
+      else if (t < 1.7) { tSpeed = 19; forcedAmps = 2; S.wheelslip = true; }
+      else if (t < 1.9) { tSpeed = 13; forcedAmps = 48; S.wheelslip = true; }
+      else { tSpeed = 12; if (t > 3.5) S.scen = null; }
     } else if (S.scen === 'slip') {
       S.fpL = S.fpR = true; S.mode = 'running';
       if (t < 1.2) { tSpeed = 14; } else if (t < 2.0) { tSpeed = 40; forcedDuty = 0.93; S.wheelslip = true; } else { tSpeed = 12; if (t > 4) S.scen = null; }

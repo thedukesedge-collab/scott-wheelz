@@ -117,6 +117,17 @@ the board's own settings and features the way RF Glow's screen does.
     were a fixed 2.9 / 3.0 V stand-in).
   - Onboarding Tour: new GHOSTING PROTECTION page before CREDIT.
 - Build 40: new app icon (the user's FP neon logo).
+- Build 41: MAX AIR (Settings › PREFERENCES › MAX AIR, off by default):
+  - Third home-screen badge between TOP SPEED and MAX DUTY (the MAX SPEED
+    badge moves just under it while it's on). Tap: this trip's max / total
+    air / jumps; hold: reset max air.
+  - Strict detection from Refloat's live data: balancing + a footpad
+    pressed the whole time, wheelslip with low motor current, then a landing
+    current spike; 0.3-3 s; any data gap = not counted. Display only.
+  - Per-board AIR RECORDS (last 50 trips + board best) in PREFERENCES; a
+    new trip starts when the board's trip goes back to 0 (power cycle).
+  - Simulator: "Jump (air time)" scenario for DEMO.
+  - Onboarding Tour: HOME SCREEN page mentions MAX AIR.
 
 **On hold**
 - SPEED TONE (hapticspeedsplit test build): not in the app until the user
