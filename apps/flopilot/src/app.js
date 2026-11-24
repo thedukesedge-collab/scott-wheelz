@@ -317,6 +317,7 @@ function addUi() {
     /* the simulator's drive panel is for the demo board only */
     body.rmStock #ledsSnzCard, body.rmStock #headSnzTitle, body.rmStock #ledBreathBox, body.rmStock #rfStSnz { display: none !important; }
     #rmSnzNote { display: none; text-align: center; }
+    #lightsTopBox:not(:empty) { margin-bottom: 8px; } #lightsBotBox { margin-top: 8px; }  /* LEDS: ALL LIGHTS clear of the row below/above */
     body.rmStock.rmRfView #rmSnzNote { display: block; }
     body.rmLive #simBtn, body.rmLive #sim, body.rmBlank #simBtn, body.rmBlank #sim { display: none !important; }`;
   document.head.appendChild(style);
