@@ -368,7 +368,7 @@
         </div>
         <div class="page" id="pgLeds">
           <div class="fwFit" id="slcmBanner" style="margin:4px 6px"></div>
-          <p class="ledHint" style="text-align:center;opacity:.7;margin:2px 0">Simulator only - pretend the board is:</p>
+          <p class="ledHint" id="simSetupHint" style="text-align:center;opacity:.7;margin:2px 0">Simulator only - pretend the board is:</p>
           <div class="pills" id="simSetup"><div class="pill" data-k="slcm">XRV + SLCM</div><div class="pill" data-k="refloat">THOR (REFLOAT LEDS)</div><div class="pill" data-k="none">NO LEDS SET UP</div></div>
           <div id="lightsBox"><div class="secTitle" style="text-align:center;margin-top:6px">Lights</div>
           <div class="pills" id="lightsTopBox"></div>
@@ -2586,8 +2586,8 @@ $('updPkgDl').onclick = () => UPD.rel && UPD.rel.pkgUrl && window.open(UPD.rel.p
 $('updPage').onclick = () => window.open(UPD.rel && UPD.rel.page || 'https://github.com/' + UPD_REPO + '/releases/latest', '_blank');
 document.querySelectorAll('#updSim .pill').forEach(x => x.onclick = () => { P.updSim = x.dataset.k; save(); UPD.rel = null; UPD.phase = 0; UPD.msg = ''; UPD.dl = 0; UPD.dlMsg = ''; updPaint(); });
 updPaint();
-$('lightsPill').onclick = () => { const on = !(P.ledHead && P.ledBar && P.lightsOn !== false); P.ledHead = P.ledBar = on; P.lightsOn = on; P.ledCfg = true; save(); renderLedsSoft(); };
-$('headPill2').onclick = () => { P.ledHead = !P.ledHead; if (P.ledHead) P.lightsOn = true; P.ledCfg = true; save(); renderLedsSoft(); };
+$('lightsPill').onclick = () => { const on = !(P.ledHead && P.ledBar && P.lightsOn !== false); P.ledHead = P.ledBar = on; P.lightsOn = on; P.ledCfg = true; save(); renderLedsSoft(); if (window.RF_LIGHTS) window.RF_LIGHTS(P); };
+$('headPill2').onclick = () => { P.ledHead = !P.ledHead; if (P.ledHead) P.lightsOn = true; P.ledCfg = true; save(); renderLedsSoft(); if (window.RF_LIGHTS) window.RF_LIGHTS(P); };
 $('statusPill2').onclick = () => { P.ledBar = !P.ledBar; if (P.ledBar) P.lightsOn = true; P.ledCfg = true; save(); renderLedsSoft(); };
 $('ledHeadPill').onclick = ledToggle('ledHead');
  $('ledBarPill').onclick = ledToggle('ledBar'); $('ledBeepPill').onclick = ledToggle('ledBeep');

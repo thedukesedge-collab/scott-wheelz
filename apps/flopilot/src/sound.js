@@ -200,13 +200,14 @@ export class Sound {
   }
 
   // tilt slider: Refloat's remote input (only used while engaged and moving);
-  // 4 deg at full slider. Sent when it changes, refreshed every 2 s, and the
+  // 4 deg at full slider. Sent when it changes, refreshed every REPL_GAP, and the
   // return to 0 is repeated so it can't be lost. Needs no install / memory.
   sendTilt(S, now) {
     if (now < this.busyUntil || now < this.melUntil || this.waitReply) return;
     const tilt = Math.max(-1, Math.min(1, ((S && S.tilt) || 0) * 0.4));
     const key = tilt.toFixed(3);
-    if (key !== this.tiltSent || (tilt !== 0 && now - this.tiltAt > 2000) || (tilt === 0 && this.tiltZeros < 3)) {
+    // Refloat drops a remote input older than 1 s: refresh every slot while tilted
+    if (key !== this.tiltSent || (tilt !== 0 && now - this.tiltAt >= REPL_GAP) || (tilt === 0 && this.tiltZeros < 3)) {
       if (key !== this.tiltSent) this.tiltZeros = 0;
       if (tilt === 0) this.tiltZeros = (this.tiltZeros || 0) + 1;
       this.send('(set-remote-state ' + key + ' 0 0 0 0)');

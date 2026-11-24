@@ -53,6 +53,51 @@ setInterval(() => ledSync.tick(link.live && !link.installing), 1000);
 // horn / melodies / MIXER tiles through the motor (VESC firmware tones)
 const sound = new Sound(link, m => toastMsg(m));
 window.RF_SOUND = sound;
+// ALL LIGHTS / HEAD-TAIL with a board: Refloat's own LIGHTS_CONTROL (stock
+// 1.2.3 too): bit 0 = lights on, bit 1 = headlights on
+window.RF_LIGHTS = P => {
+  const b = link.board;
+  if (!b || !link.live) return;
+  const on = P.lightsOn !== false && !!(P.ledHead || P.ledBar);
+  const v = (on ? 1 : 0) | (P.ledHead ? 2 : 0);
+  b.lightsSet(3, v);
+  b.lights = v;
+  lightsSentAt = Date.now();
+};
+let lightsSentAt = 0, lightsSeen = null;
+// tilt slider: Refloat only takes it with Input Tilt › Remote Type = UART,
+// and only while riding: say so once per connection
+let tiltTold = null;
+setInterval(() => {
+  const b = link.board, S = link.S || window.__sim;
+  if (!b || !link.live || !S || !S.tilt || tiltTold === b || !ledSync.cfg) return;
+  let type = 1;
+  try { type = ledSync.cfg.get('inputtilt_remote_type'); } catch (e) {}
+  tiltTold = b;
+  toastMsg(type === 1 ? 'Tilt works while riding (Refloat only uses it when engaged)'
+    : "Tilt needs Refloat's Input Tilt › Remote Type set to UART (VESC Tool › Refloat Cfg). It works while riding.");
+}, 500);
+// the board's light state (asked every 2 s) shown on the LEDS tab
+setInterval(() => {
+  const b = link.board, P = window.__simP ? window.__simP() : null;
+  if (!b || !link.live || !P || b.lights === undefined || Date.now() - lightsSentAt < 3000) return;
+  if (b.lights === lightsSeen) return;
+  lightsSeen = b.lights;
+  P.lightsOn = !!(b.lights & 1);
+  P.ledHead = !!(b.lights & 2);
+  try { window.__simRender && window.__simRender(); } catch (e) {}
+}, 1000);
+// connected: no simulator-only bits; the version line shows the board's package
+setInterval(() => {
+  const live = !!link.live, b = link.board;
+  for (const id of ['simSetupHint', 'simSetup']) { const e = document.getElementById(id); if (e) e.style.display = live ? 'none' : ''; }
+  const ver = document.getElementById('ver');
+  if (!ver) return;
+  if (!ver.dataset.sim) ver.dataset.sim = ver.innerHTML;
+  const p = live && b && b.pkg;
+  ver.innerHTML = p ? '<span style="color:#b14cff">Flo</span><span style="color:#39ff7a">Pilot</span><span style="color:#7d68ab">&nbsp; board: '
+    + (p.name === 'Refloat Glow' ? 'RF Glow' : p.name) + ' ' + p.version + '</span>' : ver.dataset.sim;
+}, 1000);
 // TEST BEEP / MIXER BEEP with a board connected: RF Glow's beep command
 // (COMMAND_LCM_TEST_BEEP: [1] = the controller's beeper, none = the light
 // module's). Stock Refloat 1.2.3 has no command to beep from an app.
