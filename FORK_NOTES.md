@@ -2108,3 +2108,8 @@ UI only (ui.qml.in + simulator); no firmware change.
   own leds.on / leds.headlights_on, RGB or not).
 - Onboarding Tour LIGHTS page: the "Plain lights: NON-RGB..." sentence removed.
 - Simulator: same.
+
+### MAX AIR gets its own room above the speedo (v1.2.3-rf184)
+- With MAX AIR on, the speedo moves down by the box's height (and shrinks by
+  the same), so the MAX AIR box sits fully above the speedo instead of
+  covering its top (simulator: layout(); package: neonSpeedo Layout.topMargin).

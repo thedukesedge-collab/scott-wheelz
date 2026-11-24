@@ -713,9 +713,10 @@ function layout() {
   const midH = 1.1 * u, tiltH = 0.85 * u, hornH = 1.75 * u;
   // same budget as the package: (0.8 + 1.1 + 0.12 + 1.1 + 0.85 + 0.1 + 1.75 + 0.5 + 1.0) units + the stats row
   const fixed = 7.32 * u + Math.max(footS + 1.5 * u, pitchS);
-  speedoH = clamp(hudH - fixed, 1.8 * u, 7 * u);
+  const airRes = P.airShow ? 1.1 * u : 0;  // rf184: room above the speedo for MAX AIR
+  speedoH = clamp(hudH - fixed - airRes, 1.8 * u, 7 * u);
   speedoW = rootW;
-  css($('speedoWrap'), { height: px(speedoH), width: px(speedoW) });
+  css($('speedoWrap'), { height: px(speedoH), width: px(speedoW), marginTop: px(airRes) });
   ctxSpeedo = sizeCanvas($('speedo'), speedoW, speedoH);
   for (const id of ['pkSpeed', 'pkDuty']) {
     css($(id), { width: px(2.0 * u), height: px(0.95 * u), paddingTop: px(0.04 * u) });
@@ -3501,7 +3502,7 @@ renderDmf();
         + '<b style="margin-top:6px">AIR RECORDS · BEST ' + (P.air.best || 0).toFixed(2) + 's</b>' + (recs || '<p>No jumps yet.</p>')
         + '<div style="text-align:center;margin-top:6px"><span class="nb" id="airClr">CLEAR RECORDS</span></div>';
       card2.innerHTML = '<b>UI</b><div class="row"><div class="l">Swipe-up window overlaps the home screen<small>' + (P.sheetOverlap ? 'ON: slides over it, the home screen keeps its size' : 'OFF: the home screen shrinks to make room') + '</small></div><div class="sw' + (P.sheetOverlap ? ' on' : '') + '" id="uiOver"></div></div>';
-      card.querySelector('#airSw').onclick = () => { P.airShow = !P.airShow; save(); prefs(); airDraw(); };
+      card.querySelector('#airSw').onclick = () => { P.airShow = !P.airShow; save(); prefs(); layout(); airDraw(); };
       card2.querySelector('#uiOver').onclick = () => { P.sheetOverlap = !P.sheetOverlap; save(); prefs(); applySheet(); };
       const clr = card.querySelector('#airClr');
       clr.onclick = () => { if (clr.dataset.sure) { P.air = { cur: { max: 0, total: 0, jumps: 0, start: Date.now() }, trips: [], best: 0 }; save(); prefs(); airDraw(); toast('Air records cleared'); } else { clr.dataset.sure = 1; clr.textContent = 'TAP AGAIN TO CLEAR'; } };
