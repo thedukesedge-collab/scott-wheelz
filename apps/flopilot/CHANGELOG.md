@@ -144,6 +144,7 @@ the board's own settings and features the way RF Glow's screen does.
   back to the old way.
 - Build 47: MAX AIR badge stays above the speedo after using the swipe-up
   window (placed from layout positions, re-placed on every re-layout).
+- Build 48: Settings switches: knobs centered in their tracks.
 
 **On hold**
 - Battery curve for boards without an SLCM (app % with cell curve + sag
