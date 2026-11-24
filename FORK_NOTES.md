@@ -2113,3 +2113,6 @@ UI only (ui.qml.in + simulator); no firmware change.
 - With MAX AIR on, the speedo moves down by the box's height (and shrinks by
   the same), so the MAX AIR box sits fully above the speedo instead of
   covering its top (simulator: layout(); package: neonSpeedo Layout.topMargin).
+- Simulator only (no package change): TOP SPEED / MAX DUTY / MAX AIR text
+  shrinks to fit its box (e.g. "50.0mph"); the package already fits it
+  (fontSizeMode HorizontalFit).
