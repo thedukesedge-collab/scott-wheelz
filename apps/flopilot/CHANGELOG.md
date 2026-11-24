@@ -81,6 +81,8 @@ the board's own settings and features the way RF Glow's screen does.
 - Build 32: MIXER tiles play on the phone by default (every board), with
   LIVE ON BOARD as the option and a note about the half-second delay on
   stock Refloat (real time with RF Glow).
+- Build 33: CONNECT BOARD and DEMO pills hide while the SIMULATOR panel is
+  open (they were covering its buttons).
 
 **On hold**
 - Basic Tuning redesign (waiting for the user's example tunes).

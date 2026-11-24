@@ -302,7 +302,7 @@ function addUi() {
     body.rmBlank #boardName, body.rmBlank #lightsOverride { visibility: hidden; }
     #rmShield { display: none; position: absolute; inset: 0; z-index: 15; }
     body.rmBlank #rmShield { display: block; }
-    body.rmModal #rmConnect, body.rmModal #rmDemo { display: none; }
+    body.rmModal #rmConnect, body.rmModal #rmDemo, body.rmSim #rmConnect, body.rmSim #rmDemo { display: none; }
     #rmDemo { font-size: 12px !important; padding: 7px 16px !important; border-color: #39ff7a !important; color: #39ff7a !important; }
     /* settings tabs: wrap onto two rows instead of running off the window */
     .modal .tabs { flex-wrap: wrap; gap: 6px !important; }
@@ -346,6 +346,10 @@ function addUi() {
   const modalEl = document.getElementById('modal');
   const modalOpen = () => !!(modalEl && modalEl.classList.contains('on'));
   if (modalEl) new MutationObserver(() => document.body.classList.toggle('rmModal', modalOpen())).observe(modalEl, { attributes: true, attributeFilter: ['class'] });
+  // ...and while the SIMULATOR panel is open (close it to see them again)
+  const simEl = document.getElementById('sim');
+  const simSync = () => document.body.classList.toggle('rmSim', !!(simEl && simEl.classList.contains('on')));
+  if (simEl) new MutationObserver(simSync).observe(simEl, { attributes: true, attributeFilter: ['class'] });
   const placePill = () => {
     const row = document.getElementById('nameRow');
     if (!row) return;
