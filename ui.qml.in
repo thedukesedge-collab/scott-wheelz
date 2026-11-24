@@ -8285,51 +8285,72 @@ Item {
                         }
 
                         SettingsCard {
-                            id: wdEmCard
-                            readonly property var e: { watchdog.rev; return watchdog.emerg(); }
-                            readonly property bool active: !!(e && e.applied)
-                            title: active ? "⚠ EMERGENCY SENSOR CONFIGURATION ON" : "GHOSTING PAD EMERGENCY"
-                            border.color: active ? "#ff2b4f" : "#3a2266"
-                            SetupDescription {
-                                text: { watchdog.rev; var c = wdEmCard; var e = c.e, bad = watchdog.singleBad();
-                                    if (c.active) return "ADC" + e.pad + " switched off (" + watchdog.emergV.toFixed(1) + " V), Posi ON since " + new Date(e.t).toLocaleString() + ". Only ADC" + (e.pad === 1 ? 2 : 1) + " engages the board. Replace the faulty sensor before your next ride.";
-                                    if (watchdog.both) return "Both pads look stuck: no single-pad emergency. Stop using the board.";
-                                    return bad ? "ADC" + bad + " reads high. If that sensor has failed, this switches it off so ADC" + (bad === 1 ? 2 : 1) + " engages alone."
-                                        : "Shows up when one pad reads HIGH or STUCK while the board is parked."; }
-                            }
-                            Text {
+                            title: "GHOSTING PAD EMERGENCY"
+                            Column {
+                                id: wdEmCard
                                 Layout.fillWidth: true
-                                visible: { watchdog.rev; return watchdog.changed(); }
-                                wrapMode: Text.WordWrap
-                                color: "#ff2b4f"
-                                font.pixelSize: 0.22 * unit
-                                text: { watchdog.rev; var e = watchdog.emerg(); return e ? "The board's footpad settings no longer match the emergency values (changed in VESC Tool?). ADC" + e.pad + " may be active again." : ""; }
-                            }
-                            SetupDescription {
-                                visible: wdEmCard.active
-                                horizontalAlignment: Text.AlignLeft
-                                text: { var t = watchdog.test, e = watchdog.emerg(); if (!e) return ""; var g = e.pad === 1 ? 2 : 1;
-                                    return "PAD TEST (board stopped, on its tail)\n"
-                                        + (t.pressed ? "✓ " : "○ ") + "Press ADC" + g + ": the board sees it\n"
-                                        + (t.released ? "✓ " : "○ ") + "Release ADC" + g + ": it goes off\n"
-                                        + (t.badQuiet && t.released ? "✓ " : "○ ") + "Touch ADC" + e.pad + ": it must stay off" + (t.badQuiet ? "" : "  ✕ ADC" + e.pad + " still registers: don't ride, RESTORE"); }
-                            }
-                            NeonButton {
-                                Layout.alignment: Qt.AlignHCenter
-                                visible: !wdEmCard.active
-                                opacity: { watchdog.rev; return watchdog.singleBad() ? 1 : 0.45; }
-                                text: "Emergency settings"
-                                onClicked: {
-                                    var b = watchdog.singleBad();
-                                    if (!b) { VescIf.emitStatusMessage(watchdog.both ? "Both pads look stuck: no single-pad emergency" : "Only when one pad reads HIGH or STUCK while parked", false); return; }
-                                    wdEmergency.openFor(b);
+                                spacing: 0.15 * unit
+                                readonly property var e: { watchdog.rev; return watchdog.emerg(); }
+                                readonly property bool emOn: !!(e && e.applied)
+                                Text {
+                                    visible: wdEmCard.emOn
+                                    width: parent.width
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.WordWrap
+                                    color: "#ff2b4f"
+                                    font.family: "Exan"
+                                    font.pixelSize: 0.22 * unit
+                                    text: "\u26A0 EMERGENCY SENSOR CONFIGURATION ON"
                                 }
-                            }
-                            NeonButton {
-                                Layout.alignment: Qt.AlignHCenter
-                                visible: wdEmCard.active
-                                text: "Restore original settings"
-                                onClicked: wdRestoreConfirm.open()
+                                Text {
+                                    width: parent.width
+                                    horizontalAlignment: Text.AlignHCenter
+                                    wrapMode: Text.WordWrap
+                                    color: "#cbb8ec"
+                                    font.pixelSize: 0.22 * unit
+                                    text: { watchdog.rev; var e = wdEmCard.e, bad = watchdog.singleBad();
+                                        if (wdEmCard.emOn) return "ADC" + e.pad + " switched off (" + watchdog.emergV.toFixed(1) + " V), Posi ON since " + new Date(e.t).toLocaleString() + ". Only ADC" + (e.pad === 1 ? 2 : 1) + " engages the board. Replace the faulty sensor before your next ride.";
+                                        if (watchdog.both) return "Both pads look stuck: no single-pad emergency. Stop using the board.";
+                                        return bad ? "ADC" + bad + " reads high. If that sensor has failed, this switches it off so ADC" + (bad === 1 ? 2 : 1) + " engages alone."
+                                            : "Shows up when one pad reads HIGH or STUCK while the board is parked."; }
+                                }
+                                Text {
+                                    visible: { watchdog.rev; return watchdog.changed(); }
+                                    width: parent.width
+                                    wrapMode: Text.WordWrap
+                                    color: "#ff2b4f"
+                                    font.pixelSize: 0.22 * unit
+                                    text: { watchdog.rev; var e = watchdog.emerg(); return e ? "The board's footpad settings no longer match the emergency values (changed in VESC Tool?). ADC" + e.pad + " may be active again." : ""; }
+                                }
+                                Text {
+                                    visible: wdEmCard.emOn
+                                    width: parent.width
+                                    wrapMode: Text.WordWrap
+                                    color: "#cbb8ec"
+                                    font.pixelSize: 0.22 * unit
+                                    text: { var t = watchdog.test, e = watchdog.emerg(); if (!e) return ""; var g = e.pad === 1 ? 2 : 1;
+                                        return "PAD TEST (board stopped, on its tail)\n"
+                                            + (t.pressed ? "\u2713 " : "\u25CB ") + "Press ADC" + g + ": the board sees it\n"
+                                            + (t.released ? "\u2713 " : "\u25CB ") + "Release ADC" + g + ": it goes off\n"
+                                            + (t.badQuiet && t.released ? "\u2713 " : "\u25CB ") + "Touch ADC" + e.pad + ": it must stay off" + (t.badQuiet ? "" : "  \u2715 ADC" + e.pad + " still registers: don't ride, RESTORE"); }
+                                }
+                                NeonButton {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    visible: !wdEmCard.emOn
+                                    opacity: { watchdog.rev; return watchdog.singleBad() ? 1 : 0.45; }
+                                    text: "Emergency settings"
+                                    onClicked: {
+                                        var b = watchdog.singleBad();
+                                        if (!b) { VescIf.emitStatusMessage(watchdog.both ? "Both pads look stuck: no single-pad emergency" : "Only when one pad reads HIGH or STUCK while parked", false); return; }
+                                        wdEmergency.openFor(b);
+                                    }
+                                }
+                                NeonButton {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    visible: wdEmCard.emOn
+                                    text: "Restore original settings"
+                                    onClicked: wdRestoreConfirm.open()
+                                }
                             }
                         }
 
