@@ -8025,7 +8025,7 @@ Item {
                         SettingsCard {
                             title: "MAX AIR"
                             RightSwitch {
-                                label: "Show MAX AIR on the home screen"
+                                label: "Show MAX AIR"
                                 checked: swSettings.airShow
                                 onCheckedChanged: swSettings.airShow = checked
                             }
@@ -8061,12 +8061,12 @@ Item {
                         SettingsCard {
                             title: "UI"
                             RightSwitch {
-                                label: "Swipe-up window overlaps the home screen"
+                                label: "Overlap home screen"
                                 checked: swSettings.sheetOverlap
                                 onCheckedChanged: swSettings.sheetOverlap = checked
                             }
                             SetupDescription {
-                                text: swSettings.sheetOverlap ? "ON: the window slides over the home screen, which keeps its size." : "OFF: the home screen shrinks to make room."
+                                text: swSettings.sheetOverlap ? "ON: the swipe-up window slides over the home screen, which keeps its size." : "OFF: the home screen shrinks to make room for the swipe-up window."
                             }
                         }
 
@@ -9563,10 +9563,24 @@ Item {
                     font.pixelSize: 0.22 * unit
                     text: "Not a repair and not guaranteed safe for riding. The heel-lift (half-switch) stop is gone; only the good pad tells the board you're on it. It works only while the bad pad reads under 5.0 V, so the app checks that first; check it on the bench on your controller."
                 }
-                CheckBox {
-                    checked: wdEmergency.agreed
-                    onToggled: wdEmergency.agreed = checked
-                    text: "I understand. The board is stopped and nobody is on it."
+                Row {
+                    width: parent.width
+                    spacing: 0.1 * unit
+                    CheckBox {
+                        id: wdAgree
+                        anchors.verticalCenter: parent.verticalCenter
+                        checked: wdEmergency.agreed
+                        onToggled: wdEmergency.agreed = checked
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width - wdAgree.width - 0.1 * unit
+                        wrapMode: Text.WordWrap
+                        color: "#ead6ff"
+                        font.pixelSize: 0.26 * unit
+                        text: "I understand. The board is stopped and nobody is on it."
+                        MouseArea { anchors.fill: parent; onClicked: wdEmergency.agreed = !wdEmergency.agreed }
+                    }
                 }
             }
         }
