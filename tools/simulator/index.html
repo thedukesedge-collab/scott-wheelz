@@ -722,7 +722,7 @@ function layout() {
   ctxSpeedo = sizeCanvas($('speedo'), speedoW, speedoH);
   for (const id of ['pkSpeed', 'pkDuty']) {
     css($(id), { width: px(2.0 * u), height: px(0.95 * u), paddingTop: px(0.04 * u) });
-    css($(id).querySelector('.v'), { fontSize: px(0.4 * u), lineHeight: px(0.55 * u) });
+    css($(id).querySelector('.v'), { fontSize: px(0.4 * u), lineHeight: px(0.55 * u) }); delete $(id).querySelector('.v').dataset.fs; delete $(id).querySelector('.v').dataset.w;
     css($(id).querySelector('.l'), { fontSize: px(0.18 * u) });
   }
   css($('pkSpeed'), { left: px(0.1 * u) }); css($('pkDuty'), { right: px(0.1 * u) });
@@ -3157,6 +3157,16 @@ function updateDom() {
   $('boardName').textContent = window.RF_LINK && window.RF_LINK.displayName ? window.RF_LINK.displayName(P.name) : P.name;  // FloPilot app
   // peaks
   $('pkSpeed').querySelector('.v').textContent = fx1(P.peakSpeed) + 'mph';
+  // shrink a peak readout's text to fit its box (e.g. 50.0mph); back to full size when it fits
+  for (const id of ['pkSpeed', 'pkDuty', 'pkAir']) {
+    const v = $(id) && $(id).querySelector('.v'); if (!v || !v.offsetWidth) continue;
+    if (!v.dataset.fs) v.dataset.fs = v.style.fontSize || getComputedStyle(v).fontSize;
+    if (v.dataset.txt === v.textContent && v.dataset.w == v.clientWidth) continue;
+    v.dataset.txt = v.textContent; v.dataset.w = v.clientWidth;
+    let fs = parseFloat(v.dataset.fs); v.style.fontSize = fs + 'px';
+    const tw = () => { const r = document.createRange(); r.selectNodeContents(v); return r.getBoundingClientRect().width / (v.getBoundingClientRect().width / v.clientWidth || 1); };
+    while (tw() > v.clientWidth - 6 && fs > 8) { fs -= 0.5; v.style.fontSize = fs + 'px'; }
+  }
   $('pkDuty').querySelector('.v').textContent = fx1(P.peakDuty * 100) + '%';
   $('pkDuty').classList.toggle('warn', P.peakDuty >= 0.9);
   // stats

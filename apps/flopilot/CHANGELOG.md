@@ -158,6 +158,7 @@ the board's own settings and features the way RF Glow's screen does.
     0.7 s later, so nothing jumps when the swipe-up window moves or tabs
     change).
   - DEMO: CONNECT BOARD and "■ STOP" sit in the board name row when they fit.
+- Build 51: TOP SPEED / MAX DUTY / MAX AIR text shrinks to fit its box.
 
 **On hold**
 - Battery curve for boards without an SLCM (app % with cell curve + sag
