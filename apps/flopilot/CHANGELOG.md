@@ -87,7 +87,8 @@ the board's own settings and features the way RF Glow's screen does.
   (e.g. Thor) the SNOOZE settings now reach the board (before, only the SLCM
   view sent light settings). On stock Refloat the SNOOZE rows hide, with a
   note that SNOOZE needs RF Glow.
-- Build 35: LEDS: a small gap between ALL LIGHTS and the HEAD/TAIL / STATUS
+- Build 35: log only (SPEED TONE on hold).
+- Build 36: LEDS: a small gap between ALL LIGHTS and the HEAD/TAIL / STATUS
   buttons.
 
 **On hold**
