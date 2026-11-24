@@ -94,6 +94,8 @@ the board's own settings and features the way RF Glow's screen does.
   with an info window when MIXER opens: why notes can lag on stock Refloat
   and how LIVE ON PHONE helps work out a melody before saving it to the
   board. "Don't show this message again" check box. (Changes build 32.)
+- Build 38: CONTROL: DISABLE MOVING FAULTS (DMF) moved up, between MOVE and
+  HORN SETTINGS.
 
 **On hold**
 - SPEED TONE (hapticspeedsplit test build): not in the app until the user
