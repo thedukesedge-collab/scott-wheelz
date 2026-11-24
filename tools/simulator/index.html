@@ -785,7 +785,10 @@ setInterval(() => sheetHintShow(), 500);
 function applySheet() {
   const h = sheetMin + (sheetMax - sheetMin) * sheetF;
   $('sheet').style.height = px(h);
-  const avail = rootH - h - 0.1 * u, full = rootH - sheetMin - 0.1 * u;
+  // FloPilot: Settings › PREFERENCES › UI › OVERLAP: the window slides up over
+  // the Home Screen instead of shrinking it
+  const over = typeof window.RF_OVERLAP === 'function' && window.RF_OVERLAP();
+  const full = rootH - sheetMin - 0.1 * u, avail = over ? full : rootH - h - 0.1 * u;
   $('mainBg').style.height = px(avail);
   // rf182: on screens shorter for their width (e.g. the phone app inside the
   // notch / home-bar safe area) the HUD's rows can need more than its height:

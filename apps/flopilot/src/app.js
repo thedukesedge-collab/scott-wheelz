@@ -437,12 +437,38 @@ function addUi() {
   initBackup(link, ledSync, toastMsg);
   initWatchdog(link, ledSync, toastMsg);
   initAir(link, toastMsg);
+  // Settings › PREFERENCES › UI: the swipe-up window overlaps the Home
+  // Screen (default) or shrinks it (the old way)
+  const overOn = () => { try { return localStorage.getItem('fpSheetOver') !== '0'; } catch (e) { return true; } };
+  window.RF_OVERLAP = overOn;
+  if (typeof window.applySheet === 'function') window.applySheet();
+  document.getElementById('btnSettings')?.addEventListener('click', () => setTimeout(() => {
+    const pg = document.querySelector('#modalBox [data-pg="1"]');
+    if (!pg || pg.querySelector('#uiCard')) return;
+    const card = document.createElement('div');
+    card.className = 'card'; card.id = 'uiCard';
+    const paint = () => {
+      card.innerHTML = '<b>UI</b><div class="row"><div class="l">Swipe-up window overlaps the Home Screen<small>' + (overOn() ? 'ON: slides over it, the Home Screen keeps its size' : 'OFF: the Home Screen shrinks to make room') + '</small></div><div class="sw' + (overOn() ? ' on' : '') + '" id="uiOver"></div></div>';
+      card.querySelector('#uiOver').onclick = () => {
+        try { localStorage.setItem('fpSheetOver', overOn() ? '0' : '1'); } catch (e) {}
+        paint();
+        if (typeof window.applySheet === 'function') window.applySheet();
+      };
+    };
+    paint();
+    pg.insertBefore(card, pg.firstChild);
+  }, 0));
+  let sheetLow = Infinity;
   // HORN must stay above the swipe-up window: if the home screen's rows
   // outgrow the HUD's fit scaling (badges, notes...), shrink it a bit more
   setInterval(() => {
     const hud = document.getElementById('hud'), horn = document.getElementById('horn'), sheet = document.getElementById('sheet');
     if (!hud || !horn || !sheet || !horn.offsetParent) return;
-    const h = horn.getBoundingClientRect(), sh = sheet.getBoundingClientRect(), top = hud.getBoundingClientRect().top;
+    const sh = sheet.getBoundingClientRect();
+    // only with the window down (in OVERLAP it covers the HORN on purpose when up)
+    sheetLow = Math.min(sheetLow, sh.height);
+    if (sh.height > sheetLow + 4) return;
+    const h = horn.getBoundingClientRect(), top = hud.getBoundingClientRect().top;
     if (h.bottom <= sh.top - 2 || h.bottom <= top) return;
     const m = /scale\(([\d.]+)\)/.exec(hud.style.transform || ''), cur = m ? +m[1] : 1;
     hud.style.transform = 'scale(' + (cur * (sh.top - 6 - top) / (h.bottom - top)).toFixed(4) + ')';

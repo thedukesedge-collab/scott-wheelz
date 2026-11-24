@@ -139,6 +139,9 @@ the board's own settings and features the way RF Glow's screen does.
   name.
 - Build 45: HORN back above the swipe-up window: if the home screen's rows
   outgrow the fit scaling, the app shrinks them a little more.
+- Build 46: the swipe-up window now slides up OVER the Home Screen (it keeps
+  its size) instead of shrinking it. Settings › PREFERENCES › UI switches
+  back to the old way.
 
 **On hold**
 - Battery curve for boards without an SLCM (app % with cell curve + sag
