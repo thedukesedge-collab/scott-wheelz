@@ -33,6 +33,12 @@ for (const s of [...pre, ...air(4)]) { got ||= d.feed(t, s); t += 100; }
 t += 500;  // BLE hiccup
 for (const s of [...air(3), ...land, ...after]) { got ||= d.feed(t, s); t += 100; }
 assert.equal(got, 0);
+// free spin, rider not on: no load before take-off (pads held by hand)
+const light = Array.from({ length: 10 }, () => Object.assign({}, ride, { amps: 2 }));
+assert.deepEqual(run([...light, ...air(7), ...land, ...after]), []);
+// no load after the landing spike (nobody riding it away)
+const empty = Array.from({ length: 6 }, () => Object.assign({}, ride, { slip: false, amps: 1 }));
+assert.deepEqual(run([...pre, ...air(7), ...land, ...empty]), []);
 // over 3 s: not a jump
 assert.deepEqual(run([...pre, ...air(35), ...land, ...after]), []);
 console.log('air tests passed');

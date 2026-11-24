@@ -2,29 +2,37 @@
 // MAX AIR: air time off jumps, worked out from Refloat's live data (no
 // accelerometer in Refloat's realtime data, so it reads the tire). Strict:
 // a jump counts only when, the whole time, the board is balancing and a
-// footpad is pressed (rider on), Refloat's wheelslip flag says the tire spins
+// footpad is pressed (rider on), the motor was carrying a rider just before
+// take-off (amps up in the last second) and still is after landing, Refloat's
+// wheelslip flag says the tire spins
 // freely, motor current stays low (tire unloaded), it ends in a landing
 // (a motor current spike), lasts 0.3-3 s, and no data went
 // missing in between. Home screen badge (Settings › PREFERENCES › MAX AIR),
 // tap for this trip's total / jumps, hold to reset; per-board trip records.
 // Display only: reads data, never writes anything to the board.
 
-export const AIR = { minS: 0.3, maxS: 3.0, lowA: 15, landA: 25, gapMs: 300, settleMs: 400 };
+export const AIR = { minS: 0.3, maxS: 3.0, lowA: 15, landA: 25, preA: 8, preMs: 1000, postA: 6, gapMs: 300, settleMs: 400 };
 
 // the jump detector (no UI). feed(t ms, s) per realtime sample;
 // s = { running, pads (bool), slip (bool), amps, erpm }; returns a jump in
 // seconds when one lands, else 0
 export class AirDetector {
   constructor(cfg = AIR) { this.c = cfg; this.reset(); }
-  reset() { this.st = 'ground'; this.t0 = 0; this.last = 0; this.peak = 0; this.ok = true; this.land = 0; }
+  reset() { this.st = 'ground'; this.t0 = 0; this.last = 0; this.ok = true; this.land = 0; this.pre = []; this.post = []; }
   feed(t, s) {
     const c = this.c, gap = this.last && t - this.last > c.gapMs;
     this.last = t;
     if (this.st === 'cool') { if (!s.slip) this.st = 'ground'; return 0; }  // wait for the slip to end
     if (this.st === 'ground') {
+      if (gap) this.pre = [];
+      // the last second on the ground: was the motor carrying a rider?
+      const loaded = this.pre.some(([, a]) => a >= c.preA);
       if (s.running && s.pads && s.slip && Math.abs(s.amps) < c.lowA) {
-        this.st = 'air'; this.t0 = t; this.peak = Math.abs(s.erpm); this.ok = true; this.land = 0;
+        this.st = 'air'; this.t0 = t; this.ok = loaded; this.land = 0; this.post = [];
+        return 0;
       }
+      this.pre.push([t, Math.abs(s.amps)]);
+      while (this.pre.length && t - this.pre[0][0] > c.preMs) this.pre.shift();
       return 0;
     }
     // in the air (or just landed, waiting for the slip flag to clear)
@@ -40,10 +48,12 @@ export class AirDetector {
       if (t - this.t0 > c.maxS * 1000) { this.st = 'cool'; return 0; }  // too long: not a jump
       return 0;
     }
-    // landed: report once things settle
-    if (t - this.land >= c.settleMs || !s.slip) {
-      const sec = (this.land - this.t0) / 1000, ok = this.ok && sec >= c.minS && sec <= c.maxS;
-      this.st = 'ground';
+    // landed: the motor must keep carrying a rider; report once things settle
+    this.post.push(Math.abs(s.amps));
+    if (t - this.land >= c.settleMs) {
+      const avg = this.post.reduce((a, b) => a + b, 0) / this.post.length;
+      const sec = (this.land - this.t0) / 1000, ok = this.ok && avg >= c.postA && sec >= c.minS && sec <= c.maxS;
+      this.st = 'ground'; this.pre = [];
       return ok ? Math.round(sec * 100) / 100 : 0;
     }
     return 0;

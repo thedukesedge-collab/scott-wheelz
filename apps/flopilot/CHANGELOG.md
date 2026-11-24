@@ -128,6 +128,9 @@ the board's own settings and features the way RF Glow's screen does.
     new trip starts when the board's trip goes back to 0 (power cycle).
   - Simulator: "Jump (air time)" scenario for DEMO.
   - Onboarding Tour: HOME SCREEN page mentions MAX AIR.
+- Build 42: MAX AIR also needs the motor carrying a rider: 8 A+ in the
+  second before take-off and 6 A+ average after the landing (rules out a
+  free spin with the pads held by hand).
 
 **On hold**
 - SPEED TONE (hapticspeedsplit test build): not in the app until the user

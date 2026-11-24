@@ -2685,8 +2685,8 @@ function step(now) {
     } else if (S.scen === 'jump') {
       // FloPilot MAX AIR demo: rider on, off a ramp, ~0.7 s in the air, landing
       S.fpL = S.fpR = true; S.mode = 'running';
-      if (t < 1.0) tSpeed = 14;
-      else if (t < 1.7) { tSpeed = 19; forcedAmps = 2; S.wheelslip = true; }
+      if (t < 1.0) tSpeed = 18;
+      else if (t < 1.7) { tSpeed = 22; forcedAmps = 2; S.wheelslip = true; }
       else if (t < 1.9) { tSpeed = 13; forcedAmps = 48; S.wheelslip = true; }
       else { tSpeed = 12; if (t > 3.5) S.scen = null; }
     } else if (S.scen === 'slip') {
