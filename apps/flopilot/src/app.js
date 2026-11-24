@@ -412,6 +412,18 @@ function addUi() {
     }
     demoPill.textContent = link.demo ? '■ STOP DEMO' : '▶ DEMO';
     placePill();
+    placeHapNote();
+  };
+  // HAPTIC OFF note: top left, just under the board name
+  const placeHapNote = () => {
+    const n = document.getElementById('hapOffNote'), nm = document.getElementById('boardName') || document.getElementById('nameRow');
+    if (!n || !nm || !n.offsetParent || getComputedStyle(n).display === 'none') return;
+    const op = n.offsetParent, p = op.getBoundingClientRect(), r = nm.getBoundingClientRect();
+    const k = op.offsetWidth ? p.width / op.offsetWidth : 1;  // the HUD may be scaled to fit
+    n.style.setProperty('right', 'auto', 'important');
+    n.style.setProperty('transform', 'none', 'important');
+    n.style.setProperty('left', Math.round((r.left - p.left) / k) + 'px', 'important');
+    n.style.setProperty('top', Math.round((r.bottom + 4 - p.top) / k) + 'px', 'important');
   };
   refresh();
   setInterval(refresh, 500);

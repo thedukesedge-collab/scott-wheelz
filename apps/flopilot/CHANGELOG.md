@@ -134,6 +134,9 @@ the board's own settings and features the way RF Glow's screen does.
 - Build 43: DEMO on: CONNECT BOARD and the demo pill (now "■ STOP DEMO")
   go small, side by side in the gap under the speedo, clear of the TOP
   SPEED / MAX AIR / MAX DUTY badges.
+- Build 44: MAX AIR badge moved above the speedo (under the board name
+  row, centered); HAPTIC OFF note moved to the top left, under the board
+  name.
 
 **On hold**
 - Battery curve for boards without an SLCM (app % with cell curve + sag

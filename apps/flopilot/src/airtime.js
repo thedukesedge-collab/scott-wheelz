@@ -107,33 +107,31 @@ function badge() {
   }
   return el;
 }
-// same size as TOP SPEED / MAX DUTY, centered between them
+// same size as TOP SPEED / MAX DUTY, centered above the speedo (in the gap
+// under the board name)
 function place(el) {
-  const ref = document.getElementById('pkSpeed'), duty = document.getElementById('pkDuty');
-  if (!ref) return;
-  const cs = getComputedStyle(ref), w = ref.offsetWidth;
+  const ref = document.getElementById('pkSpeed'), wrap = document.getElementById('speedoWrap'), name = document.getElementById('nameRow');
+  if (!ref || !wrap) return;
+  const cs = getComputedStyle(ref);
   el.style.width = cs.width; el.style.height = cs.height; el.style.paddingTop = cs.paddingTop;
-  el.style.left = '50%'; el.style.transform = 'translateX(-50%)'; el.style.top = cs.top;
+  el.style.left = '50%'; el.style.transform = 'translateX(-50%)';
   for (const k of ['.v', '.l']) {
     const a = ref.querySelector(k), b = el.querySelector(k), s = getComputedStyle(a);
     b.style.fontSize = s.fontSize; b.style.lineHeight = s.lineHeight;
   }
-  // the max speed badges sit just under it while MAX AIR is on
-  for (const id of ['msBadge', 'msOffBadge']) {
-    const m = document.getElementById(id);
-    if (m) m.style.top = (ref.offsetTop + ref.offsetHeight + 4) + 'px';
-  }
-  if (duty && w) el.dataset.w = w;
+  const w = wrap.getBoundingClientRect(), h = ref.offsetHeight;
+  const nb = name ? name.getBoundingClientRect().bottom : w.top - h - 12;
+  // midway between the name row and the top of the speedo box, never over the name
+  const hk = h * (wrap.offsetHeight ? w.height / wrap.offsetHeight : 1), mid = (nb + w.top) / 2 - hk / 2;
+  const k = wrap.offsetHeight ? w.height / wrap.offsetHeight : 1;  // the HUD may be scaled to fit
+  el.style.top = Math.round((Math.max(nb + 2, mid) - w.top) / k) + 'px';
 }
 function draw() {
   const el = badge();
   if (!el) return;
   const on = airOn();
   el.style.display = on ? '' : 'none';
-  if (!on) {
-    for (const id of ['msBadge', 'msOffBadge']) { const m = document.getElementById(id); if (m) m.style.top = '-6px'; }  // their own spot
-    return;
-  }
+  if (!on) return;
   place(el);
   el.querySelector('.v').textContent = fmt(board().cur.max);
 }
