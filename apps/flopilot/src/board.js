@@ -227,6 +227,8 @@ export class Board {
     S.balance = num(rt['imu.balance_pitch'], S.pitch);
     S.roll = num(rt['imu.roll']);
     S.setpoint = num(rt['setpoint']);
+    S.adc1 = num(rt['footpad.adc1'], NaN);  // footpad volts (home screen, watchdog)
+    S.adc2 = num(rt['footpad.adc2'], NaN);
     S.fpL = !!(this.fpState & 1);
     S.fpR = !!(this.fpState & 2);
     S.wheelslip = this.wheelslip;

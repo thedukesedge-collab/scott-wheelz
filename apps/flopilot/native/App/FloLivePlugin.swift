@@ -3,6 +3,7 @@
 // JavaScript (src/app.js), and pass the light button back to it.
 import Foundation
 import Capacitor
+import UserNotifications
 #if canImport(ActivityKit)
 import ActivityKit
 #endif
@@ -16,6 +17,8 @@ public class FloLivePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "update", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "end", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "notifyAsk", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "notify", returnType: CAPPluginReturnPromise),
     ]
     private var observer: NSObjectProtocol?
 
@@ -24,6 +27,25 @@ public class FloLivePlugin: CAPPlugin, CAPBridgedPlugin {
             forName: Notification.Name("FloToggleLights"), object: nil, queue: .main
         ) { [weak self] _ in
             self?.notifyListeners("lightToggle", data: [:], retainUntilConsumed: true)
+        }
+    }
+
+    // Watchdog (Ghosting Protection): ask once for notification permission,
+    // then post a warning right away (shown when the app is in the background)
+    @objc func notifyAsk(_ call: CAPPluginCall) {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { ok, _ in
+            call.resolve(["granted": ok])
+        }
+    }
+
+    @objc func notify(_ call: CAPPluginCall) {
+        let c = UNMutableNotificationContent()
+        c.title = call.getString("title") ?? "FloPilot"
+        c.body = call.getString("body") ?? ""
+        c.sound = .default
+        let r = UNNotificationRequest(identifier: call.getString("id") ?? UUID().uuidString, content: c, trigger: nil)
+        UNUserNotificationCenter.current().add(r) { err in
+            if let err = err { call.reject(err.localizedDescription) } else { call.resolve() }
         }
     }
 

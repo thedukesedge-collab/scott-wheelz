@@ -64,6 +64,8 @@ export function initBackup(link, ledSync, toast) {
     if (b.pkgState === Rf.sRunning) return 'Stop the board first';
     const rf = new RefloatConfig(unb64(bk.rf));
     if (!rf.ok) return 'This backup is from another Refloat version: not restored';
+    // Ghosting Pad Emergency active: keep its footpad settings
+    if (ledSync.protect) for (const [k, v] of ledSync.protect) if (rf.has(k)) rf.set(k, v, true);
     // Refloat settings first (the whole config, as it was)
     const okRf = await new Promise(done => {
       const t = setTimeout(() => done(false), 4000);

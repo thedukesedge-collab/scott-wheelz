@@ -96,6 +96,26 @@ the board's own settings and features the way RF Glow's screen does.
   board. "Don't show this message again" check box. (Changes build 32.)
 - Build 38: CONTROL: DISABLE MOVING FAULTS (DMF) moved up, between MOVE and
   HORN SETTINGS.
+- Build 39: WATCHDOG / Ghosting Protection (gear › WATCHDOG):
+  - Watches ADC1 / ADC2 (Refloat's realtime footpad volts) while connected.
+    Checks only count with the board stopped and parked on its tail
+    (tilted 10°+). EARLY > 0.2 V, HIGH > 1.0 V, STUCK at/over the pad's
+    switch voltage, held 10 s (all editable in ADVANCED).
+  - Two pad gauges, status (MONITORING / WAITING / NOT MONITORING), switch
+    voltages + Posi, last 50 warnings, daily resting voltage with a
+    "rising" note vs last week.
+  - Alerts: banner for EARLY / HIGH, window for STUCK; both pads stuck =
+    "CRITICAL — POSSIBLE GHOSTING HAZARD" with diagnostics, DISABLE PACKAGE
+    (confirm, stopped only) and ACKNOWLEDGE (changes nothing). iPhone
+    notification when the app is in the background.
+  - Ghosting Pad Emergency (user's tested method): bad pad 5.0 V (past
+    Refloat's 3.3 V editor limit) + Posi ON. Confirm box, stopped only,
+    refuses if the good pad reads high or is off, or the bad pad reads 4 V+.
+    Read back; originals kept; PAD TEST; RESTORE ORIGINAL SETTINGS.
+    While on, tunes / backups can't put the footpad settings back.
+  - Home screen ADC volts now show the real readings when connected (they
+    were a fixed 2.9 / 3.0 V stand-in).
+  - Onboarding Tour: new GHOSTING PROTECTION page before CREDIT.
 
 **On hold**
 - SPEED TONE (hapticspeedsplit test build): not in the app until the user

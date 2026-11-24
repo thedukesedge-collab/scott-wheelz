@@ -63,15 +63,17 @@ export class RefloatConfig {
     return dv.getUint8(o);
   }
 
-  // returns true when the stored bytes changed
-  set(name, v) {
+  // returns true when the stored bytes changed. noLimit: skip the settings
+  // file's min / max (only the watchdog's emergency 5.0 V pad switch-off,
+  // past Refloat's 3.3 V editor limit; the field itself holds up to 32.7 V)
+  set(name, v, noLimit) {
     const e = this.idx.get(name);
     if (!e) throw new Error('no setting ' + name);
     const { f, o } = e, dv = this.dv;
     const before = this.raw.slice(o, o + 4).join();
     if (f.t === 1) {
-      if (typeof f.min === 'number') v = Math.max(f.min, v);
-      if (typeof f.max === 'number') v = Math.min(f.max, v);
+      if (!noLimit && typeof f.min === 'number') v = Math.max(f.min, v);
+      if (!noLimit && typeof f.max === 'number') v = Math.min(f.max, v);
       if (f.x === 7) dv.setInt16(o, Math.max(-32768, Math.min(32767, Math.round(v * f.s))));
       else if (f.x === 8) dv.setInt32(o, Math.round(v * f.s));
       else dv.setFloat32(o, v);

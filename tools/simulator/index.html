@@ -867,6 +867,7 @@ const TOUR = [
   ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
   ["♬", "BEEPER", "SETTINGS › RIDE › BEEPER", "Controller beeper on/off with a TEST BEEP and PERSISTENT FATAL BEEP, in Settings (gear) › RIDE. The light module's own beeper stays in LEDS › BEEPER."],
   ["↻", "UPDATES", "LEDS › UPDATES", "NEW: update your light module (LCM) right from Refloat Glow over Bluetooth. No laptop, no cables, just a few taps. New Refloat Glow releases show up here too. (Your LCM needs the SLCM base firmware for Bluetooth updates.)", "updates"],
+  ["⛨", "GHOSTING PROTECTION", "SETTINGS › WATCHDOG", "FloPilot watches both footpad sensors while your board is parked on its tail. A pad that keeps reading high with nobody on it gets a warning; both pads stuck = ghosting alert. One failed pad? WATCHDOG's emergency setting can switch it off until you replace the sensor."],  // FloPilot app
   ["★", "CREDIT WHERE IT'S DUE", "THE ORIGINAL", "Refloat Glow builds on Refloat by Lukáš Hrázký (lukash), which itself builds on the Float package by Mitch Lustig, Dado Mista and Nico Aleman. Their work made this project possible. Full credit and appreciation go to the original developers and community.", "credit"],
   ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "Underneath the new interface, Refloat Glow retains Refloat 1.2.3's core riding behavior, including balance, pushback, footpad handling and alerts. Most additions focus on customization, lighting and sounds. Optional settings such as MAX SPEED can change how your board behaves, so review them carefully."]
 ];
@@ -905,7 +906,7 @@ function tourShowDemo() {
 const TOUR_STEPS = [null, [-1, ['speedoWrap']], [0, ['tabs']], [-1, ['horn']], [-1, ['btnSettings']], [2, ['padTiles']], [2, [() => $('mxRec').parentElement]],
   [2, [() => $('padPlay').parentElement, () => $('mxRec').parentElement]], [1, [() => $('myMelOpen').parentElement]], [4, ['pgStyle']],
   [5, [() => $('ltHead').closest('.ledTiles')]], [5, [() => $('ltBat').closest('.ledTile')]], [-1, ['btnSettings']],
-  [5, [() => $('ltUpd').closest('.ledTile')]], null, null];
+  [5, [() => $('ltUpd').closest('.ledTile')]], [-1, ['btnSettings']], null, null];
 let tourSaved = null, tourTarget = null, tourReal = false, tourRaf = 0, tourSettle = 0;
 const tourVis = el => !!el && el.offsetParent !== null && el.getBoundingClientRect().height > 0;
 // rf168: the target is picked right away and the spotlight / card stay up while
@@ -2887,7 +2888,7 @@ function drawFootpad() {
   ctx.restore();
   ntext(ctx, 'ADC1', s * 0.26, s * 0.47, s * 0.13, S.fpL ? GREEN : '#9b6bd6', { weight: '500' });
   ntext(ctx, 'ADC2', s * 0.74, s * 0.47, s * 0.13, S.fpR ? GREEN : '#9b6bd6', { weight: '500' });
-  const v1 = S.fpL ? 2.9 : 0.0, v2 = S.fpR ? 3.0 : 0.0;
+  const v1 = Number.isFinite(S.adc1) ? S.adc1 : S.fpL ? 2.9 : 0.0, v2 = Number.isFinite(S.adc2) ? S.adc2 : S.fpR ? 3.0 : 0.0;  // FloPilot: real volts when connected
   ntext(ctx, v1.toFixed(1) + 'V', s * 0.26, s * 0.92, s * 0.15, '#c3a6ff', { weight: '500', mono: true });
   ntext(ctx, v2.toFixed(1) + 'V', s * 0.74, s * 0.92, s * 0.15, '#c3a6ff', { weight: '500', mono: true });
 }

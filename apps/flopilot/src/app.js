@@ -15,6 +15,7 @@ import { initLcmUi } from './lcmui.js';
 import { initControl } from './control.js';
 import { initBackup } from './backup.js';
 import { initDataTab } from './datatab.js';
+import { initWatchdog } from './watchdog.js';
 
 const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';  // phone -> VESC
@@ -202,6 +203,7 @@ function onDisconnected(lost) {
   link.live = false;
   link.board = null;
   ledSync.reset(null);
+  { const S = link.S || window.__sim; if (S) { delete S.adc1; delete S.adc2; } }
   link.deviceId = null;
   if (lost && !userOff) {
     setPill('RECONNECTING…', 'busy');
@@ -401,6 +403,7 @@ function addUi() {
   initLcmUi(link, toastMsg);
   initControl(link, ledSync, toastMsg);
   initBackup(link, ledSync, toastMsg);
+  initWatchdog(link, ledSync, toastMsg);
   initDataTab();
   reconnectSaved().then(ok => ok || (link.snap && scheduleRetry()));
 }

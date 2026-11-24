@@ -109,6 +109,7 @@ function fromConfig(P, c) {
 export class LedSync {
   constructor({ getP, render, toast }) {
     this.getP = getP; this.render = render; this.toast = toast;
+    this.protect = null;   // Map name -> value the watchdog keeps (emergency)
     this.reset(null);
   }
 
@@ -160,14 +161,21 @@ export class LedSync {
 
   // any other Refloat settings (a tune, package on/off, remote tilt): patch
   // only these, board stopped only. Returns '' or why not.
-  writeValues(values, msg, done) {
+  // opts.force: may change protected settings; opts.noLimit: names written
+  // past the settings file's limits (watchdog emergency only)
+  writeValues(values, msg, done, opts = {}) {
     const b = this.board;
     if (!b || !this.cfg) return "Refloat's settings aren't loaded yet";
     if (b.pkgState === Rf.sRunning) return 'Stop the board first';
     if (this.pending) return 'Busy saving, try again in a moment';
     const c = this.cfg.copy();
     let n = 0;
-    for (const [k, v] of Object.entries(values)) if (c.has(k) && c.set(k, v)) n++;
+    for (const [k, v] of Object.entries(values)) {
+      // Ghosting Pad Emergency active: a tune / anything else never puts the
+      // footpad settings back (that would wake the stuck pad)
+      if (this.protect && this.protect.has(k) && !opts.force) continue;
+      if (c.has(k) && c.set(k, v, (opts.noLimit || []).includes(k))) n++;
+    }
     if (!n) { if (done) done(true); this.toast(msg || 'Already set'); return ''; }
     this.pending = { cfg: c, want: this.last, t: Date.now(), msg, reread: true, done };
     b.setConfig(c.raw);
