@@ -1238,7 +1238,11 @@ Item {
                 progress = done / pages;
                 message = (pkgError === 5 ? errorText[5] + " " : "") + "Updating the LCM: " + Math.round(progress * 100) + "%. Keep the app connected, don't ride.";
                 sendPage(want);
-                sendPage(want === 0 ? -1 : (want + 128 < image.size ? want + 128 : 0));
+                // rf182: and the next page - unless it lands in the same one of the
+                // package's two page slots as the wanted one (slot = page number & 1:
+                // with an odd page count, the last page and page 0 share a slot)
+                var nextPg = want === 0 ? -1 : (want + 128 < image.size ? want + 128 : 0);
+                if (nextPg >= 0 && ((nextPg / 128) & 1) !== ((want / 128) & 1)) sendPage(nextPg);
             } else if (pkgState === 3) {
                 progress = 1;
                 active = false;
@@ -2114,6 +2118,10 @@ Item {
                 if (tuneOnly && key.startsWith("leds.")) {
                     continue;
                 }
+                // rf182: Ghosting Pad Emergency on: never put the footpad settings back
+                if (watchdog.isProtected(key)) {
+                    continue;
+                }
                 if (pkgConfig.isParamDouble(key)) {
                     pkgConfig.updateParamDouble(key, value);
                 } else if (pkgConfig.isParamInt(key)) {
@@ -2406,6 +2414,7 @@ Item {
                 swSettings.peakDuty = 0;
             }
             swSettings.peakTach = values.tachometer_abs;
+            airTime.onTach(values.tachometer_abs);  // rf182: new trip for MAX AIR too
 
             var speed = Math.abs(values.speed * 3.6 * vescConfig.imperialFactor);
             consumption.add(Math.max(Math.min(values.current_in * values.v_in / Math.max(speed, 1e-6), 60) , -60));
@@ -2529,6 +2538,9 @@ Item {
                     if (pkSpeed === pkSpeed && pkSpeed > swSettings.peakSpeed) swSettings.peakSpeed = pkSpeed;
                     if (pkDuty === pkDuty && pkDuty > swSettings.peakDuty) swSettings.peakDuty = Math.min(1, pkDuty);
                 }
+                // rf182: WATCHDOG data age, MAX AIR jump detector
+                watchdog.lastRt = pkNow;
+                airTime.feed(pkNow, state.pkgState === state.s_Running, state.fpState !== state.fs_None, !!state.wheelslip, state.rtData["motor.current"]);
 
                 if (hasCharging) {
                     chargingInfo.current = getFloat16(dv, ind); ind += 2;
@@ -2666,6 +2678,15 @@ Item {
         property real peakSpeed: 0     // raw motor.speed units (x imperialFactor to show)
         property real peakDuty: 0      // 0..1
         property real peakTach: -1     // trip counter when last seen, to spot a reset
+        // rf182: ported from FloPilot
+        property bool airShow: false      // MAX AIR badge on the home screen
+        property string airRecords: "{}"  // per board (BLE address): this trip, last 50 trips, best
+        property bool sheetOverlap: false // swipe-up window overlaps the home screen (false = shrink it)
+        property real wdEarly: 0.2        // WATCHDOG: EARLY above (V)
+        property real wdHigh: 1.0         // HIGH above (V)
+        property int wdDur: 10            // held this long (s)
+        property int wdTail: 10           // parked = tilted at least this (deg)
+        property string wdData: "{}"      // per board: warning history, daily resting volts, emergency originals
     }
 
     Settings {
@@ -7718,14 +7739,15 @@ Item {
             Row {
                 id: settingsTabBar
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 0.2 * unit
+                spacing: 0.12 * unit
                 property int currentIndex: 0
                 onCurrentIndexChanged: settingsStackLayout.currentIndex = currentIndex
 
                 Repeater {
-                    model: ["SETUP", "PREFERENCES", "RIDE"]  // rf167: RIDE = haptic feedback + pushback
+                    model: ["SETUP", "PREFERENCES", "RIDE", "WATCHDOG"]  // rf167: RIDE = haptic feedback + pushback; rf182: WATCHDOG
                     SwPill {
-                        minWidth: 2.5 * unit
+                        minWidth: 1.6 * unit
+                        labelSize: 0.2 * unit
                         label: modelData
                         lit: settingsTabBar.currentIndex === index
                         onClicked: settingsTabBar.currentIndex = index
@@ -7999,6 +8021,55 @@ Item {
                             }
                         }
 
+                        // rf182: MAX AIR (ported from FloPilot)
+                        SettingsCard {
+                            title: "MAX AIR"
+                            RightSwitch {
+                                label: "Show MAX AIR on the home screen"
+                                checked: swSettings.airShow
+                                onCheckedChanged: swSettings.airShow = checked
+                            }
+                            SetupDescription {
+                                text: "Air time off jumps, read from the tire: the board must be balancing with your feet on the pads, the tire spinning free, then a landing. 0.3 s and up. Just for fun: it can miss small hops."
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: "AIR RECORDS"
+                                color: swTheme.neonPurple
+                                font.family: "Exan"
+                                font.pixelSize: 0.24 * unit
+                            }
+                            SetupDescription {
+                                horizontalAlignment: Text.AlignLeft
+                                text: { airTime.cur; swSettings.airRecords; return airTime.recordsText(); }
+                            }
+                            NeonButton {
+                                id: airClearBtn
+                                Layout.alignment: Qt.AlignHCenter
+                                property bool sure: false
+                                text: sure ? "Tap again to clear" : "Clear records"
+                                onClicked: {
+                                    if (!sure) { sure = true; return; }
+                                    sure = false;
+                                    airTime.clearAll();
+                                    VescIf.emitStatusMessage("Air records cleared", true);
+                                }
+                            }
+                        }
+
+                        // rf182: UI
+                        SettingsCard {
+                            title: "UI"
+                            RightSwitch {
+                                label: "Swipe-up window overlaps the home screen"
+                                checked: swSettings.sheetOverlap
+                                onCheckedChanged: swSettings.sheetOverlap = checked
+                            }
+                            SetupDescription {
+                                text: swSettings.sheetOverlap ? "ON: the window slides over the home screen, which keeps its size." : "OFF: the home screen shrinks to make room."
+                            }
+                        }
+
                         Item { Layout.fillWidth: true; height: 0.2 * unit }
                     }
                 }
@@ -8117,6 +8188,207 @@ Item {
                                 Layout.alignment: Qt.AlignHCenter
                                 text: "Pushback settings ›"
                                 onClicked: pushbackCfg.openWindow()
+                            }
+                        }
+
+                        Item { Layout.fillWidth: true; height: 0.2 * unit }
+                    }
+                }
+
+                // rf182: WATCHDOG - Ghosting Protection (ported from FloPilot)
+                ScrollView {
+                    id: settingsWatchdogPage
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    contentWidth: availableWidth
+                    clip: true
+
+                    ColumnLayout {
+                        width: parent.width
+                        spacing: 0.25 * unit
+
+                        SettingsCard {
+                            title: "GHOSTING PROTECTION"
+                            Text {
+                                Layout.fillWidth: true
+                                horizontalAlignment: Text.AlignHCenter
+                                font.family: "Exan"
+                                font.pixelSize: 0.24 * unit
+                                readonly property var st: { watchdog.rev;
+                                    return watchdog.status === "check" ? ["MONITORING", "#39ff7a"] : watchdog.status === "wait" ? ["WAITING", "#f5ff3b"] : ["NOT MONITORING", "#ff8a1f"]; }
+                                color: st[1]
+                                text: st[0]
+                            }
+                            SetupDescription {
+                                text: { watchdog.rev;
+                                    return watchdog.status === "check" ? "Board parked: checking both pads."
+                                        : watchdog.status === "wait" ? "Checks run when the board is stopped and parked on its tail (tilted " + swSettings.wdTail + "°+), so nobody is on it."
+                                        : "No footpad data right now (not connected?). The board is not being watched."; }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 0.2 * unit
+                                Repeater {
+                                    model: [1, 2]
+                                    Rectangle {
+                                        id: gz
+                                        Layout.fillWidth: true
+                                        implicitHeight: 2.2 * unit
+                                        radius: 0.2 * unit
+                                        color: "transparent"
+                                        border.width: 2
+                                        readonly property real v: { watchdog.rev; return watchdog.volts(modelData); }
+                                        readonly property real swv: { watchdog.rev; return watchdog.sw(modelData); }
+                                        readonly property bool live: { watchdog.rev; return watchdog.fresh(); }
+                                        readonly property string lvl: live ? watchdog.classify(v, swv) : "ok"
+                                        readonly property string held: { watchdog.rev; return watchdog.pads[modelData - 1].level; }
+                                        readonly property bool off: { watchdog.rev; var e = watchdog.emerg(); return !!(e && e.applied && e.pad === modelData); }
+                                        readonly property color c: live ? watchdog.color[lvl] : "#5c5470"
+                                        border.color: c
+                                        function pct(x) { return Math.max(0, Math.min(1, x / 3.3)); }
+                                        Column {
+                                            anchors.fill: parent
+                                            anchors.margins: 0.12 * unit
+                                            spacing: 0.04 * unit
+                                            Text { anchors.horizontalCenter: parent.horizontalCenter; text: "ADC" + modelData; color: "#c98bff"; font.family: "Exan"; font.pixelSize: 0.22 * unit }
+                                            Text { anchors.horizontalCenter: parent.horizontalCenter; text: (gz.live ? gz.v.toFixed(2) : "--") + " V"; color: gz.c; font.family: "Exan"; font.pixelSize: 0.42 * unit }
+                                            Rectangle {
+                                                width: parent.width; height: 0.14 * unit; radius: height / 2; color: "#1c1235"
+                                                Rectangle { height: parent.height; radius: parent.radius; width: parent.width * (gz.live ? gz.pct(gz.v) : 0); color: gz.c }
+                                                Repeater {
+                                                    model: [[swSettings.wdEarly, "#f5ff3b"], [swSettings.wdHigh, "#ff8a1f"], [gz.swv, "#ff2b4f"]]
+                                                    Rectangle { visible: modelData[0] > 0 && modelData[0] <= 3.3; x: parent.width * modelData[0] / 3.3; y: -0.05 * unit; width: 2; height: parent.height + 0.1 * unit; color: modelData[1] }
+                                                }
+                                            }
+                                            Text {
+                                                anchors.horizontalCenter: parent.horizontalCenter
+                                                color: gz.c
+                                                font.family: "Exan"
+                                                font.pixelSize: 0.2 * unit
+                                                text: !gz.live ? "—" : gz.off ? "SWITCHED OFF" : watchdog.word[gz.held !== "ok" ? gz.held : gz.lvl]
+                                            }
+                                            Text {
+                                                anchors.horizontalCenter: parent.horizontalCenter
+                                                color: "#9d8cc0"
+                                                font.pixelSize: 0.17 * unit
+                                                text: { watchdog.rev; var s = watchdog.stuckFor(modelData - 1); return s ? "above normal " + s + " s" : " "; }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            SetupDescription {
+                                text: { watchdog.rev;
+                                    return "Switch voltage: ADC1 " + watchdog.cfg("fault_adc1").toFixed(2) + " V · ADC2 " + watchdog.cfg("fault_adc2").toFixed(2) + " V · Posi " + (watchdog.cfg("fault_is_dual_switch") ? "ON" : "OFF")
+                                        + "\nNormal 0–" + swSettings.wdEarly + " V · Early > " + swSettings.wdEarly + " V · High > " + swSettings.wdHigh + " V · Stuck ≥ switch voltage · " + swSettings.wdDur + " s"; }
+                            }
+                        }
+
+                        SettingsCard {
+                            id: wdEmCard
+                            readonly property var e: { watchdog.rev; return watchdog.emerg(); }
+                            readonly property bool on: !!(e && e.applied)
+                            title: on ? "⚠ EMERGENCY SENSOR CONFIGURATION ON" : "GHOSTING PAD EMERGENCY"
+                            border.color: on ? "#ff2b4f" : "#3a2266"
+                            SetupDescription {
+                                text: { watchdog.rev; var c = wdEmCard; var e = c.e, bad = watchdog.singleBad();
+                                    if (c.on) return "ADC" + e.pad + " switched off (" + watchdog.emergV.toFixed(1) + " V), Posi ON since " + new Date(e.t).toLocaleString() + ". Only ADC" + (e.pad === 1 ? 2 : 1) + " engages the board. Replace the faulty sensor before your next ride.";
+                                    if (watchdog.both) return "Both pads look stuck: no single-pad emergency. Stop using the board.";
+                                    return bad ? "ADC" + bad + " reads high. If that sensor has failed, this switches it off so ADC" + (bad === 1 ? 2 : 1) + " engages alone."
+                                        : "Shows up when one pad reads HIGH or STUCK while the board is parked."; }
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                visible: { watchdog.rev; return watchdog.changed(); }
+                                wrapMode: Text.WordWrap
+                                color: "#ff2b4f"
+                                font.pixelSize: 0.22 * unit
+                                text: { watchdog.rev; var e = watchdog.emerg(); return e ? "The board's footpad settings no longer match the emergency values (changed in VESC Tool?). ADC" + e.pad + " may be active again." : ""; }
+                            }
+                            SetupDescription {
+                                visible: wdEmCard.on
+                                horizontalAlignment: Text.AlignLeft
+                                text: { var t = watchdog.test, e = watchdog.emerg(); if (!e) return ""; var g = e.pad === 1 ? 2 : 1;
+                                    return "PAD TEST (board stopped, on its tail)\n"
+                                        + (t.pressed ? "✓ " : "○ ") + "Press ADC" + g + ": the board sees it\n"
+                                        + (t.released ? "✓ " : "○ ") + "Release ADC" + g + ": it goes off\n"
+                                        + (t.badQuiet && t.released ? "✓ " : "○ ") + "Touch ADC" + e.pad + ": it must stay off" + (t.badQuiet ? "" : "  ✕ ADC" + e.pad + " still registers: don't ride, RESTORE"); }
+                            }
+                            NeonButton {
+                                Layout.alignment: Qt.AlignHCenter
+                                visible: !wdEmCard.on
+                                opacity: { watchdog.rev; return watchdog.singleBad() ? 1 : 0.45; }
+                                text: "Emergency settings"
+                                onClicked: {
+                                    var b = watchdog.singleBad();
+                                    if (!b) { VescIf.emitStatusMessage(watchdog.both ? "Both pads look stuck: no single-pad emergency" : "Only when one pad reads HIGH or STUCK while parked", false); return; }
+                                    wdEmergency.openFor(b);
+                                }
+                            }
+                            NeonButton {
+                                Layout.alignment: Qt.AlignHCenter
+                                visible: wdEmCard.on
+                                text: "Restore original settings"
+                                onClicked: wdRestoreConfirm.open()
+                            }
+                        }
+
+                        SettingsCard {
+                            title: "HISTORY"
+                            SetupDescription {
+                                horizontalAlignment: Text.AlignLeft
+                                text: { watchdog.rev; return watchdog.histText(); }
+                            }
+                            NeonButton {
+                                Layout.alignment: Qt.AlignHCenter
+                                text: "Clear history"
+                                onClicked: watchdog.clearHist()
+                            }
+                        }
+
+                        SettingsCard {
+                            title: "RESTING VOLTAGE (DAILY)"
+                            SetupDescription {
+                                horizontalAlignment: Text.AlignLeft
+                                text: { watchdog.rev; var d = watchdog.driftText(), t = watchdog.daysText();
+                                    return (d ? d : "Builds up over a few days of parking the board: a slow rise means a sensor is wearing out.") + (t ? "\n" + t : ""); }
+                            }
+                        }
+
+                        SettingsCard {
+                            title: "ADVANCED"
+                            SwStepper {
+                                Layout.fillWidth: true
+                                label: "EARLY ABOVE"
+                                value: swSettings.wdEarly
+                                from: 0.1; to: 1.0; step: 0.05; decimals: 2; suffix: " V"
+                                onMoved: { if (newValue < swSettings.wdHigh) swSettings.wdEarly = Math.round(newValue * 100) / 100; }
+                            }
+                            SwStepper {
+                                Layout.fillWidth: true
+                                label: "HIGH ABOVE"
+                                value: swSettings.wdHigh
+                                from: 0.3; to: 3.0; step: 0.1; decimals: 1; suffix: " V"
+                                onMoved: { if (newValue > swSettings.wdEarly) swSettings.wdHigh = Math.round(newValue * 10) / 10; }
+                            }
+                            SwStepper {
+                                Layout.fillWidth: true
+                                label: "HOLD FOR"
+                                value: swSettings.wdDur
+                                from: 3; to: 60; step: 1; suffix: " s"
+                                onMoved: swSettings.wdDur = newValue
+                            }
+                            SwStepper {
+                                Layout.fillWidth: true
+                                label: "PARKED TILT"
+                                value: swSettings.wdTail
+                                from: 5; to: 30; step: 1; suffix: "°"
+                                onMoved: swSettings.wdTail = newValue
+                            }
+                            NeonButton {
+                                Layout.alignment: Qt.AlignHCenter
+                                text: "Defaults"
+                                onClicked: { swSettings.wdEarly = 0.2; swSettings.wdHigh = 1.0; swSettings.wdDur = 10; swSettings.wdTail = 10; }
                             }
                         }
 
@@ -8560,8 +8832,11 @@ Item {
         property int phase: 0  // 0 idle, 1 waiting for ACK, 2 waiting for the read-back
         property bool ok: false
         property string text: ""
-        function start(map) {
+        property var onDone: null  // rf182: called with ok after the read-back (or timeout)
+        function finish(r) { if (onDone) { var f = onDone; onDone = null; f(r); } }
+        function start(map, done) {
             expected = map;
+            onDone = done || null;
             phase = 1;
             ok = false;
             text = "Saving to the board\u2026";
@@ -8580,6 +8855,7 @@ Item {
             text = ok ? "\u2714 Saved and confirmed on the board"
                 : "\u26A0 The board reports different values (" + bad.join(", ") + "). Check Refloat Cfg in VESC Tool.";
             VescIf.emitStatusMessage(text, ok);
+            finish(ok);
         }
         property Connections conns: Connections {
             target: vescCommands
@@ -8601,6 +8877,7 @@ Item {
                 cfgVerify.phase = 0;
                 cfgVerify.ok = false;
                 cfgVerify.text = "\u26A0 Couldn't confirm the save. Check Refloat Cfg in VESC Tool.";
+                cfgVerify.finish(false);
             }
         }
     }
@@ -8660,6 +8937,630 @@ Item {
             repeat: true
             running: true
             onTriggered: rideState.refresh()
+        }
+    }
+
+    // rf182: DISABLE MOVING FAULTS (CONTROL) - Refloat's own
+    // fault_moving_fault_disabled, with Refloat's warning before it turns on.
+    // Written only while the board is stopped, then read back.
+    QtObject {
+        id: dmfCfg
+        property bool on: false
+        property bool known: false
+        function refresh() {
+            var c = packageConfig.pkgConfig;
+            known = !!c && VescIf.isPortConnected();
+            if (c) on = c.getParamBool("fault_moving_fault_disabled");
+        }
+        function set(v) {
+            if (!packageConfig.checkConfig()) { VescIf.emitStatusMessage("Refloat's settings aren't loaded yet", false); return; }
+            if (mainItem.boardRunning) { VescIf.emitStatusMessage("Stop the board first: DMF only saves while the board is stopped", false); return; }
+            var c = packageConfig.pkgConfig;
+            if (c.getParamBool("fault_moving_fault_disabled") === v) { on = v; return; }
+            c.updateParamBool("fault_moving_fault_disabled", v);
+            packageConfig.writeConfig();
+            cfgVerify.start({"fault_moving_fault_disabled": v ? 1 : 0});
+            on = v;
+            VescIf.emitStatusMessage(v ? "DMF on" : "DMF off: the footpad can stop the board again", true);
+        }
+        property Connections conns: Connections {
+            target: packageConfig
+            function onUpdate() { dmfCfg.refresh(); }
+        }
+        property Timer poll: Timer { interval: 1500; repeat: true; running: true; onTriggered: dmfCfg.refresh() }
+    }
+
+    BaseDialog {
+        id: dmfConfirm
+        parent: ApplicationWindow.overlay
+        title: "⚠ Disable moving faults"
+        titleColor: "#ff2b4f"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onOpened: standardButton(Dialog.Ok).text = "Turn DMF on"
+        onAccepted: dmfCfg.set(true)
+        Text {
+            width: dmfConfirm.availableWidth
+            wrapMode: Text.WordWrap
+            color: "#ead6ff"
+            font.pixelSize: 0.3 * unit
+            lineHeight: 1.15
+            text: "While you ride forward above twice the Half State Fault ERPM, with the board within 40° of level, lifting off the footpad sensor won't disengage the board. Outside that, the sensor works as usual.\n\n"
+                + "Refloat's warning: needs correct speed calibration and a tail-heavy board. The board WILL ghost if your normal speeds read negative or the board is nose-heavy."
+        }
+    }
+
+    // rf182: MAX AIR (ported from FloPilot) - air time off jumps, read from the
+    // tire (Refloat's realtime data has no accelerometer). STRICT: balancing
+    // with a footpad pressed the whole time, the motor carrying a rider in
+    // the second before take-off, Refloat's wheelslip flag with low motor
+    // current (tire unloaded), a landing current spike, the rider still on
+    // after it, 0.3-3 s, no data gaps. Display only: writes nothing to the board.
+    QtObject {
+        id: airTime
+        readonly property real minS: 0.3
+        readonly property real maxS: 3.0
+        readonly property real lowA: 15
+        readonly property real landA: 25
+        readonly property real preA: 8
+        readonly property real postA: 6
+        property string st: "ground"
+        property double t0: 0
+        property double last: 0
+        property double land: 0
+        property bool ok: true
+        property var pre: []
+        property var post: []
+        property var cur: ({"max": 0, "total": 0, "jumps": 0, "start": 0})
+        property double lastTach: -1
+
+        function key() { return board.getId() || "board"; }
+        function all() { try { return JSON.parse(swSettings.airRecords) || {}; } catch (e) { return {}; } }
+        function mine(o) {
+            var k = key();
+            if (!o[k]) o[k] = {"name": board.getName() || k, "cur": {"max": 0, "total": 0, "jumps": 0, "start": Date.now()}, "trips": [], "best": 0};
+            return o[k];
+        }
+        function load() { cur = mine(all()).cur; }
+        function best() { return mine(all()).best || 0; }
+        function reset() { st = "ground"; pre = []; post = []; last = 0; }
+
+        // one realtime sample
+        function feed(t, running, pads, slip, amps) {
+            var gap = last > 0 && t - last > 300;
+            last = t;
+            var a = Math.abs(amps);
+            if (amps !== amps) a = 0;  // NaN
+            if (st === "cool") { if (!slip) st = "ground"; return; }
+            if (st === "ground") {
+                if (gap) pre = [];
+                var loaded = false;
+                for (var i = 0; i < pre.length; i++) if (pre[i][1] >= preA) loaded = true;
+                if (running && pads && slip && a < lowA) {
+                    st = "air"; t0 = t; ok = loaded; land = 0; post = [];
+                    return;
+                }
+                pre.push([t, a]);
+                while (pre.length && t - pre[0][0] > 1000) pre.shift();
+                return;
+            }
+            if (gap || !running || !pads) ok = false;
+            if (st === "air") {
+                var spike = a >= landA;
+                if (spike && t - t0 >= 100) { st = "landed"; land = t; }
+                else if (!slip && a >= lowA) ok = false;
+                else if (!slip && t - t0 > 200) { st = "ground"; return; }
+                if (t - t0 > maxS * 1000) st = "cool";
+                return;
+            }
+            post.push(a);
+            if (t - land >= 400) {
+                var s = 0;
+                for (var j = 0; j < post.length; j++) s += post[j];
+                var sec = (land - t0) / 1000, good = ok && s / post.length >= postA && sec >= minS && sec <= maxS;
+                st = "ground"; pre = [];
+                if (good) landed(Math.round(sec * 100) / 100);
+            }
+        }
+        function landed(sec) {
+            var o = all(), b = mine(o);
+            b.cur.jumps++;
+            b.cur.total = Math.round((b.cur.total + sec) * 100) / 100;
+            var rec = sec > b.cur.max;
+            if (rec) b.cur.max = sec;
+            var isBest = sec > (b.best || 0);
+            if (isBest) b.best = sec;
+            swSettings.airRecords = JSON.stringify(o);
+            cur = b.cur;
+            if (swSettings.airShow) VescIf.emitStatusMessage("Air " + sec.toFixed(2) + " s" + (isBest ? " · new board record!" : rec ? " · new trip max" : ""), true);
+        }
+        // the board's trip counter went back (power cycle): keep the trip, start a new one
+        function onTach(tach) {
+            if (lastTach >= 0 && tach < lastTach) {
+                var o = all(), b = mine(o);
+                if (b.cur.jumps) { b.trips.unshift(Object.assign({"end": Date.now()}, b.cur)); b.trips = b.trips.slice(0, 50); }
+                b.cur = {"max": 0, "total": 0, "jumps": 0, "start": Date.now()};
+                swSettings.airRecords = JSON.stringify(o);
+                cur = b.cur;
+            }
+            lastTach = tach;
+        }
+        function resetMax() {
+            var o = all(), b = mine(o);
+            b.cur.max = 0;
+            swSettings.airRecords = JSON.stringify(o);
+            cur = b.cur;
+            VescIf.emitStatusMessage("Max air reset", true);
+        }
+        function clearAll() { swSettings.airRecords = "{}"; load(); }
+        function recordsText() {
+            var o = all(), out = [];
+            for (var k in o) {
+                var b = o[k], rows = [];
+                if (b.cur.jumps) rows.push("This trip: max " + b.cur.max.toFixed(2) + " s, total " + b.cur.total.toFixed(2) + " s, " + b.cur.jumps + " jumps");
+                for (var i = 0; i < Math.min(20, b.trips.length); i++) {
+                    var t = b.trips[i];
+                    rows.push(new Date(t.start).toLocaleDateString() + ": max " + t.max.toFixed(2) + " s, total " + t.total.toFixed(2) + " s, " + t.jumps + " jumps");
+                }
+                if (rows.length) out.push(b.name + " · BEST " + (b.best || 0).toFixed(2) + " s\n" + rows.join("\n"));
+            }
+            return out.length ? out.join("\n\n") : "No jumps yet.";
+        }
+        Component.onCompleted: load()
+    }
+
+    BaseDialog {
+        id: airDetails
+        parent: ApplicationWindow.overlay
+        title: "Air time"
+        standardButtons: Dialog.Close
+        Column {
+            width: airDetails.availableWidth
+            spacing: 0.2 * unit
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 0.15 * unit
+                Repeater {
+                    model: [[airTime.cur.max.toFixed(2) + "s", "MAX AIR"], [airTime.cur.total.toFixed(2) + "s", "TOTAL AIR"], ["" + airTime.cur.jumps, "JUMPS"]]
+                    Rectangle {
+                        width: 2.4 * unit
+                        height: 1.1 * unit
+                        radius: 0.12 * unit
+                        color: "transparent"
+                        border.color: swTheme.neonPurple
+                        border.width: 2
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; y: 0.1 * unit; text: modelData[0]; color: swTheme.neonGreen; font.family: "Exan"; font.pixelSize: 0.38 * unit }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 0.1 * unit; text: modelData[1]; color: "#c98bff"; font.family: "Exan"; font.pixelSize: 0.17 * unit }
+                    }
+                }
+            }
+            SwLText {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                font.pixelSize: fontSizeSmall
+                text: "This trip. Board record: " + airTime.best().toFixed(2) + " s. Hold the MAX AIR box to reset max air; past trips: Settings › PREFERENCES › MAX AIR."
+            }
+        }
+    }
+
+    // rf182: WATCHDOG - Ghosting Protection (ported from FloPilot, Settings ›
+    // WATCHDOG). Watches ADC1 / ADC2 (Refloat's realtime footpad volts); a
+    // stuck-sensor check only counts with the board stopped, not balancing and
+    // parked on its tail / nose (tilted past wdTail degrees), held wdDur s.
+    // Levels: OK / EARLY (> wdEarly V) / HIGH (> wdHigh V) / STUCK (at / over
+    // the pad's switch voltage). Both STUCK = possible ghosting.
+    // Ghosting Pad Emergency (the user's tested workaround, never automatic):
+    // the bad pad's switch voltage to 5.0 V (past Refloat's 3.3 V editor
+    // limit, so it can't trip) + Posi ON, so the good pad engages alone.
+    // Refuses unless stopped, the good pad reads normal and is on, and the bad
+    // pad reads under 4 V; read back after saving; originals kept for RESTORE;
+    // tunes / config restores can't put the footpad settings back meanwhile.
+    // Refloat 1.2.3 footpad logic (src/footpad_sensor.c): pressed = volts >
+    // switch voltage; one pad at 0 V = ignored; BOTH at 0 V = always pressed.
+    QtObject {
+        id: watchdog
+        readonly property real emergV: 5.0
+        property string status: "nodata"  // nodata | wait | check
+        property var pads: [{"level": "ok", "cand": "ok", "since": 0}, {"level": "ok", "cand": "ok", "since": 0}]
+        property bool both: false
+        property double lastRt: 0
+        property var lastNote: ({})
+        property int rev: 0  // bumps on any change, for bindings
+        property var test: ({"pressed": false, "released": false, "badQuiet": true})
+        readonly property var color: ({"ok": "#39ff7a", "early": "#f5ff3b", "high": "#ff8a1f", "crit": "#ff2b4f"})
+        readonly property var word: ({"ok": "OK", "early": "EARLY", "high": "HIGH", "crit": "STUCK"})
+        readonly property var rank: ({"ok": 0, "early": 1, "high": 2, "crit": 3})
+
+        function key() { return board.getId() || "board"; }
+        function all() { try { return JSON.parse(swSettings.wdData) || {}; } catch (e) { return {}; } }
+        function mine(o) { var k = key(); if (!o[k]) o[k] = {"hist": [], "days": {}}; return o[k]; }
+        function store(o) { swSettings.wdData = JSON.stringify(o); rev++; }
+        function emerg() { return mine(all()).emerg || null; }
+        function cfg(n) { var c = packageConfig.pkgConfig; return c ? packageConfig.getParamValue(n) : NaN; }
+        // the voltage a pad is judged against (the original one while the emergency is on)
+        function sw(i) { var e = emerg(); return e && e.pad === i ? e.orig["fault_adc" + i] : cfg("fault_adc" + i); }
+        function classify(v, s) {
+            if (v !== v) return "ok";
+            if (s > 0 && v >= s) return "crit";
+            if (v > swSettings.wdHigh) return "high";
+            if (v > swSettings.wdEarly) return "early";
+            return "ok";
+        }
+        function volts(i) { return state.rtData["footpad.adc" + i]; }
+        function fresh() { return VescIf.isPortConnected() && Date.now() - lastRt < 2500 && volts(1) === volts(1); }
+
+        function tick() {
+            var now = Date.now(), i;
+            protect();
+            if (!fresh()) { status = "nodata"; for (i = 0; i < 2; i++) { pads[i].cand = pads[i].level; pads[i].since = now; } rev++; return; }
+            var spd = Math.abs(state.rtData["motor.speed"]), pitch = Math.abs(state.rtData["imu.pitch"]);
+            var unloaded = state.pkgState !== state.s_Running && !(spd >= 0.8) && pitch >= swSettings.wdTail;
+            if (!unloaded) { status = "wait"; for (i = 0; i < 2; i++) { pads[i].cand = pads[i].level; pads[i].since = now; } rev++; testStep(); return; }
+            status = "check";
+            for (i = 0; i < 2; i++) {
+                var p = pads[i], v = volts(i + 1), lvl = classify(v, sw(i + 1));
+                if (lvl !== p.cand) { p.cand = lvl; p.since = now; }
+                if (lvl !== p.level && now - p.since >= swSettings.wdDur * 1000) {
+                    var up = rank[lvl] > rank[p.level];
+                    p.level = lvl;
+                    if (up) event(i + 1, lvl, v);
+                    else if (lvl === "ok") VescIf.emitStatusMessage("ADC" + (i + 1) + " back to normal", true);
+                }
+            }
+            var b = pads[0].level === "crit" && pads[1].level === "crit";
+            if (b && !both) event(0, "crit", Math.max(volts(1), volts(2)));
+            both = b;
+            sample();
+            testStep();
+            rev++;
+        }
+        function stuckFor(i) { var p = pads[i]; return status === "check" && p.cand !== "ok" ? Math.round((Date.now() - p.since) / 1000) : 0; }
+        function record(pad, level, v) {
+            var o = all(), m = mine(o);
+            m.hist.unshift({"t": Date.now(), "pad": pad, "level": level, "v": Math.round((v || 0) * 100) / 100});
+            m.hist = m.hist.slice(0, 50);
+            store(o);
+        }
+        function ack() { var o = all(), m = mine(o); if (m.hist.length) { m.hist[0].ack = Date.now(); store(o); } }
+        function event(pad, level, v) {
+            var e = emerg();
+            if (e && pad === e.pad) return;  // the pad the emergency already switched off
+            var goodStuck = e && pad && pad !== e.pad && level === "crit";
+            record(pad, goodStuck || !pad ? "crit-both" : level, v);
+            var k = pad + level;
+            if (Date.now() - (lastNote[k] || 0) < 600000) return;  // no repeats within 10 min
+            lastNote[k] = Date.now();
+            if (!pad || goodStuck) {
+                wdAlert.show("‼ CRITICAL — POSSIBLE GHOSTING HAZARD",
+                    (goodStuck ? "The remaining footpad sensor appears stuck active (the other one is already switched off by the emergency setting). "
+                               : "Both footpad sensors appear stuck active. ") + "Your Onewheel may engage unexpectedly without a rider.\n\nStop using the board and disable the Float Package when safe. Keep clear of the wheel; power the board off if you can.", true);
+            } else if (level === "crit") {
+                wdAlert.show("⚠ ADC" + pad + " LOOKS STUCK",
+                    "ADC" + pad + " reads " + v.toFixed(2) + " V (at or over its switch voltage) for " + swSettings.wdDur + " s while the board is parked on its tail, so nobody should be on it.\n\nCheck the sensor and its plug before riding. If the sensor has failed, Settings › WATCHDOG has a Ghosting Pad Emergency setting to get you home on the other pad.", false);
+            } else {
+                wdBanner.show("ADC" + pad + " " + (level === "early" ? "EARLY WARNING" : "HIGH WARNING") + ": " + v.toFixed(2) + " V with nobody on the board. Tap for WATCHDOG.", color[level]);
+            }
+        }
+        function day(t) { var d = new Date(t); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+        property int sampleN: 0
+        function sample() {
+            var a1 = volts(1), a2 = volts(2);
+            if (!(a1 <= swSettings.wdHigh && a2 <= swSettings.wdHigh)) return;
+            if (++sampleN % 10 !== 1) return;  // every 10 s while parked
+            var o = all(), m = mine(o), d = day(Date.now()), x = m.days[d] || {"s1": 0, "s2": 0, "n": 0};
+            if (x.n >= 360) return;
+            x.s1 += a1; x.s2 += a2; x.n++;
+            m.days[d] = x;
+            var ks = Object.keys(m.days).sort();
+            while (ks.length > 60) delete m.days[ks.shift()];
+            store(o);
+        }
+        function driftText() {
+            var m = mine(all()), ks = Object.keys(m.days).sort(), today = day(Date.now()), t = m.days[today];
+            if (!t || !t.n) return "";
+            var prev = ks.filter(function (k) { return k < today; }).slice(-7).map(function (k) { return m.days[k]; }).filter(function (x) { return x.n; });
+            if (prev.length < 2) return "";
+            var out = [];
+            for (var i = 1; i <= 2; i++) {
+                var base = 0;
+                for (var j = 0; j < prev.length; j++) base += prev[j]["s" + i] / prev[j].n;
+                var dv = t["s" + i] / t.n - base / prev.length;
+                out.push("ADC" + i + " resting " + (dv >= 0 ? "+" : "") + dv.toFixed(2) + " V vs last week" + (dv >= 0.1 ? " ⚠ rising" : ""));
+            }
+            return out.join(" · ");
+        }
+        function daysText() {
+            var m = mine(all()), ks = Object.keys(m.days).sort().slice(-7).reverse();
+            return ks.map(function (k) { var x = m.days[k]; return k.slice(5) + "   ADC1 " + (x.s1 / x.n).toFixed(2) + " V   ADC2 " + (x.s2 / x.n).toFixed(2) + " V"; }).join("\n");
+        }
+        function histText() {
+            var h = mine(all()).hist;
+            if (!h.length) return "No warnings yet.";
+            var lv = {"early": "EARLY", "high": "HIGH", "crit": "STUCK", "crit-both": "BOTH / GHOSTING", "emerg": "EMERGENCY ON", "restore": "RESTORED"};
+            return h.map(function (x) { return new Date(x.t).toLocaleString() + "  " + (x.pad ? "ADC" + x.pad : "BOTH") + "  " + (lv[x.level] || x.level) + "  " + x.v.toFixed(2) + " V" + (x.ack ? " ✓" : ""); }).join("\n");
+        }
+        function clearHist() { var o = all(); mine(o).hist = []; store(o); }
+
+        // the single faulty pad (HIGH or STUCK), or 0
+        function singleBad() {
+            if (both) return 0;
+            var b = [1, 2].filter(function (i) { return rank[pads[i - 1].level] >= 2; });
+            return b.length === 1 ? b[0] : 0;
+        }
+        // the emergency plan for pad `bad`: {err} or {values, orig}
+        function plan(bad) {
+            if (bad !== 1 && bad !== 2) return {"err": "Pick the faulty pad"};
+            if (!packageConfig.checkConfig()) return {"err": "Refloat's settings aren't loaded yet"};
+            if (!fresh()) return {"err": "No live footpad readings"};
+            var spd = Math.abs(state.rtData["motor.speed"]);
+            if (mainItem.boardRunning || spd >= 0.8) return {"err": "Stop the board first (not balancing, not rolling)"};
+            var good = bad === 1 ? 2 : 1, gv = volts(good), bv = volts(bad), gsw = cfg("fault_adc" + good);
+            if (!(gsw > 0)) return {"err": "ADC" + good + " is switched off in Refloat (0 V): the board would have no working pad"};
+            if (gv > swSettings.wdEarly) return {"err": "ADC" + good + " (the good pad) also reads high (" + gv.toFixed(2) + " V). Both pads may be faulty: no single-pad emergency"};
+            if (bv >= 4.0) return {"err": "ADC" + bad + " reads " + bv.toFixed(2) + " V: too close to 5.0 V, the switch-off may not hold on this controller"};
+            var vals = {}; vals["fault_adc" + bad] = emergV; vals["fault_is_dual_switch"] = true;
+            return {"good": good, "values": vals, "orig": {"fault_adc1": cfg("fault_adc1"), "fault_adc2": cfg("fault_adc2"), "fault_is_dual_switch": !!cfg("fault_is_dual_switch")}};
+        }
+        // write the footpad settings, read them back, then done(ok)
+        function writeFootpad(values, done) {
+            var c = packageConfig.pkgConfig, exp = {};
+            for (var k in values) {
+                if (typeof values[k] === "boolean") { c.updateParamBool(k, values[k]); exp[k] = values[k] ? 1 : 0; }
+                else { c.updateParamDouble(k, values[k]); exp[k] = values[k]; }
+            }
+            packageConfig.writeConfig();
+            cfgVerify.start(exp, done);
+        }
+        function apply(bad) {
+            var p = plan(bad);
+            if (p.err) { VescIf.emitStatusMessage(p.err, false); return; }
+            var o = all(), m = mine(o);
+            m.emerg = {"pad": bad, "orig": p.orig, "t": Date.now(), "applied": false};  // originals first
+            store(o);
+            writeFootpad(p.values, function (ok) {
+                var o2 = all(), m2 = mine(o2);
+                var on = ok || Math.abs(cfg("fault_adc" + bad) - emergV) < 0.01;
+                if (on) { m2.emerg.applied = true; store(o2); record(bad, "emerg", volts(bad)); }
+                else { delete m2.emerg; store(o2); }
+                protect();
+                test = {"pressed": false, "released": false, "badQuiet": true};
+                VescIf.emitStatusMessage(ok ? "Emergency settings saved and read back. Do the PAD TEST before riding"
+                    : on ? "Couldn't confirm every value: the board shows the emergency switch voltage. Check Refloat Cfg; RESTORE is in WATCHDOG"
+                    : "The board didn't take the emergency settings: nothing changed. Check Refloat Cfg in VESC Tool", ok);
+            });
+        }
+        function restore() {
+            var e = emerg();
+            if (!e) return;
+            if (mainItem.boardRunning) { VescIf.emitStatusMessage("Stop the board first", false); return; }
+            unprotect();
+            writeFootpad(e.orig, function (ok) {
+                if (!ok) { protect(); VescIf.emitStatusMessage("Couldn't confirm the restore: check Refloat Cfg in VESC Tool", false); return; }
+                var o = all(), m = mine(o);
+                delete m.emerg;
+                store(o);
+                record(e.pad, "restore", volts(e.pad));
+                protect();
+                VescIf.emitStatusMessage("Original settings restored. Test both pads before riding", true);
+            });
+        }
+        // keys a tune / config restore must not change while the emergency is on
+        property var protectedKeys: ({})
+        function protect() {
+            var e = emerg(), k = {};
+            if (e && e.applied) { k["fault_adc" + e.pad] = emergV; k["fault_is_dual_switch"] = true; }
+            protectedKeys = k;
+        }
+        function unprotect() { protectedKeys = ({}); }
+        function isProtected(n) { return protectedKeys[n] !== undefined; }
+        // VESC Tool (or anything else) changed the emergency values on the board
+        function changed() {
+            var e = emerg();
+            if (!e || !e.applied || !packageConfig.pkgConfig) return false;
+            return Math.abs(cfg("fault_adc" + e.pad) - emergV) > 0.01 || !cfg("fault_is_dual_switch");
+        }
+        // pad test: press the good pad (on), release (off), touch the bad pad (stays off)
+        function testStep() {
+            var e = emerg();
+            if (!e || !e.applied) return;
+            var g = e.pad === 1 ? 2 : 1, st = state.fpState;
+            var goodOn = !!(st & (g === 1 ? state.fs_Left : state.fs_Right)), badOn = !!(st & (e.pad === 1 ? state.fs_Left : state.fs_Right));
+            var t = {"pressed": test.pressed || goodOn, "released": test.released || (test.pressed && !goodOn), "badQuiet": test.badQuiet && !badOn};
+            test = t;
+        }
+        property Timer timer: Timer { interval: 1000; repeat: true; running: true; onTriggered: watchdog.tick() }
+    }
+
+    // rf182: WATCHDOG warning banner (EARLY / HIGH) - tap opens Settings › WATCHDOG
+    Popup {
+        id: wdBanner
+        parent: ApplicationWindow.overlay
+        x: 0.2 * unit
+        y: 0.2 * unit
+        width: (parent ? parent.width : 0) - 0.4 * unit
+        modal: false
+        closePolicy: Popup.NoAutoClose
+        padding: 0
+        property color tone: "#f5ff3b"
+        property string text: ""
+        function show(t, c) { text = t; tone = c; open(); wdBannerTimer.restart(); }
+        background: Rectangle { color: "#0b0718"; radius: 0.2 * unit; border.color: wdBanner.tone; border.width: 2 }
+        contentItem: Text {
+            padding: 0.2 * unit
+            wrapMode: Text.WordWrap
+            color: wdBanner.tone
+            font.pixelSize: 0.26 * unit
+            text: wdBanner.text + "   ✕"
+            MouseArea { anchors.fill: parent; onClicked: { wdBanner.close(); if (mouse.x < width * 0.85) settingsDialog.show(3); } }
+        }
+        property Timer hide: Timer { id: wdBannerTimer; interval: 20000; onTriggered: wdBanner.close() }
+    }
+
+    // rf182: WATCHDOG window for STUCK / CRITICAL
+    BaseDialog {
+        id: wdAlert
+        parent: ApplicationWindow.overlay
+        titleColor: "#ff2b4f"
+        standardButtons: Dialog.NoButton
+        property string body: ""
+        property bool critical: false
+        function show(t, b, c) { title = t; body = b; critical = c; open(); }
+        footer: Item {
+            implicitHeight: wdAlertBtns.implicitHeight + 0.4 * unit
+            Flow {
+                id: wdAlertBtns
+                anchors.centerIn: parent
+                width: parent.width - 0.4 * unit
+                spacing: 0.15 * unit
+                SwPill { label: "DIAGNOSTICS"; minWidth: 2.4 * unit; onClicked: { wdAlert.close(); settingsDialog.show(3); } }
+                SwPill {
+                    visible: wdAlert.critical
+                    label: "DISABLE PACKAGE"; minWidth: 2.4 * unit; litColor: "#ff2b4f"
+                    onClicked: {
+                        if (mainItem.boardRunning || Math.abs(state.rtData["motor.speed"]) >= 0.8) { VescIf.emitStatusMessage("The board is balancing or rolling: only when stopped", false); return; }
+                        wdAlert.close(); wdDisableConfirm.open();
+                    }
+                }
+                SwPill { label: wdAlert.critical ? "ACK / FALSE POSITIVE" : "ACKNOWLEDGE"; minWidth: 2.4 * unit; onClicked: { watchdog.ack(); wdAlert.close(); } }
+            }
+        }
+        Text {
+            width: wdAlert.availableWidth
+            wrapMode: Text.WordWrap
+            color: "#ead6ff"
+            font.pixelSize: 0.28 * unit
+            lineHeight: 1.15
+            text: wdAlert.body
+        }
+    }
+
+    BaseDialog {
+        id: wdDisableConfirm
+        parent: ApplicationWindow.overlay
+        title: "Disable package?"
+        titleColor: "#ff2b4f"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onOpened: standardButton(Dialog.Ok).text = "Disable"
+        onAccepted: packageConfig.setDisabled(true)
+        Text {
+            width: wdDisableConfirm.availableWidth
+            wrapMode: Text.WordWrap
+            color: "#ead6ff"
+            font.pixelSize: 0.3 * unit
+            text: "Turns Refloat off (its own Disable setting): the board will not balance or engage until you enable it again in Settings › SETUP."
+        }
+    }
+
+    // rf182: Ghosting Pad Emergency window
+    BaseDialog {
+        id: wdEmergency
+        parent: ApplicationWindow.overlay
+        title: "⚠ Emergency sensor configuration"
+        titleColor: "#ff2b4f"
+        implicitHeight: fullHeight
+        standardButtons: Dialog.NoButton
+        property int pick: 1
+        property bool agreed: false
+        property var p: ({})
+        function openFor(bad) { pick = bad; agreed = false; refresh(); open(); }
+        function refresh() { p = watchdog.plan(pick); }
+        property Timer t: Timer { interval: 1000; repeat: true; running: wdEmergency.visible; onTriggered: wdEmergency.refresh() }
+        footer: Item {
+            implicitHeight: 1.2 * unit
+            Row {
+                anchors.centerIn: parent
+                spacing: 0.3 * unit
+                SwPill { label: "CANCEL"; minWidth: 2.4 * unit; onClicked: wdEmergency.close() }
+                SwPill {
+                    label: "APPLY"; minWidth: 2.4 * unit; litColor: "#ff2b4f"
+                    enabledLook: wdEmergency.agreed && !wdEmergency.p.err
+                    onClicked: {
+                        if (!wdEmergency.agreed) { VescIf.emitStatusMessage("Tick the box first", false); return; }
+                        wdEmergency.refresh();
+                        if (wdEmergency.p.err) { VescIf.emitStatusMessage(wdEmergency.p.err, false); return; }
+                        wdEmergency.close();
+                        watchdog.apply(wdEmergency.pick);
+                    }
+                }
+            }
+        }
+        ScrollView {
+            anchors.fill: parent
+            contentWidth: availableWidth
+            clip: true
+            Column {
+                width: wdEmergency.availableWidth
+                spacing: 0.2 * unit
+                Text {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    color: "#ead6ff"
+                    font.bold: true
+                    font.pixelSize: 0.27 * unit
+                    text: "This configuration is intended for emergency recovery when one footpad sensor has failed. It reduces rider-presence detection redundancy and may change engagement or stopping behavior. Replace the faulty sensor before your next ride."
+                }
+                Row {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: 0.2 * unit
+                    Repeater {
+                        model: [1, 2]
+                        SwPill {
+                            readonly property real v: { watchdog.rev; return watchdog.volts(modelData); }
+                            minWidth: 3.6 * unit
+                            lit: wdEmergency.pick === modelData
+                            litColor: "#ff2b4f"
+                            label: "ADC" + modelData + (wdEmergency.pick === modelData ? " FAULTY" : " OK") + " · " + (v === v ? v.toFixed(2) + " V" : "--")
+                            onClicked: { wdEmergency.pick = modelData; wdEmergency.refresh(); }
+                        }
+                    }
+                }
+                SwLText {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: fontSizeSmall
+                    text: { watchdog.rev; var g = wdEmergency.pick === 1 ? 2 : 1;
+                        return "Now: ADC1 " + watchdog.cfg("fault_adc1").toFixed(2) + " V · ADC2 " + watchdog.cfg("fault_adc2").toFixed(2) + " V · Posi " + (watchdog.cfg("fault_is_dual_switch") ? "ON" : "OFF")
+                            + "\nNew: ADC" + wdEmergency.pick + " " + watchdog.emergV.toFixed(2) + " V (never reached: switched off) · ADC" + g + " unchanged · Posi ON"
+                            + "\nOnly ADC" + g + " will engage the board. Your original values are kept for RESTORE."; }
+                }
+                Text {
+                    visible: !!wdEmergency.p.err
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    color: "#ff2b4f"
+                    font.pixelSize: 0.26 * unit
+                    text: wdEmergency.p.err || ""
+                }
+                Text {
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    color: "#c98bff"
+                    font.pixelSize: 0.22 * unit
+                    text: "Not a repair and not guaranteed safe for riding. The heel-lift (half-switch) stop is gone; only the good pad tells the board you're on it. It works only while the bad pad reads under 5.0 V, so the app checks that first; check it on the bench on your controller."
+                }
+                CheckBox {
+                    checked: wdEmergency.agreed
+                    onToggled: wdEmergency.agreed = checked
+                    text: "I understand. The board is stopped and nobody is on it."
+                }
+            }
+        }
+    }
+
+    BaseDialog {
+        id: wdRestoreConfirm
+        parent: ApplicationWindow.overlay
+        title: "Restore original settings"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onOpened: standardButton(Dialog.Ok).text = "Restore"
+        onAccepted: watchdog.restore()
+        Text {
+            width: wdRestoreConfirm.availableWidth
+            wrapMode: Text.WordWrap
+            color: "#ead6ff"
+            font.pixelSize: 0.3 * unit
+            text: { watchdog.rev; var e = watchdog.emerg();
+                return e ? "Puts back ADC1 " + e.orig.fault_adc1.toFixed(2) + " V, ADC2 " + e.orig.fault_adc2.toFixed(2) + " V, Posi " + (e.orig.fault_is_dual_switch ? "ON" : "OFF") + ".\n\nOnly after the sensor has been inspected, repaired or replaced and tested. A still-faulty pad becomes active again." : ""; }
         }
     }
 
@@ -12938,6 +13839,7 @@ Item {
             case "LIGHTS": return [5, [ledMainTiles]];
             case "BATTERY GAUGE": return [5, [slcmBattTile]];
             case "BEEPER": return [-1, [settingsButton]];  // rf173: moved to Settings
+            case "GHOSTING PROTECTION": return [-1, [settingsButton]];  // rf182
             case "UPDATES": return [5, [slcmUpdTile]];
             default: return [-1, []];
             }
@@ -13044,7 +13946,7 @@ Item {
         // quiet attribution line); nothing in the tour touches the board
         readonly property var pages: [
             ["✦", "REFLOAT GLOW", "WELCOME", "Built on Refloat 1.2.3 by Lukáš Hrázký (lukash) and the Refloat community, reimagined with a Neon Future style theme and a bunch of extra features. Swipe through what's new; it takes a minute."],
-            ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and MAX SPEED / DUTY right there."],
+            ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and MAX SPEED / DUTY right there (plus MAX AIR, if you turn it on in Settings › PREFERENCES)."],
             ["≡", "PULL-UP SHEET", "SWIPE UP", "Drag the sheet up for TUNES, CONTROL, MIXER, DATA, BOARD STYLE and LEDS. Tap anywhere on the main view (except HORN) to put it away."],
             ["♫", "HORN", "HOME + CONTROL", "Hold HORN to beep through the motor, no extra hardware. Sound and volume (10/10 = 4 V) in CONTROL › HORN SETTINGS. It stays well within safe, low motor current."],
             ["⚙", "RIDE SETTINGS", "SETTINGS › RIDE", "Tap the gear, then RIDE. HAPTIC FEEDBACK: the warning tone at your duty or speed. PUSHBACK: when and how much the nose lifts (duty, speed, battery voltage). Both are Refloat's own settings and only save while the board is stopped.", "ride"],
@@ -13057,6 +13959,7 @@ Item {
             ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
             ["♬", "BEEPER", "SETTINGS › RIDE › BEEPER", "Controller beeper on/off with a TEST BEEP and PERSISTENT FATAL BEEP, in Settings (gear) › RIDE. The light module's own beeper stays in LEDS › BEEPER."],
             ["↻", "UPDATES", "LEDS › UPDATES", "NEW: update your light module (LCM) right from Refloat Glow over Bluetooth. No laptop, no cables, just a few taps. New Refloat Glow releases show up here too. (Your LCM needs the SLCM base firmware for Bluetooth updates.)", "updates"],
+            ["⛨", "GHOSTING PROTECTION", "SETTINGS › WATCHDOG", "Refloat Glow watches both footpad sensors while your board is parked on its tail. A pad that keeps reading high with nobody on it gets a warning; both pads stuck = ghosting alert. One failed pad? WATCHDOG's emergency setting can switch it off until you replace the sensor."],
             ["★", "CREDIT WHERE IT'S DUE", "THE ORIGINAL", "Refloat Glow builds on Refloat by Lukáš Hrázký (lukash), which itself builds on the Float package by Mitch Lustig, Dado Mista and Nico Aleman. Their work made this project possible. Full credit and appreciation go to the original developers and community.", "credit"],
             ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "Underneath the new interface, Refloat Glow retains Refloat 1.2.3's core riding behavior, including balance, pushback, footpad handling and alerts. Most additions focus on customization, lighting and sounds. Optional settings such as MAX SPEED can change how your board behaves, so review them carefully."]
         ]
@@ -13393,9 +14296,9 @@ Item {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     spacing: 0.12 * unit
                                     Repeater {
-                                        model: ["SETUP", "PREFERENCES", "RIDE"]
+                                        model: ["SETUP", "PREFERENCES", "RIDE", "WATCHDOG"]  // rf182
                                         Rectangle {
-                                            width: 2.0 * unit
+                                            width: 1.6 * unit
                                             height: 0.45 * unit
                                             radius: height / 2
                                             color: index === 2 ? swTheme.neonGreen : "transparent"
@@ -13620,7 +14523,8 @@ Item {
         x: root.x
         y: root.y
         width: root.width
-        height: root.height - bottomSheet.height - 0.1 * unit
+        // rf182: OVERLAP (Settings › PREFERENCES › UI): keeps its size under the sheet
+        height: root.height - (swSettings.sheetOverlap ? bottomSheet.minHeight : bottomSheet.height) - 0.1 * unit
         color: swTheme.background
         border.color: swTheme.neonPurple
         border.width: 1
@@ -13647,7 +14551,7 @@ Item {
             // Refloat Glow: the main view keeps its full-size layout and is
             // scaled down (from the top center) to fit above the sheet as it
             // comes up. A transform doesn't affect layout, so no feedback.
-            property real fitScale: Math.min(1, (root.height - bottomSheet.height - 0.1 * unit) / Math.max(1, root.height - bottomSheet.minHeight - 0.1 * unit))
+            property real fitScale: swSettings.sheetOverlap ? 1 : Math.min(1, (root.height - bottomSheet.height - 0.1 * unit) / Math.max(1, root.height - bottomSheet.minHeight - 0.1 * unit))
             transform: Scale {
                 origin.x: swHudTop.width / 2
                 origin.y: 0
@@ -14041,13 +14945,31 @@ Item {
                     tone: "#ff2b4f"
                     text: "PUSHBACK OFF"
                 }
+                // rf182: HAPTIC OFF sits top left, just under the board name
                 OffNote {
                     visible: rideState.known && !rideState.hapticOn
-                    anchors.top: peakDutyStat.bottom
-                    anchors.topMargin: 0.08 * unit
-                    anchors.right: peakDutyStat.right
+                    x: { neonSpeedo.x; boardNameRow.x; return parent.mapFromItem(boardNameRow, 0, 0).x; }
+                    y: { neonSpeedo.y; boardNameRow.y; boardNameRow.height; return parent.mapFromItem(boardNameRow, 0, boardNameRow.height).y + 0.02 * unit; }
                     tone: "#ff4fd8"
                     text: "HAPTIC OFF"
+                }
+
+                // rf182: MAX AIR (Settings › PREFERENCES › MAX AIR), centered above
+                // the speedo in the gap under the board name; tap for this trip's
+                // total / jumps, hold to reset max air
+                PeakBox {
+                    id: peakAirStat
+                    visible: swSettings.airShow
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    readonly property real gap: { neonSpeedo.y; boardNameRow.y; return -parent.mapFromItem(boardNameRow, 0, boardNameRow.height).y; }
+                    y: -(gap > height ? (gap + height) / 2 : gap)
+                    labelText: "MAX AIR"
+                    valueText: airTime.cur.max.toFixed(2) + "s"
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: airDetails.open()
+                        onPressAndHold: airTime.resetMax()
+                    }
                 }
 
                 // rf169: no max speed limit: a small purple note in the same spot
@@ -16189,6 +17111,36 @@ Item {
                             anchors.horizontalCenter: parent.horizontalCenter
                             font.pixelSize: fontSizeSmall
                             text: "Tilt works while riding (engaged and moving)."
+                        }
+
+                        // rf182: DISABLE MOVING FAULTS (Refloat's own setting), between
+                        // MOVE / TILT and HORN SETTINGS
+                        Item {
+                            width: parent.width
+                            height: 0.3 * unit
+                        }
+                        SwNeonLabel {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            font.pixelSize: 0.4 * unit
+                            font.letterSpacing: 0.05 * unit
+                            text: "DISABLE MOVING FAULTS"
+                        }
+                        SwLText {
+                            width: parent.width
+                            font.pixelSize: fontSizeNormal
+                            wrapMode: Text.WordWrap
+                            text: "DMF: lifting your foot off the sensor won't stop the board while you ride forward (Refloat's Disable Moving Faults). Needs correct speed calibration and a tail-heavy board."
+                        }
+                        SwPill {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            minWidth: 3.0 * unit
+                            label: dmfCfg.on ? "DMF ON" : "DMF OFF"
+                            lit: dmfCfg.on
+                            enabledLook: dmfCfg.known
+                            onClicked: {
+                                if (!dmfCfg.known) { VescIf.emitStatusMessage("Refloat's settings aren't loaded yet", false); return; }
+                                if (dmfCfg.on) dmfCfg.set(false); else dmfConfirm.open();
+                            }
                         }
 
                         // rf180: controller BEEPER only in Settings (gear) › RIDE › BEEPER
