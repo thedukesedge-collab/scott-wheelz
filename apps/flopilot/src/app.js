@@ -317,6 +317,8 @@ function addUi() {
       letter-spacing: 1px; padding: 4px 12px; border-radius: 999px; border: 1px solid #7a3fc0; color: #b98cff;
       background: rgba(10,6,20,.85); white-space: nowrap; }
     body.rmLive #rmDemo { display: none; }
+    /* DEMO on: both pills small, side by side under the speedo (clear of the badges) */
+    body.rmDemoOn #rmConnect, body.rmDemoOn #rmDemo { font-size: 9px !important; padding: 4px 10px !important; }
     /* the simulator's drive panel is for the demo board only */
     body.rmStock #ledsSnzCard, body.rmStock #headSnzTitle, body.rmStock #ledBreathBox, body.rmStock #rfStSnz { display: none !important; }
     #rmSnzNote { display: none; text-align: center; }
@@ -368,6 +370,22 @@ function addUi() {
       pill.style.top = Math.round(rr.top + rr.height / 2 - pill.offsetHeight / 2) + 'px';
       return;
     }
+    if (link.demo) {
+      // demo board running: out of the way, in the gap under the speedo
+      const sp = document.getElementById('speedoWrap'), hr = document.getElementById('hudRow');
+      if (sp && hr) {
+        const a = sp.getBoundingClientRect(), b = hr.getBoundingClientRect();
+        const w1 = pill.offsetWidth, w2 = demoPill.offsetWidth, h = Math.max(pill.offsetHeight, demoPill.offsetHeight);
+        const top = Math.round(Math.max(a.bottom + 2, (a.bottom + b.top) / 2 - h / 2));
+        const x = Math.round(window.innerWidth / 2 - (w1 + w2 + 8) / 2);
+        pill.style.transform = demoPill.style.transform = 'none';
+        pill.style.left = x + 'px'; demoPill.style.left = (x + w1 + 8) + 'px';
+        pill.style.top = demoPill.style.top = top + 'px';
+        return;
+      }
+    }
+    demoPill.style.left = '50%';
+    demoPill.style.transform = 'translateX(-50%)';
     pill.style.left = '50%';
     pill.style.transform = 'translateX(-50%)';
     const top = Math.round(row.getBoundingClientRect().bottom + 6);
@@ -377,6 +395,7 @@ function addUi() {
   const refresh = () => {
     document.body.classList.toggle('rmLive', !!link.live);
     document.body.classList.toggle('rmBlank', link.blank);
+    document.body.classList.toggle('rmDemoOn', !!link.demo && !link.live);
     // stock Refloat has no snooze: those rows hide, with a note (RF Glow has it)
     const bd = link.board, simP = window.__simP ? window.__simP() : null;
     document.body.classList.toggle('rmStock', !!(link.live && bd && bd.pkg && bd.pkg.name !== 'Refloat Glow'));
@@ -391,7 +410,7 @@ function addUi() {
         card.after(n);
       }
     }
-    demoPill.textContent = link.demo ? 'DEMO ON · TAP TO STOP' : '▶ DEMO';
+    demoPill.textContent = link.demo ? '■ STOP DEMO' : '▶ DEMO';
     placePill();
   };
   refresh();

@@ -131,6 +131,9 @@ the board's own settings and features the way RF Glow's screen does.
 - Build 42: MAX AIR also needs the motor carrying a rider: 8 A+ in the
   second before take-off and 6 A+ average after the landing (rules out a
   free spin with the pads held by hand).
+- Build 43: DEMO on: CONNECT BOARD and the demo pill (now "■ STOP DEMO")
+  go small, side by side in the gap under the speedo, clear of the TOP
+  SPEED / MAX AIR / MAX DUTY badges.
 
 **On hold**
 - Battery curve for boards without an SLCM (app % with cell curve + sag
