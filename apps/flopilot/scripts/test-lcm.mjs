@@ -87,4 +87,13 @@ if (existsSync(real)) {
   assert.equal(r.error, undefined, r.error);
   console.log('real SLCM.hex: ' + r.size + ' B, ' + r.slcm);
 }
+// Tune Archive CSV (as RF Glow's parseCsv)
+const { parseCsv } = await import('../src/control.js');
+const tunes = parseCsv('_name,Chill,Fast\r\ndouble_kp,18.5,24\r\nint_tiltback_speed,,30\r\nbool_is_beeper_enabled,1,0\r\nenum_inputtilt_remote_type,1,\r\n');
+assert.equal(tunes.length, 2);
+assert.equal(tunes[0].name, 'Chill');
+assert.equal(tunes[1].settings.kp, 24);
+assert.equal(tunes[1].settings.tiltback_speed, 30);
+assert.equal(tunes[0].settings.is_beeper_enabled, true);
+assert.equal('tiltback_speed' in tunes[0].settings, false);
 console.log('lcm tests passed');

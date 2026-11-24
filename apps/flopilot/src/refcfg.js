@@ -45,7 +45,15 @@ export class RefloatConfig {
       return dv.getFloat32(o);
     }
     if (f.t === 2) {
-      return [0, dv.getUint8(o), dv.getInt8(o), dv.getUint16(o), dv.getInt16(o), dv.getUint32(o), dv.getInt32(o)][f.x];
+      switch (f.x) {
+        case 1: return dv.getUint8(o);
+        case 2: return dv.getInt8(o);
+        case 3: return dv.getUint16(o);
+        case 4: return dv.getInt16(o);
+        case 5: return dv.getUint32(o);
+        case 6: return dv.getInt32(o);
+        default: return NaN;
+      }
     }
     if (f.t === 5) return dv.getUint8(o) !== 0;
     if (f.t === 3) { let s = ''; for (let i = o; this.raw[i]; i++) s += String.fromCharCode(this.raw[i]); return s; }
@@ -68,7 +76,9 @@ export class RefloatConfig {
       v = Math.round(v);
       if (typeof f.min === 'number') v = Math.max(f.min, v);
       if (typeof f.max === 'number') v = Math.min(f.max, v);
-      [null, 'setUint8', 'setInt8', 'setUint16', 'setInt16', 'setUint32', 'setInt32'].forEach((m, x) => { if (x === f.x) dv[m](o, v); });
+      const m = [null, 'setUint8', 'setInt8', 'setUint16', 'setInt16', 'setUint32', 'setInt32'][f.x];
+      if (!m) return false;
+      dv[m](o, v);
     } else if (f.t === 5) dv.setUint8(o, v ? 1 : 0);
     else if (f.t === 4 || f.t === 6) {
       v = Math.round(v);

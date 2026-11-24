@@ -12,6 +12,7 @@ import { initPkg } from './pkgui.js';
 import { initMixer } from './mixer.js';
 import { initLights } from './lights.js';
 import { initLcmUi } from './lcmui.js';
+import { initControl } from './control.js';
 
 const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';  // phone -> VESC
@@ -65,18 +66,6 @@ window.RF_LIGHTS = P => {
   lightsSentAt = Date.now();
 };
 let lightsSentAt = 0, lightsSeen = null;
-// tilt slider: Refloat only takes it with Input Tilt › Remote Type = UART,
-// and only while riding: say so once per connection
-let tiltTold = null;
-setInterval(() => {
-  const b = link.board, S = link.S || window.__sim;
-  if (!b || !link.live || !S || !S.tilt || tiltTold === b || !ledSync.cfg) return;
-  let type = 1;
-  try { type = ledSync.cfg.get('inputtilt_remote_type'); } catch (e) {}
-  tiltTold = b;
-  toastMsg(type === 1 ? 'Tilt works while riding (Refloat only uses it when engaged)'
-    : "Tilt needs Refloat's Input Tilt › Remote Type set to UART (VESC Tool › Refloat Cfg). It works while riding.");
-}, 500);
 // the board's light state (asked every 2 s) shown on the LEDS tab
 setInterval(() => {
   const b = link.board, P = window.__simP ? window.__simP() : null;
@@ -316,6 +305,8 @@ function addUi() {
     /* settings tabs: wrap onto two rows instead of running off the window */
     .modal .tabs { flex-wrap: wrap; gap: 6px !important; }
     .modal .tabs .pill { padding: 6px 10px; font-size: 11px; }
+    /* the max speed limit is a motor setting (VESC Tool): not shown with a board */
+    body.rmLive #msBadge, body.rmLive #msOffBadge, body.rmLive #msLink { display: none !important; }
     body.rmBlank #rmConnect { font-size: 15px; padding: 12px 26px; border-color: #39ff7a; color: #39ff7a;
       box-shadow: 0 0 14px rgba(57,255,122,.5); }
     #rmDemo { position: fixed; left: 50%; transform: translateX(-50%); z-index: 60; font: 700 10px Orbitron, monospace;
@@ -375,6 +366,7 @@ function addUi() {
   initMixer(link, toastMsg);
   initLights(link, ledSync, toastMsg);
   initLcmUi(link, toastMsg);
+  initControl(link, ledSync, toastMsg);
   reconnectSaved().then(ok => ok || (link.snap && scheduleRetry()));
 }
 

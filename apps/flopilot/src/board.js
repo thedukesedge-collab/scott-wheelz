@@ -176,6 +176,15 @@ export class Board {
       let n = '';
       try { for (;;) { const c = r.u8(); if (!c) break; n += String.fromCharCode(c); } } catch (e) {}
       this.lcmName = n;
+    } else if (msg === 129) {
+      // RF Glow COMMAND_LCM_BATTERY reply: 0, enabled, resistance, 11 points, cells, volts (u16 0.1 V), %
+      try {
+        if (r.u8() === 0) {
+          const on = r.u8() !== 0, res = r.u8();
+          for (let i = 0; i < 11; i++) r.u8();
+          this.battery = { on, res, cells: r.u8() };
+        }
+      } catch (e) {}
     } else if (msg === Rf.lights) {
       this.lights = r.u8();  // bit 0 = lights on, bit 1 = headlights on
     } else if (msg === Rf.realtimeData) {

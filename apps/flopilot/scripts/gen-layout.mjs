@@ -56,12 +56,14 @@ let sig = '';
 for (const f of fields) sig += f.n + f.t + f.x + (f.e || []).join('');
 const signature = crc32c(new TextEncoder().encode(sig));
 
-// only the LED fields keep their names / enum lists in full; the rest only need type info
+// every field keeps what reading / writing needs (type, scale, limits); only
+// the LED fields keep their long names / enum lists (the rest aren't shown)
 const keep = f => f.n.startsWith('leds.');
+const slim = f => { const o = { n: f.n, t: f.t, x: f.x }; for (const k of ['s', 'min', 'max']) if (f[k] !== undefined) o[k] = f[k]; if (f.e) o.e = f.e.map(() => ''); return o; };
 const out = {
   source: 'Refloat 1.2.3 src/conf/settings.xml',
   signature,
-  fields: fields.map(f => keep(f) ? f : { n: f.n, t: f.t, x: f.x }),
+  fields: fields.map(f => keep(f) ? f : slim(f)),
 };
 writeFileSync(join(here, '../src/refloat-layout.json'), JSON.stringify(out));
 console.log('refloat-layout.json: ' + fields.length + ' fields, signature 0x' + signature.toString(16));

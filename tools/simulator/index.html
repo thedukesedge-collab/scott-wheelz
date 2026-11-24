@@ -1021,6 +1021,7 @@ const TA = ['Default Tune', 'GTV / PintV / XRV - Default Tune', 'Funwheel X7 - D
   'Les Carroll - Mission Clone', 'Luke Austin - Full Send (Feb \'25)', 'Mitch\'s Chill Street Vibes', 'Nico - Fast Flow (Oct \'23)', 'Nico - Street Growler (June \'24)', 'Riley Johnson - Big Tire Float (May \'24)'];
 const NEONS = ['#39ff7a', '#b14cff', '#00f0ff', '#ff2bd6', '#ff8a1f', '#f5ff3b', '#ff2b4f', '#3b7bff'];
 $('taOpen').onclick = () => {
+  if (window.RF_TUNES && window.RF_TUNES.archive()) return;  // FloPilot: the real Tune Archive
   const card = (n, i) => { let d = ''; const m = n.match(/\s*\(([^)]*)\)\s*$/); if (m) { d = m[1]; n = n.slice(0, m.index); } const k = n.indexOf(' - '); const [t, r] = k > 0 ? [n.slice(k + 3), n.slice(0, k)] : [n, ''];
     return '<div class="taCard" style="border-color:' + NEONS[i % 8] + '"><div style="flex:1"><b style="color:' + NEONS[i % 8] + '">' + t.toUpperCase() + '</b>' + (r ? '<small>' + r + '</small>' : '') + '</div>' + (d ? '<i>' + d.toUpperCase() + '</i>' : '') + '</div>'; };
   const close = modal('<h3>TUNE ARCHIVE</h3><div style="text-align:center;font:10px Orbitron,monospace;color:var(--purple);margin-bottom:8px">TUNES DOWNLOADED ON 2/21/26 4:24 PM</div><div style="max-height:56vh;overflow:auto">' + TA.map(card).join('') + '</div><div class="btns"><button id="taRefresh">REFRESH</button><button class="pri" data-close>CLOSE</button></div>');
@@ -1307,7 +1308,7 @@ $('btnSettings').onclick = () => {
   $('mTestBeep').onclick = () => $('ctrlTestBeep').click();
   $('mFatal').onclick = () => { P.fatalPersist = P.fatalPersist === false; save(); beepR(); };
   $('mFatalQ').onclick = e => $('fatalHelp').onclick(e);
-  document.querySelectorAll('#modalBox [data-t]').forEach(x => x.onclick = () => toast(x.dataset.t));
+  document.querySelectorAll('#modalBox [data-t]').forEach(x => x.onclick = () => (window.RF_ACTION && window.RF_ACTION(x.dataset.t)) || toast(x.dataset.t));  // FloPilot: the real board
 };
 
 // ---------- peaks ----------
@@ -1330,7 +1331,7 @@ function renderTunes() {
     d.addEventListener('pointerdown', () => { if (name) { d.style.background = col; d.style.color = BG; } });
     const restore = () => renderTunesSoon();
     d.addEventListener('pointerleave', restore);
-    onHold(d, () => editTune(slot), () => { if (name) { P.activeTune = slot; save(); toast(name + ' applied'); } renderTunes(); });
+    onHold(d, () => editTune(slot), () => { if (name && !(window.RF_TUNES && window.RF_TUNES.apply(slot, name))) { P.activeTune = slot; save(); toast(name + ' applied'); } renderTunes(); });  // FloPilot: RF_TUNES applies the real tune
     box.appendChild(d);
   }
 }
@@ -1338,7 +1339,7 @@ let rtH = null; function renderTunesSoon() { clearTimeout(rtH); rtH = setTimeout
 function editTune(slot) {
   const name = P.tunes[slot] || '';
   modal('<h3>' + (name ? 'EDIT TUNE' : 'SAVE TUNE') + '</h3><div style="font-size:13px;margin-bottom:4px">Name:</div><input type="text" id="mTune" maxlength="30"><div style="font-size:13px;margin-top:12px">Button color: <b id="mColName"></b></div><div class="swatches" id="mSw"></div><div class="btns">' + (name ? '<button id="mErase">Erase</button>' : '') + '<button data-close>Close</button><button class="pri" data-ok>Save</button></div>', () => {
-    const v = $('mTune').value.trim(); if (v) { P.tunes[slot] = v; save(); toast(v + ' saved'); } renderTunes();
+    const v = $('mTune').value.trim(); if (v) { const e = window.RF_TUNES ? window.RF_TUNES.save(slot, v) : ''; if (e) toast(e); else { P.tunes[slot] = v; save(); toast(v + ' saved'); } } renderTunes();
   });
   $('mTune').value = name;
   const drawSw = () => {
@@ -1353,7 +1354,7 @@ function editTune(slot) {
     });
   };
   drawSw();
-  if ($('mErase')) $('mErase').onclick = () => { P.tunes[slot] = null; if (P.activeTune === slot) P.activeTune = 0; save(); toast(name + ' erased'); $('modal').classList.remove('on'); renderTunes(); };
+  if ($('mErase')) $('mErase').onclick = () => { if (window.RF_TUNES) window.RF_TUNES.erase(slot); P.tunes[slot] = null; if (P.activeTune === slot) P.activeTune = 0; save(); toast(name + ' erased'); $('modal').classList.remove('on'); renderTunes(); };
 }
 
 // ---------- board style ----------
@@ -2098,6 +2099,7 @@ const batPar = () => Math.max(1, Math.min(3, P.batPar));  // rf181: 1-3P
 const batOfSize = sz => CELLS.filter(c => c.size === sz).map(c => c.name).concat(P.batCustom && P.batCustom.size === sz ? ['MY CELL'] : []);
 function batPoints() { const b = batCur().points, sh = -3 * P.batStyle, p = b.map((x, i) => i ? Math.max(0, Math.min(255, x + sh)) : x); for (let i = 1; i < 11; i++) p[i] = Math.max(0, Math.min(p[i], p[i - 1] - 1)); return p; }
 const SIM_CELLS = 18;
+window.__simBat = () => ({ points: batPoints(), cell: batCur(), par: batPar() });  // FloPilot app: battery gauge to RF Glow
 const batAutoRes = () => Math.round(batCur().ir * SIM_CELLS / batPar() / 2);
 function batLive() {
   const v = S.volts * 18 / 20, mv = v * 1000 / SIM_CELLS, p = batPoints().map(x => 2500 + 10 * x);
@@ -2598,6 +2600,7 @@ $('ledHeadPill').onclick = ledToggle('ledHead');
 
 // ---------- flywheel ----------
 $('flyBtn').onclick = () => {
+  if (window.RF_ACTION && window.RF_ACTION('flywheel')) return;  // FloPilot: the real board
   if (S.mode === 'flywheel') { S.mode = 'ready'; toast('Flywheel off'); }
   else if (S.mode === 'ready' && !S.fpL && !S.fpR) { S.mode = 'flywheel'; toast('Flywheel on'); }
 };
