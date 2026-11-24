@@ -145,6 +145,8 @@ the board's own settings and features the way RF Glow's screen does.
 - Build 47: MAX AIR badge stays above the speedo after using the swipe-up
   window (placed from layout positions, re-placed on every re-layout).
 - Build 48: Settings switches: knobs centered in their tracks.
+- Build 49: LEDS: the NON-RGB HEAD/TAIL LIGHTS view switch removed (as in
+  RF Glow rf183); the tour's LIGHTS page no longer mentions it.
 
 **On hold**
 - Battery curve for boards without an SLCM (app % with cell curve + sag
