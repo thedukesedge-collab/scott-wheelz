@@ -53,6 +53,21 @@ setInterval(() => ledSync.tick(link.live && !link.installing), 1000);
 // horn / melodies / MIXER tiles through the motor (VESC firmware tones)
 const sound = new Sound(link, m => toastMsg(m));
 window.RF_SOUND = sound;
+// TEST BEEP / MIXER BEEP with a board connected: RF Glow's beep command
+// (COMMAND_LCM_TEST_BEEP: [1] = the controller's beeper, none = the light
+// module's). Stock Refloat 1.2.3 has no command to beep from an app.
+window.RF_BEEP = (which, quiet) => {
+  const b = link.board;
+  if (!b || !link.live) return false;  // no board: the simulator's sound
+  if (!(b.pkg && b.pkg.name === 'Refloat Glow')) {
+    if (!quiet) toastMsg('Test beep needs RF Glow on the board (gear › PACKAGE)');
+    return !quiet;
+  }
+  if (b.pkgState === 3) { if (!quiet) toastMsg('Stop the board to test the beeper'); return true; }
+  b.app(which === 'ctrl' ? [127, 1] : [127]);
+  if (!quiet) toastMsg(which === 'ctrl' ? 'Beep sent to the controller' : 'Beep sent to the light module');
+  return true;
+};
 // after a package install: read the config again, set the horn helper up again
 link.onPackageChanged = () => { ledSync.reset(link.board); sound.reset(link.board); };
 const DEMO = 'fpDemo';

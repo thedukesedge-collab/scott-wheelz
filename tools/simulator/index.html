@@ -1671,7 +1671,8 @@ $('mxBeep').onclick = () => {
   padRelease();
   if (mxRec && armed && !take) { take = { t0: Date.now(), ev: [] }; playT0 = 0; requestAnimationFrame(takeTick); }
   if (take) { const s = Date.now() - take.t0, e = Math.min(s + 200, REC_MS); if (e - s >= 40) take.ev.push([11, s, e]); }
-  toast(P.ctrlBeep === false ? 'Controller beeper is off (Settings › RIDE › BEEPER): the beep is silent' : 'Beep!');
+  if (!(P.ctrlBeep !== false && S.mode === 'ready' && window.RF_BEEP && window.RF_BEEP('ctrl', true)))  // FloPilot: the board beeps
+    toast(P.ctrlBeep === false ? 'Controller beeper is off (Settings › RIDE › BEEPER): the beep is silent' : 'Beep!');
   renderPad();
 };
 function mxMode(rec) { padRelease(); take = null; mxRec = rec; armed = rec && !P.rec.length; renderPad(); }
@@ -2197,6 +2198,7 @@ $('ledWin').addEventListener('click', e => {
 $('ctrlBeepPill').onclick = () => { P.ctrlBeep = P.ctrlBeep === false; save(); renderLedsSoft(); renderCtl(); };
 $('ctrlTestBeep').onclick = () => {
   if (P.ctrlBeep === false) { toast('Controller beeper is off - turn it on to hear the test beep'); return; }
+  if (window.RF_BEEP && window.RF_BEEP('ctrl')) return;  // FloPilot app with a board: the real beeper
   toast('Test beep sent to the controller');
   try {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
@@ -2207,6 +2209,7 @@ $('ctrlTestBeep').onclick = () => {
   } catch (e) {}
 };
 $('ledTestBeep').onclick = () => {
+  if (window.RF_BEEP && window.RF_BEEP('lcm')) return;  // FloPilot app with a board: the light module's beeper
   P.ledCfg = true; save(); renderLedsSoft();
   if (!P.ledBeep) { toast('Test beep sent - turn the LCM beeper on to hear it'); return; }
   toast('Test beep sent to the light module');
