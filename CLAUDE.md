@@ -257,3 +257,8 @@ Do not begin changing safety-critical firmware behavior as part of this naming a
   then milestone summaries. Keep the log in `apps/flopilot/CHANGELOG.md`
   (branch `flopilot`) up to date and correct it in place when something
   turns out wrong.
+- In-chat update notes (user, 2026-11-23): don't paste the long section 6
+  disclaimer in every chat reply. A short sign-off (build, safety-critical code
+  touched?, tests, hardware status, release status) is enough. The full
+  disclaimer still goes with any public release (release notes, README,
+  distributed files).
