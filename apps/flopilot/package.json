@@ -6,13 +6,14 @@
   "license": "GPL-3.0-or-later",
   "scripts": {
     "www": "node scripts/gen-layout.mjs && node scripts/build-www.mjs && esbuild src/app.js --bundle --format=iife --target=es2020 --outfile=www/app.js",
-    "test": "node scripts/test-protocol.mjs && esbuild scripts/test-config.mjs --bundle --platform=node --format=esm --outfile=.test/config.mjs --log-level=warning && node .test/config.mjs"
+    "test": "node scripts/test-protocol.mjs && node scripts/test-pkg.mjs && esbuild scripts/test-config.mjs --bundle --platform=node --format=esm --outfile=.test/config.mjs --log-level=warning && node .test/config.mjs"
   },
   "dependencies": {
     "@capacitor-community/bluetooth-le": "^6.0.1",
     "@capacitor/android": "^6.1.2",
     "@capacitor/core": "^6.1.2",
-    "@capacitor/ios": "^6.1.2"
+    "@capacitor/ios": "^6.1.2",
+    "pako": "^2.1.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.1.2",

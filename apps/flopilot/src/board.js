@@ -64,6 +64,8 @@ export class Board {
         }
       } else if (p[0] === Comm.fwVersion && p.length >= 3) {
         this.fw = { major: p[1], minor: p[2] };
+      } else if (p[0] === Comm.qmlErase || p[0] === Comm.qmlWrite || p[0] === Comm.lispErase || p[0] === Comm.lispWrite) {
+        if (this.onInstallReply) this.onInstallReply(p);
       } else if (p[0] === Comm.lispPrint) {
         if (this.onLispPrint) this.onLispPrint(String.fromCharCode(...p.slice(1)));
       } else if (p[0] === Comm.lispStats && p.length >= 7) {
@@ -87,6 +89,16 @@ export class Board {
     if (msg === Rf.info) {
       this.comms = 'ids';
       this.packageMissing = false;
+      // COMMAND_INFO v2: name (20), major, minor, patch, suffix (20)
+      try {
+        if (r.u8() === 2) {
+          r.u8();  // flags
+          const str = n => { let t = ''; for (let i = 0; i < n; i++) { const c = r.u8(); if (c) t += String.fromCharCode(c); } return t.replace(/\0.*$/, ''); };
+          const name = str(20);
+          const ver = r.u8() + '.' + r.u8() + '.' + r.u8() + str(20);
+          this.pkg = { name, version: ver };
+        }
+      } catch (e) {}
     } else if (msg === Rf.realtimeDataIds) {
       if (this.comms !== 'ids') return;
       const n1 = r.u8(); this.idleIds = Array.from({ length: n1 }, () => r.lenString());

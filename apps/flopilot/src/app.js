@@ -8,6 +8,7 @@ import { initLock } from './lock.js';
 import { searchBoard, boardName } from './scan.js';
 import { LedSync } from './ledsync.js';
 import { Sound } from './sound.js';
+import { initPkg } from './pkgui.js';
 
 const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';  // phone -> VESC
@@ -42,10 +43,12 @@ const ledSync = new LedSync({
   render: () => { try { window.__simRender && window.__simRender(); } catch (e) { console.warn(e); } },
   toast: m => toastMsg(m),
 });
-setInterval(() => ledSync.tick(link.live), 1000);
+setInterval(() => ledSync.tick(link.live && !link.installing), 1000);
 // horn / melodies / MIXER tiles through the motor (VESC firmware tones)
 const sound = new Sound(link, m => toastMsg(m));
 window.RF_SOUND = sound;
+// after a package install: read the config again, set the horn helper up again
+link.onPackageChanged = () => { ledSync.reset(link.board); sound.reset(link.board); };
 const DEMO = 'fpDemo';
 try { link.demo = localStorage.getItem(DEMO) === '1'; } catch (e) {}
 
@@ -123,7 +126,7 @@ async function connectOnce(deviceId, name) {
   try { localStorage.setItem(SAVED, JSON.stringify({ deviceId, name: link.name })); } catch (e) {}
   link.poll = setInterval(() => {
     const b = link.board;
-    if (!b) return;
+    if (!b || link.installing) return;  // package install: only its own packets
     b.tick(link.S || window.__sim);
     const was = link.live;
     link.live = b.live;
@@ -273,6 +276,7 @@ function addUi() {
   setInterval(refresh, 500);
   window.addEventListener('resize', placePill);
   initLock(link, toastMsg);
+  initPkg(link, toastMsg);
   reconnectSaved().then(ok => ok || (link.snap && scheduleRetry()));
 }
 

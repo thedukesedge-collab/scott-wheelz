@@ -23,6 +23,19 @@ const vp = 'user-scalable=no">';
 if (!html.includes(vp)) throw new Error('viewport meta not found');
 html = html.replace(vp, 'user-scalable=no, viewport-fit=cover">');
 
+// App-only naming: the app is FloPilot ("Flo" neon purple, "Pilot" neon
+// green). The VESC package keeps its own name; in the app it is "the FloPilot
+// package". Credits to Refloat / Float stay as they are.
+const BRAND_OLD = '<span style="color:#b14cff">RE</span><span style="color:#ead6ff">FLOAT</span><span style="color:#7a3fc0"> — </span><span style="color:#39ff7a">GLOW</span>';
+const BRAND_NEW = '<span style="color:#b14cff">Flo</span><span style="color:#39ff7a">Pilot</span>';
+const before = html;
+html = html.split(BRAND_OLD).join(BRAND_NEW)
+  .replace('<title>Refloat Glow Simulator</title>', '<title>FloPilot</title>')
+  .replace(/"REFLOAT GLOW"/g, '"FLOPILOT"')
+  .replace('New Refloat Glow releases show up here too.', 'New FloPilot package releases: gear icon › PACKAGE.')
+  .replace(/Refloat Glow/g, 'FloPilot');
+if (html === before || /Refloat Glow|REFLOAT GLOW|>GLOW</.test(html)) throw new Error('app naming: something was not renamed');
+
 mkdirSync(join(root, 'www'), { recursive: true });
 writeFileSync(join(root, 'www/index.html'), html);
 console.log('www/index.html written (' + html.length + ' bytes)');

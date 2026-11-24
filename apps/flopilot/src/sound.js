@@ -184,7 +184,7 @@ export class Sound {
   tick() {
     const link = this.link, b = link.board, now = Date.now();
     if (b !== this.board) this.reset(b);
-    if (!b || !link.live) return;
+    if (!b || !link.live || link.installing) return;
     const S = link.S || window.__sim, P = window.__simP ? window.__simP() : {};
 
     // what the app wants right now
