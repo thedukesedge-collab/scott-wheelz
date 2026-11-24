@@ -95,7 +95,13 @@ function fromConfig(P, c) {
     return b;
   });
   // which LED view: decided in lights.js from this and the light module's name
-  return { hw: g('hardware.leds.mode') };
+  const hw = g('hardware.leds.mode');
+  return {
+    hw,
+    // as RF Glow's rgbAvail / rfStatusAvail: controller-driven strips set up
+    rgb: hw !== 0 && (g('hardware.leds.front.count') > 0 || g('hardware.leds.rear.count') > 0),
+    status: hw !== 0 && g('hardware.leds.status.count') > 0,
+  };
 }
 
 export class LedSync {
@@ -132,7 +138,8 @@ export class LedSync {
     // an app change waiting to be written is newer: keep it
     if (this.last && Object.entries(desired(P)).some(([k, v]) => !same(v, this.last[k]))) { this.cfg = c; return; }
     this.cfg = c;
-    this.hw = fromConfig(P, c).hw;
+    const hw = fromConfig(P, c);
+    this.hw = hw.hw; this.rgbAvail = hw.rgb; this.statusAvail = hw.status;
     this.last = desired(P);
     this.lastSeen = JSON.stringify(this.last);
     this.render();

@@ -966,6 +966,7 @@ const oneCol = m => m >= 1 && m <= 4;
 // diameter / poles set in VESC Tool (pretend: 280 mm, 30 poles). Tucked away
 // at the bottom of CONTROL behind terms; a set limit shows on the speedo.
 const MS = { d: 0.28, poles: 30, gear: 1 };
+window.__simMS = () => MS;  // FloPilot app: the board's real wheel / poles / gear
 const msPerMph = () => (1000 / 60) / (Math.PI * MS.d) * (MS.poles / 2) * MS.gear / 0.621371192;
 function renderMs() {
   if (P.msTarget === undefined || P.msTarget < 40) P.msTarget = 45;
@@ -975,20 +976,21 @@ function renderMs() {
   $('msBadge').style.display = P.msCap ? '' : 'none'; $('msOffBadge').style.display = P.msCap ? 'none' : '';  // rf169 $('msBadge').textContent = '\u26A0 MAX ' + P.msCap + ' MPH';  // rf96: on the speedo
   $('msLink').style.color = P.msCap ? '#FFB300' : '#5c5470'; $('msLink').style.fontFamily = P.msCap ? 'Orbitron,monospace' : '';
   if (!$('msNow')) return;
-  $('msNow').textContent = (P.msCap ? 'Now: ' + P.msCap + ' mph (Max ERPM ' + Math.round(P.msCap * msPerMph()) + ')' : 'Now: no limit') + ' · wheel 280 mm, 30 poles';
+  $('msNow').textContent = (P.msCap ? 'Now: ' + P.msCap + ' mph (Max ERPM ' + Math.round(P.msCap * msPerMph()) + ')' : 'Now: no limit') + ' · wheel ' + Math.round(MS.d * 1000) + ' mm, ' + MS.poles + ' poles';
   $('msNow').style.color = P.msCap ? 'var(--green)' : '';
   $('msRemove').style.display = P.msCap ? '' : 'none';
   $('msSteps').innerHTML = ''; cuStep('msSteps', 'LIMIT', () => P.msTarget, 40, 75, 1, v => v + ' mph', v => { P.msTarget = v; save(); renderMs(); });
-  $('msMath').textContent = '= ' + Math.round(P.msTarget * msPerMph()) + ' ERPM (wheel 280 mm, 30 motor poles, gear 1). Check these match your board in VESC Tool: the speed on screen uses the same numbers.';
+  $('msMath').textContent = '= ' + Math.round(P.msTarget * msPerMph()) + ' ERPM (wheel ' + Math.round(MS.d * 1000) + ' mm, ' + MS.poles + ' motor poles, gear ' + MS.gear.toFixed(2) + '). Check these match your board in VESC Tool: the speed on screen uses the same numbers.';
 }
 function msPanel() {
   modal('<h3>MAX SPEED</h3><p class="ledHint" id="msNow" style="text-align:center"></p><div id="msSteps"></div><p class="ledHint" id="msMath" style="text-align:center"></p><p class="ledHint" id="msVerify" style="text-align:center"></p>'
     + '<div class="pills"><div class="pill on" id="msSet">SET LIMIT</div><div class="pill" id="msRemove">REMOVE</div></div>'
     + '<p class="ledHint">Caps how fast the tire spins up in the air off a jump. Uses VESC\'s Max ERPM. It also caps riding speed: set it well above your top speed.</p>'
     + '<div class="btns"><button class="pri" data-close>CLOSE</button></div>');
-  $('msSet').onclick = () => { P.msCap = P.msTarget; save(); renderMs(); $('msVerify').style.color = '#FFB300'; $('msVerify').textContent = 'Checking the board\u2026';
+  $('msSet').onclick = () => { if (window.RF_MAXSPEED && window.RF_MAXSPEED.set(P.msTarget, (t, ok) => { $('msVerify').style.color = ok ? 'var(--green)' : '#FFB300'; $('msVerify').textContent = t; renderMs(); })) return;  // FloPilot: the real board
+    P.msCap = P.msTarget; save(); renderMs(); $('msVerify').style.color = '#FFB300'; $('msVerify').textContent = 'Checking the board\u2026';
     setTimeout(() => { $('msVerify').style.color = 'var(--green)'; $('msVerify').textContent = '\u2714 Confirmed on the board: Max ERPM ' + Math.round(P.msCap * msPerMph()) + ' = ' + P.msCap + ' mph'; }, 1500); };
-  $('msRemove').onclick = () => { P.msCap = 0; save(); renderMs(); toast('Max speed limit removed'); };
+  $('msRemove').onclick = () => { if (window.RF_MAXSPEED && window.RF_MAXSPEED.remove((t, ok) => { $('msVerify').style.color = ok ? 'var(--green)' : '#FFB300'; $('msVerify').textContent = t; renderMs(); })) return; P.msCap = 0; save(); renderMs(); toast('Max speed limit removed'); };
   renderMs();
 }
 $('msLink').onclick = () => {

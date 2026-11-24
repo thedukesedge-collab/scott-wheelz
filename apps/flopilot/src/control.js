@@ -90,9 +90,6 @@ export function initControl(link, ledSync, toast) {
     if (!b || !link.live) return;
     const pk = document.querySelector('#modalBox [data-t="Package disabled (simulated)"]');
     if (pk) pk.textContent = b.pkgState === Rf.sDisabled ? 'ENABLE PACKAGE' : 'DISABLE PACKAGE';
-    // backups are VESC Tool's own storage: not shown with a board
-    const bk = document.querySelector('#modalBox [data-t="Backed up (simulated)"]');
-    if (bk && bk.closest('.card')) bk.closest('.card').style.display = 'none';
     const ht = document.querySelector('#modalBox [data-t="Handtest on (simulated)"]');
     if (ht) ht.textContent = b.pkgMode === Rf.mHandtest ? 'HANDTEST OFF' : 'HANDTEST ON';
   }, 0));

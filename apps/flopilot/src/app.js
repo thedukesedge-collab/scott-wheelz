@@ -13,6 +13,7 @@ import { initMixer } from './mixer.js';
 import { initLights } from './lights.js';
 import { initLcmUi } from './lcmui.js';
 import { initControl } from './control.js';
+import { initBackup } from './backup.js';
 
 const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';  // phone -> VESC
@@ -305,8 +306,6 @@ function addUi() {
     /* settings tabs: wrap onto two rows instead of running off the window */
     .modal .tabs { flex-wrap: wrap; gap: 6px !important; }
     .modal .tabs .pill { padding: 6px 10px; font-size: 11px; }
-    /* the max speed limit is a motor setting (VESC Tool): not shown with a board */
-    body.rmLive #msBadge, body.rmLive #msOffBadge, body.rmLive #msLink { display: none !important; }
     body.rmBlank #rmConnect { font-size: 15px; padding: 12px 26px; border-color: #39ff7a; color: #39ff7a;
       box-shadow: 0 0 14px rgba(57,255,122,.5); }
     #rmDemo { position: fixed; left: 50%; transform: translateX(-50%); z-index: 60; font: 700 10px Orbitron, monospace;
@@ -367,6 +366,7 @@ function addUi() {
   initLights(link, ledSync, toastMsg);
   initLcmUi(link, toastMsg);
   initControl(link, ledSync, toastMsg);
+  initBackup(link, ledSync, toastMsg);
   reconnectSaved().then(ok => ok || (link.snap && scheduleRetry()));
 }
 

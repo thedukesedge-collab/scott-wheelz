@@ -136,6 +136,10 @@ export class Board {
       } else if (p[0] === Comm.lispStats && p.length >= 7) {
         const f16 = i => ((p[i] << 8 | p[i + 1]) << 16 >> 16) / 100;
         if (this.onLispStats) this.onLispStats({ cpu: f16(1), heap: f16(3), mem: f16(5) });
+      } else if (p[0] === Comm.getMcconf) {
+        if (this.onMcconf) this.onMcconf(p.slice(1));  // motor config: signature + fields (mcconf.js)
+      } else if (p[0] === Comm.setMcconf) {
+        if (this.onMcconfAck) this.onMcconfAck();
       } else if (p[0] === Comm.getCustomConfig) {
         if (p[1] === 0 && this.onConfig) this.onConfig(p.slice(2));
       } else if (p[0] === Comm.setCustomConfig) {

@@ -157,7 +157,9 @@ assert.ok(isSlcm('VPBL-r37fc707') && isSlcm('VP-abc') && !isSlcm('Float LCM') &&
 assert.equal(pickSetup({ hw: 2, lcmName: 'VPBL-r37', rfGlow: true }), 'slcm');
 assert.equal(pickSetup({ hw: 2, lcmName: 'VPBL-r37', rfGlow: false }), 'refloat');  // stock: SLCM features need RF Glow
 assert.equal(pickSetup({ hw: 2, lcmName: 'Other LCM', rfGlow: true }), 'refloat');
-assert.equal(pickSetup({ hw: 1, lcmName: '', rfGlow: false }), 'refloat');
+assert.equal(pickSetup({ hw: 1, lcmName: '', rfGlow: false, rgb: true }), 'refloat');
+assert.equal(pickSetup({ hw: 3, lcmName: 'VPBL-r37', rfGlow: true, rgb: true }), 'refloat');  // SLCM + strips: Refloat's strips view
+assert.equal(pickSetup({ hw: 2, lcmName: 'VPBL-r37', rfGlow: true, rgb: false, status: false }), 'slcm');
 assert.equal(pickSetup({ hw: 0, lcmName: '', rfGlow: false }), 'none');
 assert.equal(pickSetup({ hw: null }), null);
 const vp = vpSettings({ ledHead: true, ledBar: true, ledBeep: true, snzStyle: 2, ledHeadPct: 80, ledIdlePct: 70, ledRidePct: 60,

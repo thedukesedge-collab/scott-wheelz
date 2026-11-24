@@ -10,17 +10,20 @@ import layout from './refloat-layout.json';
 export const SIGNATURE = layout.signature;
 const INT_SIZE = { 1: 1, 2: 1, 3: 2, 4: 2, 5: 4, 6: 4 };
 
+// any VESC config with a known layout (Refloat's by default; motor config:
+// mcconf.js); the layout's signature must match the board's
 export class RefloatConfig {
-  constructor(bytes) {
+  constructor(bytes, lay = layout) {
+    this.layout = lay;
     this.raw = Uint8Array.from(bytes);
     this.dv = new DataView(this.raw.buffer);
     this.idx = new Map();
     this.ok = false;
     if (this.raw.length < 4) return;
     this.signature = this.dv.getUint32(0);
-    if (this.signature !== SIGNATURE) return;
+    if (this.signature !== lay.signature) return;
     let o = 4;
-    for (const f of layout.fields) {
+    for (const f of lay.fields) {
       let size;
       if (f.t === 1) size = f.x === 7 ? 2 : f.x === 8 || f.x === 9 ? 4 : 0;
       else if (f.t === 2) size = INT_SIZE[f.x] || 0;
@@ -88,5 +91,5 @@ export class RefloatConfig {
     return this.raw.slice(o, o + 4).join() !== before;
   }
 
-  copy() { const c = new RefloatConfig(this.raw); return c; }
+  copy() { return new RefloatConfig(this.raw, this.layout); }
 }

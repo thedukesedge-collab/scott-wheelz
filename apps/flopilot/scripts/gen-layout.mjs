@@ -9,9 +9,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const xml = readFileSync(join(here, '../../../src/conf/settings.xml'), 'utf8');
-
-const ser = [...xml.matchAll(/<ser>([^<]+)<\/ser>/g)].map(m => m[1]);
+let xml = '';
 const unesc = s => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
 
 function param(name) {
@@ -42,7 +40,6 @@ function param(name) {
   }
 }
 
-const fields = ser.map(param);
 
 function crc32c(bytes) {
   let crc = 0xffffffff;
@@ -52,18 +49,20 @@ function crc32c(bytes) {
   }
   return (~crc) >>> 0;
 }
-let sig = '';
-for (const f of fields) sig += f.n + f.t + f.x + (f.e || []).join('');
-const signature = crc32c(new TextEncoder().encode(sig));
-
-// every field keeps what reading / writing needs (type, scale, limits); only
-// the LED fields keep their long names / enum lists (the rest aren't shown)
-const keep = f => f.n.startsWith('leds.');
-const slim = f => { const o = { n: f.n, t: f.t, x: f.x }; for (const k of ['s', 'min', 'max']) if (f[k] !== undefined) o[k] = f[k]; if (f.e) o.e = f.e.map(() => ''); return o; };
-const out = {
-  source: 'Refloat 1.2.3 src/conf/settings.xml',
-  signature,
-  fields: fields.map(f => keep(f) ? f : slim(f)),
-};
-writeFileSync(join(here, '../src/refloat-layout.json'), JSON.stringify(out));
-console.log('refloat-layout.json: ' + fields.length + ' fields, signature 0x' + signature.toString(16));
+function build(xmlPath, outName, keep, source) {
+  xml = readFileSync(join(here, xmlPath), 'utf8');
+  const fields = [...xml.matchAll(/<ser>([^<]+)<\/ser>/g)].map(m => param(m[1]));
+  let sig = '';
+  for (const f of fields) sig += f.n + f.t + f.x + (f.e || []).join('');
+  const signature = crc32c(new TextEncoder().encode(sig));
+  const slim = f => { const o = { n: f.n, t: f.t, x: f.x }; for (const k of ['s', 'min', 'max']) if (f[k] !== undefined) o[k] = f[k]; if (f.e) o.e = f.e.map(() => ''); return o; };
+  writeFileSync(join(here, '../src/' + outName), JSON.stringify({ source, signature, fields: fields.map(f => keep(f) ? f : slim(f)) }));
+  console.log(outName + ': ' + fields.length + ' fields, signature 0x' + signature.toString(16));
+}
+// Refloat's own config (same as stock 1.2.3): LED fields keep names / enum lists
+build('../../../src/conf/settings.xml', 'refloat-layout.json', f => f.n.startsWith('leds.'), 'Refloat 1.2.3 src/conf/settings.xml');
+// VESC motor config (Max ERPM, backups), from VESC Tool's own layouts
+// (vendor/vesc_tool, GPL-3.0, github.com/vedderb/vesc_tool res/config); the
+// signatures match the firmware's MCCONF_SIGNATURE (6.05: 1065524471, 6.06: 788332866)
+build('../vendor/vesc_tool/6.05/parameters_mcconf.xml', 'mcconf-6.05.json', () => false, 'VESC Tool res/config/6.05/parameters_mcconf.xml');
+build('../vendor/vesc_tool/6.06/parameters_mcconf.xml', 'mcconf-6.06.json', () => false, 'VESC Tool res/config/6.06/parameters_mcconf.xml');

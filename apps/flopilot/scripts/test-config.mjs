@@ -3,6 +3,8 @@
 import { RefloatConfig, SIGNATURE } from '../src/refcfg.js';
 import { LedSync } from '../src/ledsync.js';
 import layout from '../src/refloat-layout.json';
+import l605 from '../src/mcconf-6.05.json';
+import { McConf, parseMcconf } from '../src/mcconf.js';
 
 const assert0 = (c, m) => ok(c, m);
 const ok = (c, m) => { if (!c) { console.error('FAIL: ' + m); process.exit(1); } };
@@ -90,4 +92,32 @@ assert0(s2.writeValues({ kp: 22 }, 'ok') === '', 'write accepted');
 const w3 = new RefloatConfig(sent2[sent2.length - 1]);
 assert0(w3.get('kp') === 22 && Math.abs(w3.get('tiltback_duty') - 0.85) < 1e-4, 'only kp changed');
 Date.now = t0;
+// motor config (6.05 layout, signature = the firmware's MCCONF_SIGNATURE)
+assert0(l605.signature === 1065524471, '6.05 signature matches the firmware');
+const msz = 4 + l605.fields.reduce((a, f) => a + (f.t === 1 ? (f.x === 7 ? 2 : 4) : f.t === 2 ? [0, 1, 1, 2, 2, 4, 4][f.x] : 1), 0);
+const mraw = new Uint8Array(msz); new DataView(mraw.buffer).setUint32(0, l605.signature);
+const m0 = parseMcconf(mraw);
+assert0(m0 && m0.ok, 'mcconf parses');
+m0.set('si_wheel_diameter', 0.28); m0.set('si_motor_poles', 30); m0.set('si_gear_ratio', 1); m0.set('l_max_erpm', 100000); m0.set('l_min_erpm', -100000); m0.set('l_erpm_start', 0.8);
+m0.set('l_current_max', 60);
+let mflash = m0.raw.slice();
+const mboard = { pkgState: 2, send(p) {
+  if (p[0] === 14) setTimeout(() => mboard.onMcconf(mflash.slice()), 1);
+  if (p[0] === 13) { mflash = Uint8Array.from(p.slice(1)); setTimeout(() => mboard.onMcconfAck(), 1); }
+} };
+const realTimeout = globalThis.setTimeout;
+Date.now = t0;
+const mc = new McConf({ live: true }, () => {});
+mc.attach(mboard);
+const e1 = await mc.setLimit(45);
+assert0(e1 === '', 'limit set: ' + e1);
+const after = parseMcconf(mflash);
+const want = Math.round(45 / 0.621371 * (1000 / 60) / (Math.PI * 0.28) * 15);
+assert0(Math.abs(after.get('l_max_erpm') - want) < 2 && Math.abs(after.get('l_min_erpm') + want) < 2 && Math.abs(after.get('l_erpm_start') - 0.95) < 1e-4, 'Max / Min ERPM and ERPM start');
+assert0(Math.abs(after.get('l_current_max') - 60) < 1e-4, 'other motor settings untouched');
+assert0(mc.capMph === 45, 'cap reads back as 45 mph');
+mboard.pkgState = 3;
+assert0((await mc.removeLimit()).startsWith('Stop riding'), 'no motor writes while riding');
+mboard.pkgState = 2;
+assert0((await mc.removeLimit()) === '' && parseMcconf(mflash).get('l_max_erpm') === 100000, 'limit removed');
 console.log('config tests passed (' + layout.fields.length + ' fields, ' + size + ' bytes)');

@@ -18,11 +18,13 @@ import { Rf } from './vesc.js';
 const RF_GLOW = 'Refloat Glow';
 export const isSlcm = name => /^VP(BL)?-/.test(name || '');
 
-export function pickSetup({ hw, lcmName, rfGlow }) {
+export function pickSetup({ hw, lcmName, rfGlow, rgb, status }) {
   if (hw === null || hw === undefined) return null;  // config not read yet: leave the view alone
-  if (isSlcm(lcmName) && rfGlow) return 'slcm';
+  // RF Glow's slcmPresets: an SLCM and no controller-driven strips
+  if (isSlcm(lcmName) && rfGlow && !rgb && !status) return 'slcm';
+  if (rgb || status) return 'refloat';  // Refloat's own LED strips (Thor etc.)
   if (hw === 0) return 'none';
-  return 'refloat';
+  return 'refloat';                      // a light module that isn't an SLCM (or stock Refloat)
 }
 
 // RF Glow COMMAND_LCM_VP_SETTINGS, the same 30 bytes as ledSender.send() in ui.qml.in
@@ -50,7 +52,7 @@ export function initLights(link, ledSync, toast) {
     const b = link.board, P = window.__simP ? window.__simP() : null;
     if (!b || !link.live || link.installing || !P) return;
     const rfGlow = !!(b.pkg && b.pkg.name === RF_GLOW);
-    const setup = pickSetup({ hw: ledSync.hw, lcmName: b.lcmName, rfGlow });
+    const setup = pickSetup({ hw: ledSync.hw, lcmName: b.lcmName, rfGlow, rgb: ledSync.rgbAvail, status: ledSync.statusAvail });
     if (setup && P.simSetup !== setup) {
       P.simSetup = setup;
       try { window.__simRender && window.__simRender(); } catch (e) {}

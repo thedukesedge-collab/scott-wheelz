@@ -248,3 +248,8 @@ Do not begin changing safety-critical firmware behavior as part of this naming a
   side stays as it is, tied to the latest SLCM firmware, unless the user says so.
 - No copyrighted song melodies in the package (public-domain or original only).
 - The user takes no credit and makes no money from this project.
+- FloPilot app updates (user, 2026-11-23): every few changes give a brief
+  summary of the day's app changes; over time roll up to daily, then weekly,
+  then milestone summaries. Keep the log in `apps/flopilot/CHANGELOG.md`
+  (branch `flopilot`) up to date and correct it in place when something
+  turns out wrong.

@@ -16,6 +16,8 @@ export const Comm = {
   lispSetRunning: 133,
   lispStats: 134,
   lispPrint: 135,
+  setMcconf: 13,
+  getMcconf: 14,
   getCustomConfig: 93,
   setCustomConfig: 95,
 };
