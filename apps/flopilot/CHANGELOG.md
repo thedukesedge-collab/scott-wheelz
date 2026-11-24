@@ -54,7 +54,7 @@ the board's own settings and features the way RF Glow's screen does.
 - Build 17: gear › PACKAGE installs the latest RF Glow release over
   Bluetooth (needs a tagged release; none yet).
 - Build 18: MIXER live tiles in real time on RF Glow; stock boards choose
-  LIVE ON PHONE / ON BOARD.
+  LIVE ON PHONE / ON BOARD. (Changed in build 32: phone is the default for all boards.)
 - Build 19: detects the light module (SLCM) and picks the LEDS view; SLCM
   settings sent to RF Glow.
 - Build 20: real SLCM check and Bluetooth update (LEDS › UPDATES). Found a
@@ -78,6 +78,9 @@ the board's own settings and features the way RF Glow's screen does.
   swipe-up page says so.
 - Build 31: connected board: the name pill over the speedo is now a small
   green dot right after the board name (tap it to disconnect).
+- Build 32: MIXER tiles play on the phone by default (every board), with
+  LIVE ON BOARD as the option and a note about the half-second delay on
+  stock Refloat (real time with RF Glow).
 
 **On hold**
 - Basic Tuning redesign (waiting for the user's example tunes).

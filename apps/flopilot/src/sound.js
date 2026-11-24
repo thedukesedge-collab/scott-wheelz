@@ -151,17 +151,17 @@ export class Sound {
     this.tile = null;
     return true;
   }
-  // MIXER tiles (live). RF Glow on the board: its own live tone command, sent
-  // every 100 ms - real time. Stock Refloat: the rider's choice (mixLive):
-  // 'phone' (default) = the phone plays it, 'board' = the motor plays it
-  // through the REPL, about half a second late.
+  // MIXER tiles (live), the rider's choice (mixLive): 'phone' (default) = the
+  // phone plays them; 'board' = the motor plays them: RF Glow's own live tone
+  // command (real time), or on stock Refloat through the REPL (about half a
+  // second late).
   live(hz, volume, level) {
+    if (mixLive() !== 'board') return false;  // default: the phone plays it
     if (this.rfGlow()) {
       if (this.running()) return true;
       this.glowTile = { level: Math.max(1, Math.min(10, level || 1)), t0: Date.now(), at: 0 };
       return true;
     }
-    if (mixLive() !== 'board') return false;  // the phone plays it
     if (this.state !== 'ready') { this.explain(); return true; }
     if (this.running()) return true;
     this.tile = { hz: clamp(hz, 300, 1000), v: clamp(volume, 0.25, MEL_MAX_V), t0: Date.now(), sent: 0 };

@@ -141,6 +141,8 @@ S.mode = 'ready'; S.horn = false;
 board.pkg = { name: 'Refloat', version: '1.2.3' };
 assert.equal(snd.live(392, 1, 3), false);
 board.pkg = { name: 'Refloat Glow', version: '1.2.3-rf181' };
+assert.equal(snd.live(392, 1, 3), false);  // default: the phone, RF Glow too
+globalThis.localStorage = { getItem: () => 'board', setItem() {} };
 sent.length = 0;
 assert.equal(snd.live(392, 1, 3), true);
 run(snd, 500); snd.liveStop(); run(snd, 300);
@@ -148,6 +150,7 @@ const g = glowTones();
 assert.ok(g.filter(x => x === 3).length >= 4 && g.filter(x => x === 3).length <= 6, 'tone every 100 ms: ' + g.join());
 assert.equal(g[g.length - 1], 0);
 board.pkg = null;
+delete globalThis.localStorage;
 Date.now = realNow;
 delete globalThis.window;
 
