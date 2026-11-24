@@ -3104,7 +3104,7 @@ function updateDom() {
   $('battFill').style.boxShadow = '0 0 ' + (8 + (1 - lvl) * 14) + 'px hsl(' + hue + ',100%,55%)';
   $('battPct').textContent = Math.round(S.battPct) + '%';
   $('battV').textContent = S.volts.toFixed(1) + 'V';
-  $('boardName').textContent = P.name;
+  $('boardName').textContent = window.RF_LINK && window.RF_LINK.displayName ? window.RF_LINK.displayName(P.name) : P.name;  // FloPilot app
   // peaks
   $('pkSpeed').querySelector('.v').textContent = fx1(P.peakSpeed) + 'mph';
   $('pkDuty').querySelector('.v').textContent = fx1(P.peakDuty * 100) + '%';

@@ -40,6 +40,9 @@ const link = {
   },
 };
 window.RF_LINK = link;
+// name at the top left: the one you gave it (pencil); until then, with a
+// board connected, its Bluetooth name instead of the demo's "Growler"
+link.displayName = name => (link.live && (!name || name === 'Growler') ? link.name || name : name);
 // LEDS tab <-> Refloat's own LED settings on the board (stock Refloat 1.2.3 too)
 const ledSync = new LedSync({
   getP: () => (window.__simP ? window.__simP() : null),
@@ -237,6 +240,11 @@ function addUi() {
     #rmConnect[data-look=busy] { border-color: #ffd23f; color: #ffd23f; }
     #rmConnect[data-look=warn] { border-color: #ff8a1f; color: #ff8a1f; }
     /* no board: a bigger CONNECT prompt */
+    /* no board (or reconnecting): Home Screen dimmed, no board name; the
+       buttons in the name row (edit, settings) stay bright and usable */
+    body.rmBlank #hud > *:not(#nameRow) { opacity: .28; filter: saturate(.4); transition: opacity .3s; }
+    body.rmBlank #mainBg { opacity: .45; }
+    body.rmBlank #boardName, body.rmBlank #lightsOverride { visibility: hidden; }
     body.rmBlank #rmConnect { font-size: 15px; padding: 12px 26px; border-color: #39ff7a; color: #39ff7a;
       box-shadow: 0 0 14px rgba(57,255,122,.5); }
     #rmDemo { position: fixed; left: 50%; transform: translateX(-50%); z-index: 60; font: 700 10px Orbitron, monospace;
