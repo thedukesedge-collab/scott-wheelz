@@ -61,9 +61,10 @@ export function initLights(link, ledSync, toast) {
       told = b;
       toast('SLCM light module found. Its animations, colors and more need RF Glow: gear › PACKAGE');
     }
-    // SLCM settings to RF Glow: once the LEDS tab was used (as the package does),
-    // not while APPLY is pending, on a change and every 5 s
-    if (rfGlow && setup === 'slcm' && P.ledCfg && !P.ledPending) {
+    // light settings to RF Glow (SLCM view, and the controller-LED view's
+    // SNOOZE rows): once the LEDS tab was used (as the package does), not
+    // while APPLY is pending, on a change and every 5 s
+    if (rfGlow && (setup === 'slcm' || setup === 'refloat') && P.ledCfg && !P.ledPending) {
       const d = vpSettings(P), key = d.join();
       const now = Date.now();
       if (key !== lastSent || now - sentAt > 5000) {

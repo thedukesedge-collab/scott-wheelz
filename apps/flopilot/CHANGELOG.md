@@ -83,6 +83,10 @@ the board's own settings and features the way RF Glow's screen does.
   stock Refloat (real time with RF Glow).
 - Build 33: CONNECT BOARD and DEMO pills hide while the SIMULATOR panel is
   open (they were covering its buttons).
+- Build 34: SNOOZE works like RF Glow: with RF Glow and controller LEDs
+  (e.g. Thor) the SNOOZE settings now reach the board (before, only the SLCM
+  view sent light settings). On stock Refloat the SNOOZE rows hide, with a
+  note that SNOOZE needs RF Glow.
 
 **On hold**
 - Basic Tuning redesign (waiting for the user's example tunes).

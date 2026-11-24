@@ -315,6 +315,9 @@ function addUi() {
       background: rgba(10,6,20,.85); white-space: nowrap; }
     body.rmLive #rmDemo { display: none; }
     /* the simulator's drive panel is for the demo board only */
+    body.rmStock #ledsSnzCard, body.rmStock #headSnzTitle, body.rmStock #ledBreathBox, body.rmStock #rfStSnz { display: none !important; }
+    #rmSnzNote { display: none; text-align: center; }
+    body.rmStock.rmRfView #rmSnzNote { display: block; }
     body.rmLive #simBtn, body.rmLive #sim, body.rmBlank #simBtn, body.rmBlank #sim { display: none !important; }`;
   document.head.appendChild(style);
   pill = document.createElement('div');
@@ -370,6 +373,20 @@ function addUi() {
   const refresh = () => {
     document.body.classList.toggle('rmLive', !!link.live);
     document.body.classList.toggle('rmBlank', link.blank);
+    // stock Refloat has no snooze: those rows hide, with a note (RF Glow has it)
+    const bd = link.board, simP = window.__simP ? window.__simP() : null;
+    document.body.classList.toggle('rmStock', !!(link.live && bd && bd.pkg && bd.pkg.name !== 'Refloat Glow'));
+    document.body.classList.toggle('rmRfView', !!(simP && simP.simSetup === 'refloat'));
+    if (!document.getElementById('rmSnzNote')) {
+      const card = document.getElementById('ledsSnzCard');
+      if (card) {
+        const n = document.createElement('p');
+        n.id = 'rmSnzNote';
+        n.className = 'ledHint';
+        n.textContent = 'SNOOZE (lights dim before the board powers off) needs RF Glow: gear › PACKAGE.';
+        card.after(n);
+      }
+    }
     demoPill.textContent = link.demo ? 'DEMO ON · TAP TO STOP' : '▶ DEMO';
     placePill();
   };
