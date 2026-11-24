@@ -29,7 +29,7 @@ assert.equal(pkg.name, PKG_NAME);
 assert.equal(check(pkg), '');
 assert.equal(pkg.qmlIsFullscreen, true);
 assert.deepEqual([...pkg.lispData], [...lisp]);
-assert.ok(check({ name: 'Refloat', lispData: lisp, qmlFile: 'x' }).includes('not the FloPilot'));
+assert.ok(check({ name: 'Refloat', lispData: lisp, qmlFile: 'x' }).includes('not RF Glow'));
 
 // qml blob = qCompress of the two imports + the file
 const blob = qmlBlob('Item { }', deflate);

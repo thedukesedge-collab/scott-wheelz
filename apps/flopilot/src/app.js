@@ -9,6 +9,7 @@ import { searchBoard, boardName } from './scan.js';
 import { LedSync } from './ledsync.js';
 import { Sound } from './sound.js';
 import { initPkg } from './pkgui.js';
+import { initMixer } from './mixer.js';
 
 const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';  // phone -> VESC
@@ -277,6 +278,7 @@ function addUi() {
   window.addEventListener('resize', placePill);
   initLock(link, toastMsg);
   initPkg(link, toastMsg);
+  initMixer(link, toastMsg);
   reconnectSaved().then(ok => ok || (link.snap && scheduleRetry()));
 }
 

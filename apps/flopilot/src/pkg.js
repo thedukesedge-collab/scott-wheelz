@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// PACKAGE tab (gear icon): install the latest FloPilot package release on the
+// PACKAGE tab (gear icon): install the latest RF Glow (the package) release on the
 // board, the way VESC Tool installs a .vescpkg (vesc_tool codeloader.cpp):
 // QML UI erase + write, LispBM code erase + write, start the code again.
 // Only the newest tagged release (the rider channel, see RELEASING.md), only
@@ -54,7 +54,7 @@ export function framed(body) {
 }
 
 export function check(pkg) {
-  if (pkg.name !== PKG_NAME) return 'This file is not the FloPilot package (' + (pkg.name || 'no name') + ')';
+  if (pkg.name !== PKG_NAME) return 'This file is not RF Glow (' + (pkg.name || 'no name') + ')';
   if (!pkg.lispData || !pkg.lispData.length || !pkg.qmlFile) return 'The package file is incomplete';
   return '';
 }

@@ -134,6 +134,20 @@ sent.length = 0;
 snd.melody(Array.from({ length: 64 }, (_, k) => [k % 2 ? 0 : 10, 2000]), 1);
 run(snd, 700);
 assert.ok(repl()[0].length < 500);
+// MIXER live tiles: RF Glow board = its live tone every 100 ms, then level 0;
+// stock board = the phone plays it (default)
+const glowTones = () => sent.map(b => body([...b])).filter(p => p[0] === Comm.customAppData && p[2] === 125).map(p => p[3]);
+S.mode = 'ready'; S.horn = false;
+board.pkg = { name: 'Refloat', version: '1.2.3' };
+assert.equal(snd.live(392, 1, 3), false);
+board.pkg = { name: 'Refloat Glow', version: '1.2.3-rf181' };
+sent.length = 0;
+assert.equal(snd.live(392, 1, 3), true);
+run(snd, 500); snd.liveStop(); run(snd, 300);
+const g = glowTones();
+assert.ok(g.filter(x => x === 3).length >= 4 && g.filter(x => x === 3).length <= 6, 'tone every 100 ms: ' + g.join());
+assert.equal(g[g.length - 1], 0);
+board.pkg = null;
 Date.now = realNow;
 delete globalThis.window;
 

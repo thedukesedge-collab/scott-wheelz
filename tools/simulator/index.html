@@ -1587,7 +1587,7 @@ const tileCol = l => l === 11 ? '#ff8a1f' : (l => { const f = (l - 1) / 9; retur
 let hold = null, liveOsc = null, mxRec = false, armed = false, take = null, playT0 = 0;
 function liveStart(level) {
   if (toneRest) return;
-  if (window.RF_SOUND && window.RF_LINK && window.RF_LINK.live && window.RF_SOUND.live(noteHz(level), melodyVolume())) return;  // FloPilot: the board plays it
+  if (window.RF_SOUND && window.RF_LINK && window.RF_LINK.live && window.RF_SOUND.live(noteHz(level), melodyVolume(), level)) return;  // FloPilot: the board plays it
   try {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     const ac = playMelody.ac || (playMelody.ac = new AC()); if (ac.state === 'suspended') ac.resume();

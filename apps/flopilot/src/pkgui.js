@@ -35,7 +35,7 @@ const onBoard = () => {
   return b.pkg || null;
 };
 const isOurs = p => p && p.name === PKG_NAME;
-const shown = p => !p ? 'Not connected' : isOurs(p) ? 'FloPilot ' + p.version : p.name + ' ' + p.version;
+const shown = p => !p ? 'Not connected' : isOurs(p) ? 'RF Glow ' + p.version : p.name + ' ' + p.version;
 
 async function fetchLatest() {
   try {
@@ -65,13 +65,13 @@ function draw(pg) {
   const l = latest;
   const same = p && isOurs(p) && l && l.version && p.version === l.version;
   pg.innerHTML = '<div class="card"><b>ON THE BOARD</b><div class="big" style="margin-top:4px">' + esc(shown(p)) + '</div>'
-    + (p && !isOurs(p) ? '<p class="dim">Installing the FloPilot package adds the horn settings, melodies, light module (SLCM) features and more. Your Refloat settings are kept.</p>' : '')
+    + (p && !isOurs(p) ? '<p class="dim">Installing RF Glow adds the horn settings, melodies, light module (SLCM) features and more. Your Refloat settings are kept.</p>' : '')
     + '</div><div class="card"><b>LATEST RELEASE</b>'
     + (!l ? '<p class="dim">Checking…</p>'
-      : l.none ? '<p class="dim">No release yet. Tested releases show up here.</p>'
+      : l.none ? '<p class="dim">No release yet. Tested RF Glow releases show up here.</p>'
       : l.error ? '<p class="dim">' + esc(l.error) + '</p>'
-      : '<div class="big" style="margin-top:4px">FloPilot ' + esc(l.version) + '</div>' + (same ? '<p class="dim">Already on your board.</p>' : '')
-        + (l.notes ? '<div class="notes">' + esc(l.notes.replace(/Refloat Glow/g, 'FloPilot')) + '</div>' : ''))
+      : '<div class="big" style="margin-top:4px">RF Glow ' + esc(l.version) + '</div>' + (same ? '<p class="dim">Already on your board.</p>' : '')
+        + (l.notes ? '<div class="notes">' + esc(l.notes.replace(/Refloat Glow/g, 'RF Glow')) + '</div>' : ''))
     + '<div class="pills" style="margin-top:8px"><span class="pill" id="pkCheck">CHECK AGAIN</span>'
     + (l && l.url ? '<span class="pill on" id="pkInstall">' + (same ? 'REINSTALL' : 'INSTALL') + '</span>' : '') + '</div></div>';
   pg.querySelector('#pkCheck').onclick = () => { latest = null; draw(pg); fetchLatest().then(r => { latest = r; draw(pg); }); };
@@ -99,7 +99,7 @@ const closeOverlay = () => { const o = document.getElementById('fpInst'); if (o)
 function confirmInstall(pg) {
   const why = blocked();
   if (why) return toast(why);
-  const o = overlay('<h3>INSTALL FLOPILOT ' + esc(latest.version) + '</h3>'
+  const o = overlay('<h3>INSTALL RF GLOW ' + esc(latest.version) + '</h3>'
     + '<p>This replaces the package on your board. It takes about a minute.</p><ul>'
     + '<li>Board on a stand or on its side, <b>nobody on it</b>.</li>'
     + '<li>Keep the phone close and FloPilot open until it says done.</li>'
@@ -127,7 +127,7 @@ async function run(pg) {
     await new Promise(r => setTimeout(r, 1500));
     if (link.board) { link.board.pkg = null; link.board.comms = 'info'; link.board.started = Date.now(); }  // read the new package
     if (link.onPackageChanged) link.onPackageChanged();
-    overlay('<h3>DONE</h3><p>FloPilot ' + esc(latest.version) + ' is on your board. It restarts its package now; give it a few seconds.</p><div class="row"><div class="btn go" id="piOk">OK</div></div>')
+    overlay('<h3>DONE</h3><p>RF Glow ' + esc(latest.version) + ' is on your board. It restarts its package now; give it a few seconds.</p><div class="row"><div class="btn go" id="piOk">OK</div></div>')
       .querySelector('#piOk').onclick = closeOverlay;
   } catch (e) {
     overlay('<h3>NOT INSTALLED</h3><p>' + esc(e && e.message || e) + '</p><p>If it stopped partway, the board has no working package until you install again: it won\'t balance. Try again, or use VESC Tool.</p><div class="row"><div class="btn" id="piOk">CLOSE</div><div class="btn go" id="piAgain">TRY AGAIN</div></div>');

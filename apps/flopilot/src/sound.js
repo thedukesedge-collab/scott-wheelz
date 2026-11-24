@@ -26,6 +26,9 @@
 //   (0.4-4 V, 300-1000 Hz; melodies / tiles at most 2.5 V)
 import { Comm, cString } from './vesc.js';
 
+const RF_GLOW = 'Refloat Glow';  // RF Glow's package name on the board
+const LIVE_TONE = 125;           // RF Glow COMMAND_LIVE_TONE
+export const mixLive = () => { try { return localStorage.getItem('fpMixLive') || 'phone'; } catch (e) { return 'phone'; } };
 export const REPL_GAP = 600;  // ms between REPL commands (firmware drops < 500 ms)
 const STALE = 1.4;            // s without keepalive before the board stops a tone
 export const MEM_MAX = 85;    // % Lisp memory in use: above this, stay off
@@ -74,6 +77,8 @@ export class Sound {
     this.tile = null;
     this.stopNeeded = false;
     this.mel = null;        // melody waiting to be sent
+    this.glowTile = null;
+    this.glowStop = 0;
     this.melUntil = 0;
     this.tiltSent = '0.000';  // nothing to send until the slider moves
     this.tiltZeros = 3;
@@ -146,13 +151,42 @@ export class Sound {
     this.tile = null;
     return true;
   }
-  live(hz, volume) {
+  // MIXER tiles (live). RF Glow on the board: its own live tone command, sent
+  // every 100 ms - real time. Stock Refloat: the rider's choice (mixLive):
+  // 'phone' (default) = the phone plays it, 'board' = the motor plays it
+  // through the REPL, about half a second late.
+  live(hz, volume, level) {
+    if (this.rfGlow()) {
+      if (this.running()) return true;
+      this.glowTile = { level: Math.max(1, Math.min(10, level || 1)), t0: Date.now(), at: 0 };
+      return true;
+    }
+    if (mixLive() !== 'board') return false;  // the phone plays it
     if (this.state !== 'ready') { this.explain(); return true; }
     if (this.running()) return true;
     this.tile = { hz: clamp(hz, 300, 1000), v: clamp(volume, 0.25, MEL_MAX_V), t0: Date.now(), sent: 0 };
     return true;
   }
-  liveStop() { if (this.tile) { this.tile = null; this.stopNeeded = true; } }
+  liveStop() {
+    if (this.glowTile) { this.glowTile = null; this.glowStop = 3; }  // level 0, sent a few times
+    if (this.tile) { this.tile = null; this.stopNeeded = true; }
+  }
+  rfGlow() { const b = this.link.board; return !!(b && this.link.live && b.pkg && b.pkg.name === RF_GLOW); }
+
+  // the package's live tone (COMMAND_LIVE_TONE): level 1-10, 0 = stop; the
+  // package stops by itself 0.3 s after the last one, caps a note at 2 s and
+  // plays only with the board stopped
+  glowTick(now) {
+    const b = this.link.board;
+    if (!b) return;
+    if (this.glowTile) {
+      if (now - this.glowTile.t0 > 2000 || this.running()) { this.liveStop(); return; }
+      if (now - this.glowTile.at >= 100) { this.glowTile.at = now; b.app([LIVE_TONE, this.glowTile.level]); }
+    } else if (this.glowStop > 0) {
+      this.glowStop--;
+      b.app([LIVE_TONE, 0]);
+    }
+  }
 
   // a press while unavailable: say why (at most every 5 s)
   explain() {
@@ -185,6 +219,7 @@ export class Sound {
     const link = this.link, b = link.board, now = Date.now();
     if (b !== this.board) this.reset(b);
     if (!b || !link.live || link.installing) return;
+    this.glowTick(now);
     const S = link.S || window.__sim, P = window.__simP ? window.__simP() : {};
 
     // what the app wants right now
