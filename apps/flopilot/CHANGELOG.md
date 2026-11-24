@@ -147,6 +147,17 @@ the board's own settings and features the way RF Glow's screen does.
 - Build 48: Settings switches: knobs centered in their tracks.
 - Build 49: LEDS: the NON-RGB HEAD/TAIL LIGHTS view switch removed (as in
   RF Glow rf183); the tour's LIGHTS page no longer mentions it.
+- Build 50: home screen stops shifting around:
+  - The simulator page's functions the app relies on (window.modal /
+    applySheet / layout) weren't reachable (the page's script is a closure),
+    so the MIXER info window never opened and re-placing after a re-layout
+    didn't happen. Now exposed, with RF_AFTER_LAYOUT / RF_AFTER_NOTES hooks.
+  - MAX AIR on: the speedo moves down (and shrinks) by the box's height, so
+    the box sits fully above it, like RF Glow rf184.
+  - HORN fit check moved into the page's own layout pass (no second pass
+    0.7 s later, so nothing jumps when the swipe-up window moves or tabs
+    change).
+  - DEMO: CONNECT BOARD and "■ STOP" sit in the board name row when they fit.
 
 **On hold**
 - Battery curve for boards without an SLCM (app % with cell curve + sag

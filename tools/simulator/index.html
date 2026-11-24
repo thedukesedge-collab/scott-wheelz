@@ -660,6 +660,8 @@ const S = {
 };
 const running = () => S.mode === 'running';
 window.__sim = S;  // for automated checks
+// FloPilot: the app layer calls these (the simulator's script is a closure)
+window.modal = (h, ok) => modal(h, ok); window.applySheet = () => applySheet(); window.simLayout = () => layout(); window.setSheet = f => setSheet(f);
 window.__simP = () => P;  // FloPilot app: ride peaks / units for the lock screen
 window.__simRender = () => { save(); renderLeds(); renderRgb(); renderCtl(); if (typeof renderDmf === 'function') renderDmf(); if (typeof renderMs === 'function') renderMs(); };  // FloPilot app: LED settings read from the board
 
@@ -712,9 +714,11 @@ function layout() {
   const midH = 1.1 * u, tiltH = 0.85 * u, hornH = 1.75 * u;
   // same budget as the package: (0.8 + 1.1 + 0.12 + 1.1 + 0.85 + 0.1 + 1.75 + 0.5 + 1.0) units + the stats row
   const fixed = 7.32 * u + Math.max(footS + 1.5 * u, pitchS);
-  speedoH = clamp(hudH - fixed, 1.8 * u, 7 * u);
+  // FloPilot: MAX AIR on: room above the speedo for its box
+  const airRes = typeof window.RF_AIRON === 'function' && window.RF_AIRON() ? 1.1 * u : 0;
+  speedoH = clamp(hudH - fixed - airRes, 1.8 * u, 7 * u);
   speedoW = rootW;
-  css($('speedoWrap'), { height: px(speedoH), width: px(speedoW) });
+  css($('speedoWrap'), { height: px(speedoH), width: px(speedoW), marginTop: px(airRes) });
   ctxSpeedo = sizeCanvas($('speedo'), speedoW, speedoH);
   for (const id of ['pkSpeed', 'pkDuty']) {
     css($(id), { width: px(2.0 * u), height: px(0.95 * u), paddingTop: px(0.04 * u) });
@@ -795,7 +799,13 @@ function applySheet() {
   // notch / home-bar safe area) the HUD's rows can need more than its height:
   // scale them down so the HORN stays above the swipe-up window
   const need = Math.max(full, $('hud').scrollHeight);
-  $('hud').style.transform = 'scale(' + Math.min(1, avail / Math.max(1, full)) * (full / need) + ')';
+  let sc = Math.min(1, avail / Math.max(1, full)) * (full / need);
+  $('hud').style.transform = 'scale(' + sc + ')';
+  // FloPilot: the HORN must end above the (closed) swipe-up window: shrink a
+  // bit more right here if it doesn't (no second pass, so nothing jumps)
+  { const hb = $('horn').offsetTop + $('horn').offsetHeight + 0.15 * u, lim = over ? full : avail;
+    if (hb * sc > lim && hb > 0) { sc = lim / hb; $('hud').style.transform = 'scale(' + sc + ')'; } }
+  if (typeof window.RF_AFTER_LAYOUT === 'function') window.RF_AFTER_LAYOUT();
   // rf81: with the sheet up, a tap on the main view above it puts it down
   $('sheetDismiss').style.height = px(Math.max(0, rootH - h));
   $('sheetDismiss').style.display = sheetF >= 0.5 ? 'block' : 'none';
@@ -1224,6 +1234,7 @@ function rideNotes() {
   };
   place($('pbOffNote'), 'pkSpeed', P.pb && !(P.pb.dutyAng > 0));
   place($('hapOffNote'), 'pkDuty', P.hap && !(P.hap.str > 0), true);
+  if (typeof window.RF_AFTER_NOTES === 'function') window.RF_AFTER_NOTES();  // FloPilot: HAPTIC OFF placement
 }
 window.addEventListener('resize', () => rideNotes());
 // rf167: Settings › RIDE › PUSHBACK (pushbackCfg in ui.qml.in): Refloat's pushback settings, Refloat defaults here

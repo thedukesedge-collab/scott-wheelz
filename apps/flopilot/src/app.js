@@ -318,7 +318,7 @@ function addUi() {
       background: rgba(10,6,20,.85); white-space: nowrap; }
     body.rmLive #rmDemo { display: none; }
     /* DEMO on: both pills small, side by side under the speedo (clear of the badges) */
-    body.rmDemoOn #rmConnect, body.rmDemoOn #rmDemo { font-size: 9px !important; padding: 4px 10px !important; }
+    body.rmDemoOn #rmConnect, body.rmDemoOn #rmDemo { font-size: 8px !important; padding: 4px 8px !important; }
     /* the simulator's drive panel is for the demo board only */
     body.rmStock #ledsSnzCard, body.rmStock #headSnzTitle, body.rmStock #ledBreathBox, body.rmStock #rfStSnz { display: none !important; }
     #rmSnzNote { display: none; text-align: center; }
@@ -371,7 +371,23 @@ function addUi() {
       return;
     }
     if (link.demo) {
-      // demo board running: out of the way, in the gap under the speedo
+      // demo board running: out of the way - in the board name row when they
+      // fit between the name and the edit button, else in the gap under the speedo
+      const nm = document.getElementById('boardName'), ed = document.getElementById('btnEdit');
+      if (nm && ed) {
+        const r = nm.getBoundingClientRect(), e = ed.getBoundingClientRect(), rr = row.getBoundingClientRect();
+        const w1 = pill.offsetWidth, w2 = demoPill.offsetWidth, h = Math.max(pill.offsetHeight, demoPill.offsetHeight);
+        let tw = r.width;
+        try { const rg = document.createRange(); rg.selectNodeContents(nm); tw = Math.min(r.width, rg.getBoundingClientRect().width); } catch (x) {}
+        const from = r.left + tw + 10, to = e.left - 8;
+        if (to - from >= w1 + w2 + 6) {
+          const x = Math.round(to - w1 - w2 - 6), top = Math.round(rr.top + rr.height / 2 - h / 2);
+          pill.style.transform = demoPill.style.transform = 'none';
+          pill.style.left = x + 'px'; demoPill.style.left = (x + w1 + 6) + 'px';
+          pill.style.top = demoPill.style.top = top + 'px';
+          return;
+        }
+      }
       const sp = document.getElementById('speedoWrap'), hr = document.getElementById('hudRow');
       if (sp && hr) {
         const a = sp.getBoundingClientRect(), b = hr.getBoundingClientRect();
@@ -410,7 +426,7 @@ function addUi() {
         card.after(n);
       }
     }
-    demoPill.textContent = link.demo ? '■ STOP DEMO' : '▶ DEMO';
+    demoPill.textContent = link.demo ? '■ STOP' : '▶ DEMO';
     placePill();
     placeHapNote();
   };
@@ -425,6 +441,7 @@ function addUi() {
     n.style.setProperty('left', Math.round((r.left - p.left) / k) + 'px', 'important');
     n.style.setProperty('top', Math.round((r.bottom + 4 - p.top) / k) + 'px', 'important');
   };
+  window.RF_AFTER_NOTES = () => placeHapNote();
   refresh();
   setInterval(refresh, 500);
   window.addEventListener('resize', placePill);
@@ -458,21 +475,7 @@ function addUi() {
     paint();
     pg.insertBefore(card, pg.firstChild);
   }, 0));
-  let sheetLow = Infinity;
-  // HORN must stay above the swipe-up window: if the home screen's rows
-  // outgrow the HUD's fit scaling (badges, notes...), shrink it a bit more
-  setInterval(() => {
-    const hud = document.getElementById('hud'), horn = document.getElementById('horn'), sheet = document.getElementById('sheet');
-    if (!hud || !horn || !sheet || !horn.offsetParent) return;
-    const sh = sheet.getBoundingClientRect();
-    // only with the window down (in OVERLAP it covers the HORN on purpose when up)
-    sheetLow = Math.min(sheetLow, sh.height);
-    if (sh.height > sheetLow + 4) return;
-    const h = horn.getBoundingClientRect(), top = hud.getBoundingClientRect().top;
-    if (h.bottom <= sh.top - 2 || h.bottom <= top) return;
-    const m = /scale\(([\d.]+)\)/.exec(hud.style.transform || ''), cur = m ? +m[1] : 1;
-    hud.style.transform = 'scale(' + (cur * (sh.top - 6 - top) / (h.bottom - top)).toFixed(4) + ')';
-  }, 700);
+  // HORN above the swipe-up window: done in the simulator's applySheet()
   initDataTab();
   reconnectSaved().then(ok => ok || (link.snap && scheduleRetry()));
 }

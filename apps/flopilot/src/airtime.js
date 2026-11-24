@@ -176,7 +176,7 @@ function addPrefs() {
         + [b.cur.jumps ? Object.assign({ now: true }, b.cur) : null, ...b.trips].filter(Boolean).slice(0, 20).map(t => '<div style="display:flex;justify-content:space-between;font-size:11px;border-top:1px solid #3a2266;padding:3px 0"><span>' + (t.now ? 'This trip' : new Date(t.start).toLocaleDateString([], { month: 'short', day: 'numeric' })) + '</span><span>max ' + fmt(t.max) + '</span><span>total ' + fmt(t.total) + '</span><span>' + t.jumps + ' jumps</span></div>').join('')).join('')
         : '<p>No jumps yet.</p>')
       + (boards.length ? '<div style="text-align:center;margin-top:6px"><span class="nb" id="airClr">CLEAR RECORDS</span></div>' : '');
-    card.querySelector('#airSw').onclick = () => { try { localStorage.setItem(LS_ON, airOn() ? '0' : '1'); } catch (e) {} paint(); draw(); };
+    card.querySelector('#airSw').onclick = () => { try { localStorage.setItem(LS_ON, airOn() ? '0' : '1'); } catch (e) {} paint(); if (window.simLayout) window.simLayout(); draw(); };
     const clr = card.querySelector('#airClr');
     if (clr) clr.onclick = () => { if (clr.dataset.sure) { keep({}); paint(); draw(); toast('Air records cleared'); } else { clr.dataset.sure = 1; clr.textContent = 'TAP AGAIN TO CLEAR'; } };
   };
@@ -185,6 +185,8 @@ function addPrefs() {
 
 export function initAir(l, toastFn) {
   link = l; toast = toastFn;
+  window.RF_AIRON = airOn;  // the simulator makes room above the speedo
+  if (window.simLayout) window.simLayout();
   const det = new AirDetector();
   const btn = document.getElementById('btnSettings');
   if (btn) btn.addEventListener('click', () => setTimeout(addPrefs, 0));
@@ -209,9 +211,7 @@ export function initAir(l, toastFn) {
   }, 50);
   setInterval(draw, 1000);
   // re-place right away whenever the simulator lays the screen out again
-  for (const fn of ['layout', 'applySheet']) {
-    const orig = window[fn];
-    if (typeof orig === 'function') window[fn] = function () { const r = orig.apply(this, arguments); try { const el = document.getElementById('pkAir'); if (el && el.style.display !== 'none') place(el); } catch (e) {} return r; };
-  }
+  window.RF_AFTER_LAYOUT = () => { try { const el = document.getElementById('pkAir'); if (el && el.style.display !== 'none') place(el); } catch (e) {} };
+
   window.addEventListener('resize', () => setTimeout(draw, 50));
 }
