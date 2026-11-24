@@ -159,6 +159,10 @@ the board's own settings and features the way RF Glow's screen does.
     change).
   - DEMO: CONNECT BOARD and "■ STOP" sit in the board name row when they fit.
 - Build 51: TOP SPEED / MAX DUTY / MAX AIR text shrinks to fit its box.
+- Build 52: HORN stays above the closed swipe-up window when the home
+  screen grows after it was laid out (fonts arriving, notes, badges): the
+  page fits it again (once the fonts load, and a check every 0.4 s that only
+  acts when the HORN is covered).
 
 **On hold**
 - Battery curve for boards without an SLCM (app % with cell curve + sag

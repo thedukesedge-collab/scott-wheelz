@@ -814,6 +814,15 @@ function applySheet() {
   $('sheetHint').style.bottom = px(h + 2); sheetHintShow();
 }
 function setSheet(f) { sheetF = f; P.sheet = f; save(); $('sheet').classList.add('anim'); applySheet(); }
+// FloPilot: when something on the home screen changes size later (the fonts
+// arriving, notes, badges), fit it again so the HORN stays above the closed
+// swipe-up window - one pass, only when needed
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => layout());
+setInterval(() => {
+  if (dragging || sheetF > 0.02 || Math.abs($('sheet').getBoundingClientRect().height - sheetMin) > 2) return;  // closed and settled
+  const hb = $('horn').getBoundingClientRect().bottom, st = $('sheet').getBoundingClientRect().top;
+  if (hb > st - 2) applySheet();
+}, 400);
 // rf156: SNOOZE (?) - the explanation in a window (the sim's VESC powers off after 10 min)
 $('snzHelp').onclick = e => { e.stopPropagation();
   const G = t => t, b = P.ledSnoozeMin;  // rf158: no highlighted words
