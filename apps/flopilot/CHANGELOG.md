@@ -76,6 +76,8 @@ the board's own settings and features the way RF Glow's screen does.
   Refloat's warning before it turns on; saved with the board stopped); DATA
   moved from the swipe-up window to Settings (gear) › DATA; Onboarding Tour
   swipe-up page says so.
+- Build 31: connected board: the name pill over the speedo is now a small
+  green dot right after the board name (tap it to disconnect).
 
 **On hold**
 - Basic Tuning redesign (waiting for the user's example tunes).

@@ -270,7 +270,7 @@ function setPill(text, look) {
 function updatePill() {
   const b = link.board;
   if (!link.deviceId) return setPill('CONNECT BOARD', 'off');
-  if (link.live) return setPill('● ' + link.name.toUpperCase(), 'on');
+  if (link.live) return setPill('●', 'on');  // connected: a small dot next to the board name (tap: disconnect)
   if (b && (b.link === 'can' || b.link === 'probe')) return setPill(link.name.toUpperCase() + ' · FINDING CONTROLLER…', 'busy');
   if (b && b.link === 'nocan') return setPill(link.name.toUpperCase() + ' · NO CONTROLLER ON CAN', 'warn');
   if (b && b.packageMissing) return setPill(link.name.toUpperCase() + ' · REFLOAT NOT FOUND', 'warn');
@@ -307,6 +307,7 @@ function addUi() {
     /* settings tabs: wrap onto two rows instead of running off the window */
     .modal .tabs { flex-wrap: wrap; gap: 6px !important; }
     .modal .tabs .pill { padding: 6px 10px; font-size: 11px; }
+    body.rmLive #rmConnect { padding: 3px 8px; font-size: 13px; line-height: 1; }
     body.rmBlank #rmConnect { font-size: 15px; padding: 12px 26px; border-color: #39ff7a; color: #39ff7a;
       box-shadow: 0 0 14px rgba(57,255,122,.5); }
     #rmDemo { position: fixed; left: 50%; transform: translateX(-50%); z-index: 60; font: 700 10px Orbitron, monospace;
@@ -348,6 +349,16 @@ function addUi() {
   const placePill = () => {
     const row = document.getElementById('nameRow');
     if (!row) return;
+    if (link.live) {
+      // connected: out of the speedo's way, right after the board name
+      const nm = document.getElementById('boardName'), r = (nm || row).getBoundingClientRect(), rr = row.getBoundingClientRect();
+      pill.style.left = Math.round(r.left + (nm ? Math.min(nm.scrollWidth, r.width) : 0) + 10) + 'px';
+      pill.style.transform = 'none';
+      pill.style.top = Math.round(rr.top + rr.height / 2 - pill.offsetHeight / 2) + 'px';
+      return;
+    }
+    pill.style.left = '50%';
+    pill.style.transform = 'translateX(-50%)';
     const top = Math.round(row.getBoundingClientRect().bottom + 6);
     pill.style.top = top + 'px';
     demoPill.style.top = (top + pill.offsetHeight + 6) + 'px';
