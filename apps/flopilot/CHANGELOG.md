@@ -133,6 +133,9 @@ the board's own settings and features the way RF Glow's screen does.
   free spin with the pads held by hand).
 
 **On hold**
+- Battery curve for boards without an SLCM (app % with cell curve + sag
+  compensation + AUTO-LEARN; RF Glow controller status bar would need a
+  firmware change; stock Refloat's LED bar can't take it): skipped for now.
 - SPEED TONE (hapticspeedsplit test build): not in the app until the user
   has bench-tested that build.
 - Basic Tuning redesign (waiting for the user's example tunes).
