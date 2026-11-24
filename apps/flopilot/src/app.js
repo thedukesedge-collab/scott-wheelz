@@ -240,11 +240,19 @@ function addUi() {
     #rmConnect[data-look=busy] { border-color: #ffd23f; color: #ffd23f; }
     #rmConnect[data-look=warn] { border-color: #ff8a1f; color: #ff8a1f; }
     /* no board: a bigger CONNECT prompt */
-    /* no board (or reconnecting): Home Screen dimmed, no board name; the
-       buttons in the name row (edit, settings) stay bright and usable */
-    body.rmBlank #hud > *:not(#nameRow) { opacity: .28; filter: saturate(.4); transition: opacity .3s; }
+    /* no board (or reconnecting) and no demo: Home Screen and swipe-up window
+       dimmed, no board name, taps go to #rmShield */
+    body.rmBlank #hud > * { opacity: .28; filter: saturate(.4); transition: opacity .3s; }
     body.rmBlank #mainBg { opacity: .45; }
+    body.rmBlank #sheet { opacity: .35; filter: saturate(.4); }
     body.rmBlank #boardName, body.rmBlank #lightsOverride { visibility: hidden; }
+    #rmShield { display: none; position: absolute; inset: 0; z-index: 15; }
+    body.rmBlank #rmShield { display: block; }
+    body.rmModal #rmConnect, body.rmModal #rmDemo { display: none; }
+    #rmDemo { font-size: 12px !important; padding: 7px 16px !important; border-color: #39ff7a !important; color: #39ff7a !important; }
+    /* settings tabs: wrap onto two rows instead of running off the window */
+    .modal .tabs { flex-wrap: wrap; gap: 6px !important; }
+    .modal .tabs .pill { padding: 6px 10px; font-size: 11px; }
     body.rmBlank #rmConnect { font-size: 15px; padding: 12px 26px; border-color: #39ff7a; color: #39ff7a;
       box-shadow: 0 0 14px rgba(57,255,122,.5); }
     #rmDemo { position: fixed; left: 50%; transform: translateX(-50%); z-index: 60; font: 700 10px Orbitron, monospace;
@@ -267,9 +275,23 @@ function addUi() {
     try { localStorage.setItem(DEMO, link.demo ? '1' : '0'); } catch (e) {}
     if (link.demo && link.S) Object.assign(link.S, { battPct: 90, motorT: 19.5, escT: 27.7 });  // demo start values
     refresh();
-    toastMsg(link.demo ? 'Demo board on' : 'Demo board off');
+    // DEMO brings up the simulator's drive panel; stopping it closes the panel
+    const sim = document.getElementById('sim');
+    if (sim) sim.classList.toggle('on', link.demo);
+    toastMsg(link.demo ? 'Demo board: drive it with the SIMULATOR panel' : 'Demo off');
   };
   document.body.appendChild(demoPill);
+  // no board and no demo: only CONNECT BOARD and DEMO work; a tap anywhere
+  // else on the Home Screen / swipe-up window says so (dialogs, the tour and
+  // the board search stay on top and usable)
+  const shield = document.createElement('div');
+  shield.id = 'rmShield';
+  shield.onclick = () => toastMsg('Connect your board, or tap DEMO to try the app');
+  (document.getElementById('phone') || document.body).appendChild(shield);
+  // the pills stay out of the way while a dialog is open
+  const modalEl = document.getElementById('modal');
+  const modalOpen = () => !!(modalEl && modalEl.classList.contains('on'));
+  if (modalEl) new MutationObserver(() => document.body.classList.toggle('rmModal', modalOpen())).observe(modalEl, { attributes: true, attributeFilter: ['class'] });
   const placePill = () => {
     const row = document.getElementById('nameRow');
     if (!row) return;
@@ -280,7 +302,7 @@ function addUi() {
   const refresh = () => {
     document.body.classList.toggle('rmLive', !!link.live);
     document.body.classList.toggle('rmBlank', link.blank);
-    demoPill.textContent = link.demo ? 'DEMO ON · TAP TO STOP' : 'TRY DEMO';
+    demoPill.textContent = link.demo ? 'DEMO ON · TAP TO STOP' : '▶ DEMO';
     placePill();
   };
   refresh();
