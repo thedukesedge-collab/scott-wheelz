@@ -47,17 +47,7 @@ export class Board {
     if (this.comms === 'ready' && (this.n = (this.n || 0) + 1) % 20 === 1) this.lightsSet(0, 0);  // light state every 2 s
     if (this.comms !== 'ready' && Date.now() - this.started > 5000) this.packageMissing = true;
 
-    if (!S) return;
-    // horn: played through the VESC firmware's motor tones, see sound.js
-
-    // tilt slider: Refloat's remote input via Lisp (the package only uses it
-    // while engaged and moving); 4 deg at full slider, with a 10 deg limit
-    const tilt = S.tilt || 0;
-    if (tilt !== 0 || this.tiltSent) {
-      const input = Math.max(-1, Math.min(1, tilt * 0.4));
-      this.send([Comm.lispReplCmd, ...cString('(set-remote-state ' + input.toFixed(3) + ' 0 0 0 0)')]);
-      this.tiltSent = tilt !== 0;
-    }
+    // horn, melodies and the tilt slider: sent over the Lisp REPL by sound.js
   }
 
   onPacket(p) {
@@ -74,6 +64,11 @@ export class Board {
         }
       } else if (p[0] === Comm.fwVersion && p.length >= 3) {
         this.fw = { major: p[1], minor: p[2] };
+      } else if (p[0] === Comm.lispPrint) {
+        if (this.onLispPrint) this.onLispPrint(String.fromCharCode(...p.slice(1)));
+      } else if (p[0] === Comm.lispStats && p.length >= 7) {
+        const f16 = i => ((p[i] << 8 | p[i + 1]) << 16 >> 16) / 100;
+        if (this.onLispStats) this.onLispStats({ cpu: f16(1), heap: f16(3), mem: f16(5) });
       } else if (p[0] === Comm.getCustomConfig) {
         if (p[1] === 0 && this.onConfig) this.onConfig(p.slice(2));
       } else if (p[0] === Comm.setCustomConfig) {

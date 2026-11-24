@@ -1,123 +1,246 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Horn, melodies and MIXER tiles through the motor, without any package
-// support: VESC firmware 6.05+ plays tones itself (LispBM foc-play-tone,
-// "also works while the motor is running"), sent over the Lisp REPL like the
-// tilt slider. Works the same on stock Refloat 1.2.3 and Refloat Glow.
+// Horn, melodies, MIXER tiles and the tilt slider through the VESC firmware's
+// Lisp REPL - no package support needed, same on stock Refloat 1.2.3 and
+// Refloat Glow. Tones use foc-play-tone (VESC firmware 6.05+; it "also works
+// while the motor is running").
 //
-// Safety, on the board (a small watchdog defined once per connection):
-// - every tone needs a keepalive from the app at least every 0.35 s, or it
-//   stops (phone in a pocket, Bluetooth drop, app paused...)
-// - each sound has a hard time cap counted on the board (horn 3 s riding /
-//   2 s idle, like Refloat Glow; tiles 2 s; melodies 4.5 s); holding on past
-//   the cap stays silent until the keepalives stop
-// - volume and pitch are clamped here to Refloat Glow's horn limits
-//   (0.4-4 V, 300-1000 Hz; melodies at most 2.5 V)
-// Melodies and tiles play only with the board stopped (READY), as in Glow.
+// The REPL's own limits (VESC firmware lispif.c), which everything here obeys:
+// - a command arriving less than 0.5 s after the previous one is dropped, and
+//   so is one sent while an earlier command is still running
+//   -> one command at a time, at least REPL_GAP apart (Repl below)
+// - commands run in the Lisp memory (28 KB on the controller) that Refloat
+//   itself, its LED buffers and any other scripts also live in
+//   -> before installing anything the app reads the board's Lisp memory use
+//      (COMM_LISP_GET_STATS) and stays off above MEM_MAX / HEAP_MAX. FloPilot's
+//      helper is small: a few definitions and one watchdog thread (~1 KB).
+//
+// Safety, on the board (installed once per controller boot, checked first):
+// - a tone keeps playing only while keepalives arrive (every REPL_GAP); the
+//   watchdog thread stops it STALE s after the last one (Bluetooth drop, phone
+//   in a pocket, app paused...)
+// - hard time caps counted on the board: horn 3 s riding / 2 s idle (Refloat
+//   Glow's), tiles 2 s; holding on past the cap stays silent until released
+// - melodies play on the board as a whole (max 4 s, the MIXER's limit) and stop
+//   if the wheel starts turning (melodies are for a stopped board)
+// - volume and pitch clamped here to Refloat Glow's horn limits
+//   (0.4-4 V, 300-1000 Hz; melodies / tiles at most 2.5 V)
 import { Comm, cString } from './vesc.js';
 
-const DEFS = [
-  '(define fp-k 0)',
-  '(define fp-s 0)',
-  '(define fp-cap 0)',
-  '(define fp-on 0)',
-  '(defun fp-dog () (progn (loopwhile (and (< (secs-since fp-k) 0.35) (< (secs-since fp-s) fp-cap)) (sleep 0.05)) (foc-play-stop) (loopwhile (< (secs-since fp-k) 0.35) (sleep 0.05)) (define fp-on 0)))',
-  '(defun fp-tone (hz v cap) (progn (if (= fp-on 0) (progn (define fp-s (systime)) (define fp-cap cap) (define fp-on 1) (spawn fp-dog))) (define fp-k (systime)) (if (< (secs-since fp-s) fp-cap) (foc-play-tone 0 hz v) (foc-play-stop))))',
-];
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+export const REPL_GAP = 600;  // ms between REPL commands (firmware drops < 500 ms)
+const STALE = 1.4;            // s without keepalive before the board stops a tone
+export const MEM_MAX = 85;    // % Lisp memory in use: above this, stay off
+export const HEAP_MAX = 85;   // % Lisp heap in use: above this, stay off
+const MIN_V = 0.4, MAX_V = 4, MEL_MAX_V = 2.5;
 
-// foc-play-tone needs VESC firmware 6.05+
+// installed in three REPL commands (a VESC packet holds at most 512 bytes);
+// each ends with a marker the app waits for. fp-run 0 ends the watchdog.
+const INSTALL = [
+  '(progn (define fp-k 0) (define fp-s 0) (define fp-c 0) (define fp-on 0) (define fp-run 1) (define fp-d 0)'
+  + " (define fp-hz '(330 349 392 440 494 523 587 659 698 784))"
+  + ' (defun fp-t (hz v c) (progn (if (= fp-on 0) (progn (define fp-s (systime)) (define fp-c c) (define fp-on 1)))'
+  + " (define fp-k (systime)) (if (< (secs-since fp-s) fp-c) (foc-play-tone 0 hz v) (foc-play-stop)))) 'fpi1)",
+  '(progn (defun fp-m (v n) (if (and n (< (abs (get-speed)) 0.5)) (progn (if (and (> (car n) 0) (< (car n) 11))'
+  + ' (foc-play-tone 0 (ix fp-hz (- (car n) 1)) v) (foc-play-tone 0 300 0)) (sleep (* 0.02 (car (cdr n))))'
+  + " (fp-m v (cdr (cdr n)))) (foc-play-stop))) 'fpi2)",
+  // fp-d: the watchdog runs (spawned once, even if this command is sent twice)
+  '(progn (if (= fp-d 0) (progn (define fp-d 1) (spawn (lambda () (loopwhile (= fp-run 1) (progn (if (and (= fp-on 1) (or (> (secs-since fp-k) ' + STALE + ')'
+  + ' (> (secs-since fp-s) fp-c))) (progn (foc-play-stop) (if (> (secs-since fp-k) ' + STALE + ') (define fp-on 0)))) (sleep 0.05)))))))'
+  + " 'fpok)",
+];
+export const INSTALL_CMDS = INSTALL;
+const MAX_EXPR = 480;  // characters per REPL command
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const toneFw = fw => !!fw && (fw.major > 6 || (fw.major === 6 && fw.minor >= 5));
+const fwText = fw => fw.major + '.' + String(fw.minor).padStart(2, '0');
 
 export class Sound {
   constructor(link, toast = () => {}) {
     this.link = link;
     this.toast = toast;
-    this.warned = null;
     this.board = null;
-    this.ready = false;
+    this.timer = setInterval(() => this.tick(), 50);
+  }
+
+  // new connection: start over
+  reset(b) {
+    this.board = b;
+    this.state = 'idle';    // idle -> stats -> probe -> install -> ready | off
+    this.why = '';
+    this.busyUntil = 0;     // no REPL command before this time
+    this.waitReply = null;  // { tag, until }
     this.horn = false;
-    this.mel = null;   // { notes: [[hz, ms]], t0, v }
-    this.tile = null;  // { hz, v, t0 }
-    this.timer = setInterval(() => this.tick(), 90);
-  }
-
-  repl(expr) {
-    const b = this.link.board;
-    if (b) b.send([Comm.lispReplCmd, ...cString(expr)]);
-  }
-
-  // the watchdog + tone function, once per connection
-  install() {
-    const b = this.link.board;
-    if (!b || !this.link.live) { this.ready = false; this.board = null; return false; }
-    if (!toneFw(b.fw)) {
-      // older firmware (or not known yet): no motor tones, say so once per board
-      if (b.fw && this.warned !== b) {
-        this.warned = b;
-        this.toast('Horn, melodies and MIXER need VESC firmware 6.05 or newer (this board: ' + b.fw.major + '.' + String(b.fw.minor).padStart(2, '0') + ')');
-      }
-      return false;
+    this.hornSent = 0;
+    this.tile = null;
+    this.stopNeeded = false;
+    this.mel = null;        // melody waiting to be sent
+    this.melUntil = 0;
+    this.tiltSent = '0.000';  // nothing to send until the slider moves
+    this.tiltZeros = 3;
+    this.tiltAt = 0;
+    if (b) {
+      b.onLispPrint = t => this.onPrint(t);
+      b.onLispStats = st => this.onStats(st);
     }
-    if (this.board !== b) { this.board = b; this.ready = false; }
-    if (!this.ready) { DEFS.forEach(d => this.repl(d)); this.ready = true; }
-    return true;
   }
 
-  tone(hz, v, cap) { this.repl('(fp-tone ' + Math.round(hz) + ' ' + v.toFixed(2) + ' ' + cap.toFixed(1) + ')'); }
-  stop() { this.repl('(foc-play-stop)'); }
+  send(expr) {
+    const b = this.board;
+    if (!b) return;
+    b.send([Comm.lispReplCmd, ...cString(expr)]);
+    this.busyUntil = Date.now() + REPL_GAP;
+  }
 
-  // simulator hooks (window.RF_SOUND): true = the board plays it, skip the phone's audio
-  melody(notes, volume, noteHz) {
-    if (!this.install() || this.running()) return true;  // connected: never the phone speaker
-    this.mel = {
-      notes: notes.map(([l, ms]) => [l > 0 && l <= 10 ? noteHz(l) : 0, ms]),
-      t0: Date.now(), v: clamp(volume, 0.25, 2.5),
-    };
+  onStats(st) {
+    if (this.state !== 'stats') return;
+    this.stats = st;
+    if (st.mem > MEM_MAX || st.heap > HEAP_MAX) {
+      this.off('memory', "The board's Lisp memory is too full for the horn and melodies ("
+        + Math.round(Math.max(st.mem, st.heap)) + '% used, FloPilot needs it under ' + MEM_MAX + '%). Other Lisp scripts or LED settings use it.');
+      return;
+    }
+    this.state = 'probe';
+  }
+
+  onPrint(text) {
+    const w = this.waitReply;
+    if (!w) return;
+    if (w.tag === 'probe') {
+      // "> 1": installed this boot with its watchdog running; else (not bound, 0): install
+      this.waitReply = null;
+      this.state = /^>\s*1\b/.test(text) ? 'ready' : 'install';
+      this.step = 0;
+    } else if (w.tag === 'install') {
+      this.waitReply = null;
+      if (text.includes(['fpi1', 'fpi2', 'fpok'][this.step])) {
+        if (++this.step >= INSTALL.length) this.state = 'ready';
+      } else this.off('install', 'Horn and melodies could not start on the board (' + text.slice(0, 60) + ')');
+    }
+  }
+
+  off(why, msg) {
+    this.state = 'off';
+    this.msg = msg;
+    if (this.why !== why) { this.why = why; this.msgAt = Date.now(); this.toast(msg); }
+  }
+
+  // why the horn / melodies are unavailable ('' = available or still checking)
+  get unavailable() { return this.state === 'off' ? this.why : ''; }
+
+  running() { const S = this.link.S || window.__sim; return !!S && S.mode === 'running'; }
+
+  // simulator hooks (window.RF_SOUND): true = handled here (the phone stays quiet)
+  melody(notes, volume) {
+    if (this.state !== 'ready') { this.explain(); return true; }
+    if (this.running()) return true;
+    // levels 1-10 and 20 ms units, as the MIXER records them (max 4 s); 11 = controller beep: a rest
+    let total = 0;
+    const flat = [];
+    for (const [l, ms] of notes) {
+      if (total >= 4000 || flat.join(' ').length > MAX_EXPR - 40) break;
+      const u = Math.max(1, Math.round(Math.min(ms, 4000 - total) / 20));
+      flat.push(l >= 1 && l <= 10 ? l : 0, u);
+      total += u * 20;
+    }
+    this.mel = { v: clamp(volume, 0.25, MEL_MAX_V), list: flat, ms: total };
     this.tile = null;
     return true;
   }
   live(hz, volume) {
-    if (!this.install() || this.running()) return true;
-    this.tile = { hz: clamp(hz, 300, 1000), v: clamp(volume, 0.25, 2.5), t0: Date.now() };
-    this.mel = null;
+    if (this.state !== 'ready') { this.explain(); return true; }
+    if (this.running()) return true;
+    this.tile = { hz: clamp(hz, 300, 1000), v: clamp(volume, 0.25, MEL_MAX_V), t0: Date.now(), sent: 0 };
     return true;
   }
-  liveStop() { if (this.tile) { this.tile = null; this.stop(); } }
-  stopAll() { const any = this.mel || this.tile; this.mel = null; this.tile = null; if (any) this.stop(); }
+  liveStop() { if (this.tile) { this.tile = null; this.stopNeeded = true; } }
 
-  running() { const S = this.link.S || window.__sim; return !!S && S.mode === 'running'; }
+  // a press while unavailable: say why (at most every 5 s)
+  explain() {
+    const b = this.board;
+    if (this.state !== 'off' && b && b.fw && !toneFw(b.fw)) {
+      this.off('fw', 'Horn and melodies need VESC firmware 6.05 or newer (this board: ' + fwText(b.fw) + ')');
+    } else if (this.state === 'off' && Date.now() - (this.msgAt || 0) > 5000) {
+      this.msgAt = Date.now();
+      this.toast(this.msg);
+    }
+  }
+
+  // tilt slider: Refloat's remote input (only used while engaged and moving);
+  // 4 deg at full slider. Sent when it changes, refreshed every 2 s, and the
+  // return to 0 is repeated so it can't be lost. Needs no install / memory.
+  sendTilt(S, now) {
+    if (now < this.busyUntil || now < this.melUntil || this.waitReply) return;
+    const tilt = Math.max(-1, Math.min(1, ((S && S.tilt) || 0) * 0.4));
+    const key = tilt.toFixed(3);
+    if (key !== this.tiltSent || (tilt !== 0 && now - this.tiltAt > 2000) || (tilt === 0 && this.tiltZeros < 3)) {
+      if (key !== this.tiltSent) this.tiltZeros = 0;
+      if (tilt === 0) this.tiltZeros = (this.tiltZeros || 0) + 1;
+      this.send('(set-remote-state ' + key + ' 0 0 0 0)');
+      this.tiltSent = key;
+      this.tiltAt = now;
+    }
+  }
 
   tick() {
-    const link = this.link;
-    if (!link.live || !link.board) { this.mel = null; this.tile = null; this.horn = false; return; }
+    const link = this.link, b = link.board, now = Date.now();
+    if (b !== this.board) this.reset(b);
+    if (!b || !link.live) return;
     const S = link.S || window.__sim, P = window.__simP ? window.__simP() : {};
-    // horn (the app's own press / budget rules in the simulator UI, S.horn)
-    if (S && S.horn) {
-      if (!this.install()) return;
-      this.mel = null; this.tile = null;
-      // same values as the horn window: SIMPLE (VOLUME / PITCH 1-10) or ADVANCED (V / Hz)
-      const v = P.hAdv ? P.hBeep : (P.hsVol || 5) * 0.4;
-      const hz = P.hAdv ? P.hBeepHz : Math.round((300 + ((P.hsPitch || 3) - 1) * 700 / 9) / 25) * 25;
-      this.tone(clamp(hz || 495, 300, 1000), clamp(v || 2, 0.4, 4), this.running() ? 3.0 : 2.0);
-      this.horn = true;
+
+    // what the app wants right now
+    const hornOn = !!(S && S.horn);
+    if (this.horn && !hornOn) this.stopNeeded = true;
+    this.horn = hornOn;
+    if (this.tile && (now - this.tile.t0 > 2000 || this.running())) this.liveStop();
+    if (this.mel && this.running()) this.mel = null;
+
+    // checks before anything is installed: firmware, then Lisp memory, then
+    // "already installed this boot?", then install
+    if (this.state === 'idle') {
+      if (!b.fw) return;
+      if (!toneFw(b.fw)) { if (hornOn) this.explain(); this.sendTilt(S, now); return; }
+      this.state = 'stats';
+      this.statsAt = now;
+      b.send([Comm.lispStats, 0]);
       return;
     }
-    if (this.horn) { this.horn = false; this.stop(); }
-    // melodies and tiles only with the board stopped
-    if ((this.mel || this.tile) && this.running()) { this.stopAll(); return; }
+    if (this.state === 'stats') {
+      if (now - this.statsAt > 1500) { this.statsAt = now; b.send([Comm.lispStats, 0]); }
+      return;
+    }
+    if (this.state === 'off') { if (hornOn) this.explain(); this.sendTilt(S, now); return; }
+
+    if (this.waitReply && now > this.waitReply.until) {
+      // no answer: the command was probably dropped (REPL busy) - ask again
+      this.state = this.waitReply.tag;
+      this.waitReply = null;
+    }
+    if (now < this.busyUntil || now < this.melUntil || this.waitReply) return;
+
+    if (this.state === 'probe') { this.send('fp-d'); this.waitReply = { tag: 'probe', until: now + 1500 }; return; }
+    if (this.state === 'install') { this.send(INSTALL[this.step]); this.waitReply = { tag: 'install', until: now + 2500 }; return; }
+    if (this.state !== 'ready') return;
+
+    // one REPL command per slot, most important first
+    if (hornOn) {
+      const v = P.hAdv ? P.hBeep : (P.hsVol || 5) * 0.4;
+      const hz = P.hAdv ? P.hBeepHz : Math.round((300 + ((P.hsPitch || 3) - 1) * 700 / 9) / 25) * 25;
+      this.send('(fp-t ' + Math.round(clamp(hz || 495, 300, 1000)) + ' ' + clamp(v || 2, MIN_V, MAX_V).toFixed(2) + ' ' + (this.running() ? '3.0' : '2.0') + ')');
+      this.stopNeeded = false;
+      return;
+    }
+    if (this.stopNeeded) { this.send('(foc-play-stop)'); this.stopNeeded = false; return; }
     if (this.tile) {
-      if (Date.now() - this.tile.t0 > 2000) { this.liveStop(); return; }
-      this.tone(this.tile.hz, this.tile.v, 2.0);
+      this.send('(fp-t ' + Math.round(this.tile.hz) + ' ' + this.tile.v.toFixed(2) + ' 2.0)');
       return;
     }
     if (this.mel) {
-      let t = Date.now() - this.mel.t0;
-      for (const [hz, ms] of this.mel.notes) {
-        if (t < ms) { this.tone(hz || 300, hz ? this.mel.v : 0, 4.5); return; }
-        t -= ms;
-      }
+      const m = this.mel;
       this.mel = null;
-      this.stop();
+      this.send("(fp-m " + m.v.toFixed(2) + " '(" + m.list.join(' ') + '))');
+      this.melUntil = now + m.ms + 400;  // the REPL is busy while it plays
+      return;
     }
+    this.sendTilt(S, now);
   }
 }

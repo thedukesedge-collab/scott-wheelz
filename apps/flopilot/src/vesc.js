@@ -7,6 +7,8 @@ export const Comm = {
   getValuesSetup: 47,
   customAppData: 36,
   lispReplCmd: 138,
+  lispStats: 134,
+  lispPrint: 135,
   getCustomConfig: 93,
   setCustomConfig: 95,
 };

@@ -52,43 +52,89 @@ assert.equal(S.roll, -2);
 assert.equal(S.setpoint, 1.5);
 assert.ok(S.fpL && S.fpR);
 
-// horn / melody through VESC firmware tones (sound.js): watchdog installed once,
-// clamped values, a stop on release, melodies refused while running
-const { Sound } = await import('../src/sound.js');
-const repl = () => sent.map(b => [...b]).filter(b => b[2] === Comm.lispReplCmd)
-  .map(b => String.fromCharCode(...b.slice(3, b.indexOf(0, 3))));
+// horn / melody / tilt through the Lisp REPL (sound.js), against the firmware's
+// rules: one command at a time, >= 0.5 s apart, memory checked first
+const { Sound, REPL_GAP, INSTALL_CMDS } = await import('../src/sound.js');
+const body = b => b.slice(b[0] === 2 ? 2 : 3);  // payload (2- or 3-byte header)
+const repl = () => sent.map(b => body([...b])).filter(p => p[0] === Comm.lispReplCmd)
+  .map(p => String.fromCharCode(...p.slice(1, p.indexOf(0, 1))));
+const statsAsks = () => sent.map(b => [...b]).filter(b => b[2] === Comm.lispStats).length;
 let HP = { hAdv: true, hBeep: 9, hBeepHz: 50 };
 globalThis.window = { __simP: () => HP };
+let now = 1e7;
+const realNow = Date.now;
+Date.now = () => now;
 const link = { live: true, board, S };
+const run = (snd, ms) => { for (let t = 0; t < ms; t += 50) { now += 50; snd.tick(); } };
+const f16 = v => [(Math.round(v * 100) >> 8) & 0xff, Math.round(v * 100) & 0xff];
+const stats = (mem, heap) => board.onPacket(Uint8Array.from([Comm.lispStats, ...f16(3), ...f16(heap), ...f16(mem), 0, 0, 0]));
+const print = t => board.onPacket(Uint8Array.from([Comm.lispPrint, ...[...t].map(c => c.charCodeAt(0))]));
+S.mode = 'ready'; S.horn = false; S.tilt = 0;
+
+// old firmware: nothing at all
 board.fw = { major: 6, minor: 2 };
 let warn = '';
-const old = new Sound(link, m => (warn = m));
-clearInterval(old.timer);
-sent.length = 0; S.horn = true; old.tick(); S.horn = false;
-assert.equal(repl().length, 0);  // 6.02: nothing sent
-assert.ok(warn.includes('6.05') && warn.includes('6.02'));
-board.fw = { major: 6, minor: 5 };
-const snd = new Sound(link);
+let snd = new Sound(link, m => (warn = m));
 clearInterval(snd.timer);
+sent.length = 0; S.horn = true; run(snd, 500); S.horn = false;
+assert.equal(repl().length + statsAsks(), 0);
+assert.ok(warn.includes('6.05') && warn.includes('6.02'));
+
+// memory too full (like the Thor 301 in Floaty: 69% would be fine, 90% is not)
+board.fw = { major: 6, minor: 5 };
+warn = '';
+snd = new Sound(link, m => (warn = m)); clearInterval(snd.timer);
+sent.length = 0; run(snd, 100);
+assert.equal(statsAsks(), 1);
+stats(90, 40); S.horn = true; run(snd, 2000); S.horn = false;
+assert.equal(repl().length, 0);
+assert.ok(warn.includes('memory') && warn.includes('90%'));
+
+// normal: stats ok -> probe -> 3 install steps (each waits for its answer) -> ready
+snd = new Sound(link, m => (warn = m)); clearInterval(snd.timer);
+sent.length = 0; run(snd, 100); stats(69, 50);
+run(snd, 100);
+assert.deepEqual(repl(), ['fp-d']);
+print('***\tError: variable_not_bound fp-d');
+for (const [k, mark] of [[0, 'fpi1'], [1, 'fpi2'], [2, 'fpok']]) {
+  run(snd, REPL_GAP + 50);
+  assert.equal(repl()[repl().length - 1], INSTALL_CMDS[k]);
+  print('> ' + mark);
+}
+assert.equal(snd.state, 'ready');
+assert.ok(INSTALL_CMDS.every(c => c.length < 500), 'each install command fits a VESC packet');
+
+// horn: keepalives never closer than the firmware's 0.5 s, then a stop
+sent.length = 0; S.mode = 'running'; S.horn = true; run(snd, 2000); S.horn = false; run(snd, 1000);
+const ex = repl();
+const horns = ex.filter(e => e.startsWith('(fp-t'));
+assert.ok(horns.length >= 3 && horns.length <= 4, 'keepalive count ' + horns.length);
+assert.equal(horns[0], '(fp-t 300 4.00 3.0)');  // clamped to 300 Hz / 4 V, riding cap 3 s
+assert.ok(ex.includes('(foc-play-stop)'));
+const times = sent.filter(b => body([...b])[0] === Comm.lispReplCmd).length;
+assert.ok(times === ex.length);
+// SIMPLE horn settings: VOLUME 5 = 2 V, PITCH 10 = 1000 Hz, idle cap 2 s
+HP = { hAdv: false, hsVol: 5, hsPitch: 10 };
+S.mode = 'ready'; sent.length = 0; S.horn = true; run(snd, 700); S.horn = false; run(snd, 700);
+assert.equal(repl()[0], '(fp-t 1000 2.00 2.0)');
+// melody: one command, sent whole, nothing else while it plays
 sent.length = 0;
-S.mode = 'running'; S.horn = true; snd.tick(); snd.tick(); S.horn = false; snd.tick();
-let ex = repl();
-assert.ok(ex.some(e => e.startsWith('(defun fp-dog')) && ex.some(e => e.startsWith('(defun fp-tone')));
-assert.equal(ex.filter(e => e.startsWith('(defun')).length, 2);
-assert.deepEqual(ex.filter(e => e.startsWith('(fp-tone')), ['(fp-tone 300 4.00 3.0)', '(fp-tone 300 4.00 3.0)']);
-assert.equal(ex[ex.length - 1], '(foc-play-stop)');
-HP = { hAdv: false, hsVol: 5, hsPitch: 10, hBeep: 9, hBeepHz: 50 };  // SIMPLE: VOLUME 5 = 2 V, PITCH 10 = 1000 Hz
-sent.length = 0; S.horn = true; snd.tick(); S.horn = false; snd.tick();
-assert.equal(repl().filter(e => e.startsWith('(fp-tone'))[0], '(fp-tone 1000 2.00 3.0)');
-assert.equal(snd.melody([[3, 200]], 1, l => 392), true);  // riding: no melody (and not on the phone)
-assert.equal(snd.mel, null);
-S.mode = 'ready'; sent.length = 0;
-assert.equal(snd.melody([[3, 200], [0, 100]], 9, l => 392), true);
-snd.tick();
-ex = repl();
-assert.deepEqual(ex, ['(fp-tone 392 2.50 4.5)']);  // volume capped at 2.5 V, idle limits
-S.mode = 'running'; sent.length = 0; snd.tick();
-assert.deepEqual(repl(), ['(foc-play-stop)']);  // started riding: stopped
+assert.equal(snd.melody([[3, 200], [0, 100], [11, 200], [10, 2000]], 9), true);
+run(snd, 700);
+assert.deepEqual(repl(), ["(fp-m 2.50 '(3 10 0 5 0 10 10 100))"]);
+S.tilt = 0.5; run(snd, 900);
+assert.equal(repl().length, 1, 'REPL left alone while the melody plays');
+run(snd, 2500);
+assert.ok(repl().some(e => e.startsWith('(set-remote-state 0.200')));
+// tilt back to 0 is sent (and repeated)
+sent.length = 0; S.tilt = 0; run(snd, 3000);
+assert.ok(repl().filter(e => e === '(set-remote-state 0.000 0 0 0 0)').length >= 2);
+// a 64-entry MIXER take still fits one command
+sent.length = 0;
+snd.melody(Array.from({ length: 64 }, (_, k) => [k % 2 ? 0 : 10, 2000]), 1);
+run(snd, 700);
+assert.ok(repl()[0].length < 500);
+Date.now = realNow;
 delete globalThis.window;
 
 console.log('protocol tests passed');
