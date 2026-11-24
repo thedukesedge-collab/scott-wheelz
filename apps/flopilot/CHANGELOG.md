@@ -142,6 +142,8 @@ the board's own settings and features the way RF Glow's screen does.
 - Build 46: the swipe-up window now slides up OVER the Home Screen (it keeps
   its size) instead of shrinking it. Settings › PREFERENCES › UI switches
   back to the old way.
+- Build 47: MAX AIR badge stays above the speedo after using the swipe-up
+  window (placed from layout positions, re-placed on every re-layout).
 
 **On hold**
 - Battery curve for boards without an SLCM (app % with cell curve + sag

@@ -119,12 +119,13 @@ function place(el) {
     const a = ref.querySelector(k), b = el.querySelector(k), s = getComputedStyle(a);
     b.style.fontSize = s.fontSize; b.style.lineHeight = s.lineHeight;
   }
-  const w = wrap.getBoundingClientRect(), h = ref.offsetHeight;
-  const nb = name ? name.getBoundingClientRect().bottom : w.top - h - 12;
+  // layout units (offsetTop / offsetHeight ignore the HUD's scaling and the
+  // swipe-up window's animation, so the badge doesn't jump around)
+  const h = ref.offsetHeight, wt = wrap.offsetTop;
+  const nb = name ? name.offsetTop + name.offsetHeight : wt - h - 12;
   // midway between the name row and the top of the speedo box, never over the name
-  const hk = h * (wrap.offsetHeight ? w.height / wrap.offsetHeight : 1), mid = (nb + w.top) / 2 - hk / 2;
-  const k = wrap.offsetHeight ? w.height / wrap.offsetHeight : 1;  // the HUD may be scaled to fit
-  el.style.top = Math.round((Math.max(nb + 2, mid) - w.top) / k) + 'px';
+  const top = Math.max(nb + 2, (nb + wt) / 2 - h / 2);
+  el.style.top = Math.round(top - wt) + 'px';
 }
 function draw() {
   const el = badge();
@@ -207,5 +208,10 @@ export function initAir(l, toastFn) {
     if (sec) landed(sec);
   }, 50);
   setInterval(draw, 1000);
+  // re-place right away whenever the simulator lays the screen out again
+  for (const fn of ['layout', 'applySheet']) {
+    const orig = window[fn];
+    if (typeof orig === 'function') window[fn] = function () { const r = orig.apply(this, arguments); try { const el = document.getElementById('pkAir'); if (el && el.style.display !== 'none') place(el); } catch (e) {} return r; };
+  }
   window.addEventListener('resize', () => setTimeout(draw, 50));
 }
