@@ -168,4 +168,39 @@ assert.deepEqual([...vp], [39, 80, 70, 60, 3, 1, 0, 11, 0, 1, 44, 50, 0x24, 1, 0
 board.onPacket(Uint8Array.from([Comm.customAppData, Rf.pkgId, 27, ...[...'VPBL-r37'].map(c => c.charCodeAt(0)), 0]));
 assert.equal(board.lcmName, 'VPBL-r37');
 
+// finding the motor controller behind a VESC Express (Thor etc.)
+{
+  const { Board, parseFw } = await import('../src/board.js');
+  const fwReply = (hw, type) => Uint8Array.from([Comm.fwVersion, 6, 5, ...[...hw].map(c => c.charCodeAt(0)), 0, ...Array(12).fill(7), 0, 0, type]);
+  assert.deepEqual(parseFw(fwReply('VESC Express T', 2)), { major: 6, minor: 5, hw: 'VESC Express T', hwType: 2 });
+  const pl = b => (b[0] === 2 ? b.slice(2, 2 + b[1]) : b.slice(3, 3 + ((b[1] << 8) | b[2])));
+  const out = [];
+  const tb = new Board({ send: b => out.push(pl([...b])) });
+  const realNow2 = Date.now; let t2 = 5e6; Date.now = () => t2;
+  const step = () => { t2 += 600; tb.tick(null); };
+  step();
+  assert.deepEqual(out.pop(), [Comm.fwVersion]);            // who's there?
+  tb.onPacket(fwReply('VESC Express T', 2));                 // an Express
+  step();
+  assert.deepEqual(out.pop(), [Comm.pingCan]);               // ping the CAN bus
+  tb.onPacket(Uint8Array.from([Comm.pingCan, 3, 10]));       // ids 3 and 10
+  step();
+  assert.deepEqual(out.pop(), [Comm.forwardCan, 3, Comm.fwVersion]);
+  tb.onPacket(fwReply('BMS', 1));                            // 3 is a BMS: next
+  step();
+  assert.deepEqual(out.pop(), [Comm.forwardCan, 10, Comm.fwVersion]);
+  tb.onPacket(fwReply('THOR400', 0));                        // 10 is the controller
+  assert.equal(tb.link, 'ok'); assert.equal(tb.fwd, 10); assert.deepEqual([tb.fw.major, tb.fw.minor], [6, 5]);
+  out.length = 0; step();
+  assert.ok(out.length > 0 && out.every(p => p[0] === Comm.forwardCan && p[1] === 10), 'everything forwarded to id 10');
+  // a plain controller: direct, nothing forwarded
+  const out2 = [];
+  const db = new Board({ send: b => out2.push(pl([...b])) });
+  t2 += 600; db.tick(null); db.onPacket(fwReply('60_MK6', 0));
+  assert.equal(db.fwd, null); assert.equal(db.link, 'ok');
+  out2.length = 0; t2 += 600; db.tick(null);
+  assert.ok(out2.every(p => p[0] !== Comm.forwardCan));
+  Date.now = realNow2;
+}
+
 console.log('protocol tests passed');

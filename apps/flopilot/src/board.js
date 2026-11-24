@@ -4,6 +4,15 @@
 import { Comm, Rf, Reader, encodePacket, PacketDecoder, parseValuesSetup, cString } from './vesc.js';
 
 const MPS_TO_MPH = 2.23694;
+const HW_VESC = 0, HW_CUSTOM_MODULE = 2;  // VESC Tool HW_TYPE
+
+// COMM_FW_VERSION reply: major, minor, hw name, uuid (12), paired, test fw, hw type
+export function parseFw(p) {
+  let i = 3, hw = '';
+  while (i < p.length && p[i]) hw += String.fromCharCode(p[i++]);
+  i += 1 + 12 + 2;
+  return { major: p[1], minor: p[2], hw, hwType: i < p.length ? p[i] : HW_VESC };
+}
 
 export class Board {
   constructor(transport) {
@@ -24,6 +33,14 @@ export class Board {
     this.hornWas = false;
     this.tiltSent = false;
     this.whmi = 0;
+    // which device on the Bluetooth link runs Refloat: a VESC Express (Thor and
+    // others) is its own device on the CAN bus, so commands are forwarded to
+    // the motor controller (COMM_FORWARD_CAN), as VESC Tool does
+    this.link = 'fw';      // fw -> (can -> probe) -> ok | nocan
+    this.fwd = null;       // CAN id of the motor controller, null = direct
+    this.linkAt = 0;
+    this.canIds = [];
+    this.probe = 0;
   }
 
   get live() { return this.comms === 'ready' && Date.now() - this.lastRt < 3000; }
@@ -34,13 +51,45 @@ export class Board {
   getConfig() { this.send([Comm.getCustomConfig, 0]); }
   setConfig(raw) { this.send([Comm.setCustomConfig, 0, ...raw]); }
   app(bytes) { this.send([Comm.customAppData, Rf.pkgId, ...bytes]); }
-  send(payload) { this.t.send(encodePacket(payload)); }
+  send(payload) { this.raw(this.fwd === null ? payload : [Comm.forwardCan, this.fwd, ...payload]); }
+  raw(payload) { this.t.send(encodePacket(payload)); }
+
+  // find the motor controller: firmware version first; a VESC Express (hw type
+  // "custom module") -> ping the CAN bus -> ask each id for its firmware -> the
+  // first motor controller (hw type VESC) gets everything from now on
+  discover() {
+    const now = Date.now();
+    if (this.link === 'fw' && now - this.linkAt > 500) { this.linkAt = now; this.raw([Comm.fwVersion]); }
+    else if ((this.link === 'can' || this.link === 'nocan') && now - this.linkAt > 2500) { this.linkAt = now; this.raw([Comm.pingCan]); }
+    else if (this.link === 'probe' && now - this.linkAt > 500) {
+      if (this.probe >= this.canIds.length) { this.link = 'nocan'; this.linkAt = now; return; }
+      this.linkAt = now;
+      this.raw([Comm.forwardCan, this.canIds[this.probe++], Comm.fwVersion]);
+    }
+  }
+
+  onFw(fw) {
+    if (this.link === 'fw') {
+      if (fw.hwType === HW_CUSTOM_MODULE) { this.link = 'can'; this.linkAt = 0; this.express = fw; return; }
+      this.useController(null, fw);
+    } else if (this.link === 'probe' && fw.hwType === HW_VESC) {
+      this.useController(this.canIds[this.probe - 1], fw);
+    }
+  }
+
+  useController(id, fw) {
+    this.fwd = id;
+    this.fw = { major: fw.major, minor: fw.minor, hw: fw.hw };
+    this.link = 'ok';
+    this.started = Date.now();  // the "Refloat not found" wait starts now
+  }
+
   receive(bytes) { this.decoder.add(bytes); }
 
   // every 100 ms; S = the simulator's state (tilt slider, horn)
   tick(S) {
+    if (this.link !== 'ok') { this.discover(); return; }
     this.send([Comm.getValuesSetup]);
-    if (!this.fw && (this.fwAsk = (this.fwAsk || 0) + 1) % 10 === 1) this.send([Comm.fwVersion]);  // VESC firmware version
     if (this.comms === 'info') this.app([Rf.info, 2]);
     else if (this.comms === 'ids') this.app([Rf.realtimeDataIds]);
     else this.app([Rf.realtimeData]);
@@ -64,7 +113,14 @@ export class Board {
           this.whmi += (wh - this.whmi) * 0.1;
         }
       } else if (p[0] === Comm.fwVersion && p.length >= 3) {
-        this.fw = { major: p[1], minor: p[2] };
+        this.onFw(parseFw(p));
+      } else if (p[0] === Comm.pingCan) {
+        if (this.link === 'can' || this.link === 'nocan') {
+          this.canIds = [...p.slice(1)];
+          this.probe = 0;
+          this.link = this.canIds.length ? 'probe' : 'nocan';
+          this.linkAt = 0;
+        }
       } else if (p[0] === Comm.qmlErase || p[0] === Comm.qmlWrite || p[0] === Comm.lispErase || p[0] === Comm.lispWrite) {
         if (this.onInstallReply) this.onInstallReply(p);
       } else if (p[0] === Comm.lispPrint) {

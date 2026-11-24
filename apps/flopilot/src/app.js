@@ -220,6 +220,8 @@ function updatePill() {
   const b = link.board;
   if (!link.deviceId) return setPill('CONNECT BOARD', 'off');
   if (link.live) return setPill('● ' + link.name.toUpperCase(), 'on');
+  if (b && (b.link === 'can' || b.link === 'probe')) return setPill(link.name.toUpperCase() + ' · FINDING CONTROLLER…', 'busy');
+  if (b && b.link === 'nocan') return setPill(link.name.toUpperCase() + ' · NO CONTROLLER ON CAN', 'warn');
   if (b && b.packageMissing) return setPill(link.name.toUpperCase() + ' · REFLOAT NOT FOUND', 'warn');
   setPill(link.name.toUpperCase() + ' · STARTING…', 'busy');
 }

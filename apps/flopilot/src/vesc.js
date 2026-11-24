@@ -7,6 +7,8 @@ export const Comm = {
   getValuesSetup: 47,
   customAppData: 36,
   lispReplCmd: 138,
+  forwardCan: 34,
+  pingCan: 62,
   qmlErase: 120,
   qmlWrite: 121,
   lispWrite: 131,
