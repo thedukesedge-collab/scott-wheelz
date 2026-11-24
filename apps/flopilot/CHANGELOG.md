@@ -89,4 +89,6 @@ the board's own settings and features the way RF Glow's screen does.
   note that SNOOZE needs RF Glow.
 
 **On hold**
+- SPEED TONE (hapticspeedsplit test build): not in the app until the user
+  has bench-tested that build.
 - Basic Tuning redesign (waiting for the user's example tunes).
