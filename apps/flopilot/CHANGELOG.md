@@ -116,6 +116,7 @@ the board's own settings and features the way RF Glow's screen does.
   - Home screen ADC volts now show the real readings when connected (they
     were a fixed 2.9 / 3.0 V stand-in).
   - Onboarding Tour: new GHOSTING PROTECTION page before CREDIT.
+- Build 40: new app icon (the user's FP neon logo).
 
 **On hold**
 - SPEED TONE (hapticspeedsplit test build): not in the app until the user
