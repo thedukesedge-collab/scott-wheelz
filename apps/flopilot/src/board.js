@@ -97,6 +97,14 @@ export class Board {
     if (this.comms === 'ready' && this.n % 50 === 2) this.app([Rf.lcmDeviceInfo]);  // light module name every 5 s
     if (this.comms !== 'ready' && Date.now() - this.started > 5000) this.packageMissing = true;
 
+    // MOVE slider (CONTROL tab): Refloat's own RC move (stock 1.2.3 too, only
+    // with the board idle), resent every 100 ms while held, as the package
+    // does (ui.qml.in sendRcMove): direction, current 10-80 A, time, checksum
+    const mv = S ? S.move || 0 : 0;
+    if (mv !== 0 && this.pkgState !== Rf.sRunning) {
+      const cur = Math.abs(Math.round(mv * 70)) + 10;
+      this.app([Rf.rcMove, mv > 0 ? 1 : 0, cur, 1, cur + 1]);
+    }
     // horn, melodies and the tilt slider: sent over the Lisp REPL by sound.js
   }
 

@@ -783,7 +783,11 @@ function applySheet() {
   $('sheet').style.height = px(h);
   const avail = rootH - h - 0.1 * u, full = rootH - sheetMin - 0.1 * u;
   $('mainBg').style.height = px(avail);
-  $('hud').style.transform = 'scale(' + Math.min(1, avail / Math.max(1, full)) + ')';
+  // rf182: on screens shorter for their width (e.g. the phone app inside the
+  // notch / home-bar safe area) the HUD's rows can need more than its height:
+  // scale them down so the HORN stays above the swipe-up window
+  const need = Math.max(full, $('hud').scrollHeight);
+  $('hud').style.transform = 'scale(' + Math.min(1, avail / Math.max(1, full)) * (full / need) + ')';
   // rf81: with the sheet up, a tap on the main view above it puts it down
   $('sheetDismiss').style.height = px(Math.max(0, rootH - h));
   $('sheetDismiss').style.display = sheetF >= 0.5 ? 'block' : 'none';
