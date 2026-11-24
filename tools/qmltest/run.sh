@@ -152,7 +152,7 @@ mkdir -p /tmp/shots
 # shots: 0 home, 1-3 MIXER (BLANK / NOTES / 123), 4 LEDS > HEAD/TAIL LIGHTS
 # SIMPLE, 5 the same ADVANCED, 6 LEDS > STATUS BAR (Refloat LED view)
 for c in "$@"; do
-  for shot in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18; do
+  for shot in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22; do
     echo "=================== $c (shot $shot)"
     mkdir -p ~/.config/QtProject
     printf "[uiHints]\nstatusText=true\nplotCursor=true\ndrGeneral=true\ndrStartStop=true\ndrDownload=true\n" > ~/.config/QtProject/qmlscene.conf
@@ -174,6 +174,11 @@ for c in "$@"; do
       # rf177: start flow - CONTINUE on the notice must open the Onboarding Tour
       18) act="if (!rinkTour.visible) { swSettings.tourSeenVer = ''; disclaimerDialog.open(); disclaimerDialog.finish(); console.log('STARTFLOW tour=' + rinkTour.visible + ' notice=' + disclaimerDialog.visible); }" ;;
       14) act="if (!rinkTour.visible) { rinkTour.open(); tourSwipe.currentIndex = 13; }" ;;
+      # rf182: WATCHDOG tab, PREFERENCES (MAX AIR / UI), home with MAX AIR, the emergency window
+      19) act="settingsDialog.show(3);" ;;
+      20) act="settingsDialog.show(1); settingsStackLayout.children[1].contentItem.contentY = 1e5;" ;;
+      21) act="swSettings.airShow = true;" ;;
+      22) act="wdEmergency.openFor(1);" ;;
     esac
     git show $c:ui.qml.in | sed "s/{{PACKAGE_NAME}}/Refloat Glow/g; s/{{VERSION}}/test/g; s/{{LCM_FW_JSON}}/null/g" \
       | sed "s/category: \"scottWheelz\"/category: \"scottWheelzTest$shot\"/" \
