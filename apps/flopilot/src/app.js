@@ -11,6 +11,7 @@ import { Sound } from './sound.js';
 import { initPkg } from './pkgui.js';
 import { initMixer } from './mixer.js';
 import { initLights } from './lights.js';
+import { initLcmUi } from './lcmui.js';
 
 const NUS = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
 const RX = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';  // phone -> VESC
@@ -281,6 +282,7 @@ function addUi() {
   initPkg(link, toastMsg);
   initMixer(link, toastMsg);
   initLights(link, ledSync, toastMsg);
+  initLcmUi(link, toastMsg);
   reconnectSaved().then(ok => ok || (link.snap && scheduleRetry()));
 }
 

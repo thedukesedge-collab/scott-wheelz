@@ -2138,6 +2138,8 @@ const LED_TITLES = { rgb: 'RGB LIGHTS', head: 'HEAD/TAIL LIGHTS', bar: 'STATUS B
 (() => { const src = document.querySelector('.ledSec[data-s="rgb"]'), dst = $('rgbInHead'); while (src.firstChild) dst.appendChild(src.firstChild); })();
 let curLedWin = '';
 const ledWin = w => {
+  // FloPilot app with a board: the real light module check / update (apps/flopilot/src/lcmui.js)
+  if ((w === 'fw' || w === 'updates') && window.RF_LCMUI && window.RF_LCMUI(w)) return;
   curLedWin = w || ''; setTimeout(() => typeof renderApply === 'function' && renderApply(), 0);
   $('ledWin').style.display = w ? 'flex' : 'none';
   $('ledWinDim').style.display = w ? 'block' : 'none';

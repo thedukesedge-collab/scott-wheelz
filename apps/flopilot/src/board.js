@@ -76,6 +76,8 @@ export class Board {
         if (p[1] === 0 && this.onConfig) this.onConfig(p.slice(2));
       } else if (p[0] === Comm.setCustomConfig) {
         if (this.onConfigAck) this.onConfigAck();
+      } else if (p[0] === Comm.customAppData && p[1] === Rf.pkgId && p[2] === 128) {
+        if (this.onLcmFw) this.onLcmFw(p.slice(2));  // RF Glow COMMAND_LCM_FW status (lcmfw.js)
       } else if (p[0] === Comm.customAppData) {
         this.onAppData(r);
       }

@@ -218,7 +218,7 @@ export class Sound {
   tick() {
     const link = this.link, b = link.board, now = Date.now();
     if (b !== this.board) this.reset(b);
-    if (!b || !link.live || link.installing) return;
+    if (!b || !link.live || link.installing || link.lcmFlashing) return;
     this.glowTick(now);
     const S = link.S || window.__sim, P = window.__simP ? window.__simP() : {};
 
