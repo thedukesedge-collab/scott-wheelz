@@ -151,4 +151,21 @@ board.pkg = null;
 Date.now = realNow;
 delete globalThis.window;
 
+// LEDS view + SLCM settings (lights.js), checked against RF Glow's ledSender.send()
+const { vpSettings, pickSetup, isSlcm } = await import('../src/lights.js');
+assert.ok(isSlcm('VPBL-r37fc707') && isSlcm('VP-abc') && !isSlcm('Float LCM') && !isSlcm(''));
+assert.equal(pickSetup({ hw: 2, lcmName: 'VPBL-r37', rfGlow: true }), 'slcm');
+assert.equal(pickSetup({ hw: 2, lcmName: 'VPBL-r37', rfGlow: false }), 'refloat');  // stock: SLCM features need RF Glow
+assert.equal(pickSetup({ hw: 2, lcmName: 'Other LCM', rfGlow: true }), 'refloat');
+assert.equal(pickSetup({ hw: 1, lcmName: '', rfGlow: false }), 'refloat');
+assert.equal(pickSetup({ hw: 0, lcmName: '', rfGlow: false }), 'none');
+assert.equal(pickSetup({ hw: null }), null);
+const vp = vpSettings({ ledHead: true, ledBar: true, ledBeep: true, snzStyle: 2, ledHeadPct: 80, ledIdlePct: 70, ledRidePct: 60,
+  ledAnimIdle: 3, ledAnimRide: 1, ledAnimDoze: 0, ledAnimBoot: 11, ledAnimShut: 0, ledColor: 300, ledHeadIdlePct: 50,
+  ledSnoozeMin: 5, rideMode: 2, stSnz: 4, ride: { c1: 4, c2: 0, speed: 1.5 }, snz: { c1: 6, c2: 1, speed: 2 }, snzAdv: true });
+assert.deepEqual([...vp], [39, 80, 70, 60, 3, 1, 0, 11, 0, 1, 44, 50, 0x24, 1, 0, 150, 39, 29, 60, 0, 5, 2, 2, 4, 4, 0, 15, 6, 1, 20]);
+// the light module's name from COMMAND_LCM_DEVICE_INFO
+board.onPacket(Uint8Array.from([Comm.customAppData, Rf.pkgId, 27, ...[...'VPBL-r37'].map(c => c.charCodeAt(0)), 0]));
+assert.equal(board.lcmName, 'VPBL-r37');
+
 console.log('protocol tests passed');

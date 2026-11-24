@@ -45,6 +45,7 @@ export class Board {
     else if (this.comms === 'ids') this.app([Rf.realtimeDataIds]);
     else this.app([Rf.realtimeData]);
     if (this.comms === 'ready' && (this.n = (this.n || 0) + 1) % 20 === 1) this.lightsSet(0, 0);  // light state every 2 s
+    if (this.comms === 'ready' && this.n % 50 === 2) this.app([Rf.lcmDeviceInfo]);  // light module name every 5 s
     if (this.comms !== 'ready' && Date.now() - this.started > 5000) this.packageMissing = true;
 
     // horn, melodies and the tilt slider: sent over the Lisp REPL by sound.js
@@ -104,6 +105,11 @@ export class Board {
       const n1 = r.u8(); this.idleIds = Array.from({ length: n1 }, () => r.lenString());
       const n2 = r.u8(); this.runtimeIds = Array.from({ length: n2 }, () => r.lenString());
       this.comms = 'ready';
+    } else if (msg === Rf.lcmDeviceInfo) {
+      // the light module's own name, as it gives it in its polls ('' = none / not polling)
+      let n = '';
+      try { for (;;) { const c = r.u8(); if (!c) break; n += String.fromCharCode(c); } } catch (e) {}
+      this.lcmName = n;
     } else if (msg === Rf.lights) {
       this.lights = r.u8();  // bit 0 = lights on, bit 1 = headlights on
     } else if (msg === Rf.realtimeData) {

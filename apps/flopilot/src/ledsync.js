@@ -68,10 +68,8 @@ function fromConfig(P, c) {
     if (k === 3) { P.rgbOff[3] = bri === 0; if (bri > 0) b.bri = bri; }
     return b;
   });
-  // which LED view: Refloat-driven strips (Internal) or a light module (External)
-  const hw = g('hardware.leds.mode');
-  if (hw & 2) P.simSetup = 'slcm';
-  else if (hw) P.simSetup = 'refloat';
+  // which LED view: decided in lights.js from this and the light module's name
+  return { hw: g('hardware.leds.mode') };
 }
 
 export class LedSync {
@@ -83,6 +81,7 @@ export class LedSync {
   reset(board) {
     this.board = board;
     this.cfg = null;
+    this.hw = null;        // hardware.leds.mode: 0 off, 1 internal, 2 external, 3 both
     this.last = null;      // desired() right after the last read / write
     this.pending = null;   // config bytes sent, waiting for the board's OK
     this.asked = 0;
@@ -107,7 +106,7 @@ export class LedSync {
     // an app change waiting to be written is newer: keep it
     if (this.last && Object.entries(desired(P)).some(([k, v]) => !same(v, this.last[k]))) { this.cfg = c; return; }
     this.cfg = c;
-    fromConfig(P, c);
+    this.hw = fromConfig(P, c).hw;
     this.last = desired(P);
     this.lastSeen = JSON.stringify(this.last);
     this.render();
