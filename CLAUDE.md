@@ -150,7 +150,11 @@ Do not label any item VERIFIED without supporting evidence.
 
 6. Mandatory Disclaimer
 
-Include the following statement at the conclusion of every build sign-off:
+Include the following statement in release documentation (release notes,
+README / distributed package docs) and in the sign-off for a tagged release or
+release candidate. Routine development updates in chat leave it out (user,
+2026-11-23: "Don't have to mention the disclaimer each time"); the short build
+sign-off stays.
 
 “Refloat Glow is an independently developed modification of the open-source Refloat firmware.
 
