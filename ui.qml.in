@@ -8287,12 +8287,12 @@ Item {
                         SettingsCard {
                             id: wdEmCard
                             readonly property var e: { watchdog.rev; return watchdog.emerg(); }
-                            readonly property bool on: !!(e && e.applied)
-                            title: on ? "⚠ EMERGENCY SENSOR CONFIGURATION ON" : "GHOSTING PAD EMERGENCY"
-                            border.color: on ? "#ff2b4f" : "#3a2266"
+                            readonly property bool active: !!(e && e.applied)
+                            title: active ? "⚠ EMERGENCY SENSOR CONFIGURATION ON" : "GHOSTING PAD EMERGENCY"
+                            border.color: active ? "#ff2b4f" : "#3a2266"
                             SetupDescription {
                                 text: { watchdog.rev; var c = wdEmCard; var e = c.e, bad = watchdog.singleBad();
-                                    if (c.on) return "ADC" + e.pad + " switched off (" + watchdog.emergV.toFixed(1) + " V), Posi ON since " + new Date(e.t).toLocaleString() + ". Only ADC" + (e.pad === 1 ? 2 : 1) + " engages the board. Replace the faulty sensor before your next ride.";
+                                    if (c.active) return "ADC" + e.pad + " switched off (" + watchdog.emergV.toFixed(1) + " V), Posi ON since " + new Date(e.t).toLocaleString() + ". Only ADC" + (e.pad === 1 ? 2 : 1) + " engages the board. Replace the faulty sensor before your next ride.";
                                     if (watchdog.both) return "Both pads look stuck: no single-pad emergency. Stop using the board.";
                                     return bad ? "ADC" + bad + " reads high. If that sensor has failed, this switches it off so ADC" + (bad === 1 ? 2 : 1) + " engages alone."
                                         : "Shows up when one pad reads HIGH or STUCK while the board is parked."; }
@@ -8306,7 +8306,7 @@ Item {
                                 text: { watchdog.rev; var e = watchdog.emerg(); return e ? "The board's footpad settings no longer match the emergency values (changed in VESC Tool?). ADC" + e.pad + " may be active again." : ""; }
                             }
                             SetupDescription {
-                                visible: wdEmCard.on
+                                visible: wdEmCard.active
                                 horizontalAlignment: Text.AlignLeft
                                 text: { var t = watchdog.test, e = watchdog.emerg(); if (!e) return ""; var g = e.pad === 1 ? 2 : 1;
                                     return "PAD TEST (board stopped, on its tail)\n"
@@ -8316,7 +8316,7 @@ Item {
                             }
                             NeonButton {
                                 Layout.alignment: Qt.AlignHCenter
-                                visible: !wdEmCard.on
+                                visible: !wdEmCard.active
                                 opacity: { watchdog.rev; return watchdog.singleBad() ? 1 : 0.45; }
                                 text: "Emergency settings"
                                 onClicked: {
@@ -8327,7 +8327,7 @@ Item {
                             }
                             NeonButton {
                                 Layout.alignment: Qt.AlignHCenter
-                                visible: wdEmCard.on
+                                visible: wdEmCard.active
                                 text: "Restore original settings"
                                 onClicked: wdRestoreConfirm.open()
                             }
@@ -8359,6 +8359,7 @@ Item {
                             title: "ADVANCED"
                             SwStepper {
                                 Layout.fillWidth: true
+                                Layout.preferredHeight: 0.95 * unit
                                 label: "EARLY ABOVE"
                                 value: swSettings.wdEarly
                                 from: 0.1; to: 1.0; step: 0.05; decimals: 2; suffix: " V"
@@ -8366,6 +8367,7 @@ Item {
                             }
                             SwStepper {
                                 Layout.fillWidth: true
+                                Layout.preferredHeight: 0.95 * unit
                                 label: "HIGH ABOVE"
                                 value: swSettings.wdHigh
                                 from: 0.3; to: 3.0; step: 0.1; decimals: 1; suffix: " V"
@@ -8373,6 +8375,7 @@ Item {
                             }
                             SwStepper {
                                 Layout.fillWidth: true
+                                Layout.preferredHeight: 0.95 * unit
                                 label: "HOLD FOR"
                                 value: swSettings.wdDur
                                 from: 3; to: 60; step: 1; suffix: " s"
@@ -8380,6 +8383,7 @@ Item {
                             }
                             SwStepper {
                                 Layout.fillWidth: true
+                                Layout.preferredHeight: 0.95 * unit
                                 label: "PARKED TILT"
                                 value: swSettings.wdTail
                                 from: 5; to: 30; step: 1; suffix: "°"
@@ -9462,7 +9466,7 @@ Item {
         property int pick: 1
         property bool agreed: false
         property var p: ({})
-        function openFor(bad) { pick = bad; agreed = false; refresh(); open(); }
+        function openFor(bad) { pick = bad; agreed = false; open(); refresh(); }
         function refresh() { p = watchdog.plan(pick); }
         property Timer t: Timer { interval: 1000; repeat: true; running: wdEmergency.visible; onTriggered: wdEmergency.refresh() }
         footer: Item {

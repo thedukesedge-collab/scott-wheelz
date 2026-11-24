@@ -176,7 +176,7 @@ for c in "$@"; do
       14) act="if (!rinkTour.visible) { rinkTour.open(); tourSwipe.currentIndex = 13; }" ;;
       # rf182: WATCHDOG tab, PREFERENCES (MAX AIR / UI), home with MAX AIR, the emergency window
       19) act="settingsDialog.show(3);" ;;
-      20) act="settingsDialog.show(1); settingsStackLayout.children[1].contentItem.contentY = 1e5;" ;;
+      20) act="settingsDialog.show(1); var fl = settingsStackLayout.children[1].contentItem; fl.contentY = Math.max(0, fl.contentHeight - fl.height);" ;;
       21) act="swSettings.airShow = true;" ;;
       22) act="wdEmergency.openFor(1);" ;;
     esac
