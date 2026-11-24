@@ -28,7 +28,7 @@ import { Comm, cString } from './vesc.js';
 
 const RF_GLOW = 'Refloat Glow';  // RF Glow's package name on the board
 const LIVE_TONE = 125;           // RF Glow COMMAND_LIVE_TONE
-export const mixLive = () => { try { return localStorage.getItem('fpMixLive') || 'phone'; } catch (e) { return 'phone'; } };
+export const mixLive = () => { try { return localStorage.getItem('fpMixLive') || 'board'; } catch (e) { return 'board'; } };
 export const REPL_GAP = 600;  // ms between REPL commands (firmware drops < 500 ms)
 const STALE = 1.4;            // s without keepalive before the board stops a tone
 export const MEM_MAX = 85;    // % Lisp memory in use: above this, stay off
@@ -151,12 +151,12 @@ export class Sound {
     this.tile = null;
     return true;
   }
-  // MIXER tiles (live), the rider's choice (mixLive): 'phone' (default) = the
-  // phone plays them; 'board' = the motor plays them: RF Glow's own live tone
-  // command (real time), or on stock Refloat through the REPL (about half a
-  // second late).
+  // MIXER tiles (live), the rider's choice (mixLive): 'board' (default) = the
+  // motor plays them: RF Glow's own live tone command (real time), or on stock
+  // Refloat through the REPL (about half a second late); 'phone' = the phone
+  // plays them.
   live(hz, volume, level) {
-    if (mixLive() !== 'board') return false;  // default: the phone plays it
+    if (mixLive() !== 'board') return false;  // LIVE ON PHONE: the phone plays it
     if (this.rfGlow()) {
       if (this.running()) return true;
       this.glowTile = { level: Math.max(1, Math.min(10, level || 1)), t0: Date.now(), at: 0 };
