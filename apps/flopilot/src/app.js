@@ -56,7 +56,8 @@ window.RF_SOUND = sound;
 // after a package install: read the config again, set the horn helper up again
 link.onPackageChanged = () => { ledSync.reset(link.board); sound.reset(link.board); };
 const DEMO = 'fpDemo';
-try { link.demo = localStorage.getItem(DEMO) === '1'; } catch (e) {}
+// DEMO always starts off: the app opens on the CONNECT BOARD screen
+try { localStorage.removeItem(DEMO); } catch (e) {}
 
 // link lost: keep the board's last readings (trip, battery, temps...) on screen
 // and saved on the phone, but show it standing still. Top speed / max duty are
@@ -272,7 +273,6 @@ function addUi() {
   demoPill.id = 'rmDemo';
   demoPill.onclick = () => {
     link.demo = !link.demo;
-    try { localStorage.setItem(DEMO, link.demo ? '1' : '0'); } catch (e) {}
     if (link.demo && link.S) Object.assign(link.S, { battPct: 90, motorT: 19.5, escT: 27.7 });  // demo start values
     refresh();
     // DEMO brings up the simulator's drive panel; stopping it closes the panel
