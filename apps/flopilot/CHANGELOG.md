@@ -137,6 +137,8 @@ the board's own settings and features the way RF Glow's screen does.
 - Build 44: MAX AIR badge moved above the speedo (under the board name
   row, centered); HAPTIC OFF note moved to the top left, under the board
   name.
+- Build 45: HORN back above the swipe-up window: if the home screen's rows
+  outgrow the fit scaling, the app shrinks them a little more.
 
 **On hold**
 - Battery curve for boards without an SLCM (app % with cell curve + sag

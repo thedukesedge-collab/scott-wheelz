@@ -437,6 +437,16 @@ function addUi() {
   initBackup(link, ledSync, toastMsg);
   initWatchdog(link, ledSync, toastMsg);
   initAir(link, toastMsg);
+  // HORN must stay above the swipe-up window: if the home screen's rows
+  // outgrow the HUD's fit scaling (badges, notes...), shrink it a bit more
+  setInterval(() => {
+    const hud = document.getElementById('hud'), horn = document.getElementById('horn'), sheet = document.getElementById('sheet');
+    if (!hud || !horn || !sheet || !horn.offsetParent) return;
+    const h = horn.getBoundingClientRect(), sh = sheet.getBoundingClientRect(), top = hud.getBoundingClientRect().top;
+    if (h.bottom <= sh.top - 2 || h.bottom <= top) return;
+    const m = /scale\(([\d.]+)\)/.exec(hud.style.transform || ''), cur = m ? +m[1] : 1;
+    hud.style.transform = 'scale(' + (cur * (sh.top - 6 - top) / (h.bottom - top)).toFixed(4) + ')';
+  }, 700);
   initDataTab();
   reconnectSaved().then(ok => ok || (link.snap && scheduleRetry()));
 }
