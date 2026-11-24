@@ -330,6 +330,9 @@
             <div class="pill" id="fsPill">OFF</div>
           </div>
           <div id="fsActive" style="text-align:center;font-size:12px;color:var(--green)"></div></div>
+          <div class="secTitle neonL" style="font-size:16px;margin-top:14px">DISABLE MOVING FAULTS</div><!-- rf182 -->
+          <p style="font-size:12px;color:#d6ffe4;margin:0 4px">DMF: lifting your foot off the sensor won't stop the board while you ride forward (Refloat's Disable Moving Faults). Needs correct speed calibration and a tail-heavy board.</p>
+          <div class="pills"><div class="pill" id="dmfPill">DMF OFF</div></div>
           <div class="secTitle neonL" style="font-size:16px;margin-top:14px">HORN SETTINGS</div>
           <p style="font-size:12px;color:#d6ffe4;margin:0 4px">Only for the HORN button (separate from Haptic Feedback). A beep, no motor buzz; while riding only below 60% duty, never over a real warning.</p>
           <div style="display:flex;justify-content:center;margin:8px 0"><div id="hornMode" style="display:flex;border:2px solid var(--purple);border-radius:999px;background:#0b0718;padding:2px"><div data-v="0" style="padding:5px 14px;border-radius:999px;font-family:Orbitron,monospace;font-size:10px;cursor:pointer">SIMPLE</div><div data-v="1" style="padding:5px 14px;border-radius:999px;font-family:Orbitron,monospace;font-size:10px;cursor:pointer">ADVANCED</div></div></div>
@@ -616,6 +619,7 @@
     <div class="simBtns">
       <div class="sb" id="scSprint">Sprint to 35 mph</div>
       <div class="sb" id="scFree">Free spin (mid-air)</div>
+      <div class="sb" id="scJump">Jump (air time)</div>
       <div class="sb" id="scSlip">Wheelslip burst</div>
       <div class="sb" id="scNose">Nosedive warning</div>
       <div class="sb" id="scPower">Power cycle</div>
@@ -625,6 +629,8 @@
     <div id="sliders"></div>
     <h4>FOOTPADS</h4>
     <div class="simBtns"><div class="sb" id="fpL">ADC1 (left)</div><div class="sb" id="fpR">ADC2 (right)</div></div>
+    <div class="simBtns"><div class="sb" id="stk1">ADC1 stuck</div><div class="sb" id="stk2">ADC2 stuck</div></div>
+    <p>Stuck = the sensor reads 3.1 V with nobody on it (WATCHDOG). Step off and set Pitch to 14° (parked on the tail) to let WATCHDOG check.</p>
     <h4>OTHER</h4>
     <div class="simBtns"><div class="sb" id="sbResetPk">Reset peaks</div><div class="sb" id="sbResetAll">Reset simulator</div></div>
   </div>
@@ -779,7 +785,7 @@ setInterval(() => sheetHintShow(), 500);
 function applySheet() {
   const h = sheetMin + (sheetMax - sheetMin) * sheetF;
   $('sheet').style.height = px(h);
-  const avail = rootH - h - 0.1 * u, full = rootH - sheetMin - 0.1 * u;
+  const full = rootH - sheetMin - 0.1 * u, avail = P.sheetOverlap ? full : rootH - h - 0.1 * u;  // rf182: OVERLAP keeps the home screen's size
   $('mainBg').style.height = px(avail);
   $('hud').style.transform = 'scale(' + Math.min(1, avail / Math.max(1, full)) + ')';
   // rf81: with the sheet up, a tap on the main view above it puts it down
@@ -845,7 +851,7 @@ $('btnEdit').onclick = () => {
 // rf87: Neon Future tour (SETTINGS > PREFERENCES > SHOW TIPS & TRICKS), same pages as rinkTour in ui.qml.in
 const TOUR = [
   ["✦", "REFLOAT GLOW", "WELCOME", "Built on Refloat 1.2.3 by Lukáš Hrázký (lukash) and the Refloat community, reimagined with a Neon Future style theme and a bunch of extra features. Swipe through what's new; it takes a minute."],
-  ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and MAX SPEED / DUTY right there."],
+  ["◔", "HOME SCREEN", "MAIN VIEW", "Speed, duty and current on the neon speedo. The side and front views tilt with your board, the battery bar shows your real charge. TILT slider and MAX SPEED / DUTY right there (plus MAX AIR, if you turn it on in Settings › PREFERENCES)."],
   ["≡", "PULL-UP SHEET", "SWIPE UP", "Drag the sheet up for TUNES, CONTROL, MIXER, DATA, BOARD STYLE and LEDS. Tap anywhere on the main view (except HORN) to put it away."],
   ["♫", "HORN", "HOME + CONTROL", "Hold HORN to beep through the motor, no extra hardware. Sound and volume (10/10 = 4 V) in CONTROL › HORN SETTINGS. It stays well within safe, low motor current."],
   ["⚙", "RIDE SETTINGS", "SETTINGS › RIDE", "Tap the gear, then RIDE. HAPTIC FEEDBACK: the warning tone at your duty or speed. PUSHBACK: when and how much the nose lifts (duty, speed, battery voltage). Both are Refloat's own settings and only save while the board is stopped.", "ride"],
@@ -858,6 +864,7 @@ const TOUR = [
   ["▮", "BATTERY GAUGE", "LEDS › BATTERY GAUGE", "Pick your cells and pack for a battery % you can trust, on screen and on the status bar."],
   ["♬", "BEEPER", "SETTINGS › RIDE › BEEPER", "Controller beeper on/off with a TEST BEEP and PERSISTENT FATAL BEEP, in Settings (gear) › RIDE. The light module's own beeper stays in LEDS › BEEPER."],
   ["↻", "UPDATES", "LEDS › UPDATES", "NEW: update your light module (LCM) right from Refloat Glow over Bluetooth. No laptop, no cables, just a few taps. New Refloat Glow releases show up here too. (Your LCM needs the SLCM base firmware for Bluetooth updates.)", "updates"],
+  ["⛨", "GHOSTING PROTECTION", "SETTINGS › WATCHDOG", "Refloat Glow watches both footpad sensors while your board is parked on its tail. A pad that keeps reading high with nobody on it gets a warning; both pads stuck = ghosting alert. One failed pad? WATCHDOG's emergency setting can switch it off until you replace the sensor."],
   ["★", "CREDIT WHERE IT'S DUE", "THE ORIGINAL", "Refloat Glow builds on Refloat by Lukáš Hrázký (lukash), which itself builds on the Float package by Mitch Lustig, Dado Mista and Nico Aleman. Their work made this project possible. Full credit and appreciation go to the original developers and community.", "credit"],
   ["⚠", "SAME RIDE", "RIDE WITH CONFIDENCE", "Underneath the new interface, Refloat Glow retains Refloat 1.2.3's core riding behavior, including balance, pushback, footpad handling and alerts. Most additions focus on customization, lighting and sounds. Optional settings such as MAX SPEED can change how your board behaves, so review them carefully."]
 ];
@@ -888,7 +895,7 @@ function tourShowDemo() {
       + '<div class="lanes"><div class="lane" style="border-color:var(--green)"><b style="color:var(--green)">PACKAGE</b><i>DOWNLOAD PACKAGE</i>then install it in VESC Tool (VESC Packages)</div>'
       + '<div class="lane"><b>LIGHT MODULE</b><i>FLASH UPDATE</i>SLCM over Bluetooth, board at rest</div></div>'
       + '<div class="note">Shown when an SLCM light module is connected. Only tagged releases; the tour never downloads or flashes anything.</div>'
-    : demo === 'ride' ? '<div class="path" style="margin-top:4px"><span style="opacity:.6">SETUP · PREFERENCES ·</span> <span style="color:var(--green)">RIDE</span></div>'
+    : demo === 'ride' ? '<div class="path" style="margin-top:4px"><span style="opacity:.6">SETUP · PREFERENCES ·</span> <span style="color:var(--green)">RIDE</span> <span style="opacity:.6">· WATCHDOG</span></div>'
       + '<div class="chk" style="margin-bottom:6px">HAPTIC FEEDBACK ›</div><div class="chk">PUSHBACK ›</div>'
     : demo === 'credit' ? '<div class="note" style="font-family:Orbitron,monospace">Refloat · GPL-3.0 · github.com/lukash/refloat</div>' : '';
 }
@@ -896,7 +903,7 @@ function tourShowDemo() {
 const TOUR_STEPS = [null, [-1, ['speedoWrap']], [0, ['tabs']], [-1, ['horn']], [-1, ['btnSettings']], [2, ['padTiles']], [2, [() => $('mxRec').parentElement]],
   [2, [() => $('padPlay').parentElement, () => $('mxRec').parentElement]], [1, [() => $('myMelOpen').parentElement]], [4, ['pgStyle']],
   [5, [() => $('ltHead').closest('.ledTiles')]], [5, [() => $('ltBat').closest('.ledTile')]], [-1, ['btnSettings']],
-  [5, [() => $('ltUpd').closest('.ledTile')]], null, null];
+  [5, [() => $('ltUpd').closest('.ledTile')]], [-1, ['btnSettings']], null, null];
 let tourSaved = null, tourTarget = null, tourReal = false, tourRaf = 0, tourSettle = 0;
 const tourVis = el => !!el && el.offsetParent !== null && el.getBoundingClientRect().height > 0;
 // rf168: the target is picked right away and the spotlight / card stay up while
@@ -1205,7 +1212,10 @@ function rideNotes() {
     else { note.style.right = ''; note.style.left = b.offsetLeft + 'px'; }
   };
   place($('pbOffNote'), 'pkSpeed', P.pb && !(P.pb.dutyAng > 0));
-  place($('hapOffNote'), 'pkDuty', P.hap && !(P.hap.str > 0), true);
+  // rf182: HAPTIC OFF top left, just under the board name
+  const hn = $('hapOffNote'), hon = P.hap && !(P.hap.str > 0);
+  hn.style.display = hon ? 'block' : 'none';
+  if (hon) { const nr = $('nameRow'), sw = $('speedoWrap'); hn.style.transform = 'none'; hn.style.right = ''; hn.style.left = ($('boardName').offsetLeft + nr.offsetLeft - sw.offsetLeft) + 'px'; hn.style.top = (nr.offsetTop + nr.offsetHeight - sw.offsetTop + 2) + 'px'; }
 }
 window.addEventListener('resize', () => rideNotes());
 // rf167: Settings › RIDE › PUSHBACK (pushbackCfg in ui.qml.in): Refloat's pushback settings, Refloat defaults here
@@ -2623,6 +2633,9 @@ $('sbResetAll').onclick = () => { try { localStorage.removeItem('rrfSim'); } cat
 const startScen = name => { S.scen = name; S.scenT = 0; S.auto = false; };
 $('scSprint').onclick = () => startScen('sprint');
 $('scFree').onclick = () => startScen('free');
+$('scJump').onclick = () => startScen('jump');  // rf182: MAX AIR
+$('stk1').onclick = () => { S.stuck1 = !S.stuck1; $('stk1').classList.toggle('on', S.stuck1); };
+$('stk2').onclick = () => { S.stuck2 = !S.stuck2; $('stk2').classList.toggle('on', S.stuck2); };
 $('scSlip').onclick = () => startScen('slip');
 $('scNose').onclick = () => startScen('nose');
 $('scPower').onclick = () => { S.trip = 0; P.peakSpeed = 0; P.peakDuty = 0; save(); S.mode = 'ready'; S.speed = 0; S.fpL = S.fpR = false; S.auto = false; toast('Board power cycled: trip and peaks reset'); };
@@ -2645,6 +2658,13 @@ function step(now) {
       S.fpL = S.fpR = t < 0.25;
       if (t < 2.2) { tSpeed = 46; forcedAmps = 1.2; forcedDuty = 0.95; S.wheelslip = t > 0.1 && t < 1.6; }
       else { tSpeed = 0; if (t > 2.8) { S.mode = 'ready'; S.scen = null; } }
+    } else if (S.scen === 'jump') {
+      // rf182 MAX AIR demo: rider on, off a ramp, ~0.7 s in the air, landing
+      S.fpL = S.fpR = true; S.mode = 'running';
+      if (t < 1.0) tSpeed = 18;
+      else if (t < 1.7) { tSpeed = 22; forcedAmps = 2; S.wheelslip = true; }
+      else if (t < 1.9) { tSpeed = 13; forcedAmps = 48; S.wheelslip = true; }
+      else { tSpeed = 12; if (t > 3.5) S.scen = null; }
     } else if (S.scen === 'slip') {
       S.fpL = S.fpR = true; S.mode = 'running';
       if (t < 1.2) { tSpeed = 14; } else if (t < 2.0) { tSpeed = 40; forcedDuty = 0.93; S.wheelslip = true; } else { tSpeed = 12; if (t > 4) S.scen = null; }
@@ -2849,7 +2869,7 @@ function drawFootpad() {
   ctx.restore();
   ntext(ctx, 'ADC1', s * 0.26, s * 0.47, s * 0.13, S.fpL ? GREEN : '#9b6bd6', { weight: '500' });
   ntext(ctx, 'ADC2', s * 0.74, s * 0.47, s * 0.13, S.fpR ? GREEN : '#9b6bd6', { weight: '500' });
-  const v1 = S.fpL ? 2.9 : 0.0, v2 = S.fpR ? 3.0 : 0.0;
+  const v1 = Number.isFinite(S.adc1) ? S.adc1 : S.fpL ? 2.9 : 0.0, v2 = Number.isFinite(S.adc2) ? S.adc2 : S.fpR ? 3.0 : 0.0;  // rf182
   ntext(ctx, v1.toFixed(1) + 'V', s * 0.26, s * 0.92, s * 0.15, '#c3a6ff', { weight: '500', mono: true });
   ntext(ctx, v2.toFixed(1) + 'V', s * 0.74, s * 0.92, s * 0.15, '#c3a6ff', { weight: '500', mono: true });
 }
@@ -3164,6 +3184,342 @@ window.addEventListener('resize', () => { layout(); renderTunes(); });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { layout(); renderTunes(); });
 requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
 setTimeout(() => toast('Tap SIMULATOR on the right edge to drive it'), 600);
+
+// ---------- rf182: DMF: Refloat's Disable Moving Faults (fault_moving_fault_disabled) ----------
+function renderDmf() { $('dmfPill').textContent = P.dmf ? 'DMF ON' : 'DMF OFF'; $('dmfPill').classList.toggle('on', !!P.dmf); }
+$('dmfPill').onclick = () => {
+  if (P.dmf) { P.dmf = false; save(); renderDmf(); toast('DMF off: the footpad can stop the board again'); return; }
+  modal('<h3 style="color:#ff2b4f">\u26A0 DISABLE MOVING FAULTS</h3><div style="font-size:13px;line-height:1.45;color:#d6ffe4">While you ride forward above twice the Half State Fault ERPM, with the board within 40\u00b0 of level, lifting off the footpad sensor won\'t disengage the board. Outside that, the sensor works as usual.<br><br>'
+    + '<b style="color:#ff2b4f">Refloat\'s warning: needs correct speed calibration and a tail-heavy board. The board WILL ghost if your normal speeds read negative or the board is nose-heavy.</b></div>'
+    + '<div class="btns"><button data-close>CANCEL</button><button class="pri" id="dmfYes">TURN DMF ON</button></div>');
+  $('dmfYes').onclick = () => { P.dmf = true; save(); renderDmf(); $('modal').classList.remove('on'); toast('DMF on'); };
+};
+renderDmf();
+
+// ===================== rf182: ported from the FloPilot app =====================
+// MAX AIR, WATCHDOG (Ghosting Protection), UI overlap option. Same rules as
+// ui.qml.in (airTime / watchdog); the simulator keeps everything in P.
+(function () {
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const fmtT = t => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const day = t => { const d = new Date(t); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
+  if (P.airShow === undefined) P.airShow = false;
+  if (!P.air) P.air = { cur: { max: 0, total: 0, jumps: 0, start: Date.now() }, trips: [], best: 0 };
+  if (P.sheetOverlap === undefined) P.sheetOverlap = false;
+  if (!P.wd) P.wd = { early: 0.2, high: 1.0, dur: 10, tail: 10, hist: [], days: {}, emerg: null };
+  if (!P.fp) P.fp = { adc1: 2.5, adc2: 2.5, posi: false };  // the simulated board's Refloat footpad settings
+
+  // ---------- MAX AIR (airTime in ui.qml.in) ----------
+  const A = { minS: 0.3, maxS: 3.0, lowA: 15, landA: 25, preA: 8, postA: 6 };
+  const air = { st: 'ground', t0: 0, last: 0, land: 0, ok: true, pre: [], post: [] };
+  function airFeed(t, running, pads, slip, amps) {
+    const gap = air.last && t - air.last > 300; air.last = t;
+    const a = Math.abs(amps || 0);
+    if (air.st === 'cool') { if (!slip) air.st = 'ground'; return; }
+    if (air.st === 'ground') {
+      if (gap) air.pre = [];
+      const loaded = air.pre.some(p => p[1] >= A.preA);
+      if (running && pads && slip && a < A.lowA) { Object.assign(air, { st: 'air', t0: t, ok: loaded, land: 0, post: [] }); return; }
+      air.pre.push([t, a]); while (air.pre.length && t - air.pre[0][0] > 1000) air.pre.shift();
+      return;
+    }
+    if (gap || !running || !pads) air.ok = false;
+    if (air.st === 'air') {
+      const spike = a >= A.landA;
+      if (spike && t - air.t0 >= 100) { air.st = 'landed'; air.land = t; }
+      else if (!slip && a >= A.lowA) air.ok = false;
+      else if (!slip && t - air.t0 > 200) { air.st = 'ground'; return; }
+      if (t - air.t0 > A.maxS * 1000) air.st = 'cool';
+      return;
+    }
+    air.post.push(a);
+    if (t - air.land >= 400) {
+      const avg = air.post.reduce((x, y) => x + y, 0) / air.post.length, sec = (air.land - air.t0) / 1000;
+      air.st = 'ground'; air.pre = [];
+      if (air.ok && avg >= A.postA && sec >= A.minS && sec <= A.maxS) airLanded(Math.round(sec * 100) / 100);
+    }
+  }
+  function airLanded(sec) {
+    const c = P.air.cur; c.jumps++; c.total = Math.round((c.total + sec) * 100) / 100;
+    const rec = sec > c.max; if (rec) c.max = sec;
+    const best = sec > (P.air.best || 0); if (best) P.air.best = sec;
+    save(); airDraw();
+    if (P.airShow) toast('Air ' + sec.toFixed(2) + ' s' + (best ? ' · new board record!' : rec ? ' · new trip max' : ''));
+  }
+  let lastTrip = null;
+  function airTrip() {
+    if (lastTrip !== null && S.trip < lastTrip - 0.05) {
+      if (P.air.cur.jumps) { P.air.trips.unshift(Object.assign({ end: Date.now() }, P.air.cur)); P.air.trips = P.air.trips.slice(0, 50); }
+      P.air.cur = { max: 0, total: 0, jumps: 0, start: Date.now() }; save(); airDraw();
+    }
+    lastTrip = S.trip;
+  }
+  const badge = document.createElement('div');
+  badge.className = 'peak nf'; badge.id = 'pkAir';
+  badge.innerHTML = '<div class="v"></div><div class="l">MAX AIR</div>';
+  $('speedoWrap').appendChild(badge);
+  onHold(badge, () => { P.air.cur.max = 0; save(); airDraw(); toast('Max air reset'); }, airDetails);
+  // same size as TOP SPEED, centered above the speedo in the gap under the board name (layout units)
+  function airDraw() {
+    badge.style.display = P.airShow ? '' : 'none';
+    if (!P.airShow) { for (const id of ['msBadge', 'msOffBadge']) { const m = $(id); if (m) m.style.top = '-6px'; } return; }
+    const ref = $('pkSpeed'), wrap = $('speedoWrap'), name = $('nameRow'), cs = getComputedStyle(ref);
+    badge.style.width = cs.width; badge.style.height = cs.height; badge.style.paddingTop = cs.paddingTop;
+    for (const k of ['.v', '.l']) { const s = getComputedStyle(ref.querySelector(k)); badge.querySelector(k).style.fontSize = s.fontSize; badge.querySelector(k).style.lineHeight = s.lineHeight; }
+    const h = ref.offsetHeight, wt = wrap.offsetTop, nb = name.offsetTop + name.offsetHeight;
+    badge.style.left = '50%'; badge.style.transform = 'translateX(-50%)';
+    badge.style.top = Math.round(Math.max(nb + 2, (nb + wt) / 2 - h / 2) - wt) + 'px';
+    badge.querySelector('.v').textContent = P.air.cur.max.toFixed(2) + 's';
+    // the MAX SPEED badges move just under it
+    for (const id of ['msBadge', 'msOffBadge']) { const m = $(id); if (m) m.style.top = (badge.offsetTop + badge.offsetHeight + 2) + 'px'; }
+  }
+  window.airDraw = airDraw;
+  const STAT = (v, l) => '<div style="flex:1;text-align:center;border:2px solid var(--purple);border-radius:8px;padding:6px 2px"><div style="font:700 17px Orbitron,monospace;color:var(--green)">' + v + '</div><div style="font:10px Orbitron,monospace;color:#c98bff">' + l + '</div></div>';
+  function airDetails() {
+    const c = P.air.cur;
+    modal('<h3>AIR TIME</h3><div style="display:flex;gap:6px">' + STAT(c.max.toFixed(2) + 's', 'MAX AIR') + STAT(c.total.toFixed(2) + 's', 'TOTAL AIR') + STAT(c.jumps, 'JUMPS') + '</div>'
+      + '<p class="ledHint" style="text-align:center;margin-top:8px">This trip. Board record: ' + (P.air.best || 0).toFixed(2) + ' s. Hold the MAX AIR box to reset max air; past trips: Settings › PREFERENCES › MAX AIR.</p>'
+      + '<div class="btns"><button class="pri" data-close>CLOSE</button></div>');
+  }
+
+  // ---------- WATCHDOG (watchdog in ui.qml.in) ----------
+  const COLOR = { ok: '#39ff7a', early: '#f5ff3b', high: '#ff8a1f', crit: '#ff2b4f' };
+  const WORD = { ok: 'OK', early: 'EARLY', high: 'HIGH', crit: 'STUCK' };
+  const RANK = { ok: 0, early: 1, high: 2, crit: 3 };
+  const W = { status: 'wait', pad: [{ level: 'ok', cand: 'ok', since: 0 }, { level: 'ok', cand: 'ok', since: 0 }], both: false, note: {},
+    test: { pressed: false, released: false, badQuiet: true } };
+  const volts = i => i === 1 ? S.adc1 : S.adc2;
+  const swOf = i => { const e = P.wd.emerg; return e && e.pad === i ? e.orig['fault_adc' + i] : P.fp['adc' + i]; };
+  function classify(v, sw) { if (!Number.isFinite(v)) return 'ok'; if (sw > 0 && v >= sw) return 'crit'; if (v > P.wd.high) return 'high'; if (v > P.wd.early) return 'early'; return 'ok'; }
+  function record(pad, level, v) { P.wd.hist.unshift({ t: Date.now(), pad, level, v: Math.round((v || 0) * 100) / 100 }); P.wd.hist = P.wd.hist.slice(0, 50); save(); }
+  function ack() { if (P.wd.hist[0]) { P.wd.hist[0].ack = Date.now(); save(); } }
+  function wdTick() {
+    const now = Date.now();
+    const unloaded = S.mode !== 'running' && Math.abs(S.speed) < 0.5 && Math.abs(S.pitch) >= P.wd.tail;
+    if (!unloaded) { W.status = 'wait'; W.pad.forEach(p => { p.cand = p.level; p.since = now; }); testStep(); return; }
+    W.status = 'check';
+    [1, 2].forEach(i => {
+      const p = W.pad[i - 1], v = volts(i), lvl = classify(v, swOf(i));
+      if (lvl !== p.cand) { p.cand = lvl; p.since = now; }
+      if (lvl !== p.level && now - p.since >= P.wd.dur * 1000) {
+        const up = RANK[lvl] > RANK[p.level]; p.level = lvl;
+        if (up) wdEvent(i, lvl, v); else if (lvl === 'ok') toast('ADC' + i + ' back to normal');
+      }
+    });
+    const b = W.pad[0].level === 'crit' && W.pad[1].level === 'crit';
+    if (b && !W.both) wdEvent(0, 'crit', Math.max(volts(1), volts(2)));
+    W.both = b;
+    sample(); testStep();
+  }
+  function wdEvent(pad, level, v) {
+    const e = P.wd.emerg;
+    if (e && e.applied && pad === e.pad) return;
+    const goodStuck = e && e.applied && pad && pad !== e.pad && level === 'crit';
+    record(pad, goodStuck || !pad ? 'crit-both' : level, v);
+    const k = pad + level;
+    if (Date.now() - (W.note[k] || 0) < 600000) return;
+    W.note[k] = Date.now();
+    if (!pad || goodStuck) return critical(goodStuck);
+    if (level === 'crit') {
+      modal('<h3 style="color:#ff2b4f">⚠ ADC' + pad + ' LOOKS STUCK</h3><div style="font-size:13px;line-height:1.45;color:#ead6ff">ADC' + pad + ' reads <b>' + v.toFixed(2) + ' V</b> (at or over its switch voltage) for ' + P.wd.dur + ' s while the board is parked on its tail, so nobody should be on it.<br><br>Check the sensor and its plug before riding. If the sensor has failed, Settings › WATCHDOG has a Ghosting Pad Emergency setting to get you home on the other pad.</div>'
+        + '<div class="btns"><button id="wdA">ACKNOWLEDGE</button><button class="pri" id="wdD">DIAGNOSTICS</button></div>');
+      $('wdA').onclick = () => { ack(); $('modal').classList.remove('on'); };
+      $('wdD').onclick = () => { $('modal').classList.remove('on'); openWd(); };
+      return;
+    }
+    banner('ADC' + pad + ' ' + (level === 'early' ? 'EARLY WARNING' : 'HIGH WARNING') + ': ' + v.toFixed(2) + ' V with nobody on the board. Tap for WATCHDOG.', COLOR[level]);
+  }
+  function critical(goodStuck) {
+    modal('<h3 style="color:#ff2b4f">‼ CRITICAL — POSSIBLE GHOSTING HAZARD</h3><div style="font-size:13px;line-height:1.45;color:#ead6ff"><b>'
+      + (goodStuck ? 'The remaining footpad sensor appears stuck active (the other one is already switched off by the emergency setting). ' : 'Both footpad sensors appear stuck active. ')
+      + 'Your Onewheel may engage unexpectedly without a rider.</b><br><br>Stop using the board and disable the Float Package when safe. Keep clear of the wheel; power the board off if you can.</div>'
+      + '<div class="btns" style="flex-wrap:wrap"><button id="wdA">ACK / FALSE POSITIVE</button><button id="wdX" style="border-color:#ff2b4f;color:#ff2b4f">DISABLE PACKAGE</button><button class="pri" id="wdD">DIAGNOSTICS</button></div>');
+    $('wdA').onclick = () => { ack(); $('modal').classList.remove('on'); toast('Noted. The warning stays in WATCHDOG history'); };
+    $('wdD').onclick = () => { $('modal').classList.remove('on'); openWd(); };
+    $('wdX').onclick = () => {
+      if (S.mode === 'running' || Math.abs(S.speed) >= 0.5) return toast('The board is balancing or rolling: only when stopped');
+      modal('<h3 style="color:#ff2b4f">DISABLE PACKAGE?</h3><div style="font-size:13px;color:#ead6ff">Turns Refloat off (its own Disable setting): the board will not balance or engage until you enable it again in Settings › SETUP.</div><div class="btns"><button data-close>CANCEL</button><button class="pri" id="wdY">DISABLE</button></div>');
+      $('wdY').onclick = () => { $('modal').classList.remove('on'); toast('Package disabled (simulated)'); };
+    };
+  }
+  function banner(text, color) {
+    let b = $('wdBanner');
+    if (!b) { b = document.createElement('div'); b.id = 'wdBanner'; b.style.cssText = 'position:absolute;left:10px;right:10px;top:8px;z-index:90;padding:10px 34px 10px 12px;border-radius:12px;background:#0b0718;border:2px solid;font:600 12px/1.35 sans-serif;box-shadow:0 0 16px rgba(0,0,0,.6);cursor:pointer'; ($('phone') || document.body).appendChild(b); }
+    b.style.borderColor = color; b.style.color = color;
+    b.innerHTML = esc(text) + '<span style="position:absolute;right:10px;top:8px;font-size:16px;color:#c98bff" id="wdBx">✕</span>';
+    b.onclick = e => { b.remove(); if (e.target.id !== 'wdBx') openWd(); };
+    clearTimeout(banner.h); banner.h = setTimeout(() => b.remove(), 20000);
+  }
+  function sample() {
+    if (!(S.adc1 <= P.wd.high && S.adc2 <= P.wd.high)) return;
+    if ((sample.n = (sample.n || 0) + 1) % 10 !== 1) return;
+    const d = day(Date.now()), x = P.wd.days[d] || { s1: 0, s2: 0, n: 0 };
+    if (x.n >= 360) return;
+    x.s1 += S.adc1; x.s2 += S.adc2; x.n++; P.wd.days[d] = x;
+    const ks = Object.keys(P.wd.days).sort(); while (ks.length > 60) delete P.wd.days[ks.shift()];
+    save();
+  }
+  function singleBad() { if (W.both) return 0; const b = [1, 2].filter(i => RANK[W.pad[i - 1].level] >= 2); return b.length === 1 ? b[0] : 0; }
+  function plan(bad) {
+    if (S.mode === 'running' || Math.abs(S.speed) >= 0.5) return { err: 'Stop the board first (not balancing, not rolling)' };
+    const good = bad === 1 ? 2 : 1, gv = volts(good), bv = volts(bad), gsw = P.fp['adc' + good];
+    if (!(gsw > 0)) return { err: 'ADC' + good + ' is switched off in Refloat (0 V): the board would have no working pad' };
+    if (gv > P.wd.early) return { err: 'ADC' + good + ' (the good pad) also reads high (' + gv.toFixed(2) + ' V). Both pads may be faulty: no single-pad emergency' };
+    if (bv >= 4.0) return { err: 'ADC' + bad + ' reads ' + bv.toFixed(2) + ' V: too close to 5.0 V, the switch-off may not hold on this controller' };
+    return { good, orig: { fault_adc1: P.fp.adc1, fault_adc2: P.fp.adc2, fault_is_dual_switch: !!P.fp.posi } };
+  }
+  function emergency(bad) {
+    let pick = bad;
+    const draw = () => {
+      const p = plan(pick), g = pick === 1 ? 2 : 1;
+      $('wdPads').innerHTML = [1, 2].map(i => '<span class="pill' + (i === pick ? ' on' : '') + '" data-p="' + i + '" style="' + (i === pick ? 'background:#ff2b4f;border-color:#ff2b4f' : '') + '">ADC' + i + (i === pick ? ' FAULTY' : ' OK') + ' · ' + volts(i).toFixed(2) + ' V</span>').join('');
+      $('wdPads').querySelectorAll('[data-p]').forEach(x => x.onclick = () => { pick = +x.dataset.p; draw(); });
+      $('wdPlan').innerHTML = 'Now: ADC1 ' + P.fp.adc1.toFixed(2) + ' V · ADC2 ' + P.fp.adc2.toFixed(2) + ' V · Posi ' + (P.fp.posi ? 'ON' : 'OFF')
+        + '<br><span style="color:var(--green)">New: ADC' + pick + ' 5.00 V (never reached: switched off) · ADC' + g + ' unchanged · Posi ON</span>'
+        + (p.err ? '<br><span style="color:#ff2b4f">' + esc(p.err) + '</span>' : '<br>Only ADC' + g + ' will engage the board. Your original values are kept for RESTORE.');
+    };
+    modal('<h3 style="color:#ff2b4f">⚠ EMERGENCY SENSOR CONFIGURATION</h3><div style="font-size:12px;line-height:1.4;color:#ead6ff"><b>This configuration is intended for emergency recovery when one footpad sensor has failed. It reduces rider-presence detection redundancy and may change engagement or stopping behavior. Replace the faulty sensor before your next ride.</b></div>'
+      + '<div class="pills" id="wdPads" style="margin:8px 0"></div><p class="ledHint" id="wdPlan"></p>'
+      + '<p class="ledHint" style="color:#c98bff">Not a repair and not guaranteed safe for riding. The heel-lift (half-switch) stop is gone; only the good pad tells the board you\'re on it. It works only while the bad pad reads under 5.0 V, so the app checks that first; check it on the bench on your controller.</p>'
+      + '<label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:12px;color:#ead6ff"><input type="checkbox" id="wdOk"> I understand. The board is stopped and nobody is on it.</label>'
+      + '<div class="btns"><button data-close>CANCEL</button><button class="pri" id="wdY" style="background:#ff2b4f;border-color:#ff2b4f">APPLY</button></div>');
+    draw();
+    $('wdY').onclick = () => {
+      if (!$('wdOk').checked) return toast('Tick the box first');
+      const p = plan(pick); if (p.err) return toast(p.err);
+      P.wd.emerg = { pad: pick, orig: p.orig, t: Date.now(), applied: true };
+      P.fp['adc' + pick] = 5.0; P.fp.posi = true;
+      W.test = { pressed: false, released: false, badQuiet: true };
+      record(pick, 'emerg', volts(pick)); save();
+      $('modal').classList.remove('on');
+      toast('Emergency settings saved and read back (simulated). Do the PAD TEST before riding');
+      openWd();
+    };
+  }
+  function restore() {
+    const e = P.wd.emerg; if (!e) return;
+    modal('<h3>RESTORE ORIGINAL SETTINGS</h3><div style="font-size:13px;color:#ead6ff">Puts back ADC1 ' + e.orig.fault_adc1.toFixed(2) + ' V, ADC2 ' + e.orig.fault_adc2.toFixed(2) + ' V, Posi ' + (e.orig.fault_is_dual_switch ? 'ON' : 'OFF') + '.<br><br><b>Only after the sensor has been inspected, repaired or replaced and tested.</b> A still-faulty pad becomes active again.</div>'
+      + '<div class="btns"><button data-close>CANCEL</button><button class="pri" id="wdY">RESTORE</button></div>');
+    $('wdY').onclick = () => {
+      if (S.mode === 'running') return toast('Stop the board first');
+      P.fp = { adc1: e.orig.fault_adc1, adc2: e.orig.fault_adc2, posi: e.orig.fault_is_dual_switch };
+      P.wd.emerg = null; record(e.pad, 'restore', volts(e.pad)); save();
+      $('modal').classList.remove('on'); toast('Original settings restored. Test both pads before riding'); openWd();
+    };
+  }
+  function testStep() {
+    const e = P.wd.emerg; if (!e) return;
+    const goodOn = e.pad === 1 ? S.fpR : S.fpL, badOn = e.pad === 1 ? S.fpL : S.fpR;
+    // with the bad pad at 5.0 V the board never sees it
+    const badSeen = badOn && volts(e.pad) > P.fp['adc' + e.pad];
+    W.test = { pressed: W.test.pressed || goodOn, released: W.test.released || (W.test.pressed && !goodOn), badQuiet: W.test.badQuiet && !badSeen };
+  }
+  function drift() {
+    const ks = Object.keys(P.wd.days).sort(), today = day(Date.now()), t = P.wd.days[today];
+    if (!t || !t.n) return '';
+    const prev = ks.filter(k => k < today).slice(-7).map(k => P.wd.days[k]).filter(x => x.n);
+    if (prev.length < 2) return '';
+    return [1, 2].map(i => { const base = prev.reduce((a, x) => a + x['s' + i] / x.n, 0) / prev.length, d = t['s' + i] / t.n - base; return 'ADC' + i + ' resting ' + (d >= 0 ? '+' : '') + d.toFixed(2) + ' V vs last week' + (d >= 0.1 ? ' ⚠ rising' : ''); }).join(' · ');
+  }
+  let page = null;
+  function gauge(i) {
+    const v = volts(i), sw = swOf(i), lvl = classify(v, sw), c = COLOR[lvl], p = W.pad[i - 1], e = P.wd.emerg;
+    const pct = x => Math.max(0, Math.min(100, x / 3.3 * 100));
+    const mark = (x, col) => x > 0 && x <= 3.3 ? '<div style="position:absolute;top:-3px;bottom:-3px;width:2px;left:' + pct(x) + '%;background:' + col + '"></div>' : '';
+    const st = W.status === 'check' && p.cand !== 'ok' ? Math.round((Date.now() - p.since) / 1000) : 0;
+    return '<div style="flex:1;border:2px solid ' + c + ';border-radius:12px;padding:8px;text-align:center;box-shadow:0 0 10px ' + c + '55">'
+      + '<div style="font:700 12px Orbitron,monospace;color:#c98bff">ADC' + i + '</div><div style="font:700 24px Orbitron,monospace;color:' + c + '">' + v.toFixed(2) + '<span style="font-size:12px"> V</span></div>'
+      + '<div style="position:relative;height:8px;border-radius:4px;background:#1c1235;margin:6px 2px"><div style="height:100%;border-radius:4px;width:' + pct(v) + '%;background:' + c + '"></div>' + mark(P.wd.early, '#f5ff3b') + mark(P.wd.high, '#ff8a1f') + mark(sw, '#ff2b4f') + '</div>'
+      + '<div style="font:700 11px Orbitron,monospace;color:' + c + '">' + (e && e.pad === i ? 'SWITCHED OFF' : WORD[p.level !== 'ok' ? p.level : lvl]) + '</div>'
+      + '<div style="font-size:10px;color:#9d8cc0">' + (st ? 'above normal ' + st + ' s' : '&nbsp;') + '</div></div>';
+  }
+  function wdDraw() {
+    if (!page || !page.isConnected || page.style.display === 'none') return;
+    const e = P.wd.emerg, t = P.wd, sb = singleBad();
+    const stat = W.status === 'check' ? ['MONITORING', 'Board parked: checking both pads.', '#39ff7a'] : ['WAITING', 'Checks run when the board is stopped and parked on its tail (tilted ' + t.tail + '°+), so nobody is on it. (Simulator: Step off, set Pitch to 14°.)', '#f5ff3b'];
+    const LV = { early: 'EARLY', high: 'HIGH', crit: 'STUCK', 'crit-both': 'BOTH / GHOSTING', emerg: 'EMERGENCY ON', restore: 'RESTORED' };
+    const hist = t.hist.length ? t.hist.map(h => '<div style="display:flex;justify-content:space-between;gap:6px;font-size:11px;border-top:1px solid #3a2266;padding:3px 0"><span>' + fmtT(h.t) + '</span><span>' + (h.pad ? 'ADC' + h.pad : 'BOTH') + '</span><span style="color:' + (COLOR[h.level] || '#ff2b4f') + '">' + (LV[h.level] || h.level) + '</span><span>' + h.v.toFixed(2) + ' V' + (h.ack ? ' ✓' : '') + '</span></div>').join('') : '<p>No warnings yet.</p>';
+    const days = Object.keys(t.days).sort().slice(-7).reverse().map(k => { const x = t.days[k]; return '<div style="display:flex;justify-content:space-between;font-size:11px"><span>' + k.slice(5) + '</span><span>ADC1 ' + (x.s1 / x.n).toFixed(2) + ' V</span><span>ADC2 ' + (x.s2 / x.n).toFixed(2) + ' V</span></div>'; }).join('');
+    const tr = (ok, s) => '<div style="font-size:12px;color:' + (ok ? 'var(--green)' : '#c98bff') + '">' + (ok ? '✓ ' : '○ ') + s + '</div>';
+    const g = e ? (e.pad === 1 ? 2 : 1) : 0;
+    const sc = page.scrollTop;
+    page.innerHTML = '<div class="card"><b>GHOSTING PROTECTION</b><div style="text-align:center;font:700 12px Orbitron,monospace;color:' + stat[2] + '">' + stat[0] + '</div><p>' + stat[1] + '</p>'
+      + '<div style="display:flex;gap:8px">' + gauge(1) + gauge(2) + '</div>'
+      + '<p style="margin-top:8px">Switch voltage: ADC1 ' + P.fp.adc1.toFixed(2) + ' V · ADC2 ' + P.fp.adc2.toFixed(2) + ' V · Posi ' + (P.fp.posi ? 'ON' : 'OFF') + '</p>'
+      + '<p>Normal 0–' + t.early + ' V · Early > ' + t.early + ' V · High > ' + t.high + ' V · Stuck ≥ switch voltage · ' + t.dur + ' s</p></div>'
+      + (e ? '<div class="card" style="border-color:#ff2b4f"><b style="color:#ff2b4f">⚠ EMERGENCY SENSOR CONFIGURATION ON</b><p>ADC' + e.pad + ' switched off (5.0 V), Posi ON since ' + fmtT(e.t) + '. Only ADC' + g + ' engages the board. Replace the faulty sensor before your next ride.</p>'
+          + '<div style="font:700 11px Orbitron,monospace;color:#c98bff;text-align:center">PAD TEST (board stopped, on its tail)</div>'
+          + tr(W.test.pressed, 'Press ADC' + g + ': the board sees it') + tr(W.test.released, 'Release ADC' + g + ': it goes off') + tr(W.test.badQuiet && W.test.released, 'Touch ADC' + e.pad + ': it must stay off')
+          + '<div style="text-align:center;margin-top:8px"><span class="nb" id="wdRs" style="border-color:var(--green);color:var(--green)">RESTORE ORIGINAL SETTINGS</span></div></div>'
+        : '<div class="card"><b>GHOSTING PAD EMERGENCY</b><p>' + (W.both ? 'Both pads look stuck: no single-pad emergency. Stop using the board.' : sb ? 'ADC' + sb + ' reads high. If that sensor has failed, this switches it off so ADC' + (sb === 1 ? 2 : 1) + ' engages alone.' : 'Shows up when one pad reads HIGH or STUCK while the board is parked.') + '</p>'
+          + '<div style="text-align:center"><span class="nb" id="wdEm" style="' + (sb ? 'border-color:#ff2b4f;color:#ff2b4f' : 'opacity:.45') + '">EMERGENCY SETTINGS</span></div></div>')
+      + '<div class="card"><b>HISTORY</b>' + hist + (t.hist.length ? '<div style="text-align:center;margin-top:6px"><span class="nb" id="wdClr">CLEAR HISTORY</span></div>' : '') + '</div>'
+      + '<div class="card"><b>RESTING VOLTAGE (DAILY)</b><p>' + (drift() || 'Builds up over a few days of parking the board: a slow rise means a sensor is wearing out.') + '</p>' + days + '</div>'
+      + '<div class="card"><b>ADVANCED</b><div id="wdAdv"></div><div style="text-align:center"><span class="nb" id="wdDef">DEFAULTS</span></div></div>';
+    page.scrollTop = sc;
+    const q = id => page.querySelector('#' + id);
+    if (q('wdEm')) q('wdEm').onclick = () => sb ? emergency(sb) : toast(W.both ? 'Both pads look stuck: no single-pad emergency' : 'Only when one pad reads HIGH or STUCK while parked');
+    if (q('wdRs')) q('wdRs').onclick = restore;
+    if (q('wdClr')) q('wdClr').onclick = () => { P.wd.hist = []; save(); wdDraw(); };
+    [['early', 'EARLY ABOVE', 0.05, 0.1, 1.0, ' V'], ['high', 'HIGH ABOVE', 0.1, 0.3, 3.0, ' V'], ['dur', 'HOLD FOR', 1, 3, 60, ' s'], ['tail', 'PARKED TILT', 1, 5, 30, '°']].forEach(([k, l, st, mn, mx, un]) => {
+      const r = document.createElement('div'); r.className = 'row';
+      r.innerHTML = '<div class="l">' + l + '</div><span class="nb" data-d="-1">−</span><span style="min-width:62px;text-align:center;color:var(--green);font:700 13px Orbitron,monospace">' + t[k] + un + '</span><span class="nb" data-d="1">+</span>';
+      r.querySelectorAll('[data-d]').forEach(b => b.onclick = () => {
+        const v = Math.round(Math.max(mn, Math.min(mx, t[k] + st * +b.dataset.d)) * 100) / 100;
+        if (k === 'early' && v >= t.high) return toast('EARLY must stay under HIGH');
+        if (k === 'high' && v <= t.early) return toast('HIGH must stay over EARLY');
+        t[k] = v; save(); wdDraw();
+      });
+      q('wdAdv').appendChild(r);
+    });
+    q('wdDef').onclick = () => { Object.assign(P.wd, { early: 0.2, high: 1.0, dur: 10, tail: 10 }); save(); wdDraw(); };
+  }
+  function openWd() { $('btnSettings').click(); setTimeout(() => { const t = document.querySelector('#modalBox [data-tab="3"]'); if (t) t.click(); }, 30); }
+  window.openWatchdog = openWd;
+  window.__simP = () => P;  // for automated checks
+
+  // ---------- Settings: WATCHDOG tab, PREFERENCES › MAX AIR / UI ----------
+  $('btnSettings').addEventListener('click', () => setTimeout(() => {
+    const box = $('modalBox'), tabs = box.querySelector('.tabs'), p1 = box.querySelector('[data-pg="1"]'), p2 = box.querySelector('[data-pg="2"]');
+    if (!tabs || !p2 || box.querySelector('[data-tab="3"]')) return;
+    const t = document.createElement('div'); t.className = 'pill'; t.dataset.tab = '3'; t.textContent = 'WATCHDOG'; tabs.appendChild(t);
+    const pg = document.createElement('div'); pg.dataset.pg = '3'; pg.style.cssText = 'display:none;max-height:52vh;overflow:auto'; p2.after(pg);
+    box.querySelectorAll('[data-tab]').forEach(x => x.onclick = () => {
+      box.querySelectorAll('[data-tab]').forEach(y => y.classList.toggle('on', y === x));
+      box.querySelectorAll('[data-pg]').forEach(g => g.style.display = g.dataset.pg === x.dataset.tab ? '' : 'none');
+      page = x.dataset.tab === '3' ? pg : null; wdDraw();
+    });
+    // PREFERENCES: MAX AIR + UI
+    const card = document.createElement('div'), card2 = document.createElement('div'); card.className = card2.className = 'card';
+    const prefs = () => {
+      const recs = [P.air.cur.jumps ? Object.assign({ now: true }, P.air.cur) : null, ...P.air.trips].filter(Boolean).slice(0, 20)
+        .map(r => '<div style="display:flex;justify-content:space-between;font-size:11px;border-top:1px solid #3a2266;padding:3px 0"><span>' + (r.now ? 'This trip' : new Date(r.start).toLocaleDateString([], { month: 'short', day: 'numeric' })) + '</span><span>max ' + r.max.toFixed(2) + 's</span><span>total ' + r.total.toFixed(2) + 's</span><span>' + r.jumps + ' jumps</span></div>').join('');
+      card.innerHTML = '<b>MAX AIR</b><div class="row"><div class="l">Show MAX AIR on the home screen</div><div class="sw' + (P.airShow ? ' on' : '') + '" id="airSw"></div></div>'
+        + '<p>Air time off jumps, read from the tire: the board must be balancing with your feet on the pads, the tire spinning free, then a landing. 0.3 s and up. Just for fun: it can miss small hops.</p>'
+        + '<b style="margin-top:6px">AIR RECORDS · BEST ' + (P.air.best || 0).toFixed(2) + 's</b>' + (recs || '<p>No jumps yet.</p>')
+        + '<div style="text-align:center;margin-top:6px"><span class="nb" id="airClr">CLEAR RECORDS</span></div>';
+      card2.innerHTML = '<b>UI</b><div class="row"><div class="l">Swipe-up window overlaps the home screen<small>' + (P.sheetOverlap ? 'ON: slides over it, the home screen keeps its size' : 'OFF: the home screen shrinks to make room') + '</small></div><div class="sw' + (P.sheetOverlap ? ' on' : '') + '" id="uiOver"></div></div>';
+      card.querySelector('#airSw').onclick = () => { P.airShow = !P.airShow; save(); prefs(); airDraw(); };
+      card2.querySelector('#uiOver').onclick = () => { P.sheetOverlap = !P.sheetOverlap; save(); prefs(); applySheet(); };
+      const clr = card.querySelector('#airClr');
+      clr.onclick = () => { if (clr.dataset.sure) { P.air = { cur: { max: 0, total: 0, jumps: 0, start: Date.now() }, trips: [], best: 0 }; save(); prefs(); airDraw(); toast('Air records cleared'); } else { clr.dataset.sure = 1; clr.textContent = 'TAP AGAIN TO CLEAR'; } };
+    };
+    prefs();
+    p1.appendChild(card); p1.appendChild(card2);
+  }, 0));
+
+  // ---------- simulator: ADC volts, stuck pads, jump scenario ----------
+  let t0 = performance.now();
+  setInterval(() => {
+    S.adc1 = S.stuck1 ? 3.1 : S.fpL ? 2.9 : 0.05;
+    S.adc2 = S.stuck2 ? 3.1 : S.fpR ? 3.0 : 0.05;
+    airTrip();
+    airFeed(performance.now() - t0, S.mode === 'running', !!(S.fpL || S.fpR), !!S.wheelslip, S.motorA);
+  }, 50);
+  setInterval(() => { wdTick(); wdDraw(); airDraw(); }, 1000);
+  window.addEventListener('resize', () => setTimeout(airDraw, 50));
+  airDraw();
+})();
 })();
 </script>
 </body>

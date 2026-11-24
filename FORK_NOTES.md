@@ -2053,3 +2053,49 @@ balancing. Audit of every change against upstream Refloat v1.2.3:
 - The approximate-curve note now names its basis per cell. The P42A
   example's description said LG; it's Molicel.
 - Onboarding Tour checked: no cell list or pack options shown; no change.
+
+### From the FloPilot app: MAX AIR, WATCHDOG, DMF, overlap option, LCM updater fix (v1.2.3-rf182)
+UI only (ui.qml.in + simulator); no firmware change.
+- MAX AIR (Settings › PREFERENCES › MAX AIR, off by default): a third box
+  above the speedo, under the board name (the MAX SPEED badges move just
+  under it). Tap: this trip's max / total air and jumps; hold: reset max air.
+  Strict, from Refloat's realtime data: balancing with a footpad pressed the
+  whole time, 8 A+ in the second before take-off, wheelslip with under 15 A
+  (tire unloaded), a 25 A+ landing spike, 6 A+ average for 0.4 s after it,
+  0.3-3 s, no data gap over 0.3 s. Per-board records (BLE address): this
+  trip, last 50 trips, best; a new trip when the trip counter goes back.
+  Display only.
+- WATCHDOG (new Settings tab), Ghosting Protection: ADC1 / ADC2 gauges,
+  status (MONITORING / WAITING / NOT MONITORING), switch voltages + Posi,
+  last 50 warnings, daily resting voltage with a "rising" note vs last week,
+  ADVANCED thresholds (EARLY 0.2 V, HIGH 1.0 V, hold 10 s, parked tilt 10°).
+  Checks only count with the board stopped, not balancing and tilted 10°+
+  (parked on the tail). Banner for EARLY / HIGH, window for STUCK; both
+  stuck = "CRITICAL — POSSIBLE GHOSTING HAZARD" with DIAGNOSTICS, DISABLE
+  PACKAGE (Refloat's "disabled", confirm, stopped only) and ACKNOWLEDGE (no
+  change, history kept).
+- Ghosting Pad Emergency (user's tested workaround, never automatic): the bad
+  pad's switch voltage to 5.0 V (past Refloat's 3.3 V editor limit; the field
+  holds it) + Posi ON, so the good pad engages alone. Confirm box, stopped
+  only; refused if the good pad reads high or is set to 0 V, or the bad pad
+  reads 4 V+. Written, then read back (cfgVerify, now with a completion
+  callback); originals kept for RESTORE ORIGINAL SETTINGS; PAD TEST; while
+  on, tunes / config restores (applyConfig) skip the footpad settings, and a
+  change made elsewhere is flagged. Both pads stuck: no single-pad emergency.
+  Refloat 1.2.3 footpad logic checked (footpad_sensor.c, main.c can_engage /
+  half-switch fault). Needs a bench test per controller (ADC range).
+- CONTROL › DISABLE MOVING FAULTS (Refloat's fault_moving_fault_disabled),
+  between MOVE / TILT and HORN SETTINGS, with Refloat's warning before it
+  turns on; stopped only, read back.
+- Settings › PREFERENCES › UI: the swipe-up window can overlap the home screen
+  instead of shrinking it (off by default = as before).
+- HAPTIC OFF note moved top left, under the board name.
+- LCM updater: the "next page" sent with each STATUS is skipped when it lands
+  in the same one of the package's two page slots as the wanted page (odd
+  page counts: the last page and page 0 shared a slot). Same fix as FloPilot.
+- Settings tabs: SETUP / PREFERENCES / RIDE / WATCHDOG (smaller pills).
+- Onboarding Tour: new GHOSTING PROTECTION page (before CREDIT, spotlights
+  the gear); HOME SCREEN page mentions MAX AIR; the RIDE SETTINGS mock-up
+  shows the WATCHDOG tab.
+- Simulator: all of the above, plus "Jump (air time)" and "ADC1 / ADC2 stuck"
+  buttons in the SIMULATOR panel.
