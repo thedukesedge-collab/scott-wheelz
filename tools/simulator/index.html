@@ -875,7 +875,7 @@ let tourI = 0, tourX = null;
 function tourLightsHtml() {
   const setup = P.simSetup || 'slcm';
   const sl = '<b>Floatwheel kit (SLCM)</b>: HEAD/TAIL LIGHTS on/off and brightness, STATUS BAR animations, BATTERY GAUGE and the light module\'s BEEPER, sent straight to your light module.';
-  const ct = '<b>Controller LEDs</b> (most non-Floatwheel setups, e.g. Thor): HEAD/TAIL LIGHTS effects, colors and brightness, a STATUS BAR and SNOOZE, linked with Refloat\'s LED settings. Plain lights: NON-RGB HEAD/TAIL LIGHTS at the bottom of LEDS.';
+  const ct = '<b>Controller LEDs</b> (most non-Floatwheel setups, e.g. Thor): HEAD/TAIL LIGHTS effects, colors and brightness, a STATUS BAR and SNOOZE, linked with Refloat\'s LED settings.';
   const dim = t => '<span style="color:#9a86b8">' + t + '</span>';
   return setup === 'slcm' ? 'Your board: ' + sl + '<br><br>' + dim(ct)
     : setup === 'refloat' ? 'Your board: ' + ct + '<br><br>' + dim(sl)
@@ -1874,9 +1874,9 @@ setInterval(() => {
 function renderLedsSoft() {
   const setup = P.simSetup || 'slcm', slcm = setup === 'slcm', lightsOk = setup !== 'none';
   $('rgbTileBox').style.display = 'none';  // rf128: merged into HEAD/TAIL LIGHTS
-  const rgbUi = setup === 'refloat' && !P.nonRgb;  // rf175: NON-RGB HEAD/TAIL LIGHTS = simple view
+  const rgbUi = setup === 'refloat';  // rf183: NON-RGB view switch removed
   $('rgbInHead').style.display = rgbUi ? '' : 'none';
-  $('nonRgbBox').style.display = setup === 'slcm' ? 'none' : '';
+  $('nonRgbBox').style.display = 'none';  // rf183: removed
   $('nonRgbP').textContent = 'NON-RGB HEAD/TAIL LIGHTS: ' + (P.nonRgb ? 'ON' : 'OFF'); $('nonRgbP').classList.toggle('on', !!P.nonRgb);
   $('ledsSnzCard').style.display = setup === 'refloat' ? '' : 'none';
   $('ledsBeepCard').style.display = 'none';  // rf173: moved to Settings › RIDE
@@ -1944,7 +1944,7 @@ function renderLedsSoft() {
 function renderLeds() {
   const pct = v => v + '%';
   $('ledHeadSteps').innerHTML = ''; const su = (P.simSetup || 'slcm') === 'slcm';  // rf116: SLCM wording as before
-  if ((P.simSetup || 'slcm') !== 'refloat' || P.nonRgb) { ledStep($('ledHeadSteps'), 'ledHeadPct', su ? 'RIDING LIGHTS' : 'RIDING', 0, 100, 5, v => v ? v + '%' : 'OFF'); ledStep($('ledHeadSteps'), 'ledHeadIdlePct', su ? 'RUNNING LIGHTS (IDLE)' : 'IDLE', 0, 100, 5, v => v ? v + '%' : 'OFF'); }  // rf128: RGB boards: BRIGHTNESS card
+  if ((P.simSetup || 'slcm') !== 'refloat') { ledStep($('ledHeadSteps'), 'ledHeadPct', su ? 'RIDING LIGHTS' : 'RIDING', 0, 100, 5, v => v ? v + '%' : 'OFF'); ledStep($('ledHeadSteps'), 'ledHeadIdlePct', su ? 'RUNNING LIGHTS (IDLE)' : 'IDLE', 0, 100, 5, v => v ? v + '%' : 'OFF'); }  // rf128: RGB boards: BRIGHTNESS card
   // rf86: snooze for controller-driven LEDs (THOR pretend option)
   if (P.ledSnoozeMin === undefined || P.ledSnoozeMin < 0 || !P.snz100) { P.ledSnoozeMin = 5; P.snz100 = true; }  // rf100: minutes before power-off
   // rf88: pretend VESC Shutdown Mode = off after 10 min: snooze stays below it

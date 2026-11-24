@@ -644,7 +644,7 @@ Item {
         property bool rgbLiftedSnap: false
         property bool rgbAvail: false
         // rf175: the RGB head/tail controls are shown (off with NON-RGB HEAD/TAIL LIGHTS on)
-        readonly property bool rgbUi: rgbAvail && !swSettings.nonRgbHeadTail
+        readonly property bool rgbUi: rgbAvail  // rf183: NON-RGB view switch removed
         property bool rgbLoaded: false
         // brightness 0..100. HEAD and FRONT brightness are the HEADLIGHTS
         // window's RIDING / RUNNING levels (same Refloat settings), so they go
@@ -13854,7 +13854,7 @@ Item {
         // module vs controller-driven LEDs (Thor and every other controller)
         // rf175: LIGHTS page: both kinds of boards, yours first (bold), the other below
         readonly property string lightsSlcm: "<b>Floatwheel kit (SLCM)</b>: HEAD/TAIL LIGHTS on/off and brightness, STATUS BAR animations, BATTERY GAUGE and the light module's BEEPER, sent straight to your light module."
-        readonly property string lightsCtl: "<b>Controller LEDs</b> (most non-Floatwheel setups, e.g. Thor): HEAD/TAIL LIGHTS effects, colors and brightness, a STATUS BAR and SNOOZE, linked with Refloat's LED settings. Plain lights: NON-RGB HEAD/TAIL LIGHTS at the bottom of LEDS."
+        readonly property string lightsCtl: "<b>Controller LEDs</b> (most non-Floatwheel setups, e.g. Thor): HEAD/TAIL LIGHTS effects, colors and brightness, a STATUS BAR and SNOOZE, linked with Refloat's LED settings."
         readonly property string lightsText: slcmDetect.present
             ? "Your board: " + lightsSlcm + "<br><br><font color=\"#9a86b8\">" + lightsCtl + "</font>"
             : (ledSender.rgbAvail || ledSender.rfStatusAvail)
@@ -18598,25 +18598,7 @@ Item {
                         }
 
                         // SLCM extras: only with an SLCM light module
-                        // rf175: plain (single-color) head/tail lights: only on / off and
-                        // brightness in HEAD/TAIL LIGHTS (like SLCM boards), no colors or
-                        // effects. Manual only, never switched on by itself.
-                        SwPill {
-                            visible: !slcmDetect.present
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            minWidth: 5.6 * unit
-                            label: swSettings.nonRgbHeadTail ? "NON-RGB HEAD/TAIL LIGHTS: ON" : "NON-RGB HEAD/TAIL LIGHTS: OFF"
-                            lit: swSettings.nonRgbHeadTail
-                            onClicked: swSettings.nonRgbHeadTail = !swSettings.nonRgbHeadTail
-                        }
-                        SwLText {
-                            visible: !slcmDetect.present
-                            width: parent.width
-                            horizontalAlignment: Text.AlignHCenter
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: fontSizeSmall
-                            text: "For plain (single-color) lights: HEAD/TAIL LIGHTS shows only on / off and brightness. Board settings don't change."
-                        }
+                        // rf183: NON-RGB HEAD/TAIL LIGHTS (rf175) removed (user, 2026-11-24)
 
                         LedHeading { visible: slcmDetect.present; text: "SLCM extras" }
 

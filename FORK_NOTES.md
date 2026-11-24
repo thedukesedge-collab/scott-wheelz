@@ -2099,3 +2099,12 @@ UI only (ui.qml.in + simulator); no firmware change.
   shows the WATCHDOG tab.
 - Simulator: all of the above, plus "Jump (air time)" and "ADC1 / ADC2 stuck"
   buttons in the SIMULATOR panel.
+
+### NON-RGB HEAD/TAIL LIGHTS removed (v1.2.3-rf183)
+- The rf175 view switch at the bottom of LEDS (controller LEDs) is gone (user):
+  it only simplified the HEAD/TAIL LIGHTS window and read like a light
+  switch. HEAD/TAIL LIGHTS always shows the full controls again; a saved ON
+  is ignored. ALL LIGHTS and the head/tail on / off are unchanged (Refloat's
+  own leds.on / leds.headlights_on, RGB or not).
+- Onboarding Tour LIGHTS page: the "Plain lights: NON-RGB..." sentence removed.
+- Simulator: same.
