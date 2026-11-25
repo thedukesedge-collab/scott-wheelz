@@ -186,3 +186,10 @@ the board's own settings and features the way RF Glow's screen does.
   STATUS BAR OFF writes Status Brightness 0 (written when the board is
   stopped). The banner shows the light module's name. Simulator: FLOATWHEEL
   LCM option. Not tested on hardware.
+
+**Android**
+- First Android test build (APK, sideloaded; GitHub release
+  "flopilot-android"): the same app as the iPhone build. Not on Android yet:
+  the lock-screen card and WATCHDOG phone notifications (in-app alerts
+  work). Signed with a public test key (apps/flopilot/android-dev-signing)
+  until a private one is set up. Not tested on a phone yet.

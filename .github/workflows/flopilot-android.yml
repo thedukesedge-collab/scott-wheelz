@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# FloPilot Android app (apps/flopilot): the same web app as the iPhone build,
+# wrapped with Capacitor for Android. Builds a signed test APK on every push to
+# the flopilot branch and attaches it to the "flopilot-android" pre-release.
+# Signing: secrets FP_ANDROID_KEYSTORE_B64 / FP_ANDROID_KEYSTORE_PASS if set,
+# else the public development key (apps/flopilot/android-dev-signing).
+name: FloPilot (Android APK)
+
+on:
+  push:
+    branches: [flopilot]
+    paths: ['apps/flopilot/**', 'tools/simulator/**', '.github/workflows/flopilot-android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: flopilot-android
+  cancel-in-progress: false
+
+env:
+  APP: apps/flopilot
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install
+        working-directory: ${{ env.APP }}
+        run: npm install --no-audit --no-fund
+      - name: Protocol tests
+        working-directory: ${{ env.APP }}
+        run: npm test
+      - name: Build web app (simulator UI + app layer)
+        working-directory: ${{ env.APP }}
+        run: npm run www
+      - name: Android project
+        working-directory: ${{ env.APP }}
+        run: |
+          npx cap add android
+          npx cap sync android
+          # build number = run number (an update must have a higher one)
+          sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]*\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -E "versionCode|versionName" android/app/build.gradle
+          # app icon: the FloPilot logo (plain PNG launcher icons, no adaptive icon)
+          command -v convert >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq imagemagick; }
+          R=android/app/src/main/res
+          rm -rf $R/mipmap-anydpi-v26
+          for d in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            n=${d%%:*}; s=${d##*:}
+            convert assets/icon.png -resize ${s}x${s} $R/mipmap-$n/ic_launcher.png
+            cp $R/mipmap-$n/ic_launcher.png $R/mipmap-$n/ic_launcher_round.png
+            rm -f $R/mipmap-$n/ic_launcher_foreground.png
+          done
+          # Bluetooth permissions come from the Bluetooth plugin's manifest
+          grep -o 'android.permission.[A-Z_]*' android/app/src/main/AndroidManifest.xml node_modules/@capacitor-community/bluetooth-le/android/src/main/AndroidManifest.xml | sort -u
+      - name: Build APK
+        working-directory: ${{ env.APP }}/android
+        run: ./gradlew --no-daemon assembleRelease
+      - name: Sign APK
+        working-directory: ${{ env.APP }}
+        env:
+          KS_B64: ${{ secrets.FP_ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.FP_ANDROID_KEYSTORE_PASS }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > release.jks; PASS="$KS_PASS"
+          else
+            cp android-dev-signing/flopilot-dev.jks release.jks; PASS=flopilot-dev  # test key, see android-dev-signing/README.md
+          fi
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          IN=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$BT/zipalign" -f -p 4 "$IN" aligned.apk
+          "$BT/apksigner" sign --ks release.jks --ks-pass "pass:$PASS" --key-pass "pass:$PASS" --ks-key-alias flopilot \
+            --out FloPilot.apk aligned.apk
+          "$BT/apksigner" verify FloPilot.apk
+          rm -f release.jks
+          ls -l FloPilot.apk
+      - name: Publish APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          N=${{ github.run_number }}
+          gh release view flopilot-android >/dev/null 2>&1 || gh release create flopilot-android --prerelease --latest=false \
+            --target flopilot --title "FloPilot Android (test build)" --notes "Test builds of the FloPilot Android app."
+          gh release edit flopilot-android --title "FloPilot Android 1.0.$N (test build)" --notes "FloPilot Android test build 1.0.$N from ${GITHUB_SHA::7} (flopilot branch). Download FloPilot.apk on the phone and open it (allow installs from your browser when asked). Updates install over it. Bench testing only, NOT for riding decisions: the app is a test build. FloPilot is part of Refloat Glow, an unofficial modification of Refloat by Lukas Hrazky, not affiliated with or endorsed by the Refloat developers. License: GPL-3.0-or-later; source: https://github.com/thedukesedge-collab/scott-wheelz/tree/${GITHUB_SHA}."
+          gh release upload flopilot-android "$APP/FloPilot.apk" --clobber
