@@ -2118,7 +2118,8 @@ UI only (ui.qml.in + simulator); no firmware change.
   (fontSizeMode HorizontalFit).
 
 ### SLCM r31: power button works when the VESC never answers (v1.2.3-rf185)
-- Bug (friend's board, VESC 6.06): an SLCM whose VESC never answered (UART
+- Bug (user's test board, SLCM r28 by ST-Link: holding the button did nothing;
+  the stock Floatwheel LCM turned off fine): an SLCM whose VESC never answered (UART
   not enabled in App to Use, wrong baud, or no link at all) stayed in
   "booting" forever. The button is ignored while booting, so the LCM could
   not be switched off (and the lights could not be controlled). The stock
