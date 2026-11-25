@@ -2116,3 +2116,20 @@ UI only (ui.qml.in + simulator); no firmware change.
 - Simulator only (no package change): TOP SPEED / MAX DUTY / MAX AIR text
   shrinks to fit its box (e.g. "50.0mph"); the package already fits it
   (fontSizeMode HorizontalFit).
+
+### SLCM r31: power button works when the VESC never answers (v1.2.3-rf185)
+- Bug (friend's board, VESC 6.06): an SLCM whose VESC never answered (UART
+  not enabled in App to Use, wrong baud, or no link at all) stayed in
+  "booting" forever. The button is ignored while booting, so the LCM could
+  not be switched off (and the lights could not be controlled). The stock
+  Floatwheel LCM firmware turned off fine on the same board.
+- Fix (lcm/.../vesc_serial.c): unanswered polls now also count before the
+  first answer. After 40 (10 s, room for a slow VESC boot) the SLCM enters
+  the existing silent, self-clearing comm-loss fault: headlights flash,
+  status bar pulses magenta, no beeping. A button press turns it off, as
+  after a lost link. When the VESC answers later, it clears to idle.
+- Size: 14708 of 14720 bytes (+4). Unit test added
+  (test_tx_timer_faults_when_vesc_never_answers); all 15 suites pass.
+- Not changed: hold-to-off while locked (Refloat "Lock" / Disable Package)
+  is still ignored, as before. No package UI change; Onboarding Tour checked,
+  nothing to update.
