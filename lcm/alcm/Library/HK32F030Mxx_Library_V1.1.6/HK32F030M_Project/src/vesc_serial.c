@@ -180,11 +180,22 @@ static uint8_t headlight_remote_baseline = LCM_BASELINE_UNSET;
 static uint8_t status_remote_baseline = LCM_BASELINE_UNSET;
 #else
 // Stock Refloat (no VP block): Refloat's brightness drives the lights from
-// the first poll. A click-click level (1-3, 0 = follow Refloat) overrides it
-// until Refloat's values change. Levels: headlights 0/60/100 %, status bar
-// 30/60/100 %.
+// the first poll. A click-click level (1-4, 0 = follow Refloat) overrides it
+// until Refloat's values change. No light data at all (Refloat's LED Mode not
+// External, another package, no package): lights on at level 2, and
+// click-click steps the levels the same way. Levels (headlights / status
+// bar): 1 = 30/30 %, 2 = 60/60 %, 3 = 100/100 %, 4 = headlights off (the
+// status bar stays at 30 % for battery and footpads), then 1 again.
 #define LCM_POLL_HEADLIGHT_IDLE_BRIGHTNESS_OFFSET 13
-static const uint8_t stock_level_pct[2][4] = {{0U, 0U, 60U, 100U}, {0U, 30U, 60U, 100U}};
+#define STOCK_LEVELS 4U
+#define STOCK_DEFAULT_LEVEL 2U
+static const uint8_t stock_level_pct[2][STOCK_LEVELS + 1U] = {{0U, 30U, 60U, 100U, 0U},
+                                                              {0U, 30U, 60U, 100U, 30U}};
+// polls (250 ms, VESC answering) since the last reply with light data; from
+// NO_LIGHT_DATA_POLLS (5 s: longer than a package restart) on, the SLCM runs
+// its lights itself
+#define NO_LIGHT_DATA_POLLS 20U
+static uint8_t no_light_data_polls = 0U;
 static uint8_t stock_level = 0U;
 static uint32_t stock_key = 0xFFFFFFFFU; // Refloat's last 3 brightness bytes
 #endif
@@ -236,6 +247,7 @@ lcm_status_t vesc_serial_init(void)
 #else
     stock_level = 0U;
     stock_key = 0xFFFFFFFFU;
+    no_light_data_polls = 0U;
 #endif
 #ifdef VP_LIGHT_CONTROL
     vp_test_beep_last = 0xFFU;
@@ -883,6 +895,36 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
 }
 #endif
 
+#ifdef VP_LIGHT_CONTROL
+/**
+ * @brief Lights without the VP block: stock Refloat's values (or, with no
+ * light data, none), overridden by a click-click level
+ *
+ * Lights are switched on here (RAM only, never saved) so a "headlights off"
+ * saved from the app can't keep them dark without the app.
+ */
+static void stock_lights(settings_t *settings, uint8_t head, uint8_t status)
+{
+    vp_battery_level = -1; // no VP block (any more): the VESC's battery %
+    vp_test_beep_last = 0xFFU; // = no VP block (a later one records, no beep)
+    if (stock_level != 0U)
+    {
+        head = stock_level_pct[0][stock_level];
+        status = stock_level_pct[1][stock_level];
+    }
+    if (!settings->enable_headlights || !settings->enable_status_leds)
+    {
+        settings->enable_headlights = true;
+        settings->enable_status_leds = true;
+        event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
+    }
+    vp_apply_brightness(head, &settings->headlight_brightness,
+                        COMMAND_PROCESSOR_CONTEXT_HEADLIGHT_BRIGHTNESS);
+    vp_apply_brightness(status, &settings->status_brightness,
+                        COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS);
+}
+#endif
+
 /**
  * @brief Processes a COMM_CUSTOM_APP_DATA packet
  *
@@ -906,6 +948,9 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
     }
 
     settings = settings_get();
+#ifdef VP_LIGHT_CONTROL
+    no_light_data_polls = 0U; // light data from Refloat
+#endif
 
     {
         bool_t new_locked = (payload[LCM_POLL_STATE_OFFSET] & LCM_STATE_MASK) == LCM_STATE_DISABLED;
@@ -952,15 +997,11 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
                                : -1;
         return;
     }
-    vp_battery_level = -1; // no VP block (any more): the VESC's battery %
-    vp_test_beep_last = 0xFFU; // = no VP block (a later one records, no beep)
     {
         // Stock Refloat: its Lights On/Off and LED brightness drive the
         // SLCM - headlights at the riding level while riding, the idle level
         // otherwise, and the status bar. A click-click level overrides them
-        // until Refloat sends different values. Lights are switched on here
-        // (RAM only, never saved) so a "headlights off" saved from the app
-        // can't keep them dark on stock Refloat.
+        // until Refloat sends different values.
         uint32_t key = payload[LCM_POLL_HEADLIGHT_BRIGHTNESS_OFFSET] |
                        ((uint32_t)payload[LCM_POLL_HEADLIGHT_IDLE_BRIGHTNESS_OFFSET] << 8) |
                        ((uint32_t)payload[LCM_POLL_STATUS_BRIGHTNESS_OFFSET] << 16);
@@ -974,21 +1015,7 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
             stock_key = key;
             stock_level = 0U;
         }
-        if (stock_level != 0U)
-        {
-            head = stock_level_pct[0][stock_level];
-            status = stock_level_pct[1][stock_level];
-        }
-        if (!settings->enable_headlights || !settings->enable_status_leds)
-        {
-            settings->enable_headlights = true;
-            settings->enable_status_leds = true;
-            event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
-        }
-        vp_apply_brightness(head, &settings->headlight_brightness,
-                            COMMAND_PROCESSOR_CONTEXT_HEADLIGHT_BRIGHTNESS);
-        vp_apply_brightness(status, &settings->status_brightness,
-                            COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS);
+        stock_lights(settings, head, status);
     }
 #else
     apply_lcm_brightness(&headlight_remote_baseline, payload[LCM_POLL_HEADLIGHT_BRIGHTNESS_OFFSET],
@@ -1002,10 +1029,11 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
 
 #ifdef VP_LIGHT_CONTROL
 /**
- * @brief Click-click on stock Refloat: next light level (1, 2, 3, 1, ...)
+ * @brief Click-click without the VP block: next light level (1, 2, 3, 4 =
+ * headlights off, 1, ...)
  *
  * Only without the VP block (with it, the app sets the lights) and never
- * while riding. Takes effect with the next poll reply (<= 250 ms).
+ * while riding. Takes effect with the next poll (<= 250 ms).
  *
  * @return true if the level changed
  */
@@ -1016,7 +1044,7 @@ bool_t vesc_serial_stock_level_step(void)
     {
         return false;
     }
-    stock_level = (stock_level >= 3U) ? 1U : (uint8_t)(stock_level + 1U);
+    stock_level = (stock_level >= STOCK_LEVELS) ? 1U : (uint8_t)(stock_level + 1U);
     return true;
 }
 #endif
@@ -1206,6 +1234,28 @@ TIMER_CALLBACK(vesc_serial, tx)
         else
         {
             settings_save();
+        }
+    }
+
+    // The VESC answers, but no light data for 5 s (Refloat's LED Mode not
+    // External, another package, no package): the SLCM runs its lights
+    // itself - on at level 2, click-click steps the levels. Light data
+    // again: Refloat's values (or the VP block) take over. With no answer
+    // at all the lights stay as they are (booting / lost link handle that).
+    if (vesc_alive)
+    {
+        if (no_light_data_polls < NO_LIGHT_DATA_POLLS)
+        {
+            no_light_data_polls++;
+        }
+        else
+        {
+            if (stock_level == 0U)
+            {
+                stock_level = STOCK_DEFAULT_LEVEL;
+            }
+            stock_key = 0xFFFFFFFFU; // Refloat's values again: follow them
+            stock_lights(settings_get(), 0U, 0U);
         }
     }
 #endif

@@ -1177,7 +1177,8 @@ static void stock_poll(uint8_t head, uint8_t idle, uint8_t status, board_mode_t 
  *
  * Covers: brightness applied from the very first reply; headlights at the
  * riding byte while riding and the idle byte otherwise; click-click levels
- * (1-3, wrapping) override Refloat until its values change; no level step
+ * (30 / 60 / 100 % / headlights off, wrapping) override Refloat until its
+ * values change; no level step
  * while riding; Refloat's Lights Off (all 0); lights switched back on when a
  * saved setting had them off.
  */
@@ -1210,11 +1211,11 @@ void test_vesc_serial_stock_refloat(void **state)
     will_return(board_mode_get, BOARD_MODE_RIDING);
     assert_false(vesc_serial_stock_level_step());
 
-    // click-click: level 1 = headlights off, status bar 30 % (unchanged)
+    // click-click: level 1 = 30 % / 30 % (status bar unchanged)
     will_return(board_mode_get, BOARD_MODE_IDLE);
     assert_true(vesc_serial_stock_level_step());
     stock_poll(50, 20, 30, BOARD_MODE_IDLE, true, false);
-    assert_int_equal(0U, settings->headlight_brightness);
+    assert_int_equal(76U, settings->headlight_brightness);
     assert_int_equal(76U, settings->status_brightness);
 
     // level 2: 60 % / 60 %, kept while Refloat sends the same values
@@ -1225,7 +1226,8 @@ void test_vesc_serial_stock_refloat(void **state)
     assert_int_equal(153U, settings->headlight_brightness);
     assert_int_equal(153U, settings->status_brightness);
 
-    // level 3 (100 %), then it wraps to level 1
+    // level 3 (100 %), level 4 (headlights off, status bar 30 %), then it
+    // wraps to level 1
     will_return(board_mode_get, BOARD_MODE_IDLE);
     assert_true(vesc_serial_stock_level_step());
     stock_poll(50, 20, 30, BOARD_MODE_IDLE, true, true);
@@ -1234,6 +1236,11 @@ void test_vesc_serial_stock_refloat(void **state)
     assert_true(vesc_serial_stock_level_step());
     stock_poll(50, 20, 30, BOARD_MODE_IDLE, true, true);
     assert_int_equal(0U, settings->headlight_brightness);
+    assert_int_equal(76U, settings->status_brightness);
+    will_return(board_mode_get, BOARD_MODE_IDLE);
+    assert_true(vesc_serial_stock_level_step());
+    stock_poll(50, 20, 30, BOARD_MODE_IDLE, true, false);
+    assert_int_equal(76U, settings->headlight_brightness);
     assert_int_equal(76U, settings->status_brightness);
 
     // Refloat sends different values: back to following Refloat
@@ -1254,6 +1261,123 @@ void test_vesc_serial_stock_refloat(void **state)
     stock_poll(0, 0, 0, BOARD_MODE_IDLE, false, false);
     assert_true(settings->enable_headlights);
     assert_true(settings->enable_status_leds);
+    assert_true(ring_buffer_is_empty(vesc_serial_get_rx_buffer()));
+}
+
+/* one poll tick (with the VESC answering: an empty Refloat reply, as with
+ * LED Mode not External, keeps it alive without light data) */
+static void nodata_tick(bool_t head_changes, bool_t status_changes)
+{
+    static command_processor_context_t ctx_head = COMMAND_PROCESSOR_CONTEXT_HEADLIGHT_BRIGHTNESS;
+    static command_processor_context_t ctx_status = COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS;
+    static const uint8_t empty_reply[] = {0x24, 0x65, 0x18};
+    event_data_t rx_event_data = {0};
+
+    if (head_changes)
+    {
+        expect_value(event_queue_push, event, EVENT_COMMAND_SETTINGS_CHANGED);
+        expect_check(event_queue_push, data, validate_context_event_data, (uintmax_t)&ctx_head);
+    }
+    if (status_changes)
+    {
+        expect_value(event_queue_push, event, EVENT_COMMAND_SETTINGS_CHANGED);
+        expect_check(event_queue_push, data, validate_context_event_data, (uintmax_t)&ctx_status);
+    }
+    expect_any(vesc_serial_hw_send, data);
+    expect_any(vesc_serial_hw_send, len);
+    call_timer_callback(1, 0);
+
+    vp_push_packet(vesc_serial_get_rx_buffer(), empty_reply, (uint8_t)sizeof(empty_reply));
+    event_queue_call_mocked_callback(EVENT_SERIAL_DATA_RX, &rx_event_data);
+}
+
+/**
+ * @brief SLCM with no light data (Refloat's LED Mode not External, another
+ * package, no package): after 5 s of answers without light data the SLCM
+ * runs its lights itself - switched on, level 2 (60 %), click-click 100 % /
+ * headlights off / 30 % / 60 % ...
+ */
+void test_vesc_serial_no_light_data(void **state)
+{
+    (void)state; // Unused
+
+    settings_t *settings = settings_get();
+    settings->headlight_brightness = 255U;
+    settings->status_brightness = 255U;
+    settings->enable_headlights = false; // e.g. saved off from the app
+    settings->enable_status_leds = true;
+    will_return_maybe(board_mode_get, BOARD_MODE_IDLE);
+
+    // the poll timer
+    expect_any(is_timer_active, timer_id);
+    will_return(is_timer_active, false);
+    expect_any(set_timer, timeout);
+    expect_any(set_timer, callback);
+    expect_value(set_timer, repeat, true);
+    event_data_t boot_data = {0};
+    boot_data.board_mode.mode = BOARD_MODE_IDLE;
+    event_queue_call_mocked_callback(EVENT_BOARD_MODE_CHANGED, &boot_data);
+
+    // the VESC answers (empty Refloat reply: no light data)
+    {
+        static const uint8_t empty_reply[] = {0x24, 0x65, 0x18};
+        event_data_t rx_event_data = {0};
+
+        expect_value(event_queue_push, event, EVENT_VESC_ALIVE);
+        expect_any(event_queue_push, data);
+        vp_push_packet(vesc_serial_get_rx_buffer(), empty_reply, (uint8_t)sizeof(empty_reply));
+        event_queue_call_mocked_callback(EVENT_SERIAL_DATA_RX, &rx_event_data);
+    }
+
+    // 5 s (20 polls): nothing changes yet
+    for (int i = 0; i < 20; i++)
+    {
+        nodata_tick(false, false);
+    }
+    assert_false(settings->enable_headlights);
+
+    // then: lights on, level 2 (60 % / 60 %)
+    expect_value(event_queue_push, event, EVENT_COMMAND_TOGGLE_LIGHTS);
+    expect_any(event_queue_push, data);
+    nodata_tick(true, true);
+    assert_true(settings->enable_headlights);
+    assert_int_equal(153U, settings->headlight_brightness);
+    assert_int_equal(153U, settings->status_brightness);
+    nodata_tick(false, false); // stays
+
+    // click-click: 100 %, headlights off (status bar 30 %), 30 %, 60 %
+    assert_true(vesc_serial_stock_level_step());
+    nodata_tick(true, true);
+    assert_int_equal(255U, settings->headlight_brightness);
+    assert_true(vesc_serial_stock_level_step());
+    nodata_tick(true, true);
+    assert_int_equal(0U, settings->headlight_brightness);
+    assert_int_equal(76U, settings->status_brightness);
+    assert_true(vesc_serial_stock_level_step());
+    nodata_tick(true, false);
+    assert_int_equal(76U, settings->headlight_brightness);
+    assert_true(vesc_serial_stock_level_step());
+    nodata_tick(true, true);
+    assert_int_equal(153U, settings->headlight_brightness);
+    assert_int_equal(153U, settings->status_brightness);
+
+    // light data again (stock Refloat, LED Mode External): Refloat's values
+    // (board_mode_get: the will_return_maybe above, idle)
+    {
+        static command_processor_context_t ctx_head = COMMAND_PROCESSOR_CONTEXT_HEADLIGHT_BRIGHTNESS;
+        static command_processor_context_t ctx_status = COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS;
+        uint8_t payload[] = {0x24, 0x65, 0x18, 0, 0, 0, 0, 0, 0, 0, 0, 0, 50, 20, 30};
+        event_data_t rx_event_data = {0};
+
+        expect_value(event_queue_push, event, EVENT_COMMAND_SETTINGS_CHANGED);
+        expect_check(event_queue_push, data, validate_context_event_data, (uintmax_t)&ctx_head);
+        expect_value(event_queue_push, event, EVENT_COMMAND_SETTINGS_CHANGED);
+        expect_check(event_queue_push, data, validate_context_event_data, (uintmax_t)&ctx_status);
+        vp_push_packet(vesc_serial_get_rx_buffer(), payload, (uint8_t)sizeof(payload));
+        event_queue_call_mocked_callback(EVENT_SERIAL_DATA_RX, &rx_event_data);
+    }
+    assert_int_equal(51U, settings->headlight_brightness); // 20 % idle
+    assert_int_equal(76U, settings->status_brightness);
     assert_true(ring_buffer_is_empty(vesc_serial_get_rx_buffer()));
 }
 #endif
@@ -1277,6 +1401,7 @@ const struct CMUnitTest vesc_serial_tests[] = {
 #else
     cmocka_unit_test_setup(test_vesc_serial_vp_block, vesc_serial_setup),
     cmocka_unit_test_setup(test_vesc_serial_stock_refloat, vesc_serial_setup),
+    cmocka_unit_test_setup(test_vesc_serial_no_light_data, vesc_serial_setup),
 #endif
     cmocka_unit_test_setup(test_board_mode_change_riding_and_disabled_poll, vesc_serial_setup),
     cmocka_unit_test_setup(test_board_mode_change_off_with_inactive_timer, vesc_serial_setup),
