@@ -2055,3 +2055,9 @@ bench testing; not on main. SLCM boards only.
     a board on main's SLCM (r27) is offered this SLCM to flash over BLE.
   - Simulator: LCM firmware tools › pretend older LCM shows the locked tile
     and prompt; pretend newer LCM shows the package notice.
+
+### powerclicks2: LCM updater slot fix (branch lcm-powerclicks)
+- Same fix as main rf182: the "next page" sent with each STATUS is skipped
+  when it lands in the same page slot as the wanted page (odd page counts:
+  the last page and page 0 shared a slot), so the BLE SLCM update can't
+  write a page into the wrong slot.

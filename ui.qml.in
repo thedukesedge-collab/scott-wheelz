@@ -1252,7 +1252,12 @@ Item {
                 progress = done / pages;
                 message = (pkgError === 5 ? errorText[5] + " " : "") + "Updating the LCM: " + Math.round(progress * 100) + "%. Keep the app connected, don't ride.";
                 sendPage(want);
-                sendPage(want === 0 ? -1 : (want + 128 < image.size ? want + 128 : 0));
+                // rf182 fix (from main): and the next page - unless it lands in the
+                // same one of the package's two page slots as the wanted one (slot =
+                // page number & 1: with an odd page count, the last page and page 0
+                // share a slot)
+                var nextPg = want === 0 ? -1 : (want + 128 < image.size ? want + 128 : 0);
+                if (nextPg >= 0 && ((nextPg / 128) & 1) !== ((want / 128) & 1)) sendPage(nextPg);
             } else if (pkgState === 3) {
                 progress = 1;
                 active = false;
