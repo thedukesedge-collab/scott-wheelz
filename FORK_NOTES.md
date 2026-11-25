@@ -2134,3 +2134,23 @@ UI only (ui.qml.in + simulator); no firmware change.
 - Not changed: hold-to-off while locked (Refloat "Lock" / Disable Package)
   is still ignored, as before. No package UI change; Onboarding Tour checked,
   nothing to update.
+
+### SLCM r32: hard power-off, the button always works (v1.2.3-rf186)
+- User: the SLCM must power the board on and off on its own, whatever the
+  controller runs; that comes first.
+- Power on was already standalone (the press powers the LCM, the bootloader
+  latches PA2 at once). Power off now is too: the button held **3 s** always
+  releases the power latch, straight from the button driver - booting with
+  no VESC answer, locked (Refloat Lock / Disable Package), fault, any mode,
+  any controller firmware. Power drops when the button is let go (the press
+  itself keeps the LCM powered).
+- The normal hold-to-off (0.5 s + 1 s, shutdown animation) still comes first
+  wherever it works; the bootloader's own 2 s hold in update mode is
+  unchanged.
+- Never the power-on press or the factory reset gesture (held through
+  boot): the hard-off only runs after a button edge, and the power-on press
+  has none.
+- Size: 14712 of 14720 bytes (both button edges share one event push to make
+  room). Unit test extended (ButtonDriverTest); all 15 suites pass.
+- Hardware: NOT VERIFIED (bench: hold 3 s while booting with the UART
+  unplugged, while locked, while riding on the stand).
