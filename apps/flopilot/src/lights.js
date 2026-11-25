@@ -24,7 +24,11 @@ export function pickSetup({ hw, lcmName, rfGlow, rgb, status }) {
   if (isSlcm(lcmName) && rfGlow && !rgb && !status) return 'slcm';
   if (rgb || status) return 'refloat';  // Refloat's own LED strips (Thor etc.)
   if (hw === 0) return 'none';
-  return 'refloat';                      // a light module that isn't an SLCM (or stock Refloat)
+  // a light module (LED Mode External) and no controller strips: Floatwheel
+  // LCM with Dado's firmware, an SLCM on stock Refloat, ... - Refloat sends
+  // it brightness only (headlights riding / idle, status bar)
+  if (hw === 2 || hw === 3) return 'lcm';
+  return 'refloat';
 }
 
 // RF Glow COMMAND_LCM_VP_SETTINGS, the same 30 bytes as ledSender.send() in ui.qml.in
@@ -52,6 +56,7 @@ export function initLights(link, ledSync, toast) {
     const b = link.board, P = window.__simP ? window.__simP() : null;
     if (!b || !link.live || link.installing || !P) return;
     const rfGlow = !!(b.pkg && b.pkg.name === RF_GLOW);
+    window.RF_LCM_NAME = b.lcmName || '';  // the LEDS banner (light module view)
     const setup = pickSetup({ hw: ledSync.hw, lcmName: b.lcmName, rfGlow, rgb: ledSync.rgbAvail, status: ledSync.statusAvail });
     if (setup && P.simSetup !== setup) {
       P.simSetup = setup;

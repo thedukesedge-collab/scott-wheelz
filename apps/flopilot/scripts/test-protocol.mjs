@@ -159,8 +159,10 @@ delete globalThis.window;
 const { vpSettings, pickSetup, isSlcm } = await import('../src/lights.js');
 assert.ok(isSlcm('VPBL-r37fc707') && isSlcm('VP-abc') && !isSlcm('Float LCM') && !isSlcm(''));
 assert.equal(pickSetup({ hw: 2, lcmName: 'VPBL-r37', rfGlow: true }), 'slcm');
-assert.equal(pickSetup({ hw: 2, lcmName: 'VPBL-r37', rfGlow: false }), 'refloat');  // stock: SLCM features need RF Glow
-assert.equal(pickSetup({ hw: 2, lcmName: 'Other LCM', rfGlow: true }), 'refloat');
+assert.equal(pickSetup({ hw: 2, lcmName: 'VPBL-r37', rfGlow: false }), 'lcm');  // stock: SLCM features need RF Glow; brightness only
+assert.equal(pickSetup({ hw: 2, lcmName: 'GTV_1_2_0', rfGlow: true }), 'lcm');  // Dado's Floatwheel firmware
+assert.equal(pickSetup({ hw: 3, lcmName: '', rfGlow: false }), 'lcm');
+assert.equal(pickSetup({ hw: 1, lcmName: '', rfGlow: false }), 'refloat');
 assert.equal(pickSetup({ hw: 1, lcmName: '', rfGlow: false, rgb: true }), 'refloat');
 assert.equal(pickSetup({ hw: 3, lcmName: 'VPBL-r37', rfGlow: true, rgb: true }), 'refloat');  // SLCM + strips: Refloat's strips view
 assert.equal(pickSetup({ hw: 2, lcmName: 'VPBL-r37', rfGlow: true, rgb: false, status: false }), 'slcm');

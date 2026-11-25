@@ -171,3 +171,18 @@ the board's own settings and features the way RF Glow's screen does.
 - SPEED TONE (hapticspeedsplit test build): not in the app until the user
   has bench-tested that build.
 - Basic Tuning redesign (waiting for the user's example tunes).
+
+## 2026-11-25 (Wed)
+
+**Lights**
+- Build 53: LEDS view for light modules on Refloat (LED Mode External, no
+  controller strips): Floatwheel LCMs with Dado's firmware (tester: Floatwheel
+  Atom), an SLCM on stock Refloat. Refloat only sends these brightness, so
+  the view shows just that: HEAD/TAIL LIGHTS on/off with RIDING / IDLE
+  brightness, STATUS BAR on/off with one BRIGHTNESS (Refloat's Status
+  Brightness, which Dado's firmware uses riding and idle). No colors,
+  animations, snooze or LCM tools there. HEAD/TAIL OFF also writes Front
+  Brightness 0 (Refloat sends that to the LCM while the headlights are off),
+  STATUS BAR OFF writes Status Brightness 0 (written when the board is
+  stopped). The banner shows the light module's name. Simulator: FLOATWHEEL
+  LCM option. Not tested on hardware.

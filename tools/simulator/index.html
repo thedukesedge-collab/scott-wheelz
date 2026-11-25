@@ -373,7 +373,7 @@
         <div class="page" id="pgLeds">
           <div class="fwFit" id="slcmBanner" style="margin:4px 6px"></div>
           <p class="ledHint" id="simSetupHint" style="text-align:center;opacity:.7;margin:2px 0">Simulator only - pretend the board is:</p>
-          <div class="pills" id="simSetup"><div class="pill" data-k="slcm">XRV + SLCM</div><div class="pill" data-k="refloat">THOR (REFLOAT LEDS)</div><div class="pill" data-k="none">NO LEDS SET UP</div></div>
+          <div class="pills" id="simSetup"><div class="pill" data-k="slcm">XRV + SLCM</div><div class="pill" data-k="refloat">THOR (REFLOAT LEDS)</div><div class="pill" data-k="lcm">FLOATWHEEL LCM</div><div class="pill" data-k="none">NO LEDS SET UP</div></div>
           <div id="lightsBox"><div class="secTitle" style="text-align:center;margin-top:6px">Lights</div>
           <div class="pills" id="lightsTopBox"></div>
           <div class="pills"><div class="pill" id="headPill2">HEAD/TAIL OFF</div><div class="pill" id="statusPill2">STATUS OFF</div></div>
@@ -432,11 +432,13 @@
         <div class="ledCard" id="headSnzTitle"><div class="cardT">SNOOZE LOOK</div><div id="headSnzSteps"></div><div id="ledBreathBox"></div></div><div class="pills"><div class="pill" id="ledBreathPill" style="display:none"></div></div>
         <p class="ledHint" id="headHintSlcm">HEADLIGHTS OFF = always off. RIDING LIGHTS while engaged, RUNNING LIGHTS otherwise; 0% = off. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). SNOOZE BREATHING: lights slowly breathe while snoozing; off = dark.</p>
         <p class="ledHint" id="headHintRf">RIDING: while engaged. IDLE: otherwise. 0% = off; HEAD/TAIL LIGHTS OFF = always off. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). SNOOZE uses VESC's power-off idle clock: riding or rolling the wheel restarts it and wakes the lights. When to snooze is set on the LEDS page (SNOOZE). BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes by itself; this is for controller-driven LEDs (e.g. Thor).</p>
+        <p class="ledHint" id="headHintLcm" style="display:none">RIDING: while engaged. IDLE: otherwise. 0% = off. Refloat sends these to your light module (Refloat's Headlight Brightness and Front Brightness). The LCM button's double-click picks its own levels until you change one here.</p>
       </div>
       <div class="ledSec" data-s="bar">
         <div class="pills"><div class="pill" id="ledBarPill"></div></div>
         <div id="ledBarSteps"></div>
-        <p class="ledHint">Same as Refloat's Status Idle Brightness (idle) and Status Brightness (riding).</p>
+        <p class="ledHint" id="barHintGen">Same as Refloat's Status Idle Brightness (idle) and Status Brightness (riding).</p>
+        <p class="ledHint" id="barHintLcm" style="display:none">The status bar's brightness, riding and idle (Refloat's Status Brightness). What it shows (battery, footpads, warnings) is set by the light module's own firmware.</p>
         <div id="barSlcm"><div class="pills"><div class="pill on" id="barAnimOpen">ANIMATIONS &#8250;</div></div></div>
         <div id="barRf">
         <div class="pills"><div class="pill" id="barSimpleP">SIMPLE</div><div class="pill" id="barAdvP">ADVANCED &#8250;</div></div>
@@ -904,6 +906,7 @@ function tourLightsHtml() {
   const dim = t => '<span style="color:#9a86b8">' + t + '</span>';
   return setup === 'slcm' ? 'Your board: ' + sl + '<br><br>' + dim(ct)
     : setup === 'refloat' ? 'Your board: ' + ct + '<br><br>' + dim(sl)
+    : setup === 'lcm' ? 'Your board: <b>light module</b> (Floatwheel LCM firmware, ...): HEAD/TAIL LIGHTS and STATUS BAR on/off and brightness, sent through Refloat.<br><br>' + dim(sl + ' Flash the SLCM firmware for those.')
     : 'No lights found yet. ' + ct + ' Turn them on in VESC Tool › Refloat Cfg › Hardware (LED Mode).<br><br>' + sl + ' An LCM with SLCM firmware shows up here by itself.';
 }
 function tourShow() {
@@ -1184,7 +1187,7 @@ function drawStatusArt(c, w, h, t, lit) {
 }
 (function statusArtLoop() {
   const cv = $('statusArt');
-  const refl = (P.simSetup || 'slcm') !== 'slcm';
+  const refl = (P.simSetup || 'slcm') !== 'slcm' && P.simSetup !== 'lcm';
   if (cv) {
     cv.style.display = refl ? '' : 'none';
     const tile = cv.parentElement; tile.style.height = refl ? '150px' : '92px';  // rf152: same as HEAD/TAIL LIGHTS
@@ -1923,13 +1926,16 @@ function renderLedsSoft() {
   document.querySelectorAll('#simSetup .pill').forEach(x => x.classList.toggle('on', x.dataset.k === setup));
   $('slcmBanner').className = 'fwFit' + (slcm ? ' ok' : '');
   $('slcmBanner').innerHTML = slcm ? '<b>&#10004; SLCM DETECTED</b> · ' + FW_BUILD + '<br>Same light settings as any controller, plus the SLCM EXTRAS below.'
+    : setup === 'lcm' ? '<b>LIGHT MODULE' + (window.RF_LCM_NAME ? ' · ' + String(window.RF_LCM_NAME).replace(/[<>&]/g, '') : '') + '</b><br>Refloat sends it on / off and brightness: head / tail lights and the status bar.'
     : "<b>REFLOAT LIGHTS</b><br>These are Refloat's own LED settings, the same on any controller (Thor, Floatwheel, ...).";
   $('slcmExtras').style.display = slcm ? '' : 'none';
   // rf116: an SLCM board: HEAD/TAIL as with the SLCM (rf82); the new snooze rows only for controller-driven LEDs
   const slcmUi = setup === 'slcm';
   $('ledBreathBox').style.display = setup === 'refloat' ? '' : 'none'; $('headSnzTitle').style.display = setup === 'refloat' ? '' : 'none';
   $('ledBreathPill').style.display = slcmUi ? '' : 'none';
-  $('headHintSlcm').style.display = slcmUi ? '' : 'none'; $('headHintRf').style.display = slcmUi ? 'none' : '';
+  $('headHintSlcm').style.display = slcmUi ? '' : 'none'; $('headHintRf').style.display = slcmUi || setup === 'lcm' ? 'none' : '';
+  $('headHintLcm').style.display = setup === 'lcm' ? '' : 'none';
+  $('barHintGen').style.display = setup === 'lcm' ? 'none' : ''; $('barHintLcm').style.display = setup === 'lcm' ? '' : 'none';
   if (P.snzStyle === undefined) P.snzStyle = P.ledBreath === false ? 2 : 0;
   // rf112: SNOOZE LOOK row with a preview (DIM only for controller-driven LEDs)
   $('ledBreathBox').innerHTML = '';
@@ -1946,6 +1952,7 @@ function renderLedsSoft() {
   $('slcmFooter').style.color = slcm ? 'var(--green)' : '#FFB300';
   $('slcmFooter').innerHTML = slcm ? '&#10004; SLCM ' + FW_BUILD + ' detected' : "&#9888; Needs the SLCM light module firmware (brightness also sets controller-driven LEDs)";
   $('ledNote').textContent = !lightsOk ? "controller-driven LEDs aren't set up on this board, so there are no LIGHTS / HEADLIGHTS buttons. Set them up in VESC Tool \u25B8 Refloat Cfg \u25B8 Hardware (LED Mode, type, pin)."
+    : setup === 'lcm' ? "Brightness and on / off go to your light module through Refloat. Colors and animations need the SLCM light firmware."
     : !slcm ? "Using an LCM? Set Refloat Cfg \u25B8 Hardware \u25B8 LED Mode to External (or Internal and External) and write the config."
     : P.ledCfg ? 'SLCM settings are stored on the board, so they apply even without the phone.' : 'SLCM settings are only sent once you change one here; until then the light module keeps its own.';
   const pill = (id, on, txt) => { $(id).textContent = txt + (on ? ' ON' : ' OFF'); $(id).classList.toggle('on', on); };
@@ -1954,8 +1961,9 @@ function renderLedsSoft() {
   $('ltSw').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
   $('ltHead').textContent = P.ledHead ? 'ON · ' + 'RIDE ' + P.ledHeadPct + '% · IDLE ' + P.ledHeadIdlePct + '%' : 'OFF';
   const sb = (P.simSetup || 'slcm') === 'slcm';  // rf117: SLCM: brightness here, presets in ANIMATIONS
-  $('barSlcm').style.display = sb ? '' : 'none'; $('barRf').style.display = sb ? 'none' : '';
-  $('ltBar').textContent = P.ledBar ? 'ON · RIDE ' + P.ledRidePct + '% · ' + (sb ? 'IDLE ' + animLabel('ledAnimIdle', P.ledAnimIdle) : P.rfTimeout > 0 ? 'IDLE: ' + RF_MODES[P.rfMode] : 'IDLE: BATTERY') : 'OFF';
+  const lm = P.simSetup === 'lcm';  // light module on Refloat: brightness only
+  $('barSlcm').style.display = sb ? '' : 'none'; $('barRf').style.display = sb || lm ? 'none' : '';
+  $('ltBar').textContent = !P.ledBar ? 'OFF' : lm ? 'ON · ' + P.ledRidePct + '%' : 'ON · RIDE ' + P.ledRidePct + '% · ' + (sb ? 'IDLE ' + animLabel('ledAnimIdle', P.ledAnimIdle) : P.rfTimeout > 0 ? 'IDLE: ' + RF_MODES[P.rfMode] : 'IDLE: BATTERY');
   $('ltAnim').textContent = 'IDLE ' + animLabel('ledAnimIdle', P.ledAnimIdle) + ' · RIDE ' + animLabel('ledAnimRide', P.ledAnimRide);
   $('ltSound').textContent = 'LCM BEEPER ' + (P.ledBeep ? 'ON' : 'OFF');  // rf173
   pill('ctrlBeepPill', P.ctrlBeep !== false, 'BEEPER'); pill('ledsBeepP', P.ctrlBeep !== false, 'BEEPER'); pill('ledsFatalP', P.fatalPersist !== false, 'PERSISTENT FATAL BEEP');  // rf157
@@ -1986,7 +1994,9 @@ function renderLeds() {
     { const r = $('ledsSnzSteps').lastElementChild, l = r.querySelector('.lbl');  // rf154: minutes first, then the words
       l.textContent = 'BEFORE BOARD POWERS OFF'; r.appendChild(l); r.style.justifyContent = 'flex-start'; r.style.gap = '10px'; }
   }
-  $('ledBarSteps').innerHTML = ''; ledStep($('ledBarSteps'), 'ledIdlePct', 'IDLE BRIGHTNESS', 0, 100, 5, pct); ledStep($('ledBarSteps'), 'ledRidePct', 'RIDING BRIGHTNESS', 0, 100, 5, pct);
+  $('ledBarSteps').innerHTML = '';
+  if (P.simSetup === 'lcm') ledStep($('ledBarSteps'), 'ledRidePct', 'BRIGHTNESS', 5, 100, 5, pct);  // light module: one brightness
+  else { ledStep($('ledBarSteps'), 'ledIdlePct', 'IDLE BRIGHTNESS', 0, 100, 5, pct); ledStep($('ledBarSteps'), 'ledRidePct', 'RIDING BRIGHTNESS', 0, 100, 5, pct); }
   $('ledAnimSteps').innerHTML = '';
   [['ledAnimIdle', 'IDLE'], ['ledAnimRide', 'RIDING'], ['ledAnimDoze', 'SNOOZE'], ['ledAnimBoot', 'BOOT'], ['ledAnimShut', 'SHUTDOWN']]
     .forEach(([k, l]) => ledStep($('ledAnimSteps'), k, l, 0, LED_ANIMS.length - (k === 'ledAnimIdle' ? 0 : 1), 1, v => animLabel(k, v), true));

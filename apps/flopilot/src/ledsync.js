@@ -17,13 +17,17 @@ const pct = v => Math.max(0, Math.min(100, Math.round(v * 100)));
 // what the app's LED settings mean in Refloat's config
 function desired(P) {
   const off = P.rgbOff || {};
+  // a light module on Refloat (LEDS 'lcm' view): Refloat sends it the front
+  // brightness while the headlights are off, so HEAD/TAIL OFF zeroes it; a
+  // status bar that's off gets 0
+  const lcm = P.simSetup === 'lcm';
   const d = {
     'leds.headlights_on': !!P.ledHead,
     'leds.headlights.brightness': P.ledHeadPct / 100,
-    'leds.front.brightness': off[2] ? 0 : P.ledHeadIdlePct / 100,
+    'leds.front.brightness': off[2] || (lcm && !P.ledHead) ? 0 : P.ledHeadIdlePct / 100,
     'leds.status_idle.brightness': P.ledIdlePct / 100,
-    'leds.status.brightness_headlights_on': P.ledRidePct / 100,
-    'leds.status.brightness_headlights_off': P.ledRidePct / 100,
+    'leds.status.brightness_headlights_on': lcm && P.ledBar === false ? 0 : P.ledRidePct / 100,
+    'leds.status.brightness_headlights_off': lcm && P.ledBar === false ? 0 : P.ledRidePct / 100,
     'leds.lights_off_when_lifted': !!P.rgbLifted,
     'leds.status_idle.mode': P.rfMode,
     'leds.status_idle.color1': P.rfColor1,
@@ -61,11 +65,15 @@ function fromConfig(P, c) {
   P.ledHead = g('leds.headlights_on');
   P.ledHeadPct = pct(g('leds.headlights.brightness'));
   P.rgbOff = P.rgbOff || {};
-  const fb = g('leds.front.brightness');
-  P.rgbOff[2] = fb === 0;
+  const fb = g('leds.front.brightness'), lcm = P.simSetup === 'lcm';
+  // light module view: a 0 front brightness with the headlights off is
+  // HEAD/TAIL OFF (desired()), not an idle level of 0 - keep the idle level
+  P.rgbOff[2] = fb === 0 && !(lcm && !P.ledHead);
   if (fb > 0) P.ledHeadIdlePct = pct(fb);
   P.ledIdlePct = pct(g('leds.status_idle.brightness'));
-  P.ledRidePct = pct(g('leds.status.brightness_headlights_on'));
+  const sb = g('leds.status.brightness_headlights_on');
+  if (lcm) P.ledBar = sb > 0;  // light module: status bar off = brightness 0
+  if (!lcm || sb > 0) P.ledRidePct = pct(sb);
   P.rgbLifted = g('leds.lights_off_when_lifted');
   P.rfMode = g('leds.status_idle.mode');
   P.rfColor1 = g('leds.status_idle.color1');
