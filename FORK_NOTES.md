@@ -2154,3 +2154,31 @@ UI only (ui.qml.in + simulator); no firmware change.
   room). Unit test extended (ButtonDriverTest); all 15 suites pass.
 - Hardware: NOT VERIFIED (bench: hold 3 s while booting with the UART
   unplugged, while locked, while riding on the stand).
+
+### SLCM r34: one firmware for every controller setup (v1.2.3-rf187)
+- User: the SLCM should be one-size-fits-all, like Dado's latest LCM
+  firmware: power on/off and basic lights with any Refloat (1.1, 1.2.x, 1.3),
+  Float / other packages or none, and its extras with Refloat Glow /
+  FloPilot.
+- Already so: power on (bootloader latch) and off (hold-to-off once the VESC
+  answers, any firmware; 3 s hard off, r32), stock Refloat lights (r26+).
+  Refloat's LCM message is unchanged since Refloat 1.0 (checked against the
+  upstream history: brightness 0-100 since 2024-03, empty replies when LED
+  Mode is not External since 2024-08, bounds only after 1.2.3).
+- New: **no light data** (VESC answering, but for 5 s no reply with light
+  data: Refloat's LED Mode not External, another package, no package) - the
+  SLCM runs its lights itself: switched on at 60 %, click-click steps them.
+  Light data again: Refloat's values or the VP block take over. No VESC
+  answer at all: lights stay as they are (booting / lost link).
+- Changed (user): one click-click cycle wherever there is no VP block:
+  30 % → 60 % → 100 % → headlights off (status bar stays 30 % for battery
+  and footpads) → 30 %. Before, stock Refloat stepped headlights off / 60 /
+  100 % (status bar 30 / 60 / 100 %).
+- Room (user OK'd): the 12 pin setups use one shared register-level
+  function (hw_gpio_pin, hw_regs.h) instead of the vendor's GPIO_StructInit +
+  GPIO_Init - same registers, values and order, 228 bytes smaller. Firmware
+  now 14596 of 14720 bytes.
+- Tests: stock Refloat test updated to the new cycle, new
+  test_vesc_serial_no_light_data; all 15 suites pass. lcm/README.md updated.
+- Hardware: NOT VERIFIED. Bench checklist in the release note / chat
+  (power, pins after the setup change, each controller setup).

@@ -26,12 +26,28 @@ headlights at Refloat's riding brightness while riding and its idle
 brightness otherwise, and the status bar brightness (Refloat Cfg › LEDs).
 Lights are switched on in RAM so a "headlights off" saved earlier from the
 app can't keep them dark (nothing is written to EEPROM on this path).
-**Click-click** (not while riding) steps three light levels - headlights
-0 / 60 / 100 %, status bar 30 / 60 / 100 % - with an ACK; the level holds until
-Refloat sends different values. Animations, color and beeper keep their
-saved settings. With the VP block (Refloat Glow, SLCM for Refloat) none of
-this applies and clicks do nothing. The plain ALCM build (`VP=0`) is
-unchanged.
+**Click-click** (not while riding) steps the light levels with an ACK:
+30 % → 60 % → 100 % → headlights off (status bar stays at 30 % for battery
+and footpads) → 30 % ... (headlights / status bar). On stock Refloat the
+level holds until Refloat sends different values. Animations, color and
+beeper keep their saved settings. With the VP block (Refloat Glow, SLCM for
+Refloat) none of this applies and clicks do nothing. The plain ALCM build
+(`VP=0`) is unchanged.
+
+**No light data at all** (SLCM r34+): the VESC answers, but for 5 s no
+reply carries light data - Refloat's LED Mode not External (Refloat then
+answers with empty data), another package (Float...) or no package. The SLCM
+then runs its lights itself: switched on at 60 %, click-click steps the
+levels above. As soon as light data arrives, Refloat's values (or the VP
+block) take over again. With no VESC answer at all the lights stay as they
+are (booting / lost link).
+
+**Power** never depends on the controller: the press powers the module and
+the bootloader latches it at once; hold-to-off works whenever the VESC
+answers (any firmware, any package), and the button held **3 s** always
+powers off (SLCM r32+). A VESC that never answers ends, after 10 s, in the
+silent lost-link fault (headlights flash, status bar magenta), where a press
+powers off (r31+).
 
 Battery gauge colors: white above 55 %, yellow 55-41 %, orange 40-30 %, red
 below 30 %, flashing red at 5 % and below; shown while riding from 40 % down.
