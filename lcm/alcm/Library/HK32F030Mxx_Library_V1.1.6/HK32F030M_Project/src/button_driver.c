@@ -19,10 +19,12 @@
 #include "button_driver.h"
 #include "button_driver_hw.h"
 #include "event_queue.h"
+#include "power_hw.h"
 #include "timer.h"
 
 // Definitions
 #define DEBOUNCE_PERIOD 5U // ms
+#define BUTTON_HARD_OFF_MS 3000U // held this long: power off, always
 
 /**
  * @brief Enumeration for button state
@@ -82,25 +84,37 @@ TIMER_CALLBACK(button_driver, debounce)
     }
     else if ((system_tick - last_debounce_time) > DEBOUNCE_PERIOD)
     {
+        // one push for both edges (smaller)
+        event_type_t edge =
+            (reading == BUTTON_STATE_PRESSED) ? EVENT_BUTTON_DOWN : EVENT_BUTTON_UP;
+
         button_state = reading;
-        if (button_state == BUTTON_STATE_PRESSED && last_event != EVENT_BUTTON_DOWN)
+        if (edge != last_event)
         {
             event_data_t event_data = {0};
             event_data.button_data.time = system_tick;
-            event_queue_push(EVENT_BUTTON_DOWN, &event_data);
+            event_queue_push(edge, &event_data);
 
-            last_event = EVENT_BUTTON_DOWN;
+            if (edge == EVENT_BUTTON_UP)
+            {
+                // safe to cancel timer on release
+                cancel_timer(debounce_timer_id);
+            }
+
+            last_event = edge;
         }
-        else if (button_state == BUTTON_STATE_RELEASED && last_event != EVENT_BUTTON_UP)
+        else if ((edge == EVENT_BUTTON_DOWN) &&
+                 ((system_tick - last_debounce_time) > BUTTON_HARD_OFF_MS))
         {
-            event_data_t event_data = {0};
-            event_data.button_data.time = system_tick;
-            event_queue_push(EVENT_BUTTON_UP, &event_data);
-
-            // safe to cancel timer on release
-            cancel_timer(debounce_timer_id);
-
-            last_event = EVENT_BUTTON_UP;
+            // Refloat Glow: hard power-off. Held this long, the LCM lets go
+            // of its power latch (PA2) whatever else is going on - booting
+            // with no VESC answer, locked, fault, any controller firmware.
+            // Power drops when the button is released (the press itself
+            // keeps the LCM powered). The normal hold-to-off (0.5 s + 1 s)
+            // comes first wherever it works. Only after an edge: the
+            // power-on press (and the factory reset gesture, held through
+            // boot) never starts this timer.
+            power_hw_set_power(POWER_HW_OFF);
         }
     }
     last_button_state = reading;

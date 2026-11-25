@@ -107,6 +107,7 @@ add_executable(test_button_driver
     mocks/mock_event_queue.c
     mocks/mock_timer.c
     mocks/mock_button_driver_hw.c
+    mocks/mock_power_hw.c
     )
 
 target_link_libraries(test_button_driver PRIVATE button_driver cmocka)

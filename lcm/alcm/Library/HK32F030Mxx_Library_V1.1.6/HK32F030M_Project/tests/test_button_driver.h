@@ -29,6 +29,7 @@
 #include "event_queue.h"
 #include "mock_event_queue.h"
 #include "mock_timer.h"
+#include "power_hw.h"
 
 // button_driver.c's own EVENT_HANDLER/TIMER_CALLBACK aren't declared in a
 // header (button_driver.h only exposes button_driver_init) - forward
@@ -151,6 +152,26 @@ static void test_button_driver_debounce_state_machine(void **state)
     //    duplicate event (symmetric to step 4).
     will_return(button_driver_hw_is_pressed, true);
     button_driver_debounce_timer_callback(40);
+
+    // 9) Refloat Glow hard power-off: still held exactly 3 s after the
+    //    press settled (clock reset at 30) - not yet (strict '>')
+    will_return(button_driver_hw_is_pressed, true);
+    button_driver_debounce_timer_callback(3030);
+
+    // 10) one tick later: the power latch is released
+    will_return(button_driver_hw_is_pressed, true);
+    expect_value(power_hw_set_power, power_hw, POWER_HW_OFF);
+    button_driver_debounce_timer_callback(3031);
+
+    // 11) released: the normal UP edge (and the timer stops)
+    will_return(button_driver_hw_is_pressed, false);
+    button_driver_debounce_timer_callback(3040);
+    will_return(button_driver_hw_is_pressed, false);
+    expect_value(event_queue_push, event, EVENT_BUTTON_UP);
+    expect_any(event_queue_push, data);
+    expect_value(cancel_timer, timer_id, 1);
+    will_return(cancel_timer, LCM_SUCCESS);
+    button_driver_debounce_timer_callback(3050);
 }
 
 static const struct CMUnitTest button_driver_tests[] = {
