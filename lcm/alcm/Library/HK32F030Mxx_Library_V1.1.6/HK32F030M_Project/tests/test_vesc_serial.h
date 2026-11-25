@@ -771,6 +771,10 @@ static void test_tx_timer_faults_when_vesc_never_answers(void **state)
     boot_data.board_mode.mode = BOARD_MODE_BOOTING;
     event_queue_call_mocked_callback(EVENT_BOARD_MODE_CHANGED, &boot_data);
 
+    // a light-settings save may still be pending from an earlier test:
+    // "riding" keeps postponing it (no EEPROM write here)
+    will_return_maybe(board_mode_get, BOARD_MODE_RIDING);
+
     clear_outstanding_packets();
     for (int i = 0; i < 40; i++)
     {
