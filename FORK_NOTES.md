@@ -2182,3 +2182,28 @@ UI only (ui.qml.in + simulator); no firmware change.
   test_vesc_serial_no_light_data; all 15 suites pass. lcm/README.md updated.
 - Hardware: NOT VERIFIED. Bench checklist in the release note / chat
   (power, pins after the setup change, each controller setup).
+
+### SLCM r36: power button like Dado's firmware (v1.2.3-rf188)
+- Compared with Dado's Floatwheel LCM firmware (surfdado/floatwheel): it
+  ends booting on a fixed 4 s timer whatever the controller does, so its
+  long press always powers off; the lock only changes the display. Ours
+  waited for the VESC's first answer and ignored the button while booting
+  and while locked - the likely reason a new LCM with our firmware wouldn't
+  power off while one with Dado's did.
+- Now (user): booting ends after the first VESC answer or after 4 s
+  (BOOT_TIMEOUT), whichever is first; the normal hold-to-off (ALCM's 0.5 s
+  + 1 s with the shutdown beeps, timing kept) then always works, controller
+  or not. While locked the hold powers off too (clicks still ignored);
+  letting go early returns to locked.
+- r31's "never answers -> lost-link fault after 10 s" is removed (the timer
+  replaces it). r32's 3 s hard power-off stays for now as the backstop for
+  a stuck firmware (Dado's firmware has a hardware watchdog for that; ours
+  has none yet - user to decide).
+- With no VESC the SLCM is idle after 4 s, so its normal idle auto-off
+  applies (about 10 min with nobody on the pads), like Dado's 20 min.
+- Factory reset gesture unchanged in form: hold through booting, which now
+  ends at the VESC's answer or at 4 s.
+- Size 14668 of 14720 bytes. Tests: boot timer, hold-off while locked
+  (and abort back to locked), locked clicks ignored; idle timer ids in the
+  shared board mode tests shift by the boot timer; all 15 suites pass.
+- Hardware: NOT VERIFIED.

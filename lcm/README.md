@@ -42,12 +42,13 @@ levels above. As soon as light data arrives, Refloat's values (or the VP
 block) take over again. With no VESC answer at all the lights stay as they
 are (booting / lost link).
 
-**Power** never depends on the controller: the press powers the module and
-the bootloader latches it at once; hold-to-off works whenever the VESC
-answers (any firmware, any package), and the button held **3 s** always
-powers off (SLCM r32+). A VESC that never answers ends, after 10 s, in the
-silent lost-link fault (headlights flash, status bar magenta), where a press
-powers off (r31+).
+**Power** never depends on the controller (SLCM r36+, like Dado's
+Floatwheel LCM firmware): the press powers the module and the bootloader
+latches it at once; booting ends after the VESC's first answer or after 4 s,
+whichever comes first, so the normal hold-to-off (0.5 s + 1 s with the
+shutdown beeps) always works - also while the board is locked (Refloat
+Lock / Disable Package; letting go early goes back to locked). The button
+held 3 s always powers off (r32+), as a backstop.
 
 Battery gauge colors: white above 55 %, yellow 55-41 %, orange 40-30 %, red
 below 30 %, flashing red at 5 % and below; shown while riding from 40 % down.
