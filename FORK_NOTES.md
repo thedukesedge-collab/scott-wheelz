@@ -2207,3 +2207,4 @@ UI only (ui.qml.in + simulator); no firmware change.
   (and abort back to locked), locked clicks ignored; idle timer ids in the
   shared board mode tests shift by the boot timer; all 15 suites pass.
 - Hardware: NOT VERIFIED.
+- (Publish re-run after a GitHub API error deleting the old dev releases.)
