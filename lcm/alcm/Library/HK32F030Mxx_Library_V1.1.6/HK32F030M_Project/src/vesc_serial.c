@@ -129,6 +129,7 @@
 #define END_BYTE 0x03
 #define MAX_PACKET_LENGTH 40 // VP reply with the CUSTOM block: 34
 #define MAX_OUTSTANDING_PACKETS 5
+#define MAX_OUTSTANDING_PACKETS_BOOT 40 // before the first answer: 40 x 250 ms = 10 s
 // Millidegrees - 0.02 degrees was the original float threshold.
 #define SIGNIFICANT_CHANGE(x, y) ((((x) > (y)) ? ((x) - (y)) : ((y) - (x))) > 20)
 
@@ -1288,21 +1289,27 @@ TIMER_CALLBACK(vesc_serial, tx)
     };
 #endif
 
-    if (vesc_alive == true)
+    // We keep track of the number of outstanding (unanswered) packets.  If
+    // we exceed the maximum number of packets, we trigger a fault and assume
+    // the VESC is dead.
+    //
+    // Refloat Glow: also before the VESC ever answered (after
+    // MAX_OUTSTANDING_PACKETS_BOOT, ~10 s, room for a slow VESC boot).
+    // Before, an LCM whose VESC never answered (UART off, wrong baud) stayed
+    // in booting forever, where the button is ignored, so it could not be
+    // switched off. Now it goes to the (silent, self-clearing) comm-loss
+    // fault: headlights flash, status bar magenta, and a button press turns
+    // it off, as after a lost link.
+    //
+    // Note: the outstanding packet count is also used to determine if the
+    // WS2812 LED updates should be disabled (only while alive).
+    if (vesc_serial_outstaning_packet_count++ >=
+        (vesc_alive ? MAX_OUTSTANDING_PACKETS : MAX_OUTSTANDING_PACKETS_BOOT))
     {
-        // If the VESC is alive, we keep track of the number of outstanding
-        // (unanswered) packets.  If we exceed the maximum number of packets,
-        // we trigger a fault and assume the VESC is dead.
-        //
-        // Note: the outstanding packet count is also used to determine if the
-        // WS2812 LED updates should be disabled.
-        if (vesc_serial_outstaning_packet_count++ >= MAX_OUTSTANDING_PACKETS)
-        {
-            // Too many outstanding packets, trigger a fault
-            fault(EMERGENCY_FAULT_VESC_COMM_TIMEOUT);
-            vesc_alive = false;
-            clear_outstanding_packets();
-        }
+        // Too many outstanding packets, trigger a fault
+        fault(EMERGENCY_FAULT_VESC_COMM_TIMEOUT);
+        vesc_alive = false;
+        clear_outstanding_packets();
     }
     vesc_serial_hw_send(buffer, BYTE_LENGTH);
 }

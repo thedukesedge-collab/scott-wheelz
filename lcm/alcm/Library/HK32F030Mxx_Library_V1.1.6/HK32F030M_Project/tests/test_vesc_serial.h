@@ -745,8 +745,41 @@ static void test_tx_timer_faults_after_max_outstanding_packets(void **state)
     expect_any(vesc_serial_hw_send, len);
     call_timer_callback(1, 0);
 
-    // vesc_alive is now false again - the NEXT tick must not increment
-    // (and therefore must not fault again either).
+    // vesc_alive is now false again - the NEXT tick must not fault again
+    // (the not-yet-answered limit is 40, see the test below).
+    expect_any(vesc_serial_hw_send, data);
+    expect_any(vesc_serial_hw_send, len);
+    call_timer_callback(1, 0);
+}
+
+
+/**
+ * @brief Refloat Glow: a VESC that never answers (UART off / wrong baud)
+ * faults too, after MAX_OUTSTANDING_PACKETS_BOOT (40 x 250 ms = 10 s), so the
+ * LCM leaves booting (where the button is ignored) and a press turns it off.
+ */
+static void test_tx_timer_faults_when_vesc_never_answers(void **state)
+{
+    (void)state;
+
+    expect_any(is_timer_active, timer_id);
+    will_return(is_timer_active, false);
+    expect_any(set_timer, timeout);
+    expect_any(set_timer, callback);
+    expect_value(set_timer, repeat, true);
+    event_data_t boot_data = {0};
+    boot_data.board_mode.mode = BOARD_MODE_BOOTING;
+    event_queue_call_mocked_callback(EVENT_BOARD_MODE_CHANGED, &boot_data);
+
+    clear_outstanding_packets();
+    for (int i = 0; i < 40; i++)
+    {
+        expect_any(vesc_serial_hw_send, data);
+        expect_any(vesc_serial_hw_send, len);
+        call_timer_callback(1, 0);
+    }
+
+    expect_value(fault, fault, EMERGENCY_FAULT_VESC_COMM_TIMEOUT);
     expect_any(vesc_serial_hw_send, data);
     expect_any(vesc_serial_hw_send, len);
     call_timer_callback(1, 0);
@@ -1244,6 +1277,7 @@ const struct CMUnitTest vesc_serial_tests[] = {
     cmocka_unit_test_setup(test_board_mode_change_riding_and_disabled_poll, vesc_serial_setup),
     cmocka_unit_test_setup(test_board_mode_change_off_with_inactive_timer, vesc_serial_setup),
     cmocka_unit_test_setup(test_tx_timer_faults_after_max_outstanding_packets, vesc_serial_setup),
+    cmocka_unit_test_setup(test_tx_timer_faults_when_vesc_never_answers, vesc_serial_setup),
     cmocka_unit_test_setup(test_check_busy_and_set_callback, vesc_serial_setup),
     cmocka_unit_test_setup(test_comm_setup_fault_changed, vesc_serial_setup),
     cmocka_unit_test_setup(test_getters_reflect_initial_state, vesc_serial_setup),
