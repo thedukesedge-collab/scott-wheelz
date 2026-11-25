@@ -95,6 +95,13 @@ int board_mode_setup(void **state)
  * events such as button up, footpad changed, and RPM changed do not trigger
  * any state transitions.
  */
+// Refloat Glow (VP): the boot timer takes the first timer id
+#ifdef VP_LIGHT_CONTROL
+#define BM_BOOT_TIMERS 1
+#else
+#define BM_BOOT_TIMERS 0
+#endif
+
 void board_mode_to_idle(void)
 {
     // On button down, transition to booting
@@ -193,7 +200,7 @@ void test_board_mode_auto_shutdown(void **state)
 
     // Trigger the timer callback to transition to default mode (assume timer_id
     // 2)
-    call_timer_callback(1, 1000);
+    call_timer_callback(1 + BM_BOOT_TIMERS, 1000);
 
     assert_int_equal(board_mode_get(), BOARD_MODE_IDLE);
     assert_int_equal(board_submode_get(), BOARD_SUBMODE_IDLE_DEFAULT);
@@ -211,7 +218,7 @@ void test_board_mode_auto_shutdown(void **state)
 
     // Trigger the timer callback to transition to shutting down mode (assume
     // timer_id 3)
-    call_timer_callback(2, 1000);
+    call_timer_callback(2 + BM_BOOT_TIMERS, 1000);
 
     assert_int_equal(board_mode_get(), BOARD_MODE_IDLE);
     assert_int_equal(board_submode_get(), BOARD_SUBMODE_IDLE_DOZING);
@@ -229,7 +236,7 @@ void test_board_mode_auto_shutdown(void **state)
 
     // Trigger the timer callback to transition to shutting down mode (assume
     // timer_id 4)
-    call_timer_callback(3, 1000);
+    call_timer_callback(3 + BM_BOOT_TIMERS, 1000);
 
     assert_int_equal(board_mode_get(), BOARD_MODE_IDLE);
     assert_int_equal(board_submode_get(), BOARD_SUBMODE_IDLE_SHUTTING_DOWN);
@@ -242,7 +249,7 @@ void test_board_mode_auto_shutdown(void **state)
 
     // Trigger the timer callback to transition to shutting down mode (assume
     // timer_id 5)
-    call_timer_callback(4, 1000);
+    call_timer_callback(4 + BM_BOOT_TIMERS, 1000);
 
     assert_int_equal(board_mode_get(), BOARD_MODE_OFF);
     assert_int_equal(board_submode_get(), BOARD_SUBMODE_UNDEFINED);
