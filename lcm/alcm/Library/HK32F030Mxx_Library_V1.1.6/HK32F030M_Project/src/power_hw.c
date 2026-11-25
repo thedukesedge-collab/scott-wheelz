@@ -18,31 +18,43 @@
  */
 #include "power_hw.h"
 #include "hk32f030m.h"
+#include "hw_regs.h"
 
 void power_hw_init(void)
 {
-    GPIO_InitTypeDef GPIO_InitStructure = {0};
-
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE);
-    GPIO_StructInit(&GPIO_InitStructure);
 
     // PWR_EN (PA2)
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_2;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
+    hw_gpio_pin(GPIOA, 2U, HW_GPIO_OUT);
     GPIO_PinLockConfig(GPIOA, GPIO_Pin_2);
 
     // Charge (PC5)
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-    GPIO_Init(GPIOC, &GPIO_InitStructure);
+    hw_gpio_pin(GPIOC, 5U, HW_GPIO_OUT);
     GPIO_PinLockConfig(GPIOC, GPIO_Pin_5);
+}
+
+// Refloat Glow: see hw_regs.h (lives here: a file both builds compile)
+void hw_gpio_pin(GPIO_TypeDef *gpio, uint32_t pin, uint32_t cfg)
+{
+    uint32_t shift = pin * 2U;
+    uint32_t mask = 3UL << shift;
+    uint32_t mode = cfg & 3U;
+
+    if ((mode == GPIO_Mode_OUT) || (mode == GPIO_Mode_AF))
+    {
+        gpio->OSPEEDR = (gpio->OSPEEDR & ~mask) | (((cfg >> 3) & 3U) << shift);
+        gpio->OTYPER = (gpio->OTYPER & ~(1UL << pin)) | (((cfg >> 2) & 1U) << pin);
+    }
+    gpio->MODER = (gpio->MODER & ~mask) | (mode << shift);
+    gpio->PUPDR = (gpio->PUPDR & ~mask) | (((cfg >> 5) & 3U) << shift);
+    if ((cfg & 0x80U) == 0U)
+    {
+        gpio->IOSR |= 1UL << pin; // Schmitt trigger off (vendor default)
+    }
+    else
+    {
+        gpio->IOSR &= ~(1UL << pin);
+    }
 }
 
 void power_hw_set_power(power_hw_t power_hw)

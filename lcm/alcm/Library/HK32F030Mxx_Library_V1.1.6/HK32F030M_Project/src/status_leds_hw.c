@@ -20,6 +20,7 @@
 #include "status_leds_hw.h"
 #include "interrupts.h"
 #include "hk32f030m.h"
+#include "hw_regs.h"
 #include "tiny_math.h"
 #include "vesc_serial.h"
 
@@ -38,16 +39,8 @@ static const status_leds_color_t *status_leds_hw_buffer = NULL;
  */
 void status_leds_hw_init(const status_leds_color_t *buffer)
 {
-    GPIO_InitTypeDef GPIO_InitStructure = {0U};
-    GPIO_StructInit(&GPIO_InitStructure);
-
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOD, ENABLE);
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-    GPIO_Init(GPIOD, &GPIO_InitStructure);
+    hw_gpio_pin(GPIOD, 4U, HW_GPIO_OUT); // PD4
 
     // Initialize the status LEDs
     brightness_scale = 0U;

@@ -18,6 +18,7 @@
  */
 #include "headlights_hw.h"
 #include "hk32f030m.h"
+#include "hw_regs.h"
 
 /**
  * @brief Initializes the headlights hardware module.
@@ -32,20 +33,13 @@
 
 void headlights_hw_init(void)
 {
-    GPIO_InitTypeDef GPIO_InitStructure = {0};
     TIM_OCInitTypeDef TIM_OCInitStructure = {0};
 
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOB, ENABLE);
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOC, ENABLE);
 
     // PWM (PB4) using TIM1 channel 2 controls brightness
-    GPIO_StructInit(&GPIO_InitStructure);
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_Init(GPIOB, &GPIO_InitStructure);
+    hw_gpio_pin(GPIOB, 4U, HW_GPIO(GPIO_Mode_AF, GPIO_OType_PP, GPIO_Speed_10MHz, GPIO_PuPd_NOPULL, 0));
     GPIO_PinAFConfig(GPIOB, GPIO_PinSource4, GPIO_AF_3);
 
     TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1;
@@ -59,20 +53,10 @@ void headlights_hw_init(void)
     TIM_OC2Init(TIM1, &TIM_OCInitStructure);
 
     // PC7 is used moving forward (white front, red rear)
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-    GPIO_Init(GPIOC, &GPIO_InitStructure);
+    hw_gpio_pin(GPIOC, 7U, HW_GPIO_OUT);
 
     // PC6 is used moving backward (red front, white rear)
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
-    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-    GPIO_Init(GPIOC, &GPIO_InitStructure);
+    hw_gpio_pin(GPIOC, 6U, HW_GPIO_OUT);
 }
 
 /**

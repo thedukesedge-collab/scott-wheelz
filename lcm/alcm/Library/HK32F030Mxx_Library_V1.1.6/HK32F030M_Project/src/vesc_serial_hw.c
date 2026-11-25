@@ -22,26 +22,15 @@
 
 void vesc_serial_hw_init(uint32_t baud)
 {
-    GPIO_InitTypeDef GPIO_InitStructure = {0};
-
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOD, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
 
     // PD1->TX
-    GPIO_StructInit(&GPIO_InitStructure);
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_10MHz;
-    GPIO_Init(GPIOD, &GPIO_InitStructure);
+    hw_gpio_pin(GPIOD, 1U, HW_GPIO(GPIO_Mode_AF, GPIO_OType_PP, GPIO_Speed_10MHz, GPIO_PuPd_NOPULL, 0));
     GPIO_PinAFConfig(GPIOD, GPIO_PinSource1, GPIO_AF_1);
 
     // PD6->RX
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
-    GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_Init(GPIOD, &GPIO_InitStructure);
+    hw_gpio_pin(GPIOD, 6U, HW_GPIO(GPIO_Mode_AF, GPIO_OType_OD, GPIO_Speed_10MHz, GPIO_PuPd_NOPULL, 0));
     GPIO_PinAFConfig(GPIOD, GPIO_PinSource6, GPIO_AF_1);
 
     // Refloat Glow: the registers USART_Init() would write for 8N1,

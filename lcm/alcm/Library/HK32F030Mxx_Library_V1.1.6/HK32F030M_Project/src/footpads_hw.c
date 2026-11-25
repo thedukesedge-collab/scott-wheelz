@@ -18,6 +18,7 @@
  */
 #include "footpads_hw.h"
 #include "hk32f030m.h"
+#include "hw_regs.h"
 
 // Function to calibrate the ADC for footpads hardware
 void footpads_hw_calibrate()
@@ -30,7 +31,6 @@ void footpads_hw_calibrate()
 // Function to initialize the footpads hardware
 void footpads_hw_init()
 {
-    GPIO_InitTypeDef GPIO_InitStructure = {0};
     ADC_InitTypeDef ADC_InitStructure = {0};
 
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOD, ENABLE);
@@ -38,17 +38,10 @@ void footpads_hw_init()
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC, ENABLE);
 
     // Configure PD3 and PC4 as analog input
-    GPIO_StructInit(&GPIO_InitStructure);
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_Init(GPIOD, &GPIO_InitStructure);
+    hw_gpio_pin(GPIOD, 3U, HW_GPIO(GPIO_Mode_AN, 0, 0, GPIO_PuPd_NOPULL, 0));
     GPIO_PinAFConfig(GPIOD, GPIO_PinSource3, GPIO_AF_7);
 
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_Init(GPIOC, &GPIO_InitStructure);
+    hw_gpio_pin(GPIOC, 4U, HW_GPIO(GPIO_Mode_AN, 0, 0, GPIO_PuPd_NOPULL, 0));
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource4, GPIO_AF_7);
 
     ADC_StructInit(&ADC_InitStructure);

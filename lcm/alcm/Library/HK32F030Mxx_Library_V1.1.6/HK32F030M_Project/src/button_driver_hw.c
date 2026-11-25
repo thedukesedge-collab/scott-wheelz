@@ -25,18 +25,12 @@
 
 void button_driver_hw_init(void)
 {
-    GPIO_InitTypeDef GPIO_InitStructure = {0};
-
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOC, ENABLE);
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
 
     // Enable GPIO PC3
-    GPIO_StructInit(&GPIO_InitStructure);
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-    GPIO_InitStructure.GPIO_Schmit = GPIO_Schmit_Enable;
-    GPIO_Init(GPIOC, &GPIO_InitStructure);
+    hw_gpio_pin(GPIOC, 3U,
+                HW_GPIO(GPIO_Mode_IN, GPIO_OType_PP, GPIO_Speed_10MHz, GPIO_PuPd_UP, GPIO_Schmit_Enable));
 
     // Set SYSCFG pin
     SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOC, EXTI_PinSource3);
