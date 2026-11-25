@@ -492,6 +492,20 @@ EVENT_HANDLER(command_processor, button)
     //
     // TBD: Maybe this should be an inhibited context instead?
     board_mode_t mode = board_mode_get();
+#ifdef VP_LIGHT_CONTROL
+    // Refloat Glow: while locked only the hold (power off) works, like
+    // Dado's Floatwheel LCM firmware (the lock never blocked power off there)
+    if ((mode == BOARD_MODE_DISABLED) && (event != EVENT_BUTTON_HOLD))
+    {
+        return;
+    }
+    if (mode == BOARD_MODE_BOOTING ||
+        mode == BOARD_MODE_FAULT ||
+        mode == BOARD_MODE_OFF)
+    {
+        return;
+    }
+#else
     if (mode == BOARD_MODE_BOOTING ||
         mode == BOARD_MODE_FAULT ||
         mode == BOARD_MODE_OFF ||
@@ -499,6 +513,7 @@ EVENT_HANDLER(command_processor, button)
     {
         return;
     }
+#endif
 #ifdef VP_LIGHT_CONTROL
     else
     {

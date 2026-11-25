@@ -107,6 +107,12 @@ void board_mode_to_idle(void)
 
     event_data_t null_event_data = {0};
 
+#ifdef VP_LIGHT_CONTROL
+    // Refloat Glow: the 4 s boot timer
+    expect_value(set_timer, timeout, BOOT_TIMEOUT);
+    expect_any(set_timer, callback);
+    expect_value(set_timer, repeat, false);
+#endif
     event_queue_call_mocked_callback(EVENT_COMMAND_BOOT, &null_event_data);
 
     assert_int_equal(board_mode_get(), BOARD_MODE_BOOTING);

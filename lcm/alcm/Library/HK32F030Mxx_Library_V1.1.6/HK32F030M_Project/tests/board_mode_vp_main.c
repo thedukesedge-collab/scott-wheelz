@@ -15,6 +15,8 @@
 
 #include "test_board_mode.h"
 
+void board_mode_boot_timer_handler(uint32_t system_tick); // board_mode.c (VP)
+
 static void comm_timeout(void)
 {
     event_data_t d = {0};
@@ -105,7 +107,89 @@ void test_vp_other_fault_still_latches(void **state)
     assert_int_equal(board_mode_get(), BOARD_MODE_FAULT);
 }
 
+static board_mode_event_data_t vp_expected;
+static void vp_expect_mode(board_mode_t mode, board_submode_t submode)
+{
+    vp_expected.mode = mode;
+    vp_expected.submode = submode;
+    expect_value(event_queue_push, event, EVENT_BOARD_MODE_CHANGED);
+    expect_check(event_queue_push, data, validate_board_mode_event_data,
+                 (uintmax_t)&vp_expected);
+}
+
+static void vp_expect_timer(void)
+{
+    expect_any(set_timer, timeout);
+    expect_any(set_timer, callback);
+    expect_any(set_timer, repeat);
+}
+
+/* Refloat Glow: booting ends after 4 s with no VESC answer (like Dado's
+ * firmware), so the normal hold-to-off always works; an answer that comes
+ * first ends it sooner and the timer then does nothing */
+void test_vp_boot_timer(void **state)
+{
+    (void)state;
+    event_data_t d = {0};
+
+    vp_expect_mode(BOARD_MODE_BOOTING, BOARD_SUBMODE_UNDEFINED);
+    expect_value(set_timer, timeout, BOOT_TIMEOUT);
+    expect_any(set_timer, callback);
+    expect_value(set_timer, repeat, false);
+    event_queue_call_mocked_callback(EVENT_COMMAND_BOOT, &d);
+
+    // 4 s, no answer: idle
+    vp_expect_mode(BOARD_MODE_IDLE, BOARD_SUBMODE_IDLE_ACTIVE);
+    vp_expect_timer();
+    board_mode_boot_timer_handler(4000);
+    assert_int_equal(board_mode_get(), BOARD_MODE_IDLE);
+
+    // a late timer call (answer came first) changes nothing
+    board_mode_boot_timer_handler(4000);
+    assert_int_equal(board_submode_get(), BOARD_SUBMODE_IDLE_ACTIVE);
+}
+
+/* Refloat Glow: a hold-to-off begun while locked goes back to locked when
+ * the button is let go early */
+void test_vp_hold_off_locked_abort(void **state)
+{
+    (void)state;
+    event_data_t d = {0};
+
+    board_mode_to_idle(); // -> IDLE/ACTIVE, idle timer running
+
+    d.enable = true;
+    vp_expect_mode(BOARD_MODE_DISABLED, BOARD_SUBMODE_UNDEFINED);
+    expect_any(is_timer_active, timer_id);
+    will_return(is_timer_active, true);
+    expect_any(cancel_timer, timer_id);
+    will_return(cancel_timer, LCM_SUCCESS);
+    event_queue_call_mocked_callback(EVENT_VESC_LOCKED_CHANGED, &d);
+    d.enable = false;
+
+    vp_expect_mode(BOARD_MODE_IDLE, BOARD_SUBMODE_IDLE_SHUTTING_DOWN);
+    vp_expect_timer();
+    event_queue_call_mocked_callback(EVENT_COMMAND_SHUTDOWN, &d);
+
+    // let go early: back to locked (the shutdown timer is cancelled)
+    vp_expect_mode(BOARD_MODE_DISABLED, BOARD_SUBMODE_UNDEFINED);
+    expect_any(is_timer_active, timer_id);
+    will_return(is_timer_active, true);
+    expect_any(cancel_timer, timer_id);
+    will_return(cancel_timer, LCM_SUCCESS);
+    event_queue_call_mocked_callback(EVENT_BUTTON_UP, &d);
+    assert_int_equal(board_mode_get(), BOARD_MODE_DISABLED);
+
+    // unlocked: normal idle again
+    vp_expect_mode(BOARD_MODE_IDLE, BOARD_SUBMODE_IDLE_ACTIVE);
+    vp_expect_timer();
+    event_queue_call_mocked_callback(EVENT_VESC_LOCKED_CHANGED, &d);
+    assert_int_equal(board_mode_get(), BOARD_MODE_IDLE);
+}
+
 static const struct CMUnitTest board_mode_vp_tests[] = {
+    cmocka_unit_test_setup(test_vp_boot_timer, board_mode_setup),
+    cmocka_unit_test_setup(test_vp_hold_off_locked_abort, board_mode_setup),
     cmocka_unit_test_setup(test_vp_comm_loss_idle_faults_quietly_then_clears, board_mode_setup),
     cmocka_unit_test_setup(test_vp_comm_loss_riding_faults_then_clears, board_mode_setup),
     cmocka_unit_test_setup(test_vp_other_fault_still_latches, board_mode_setup),

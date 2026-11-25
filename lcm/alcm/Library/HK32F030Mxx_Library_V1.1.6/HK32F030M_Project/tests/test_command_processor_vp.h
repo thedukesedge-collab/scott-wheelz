@@ -164,7 +164,7 @@ static void test_vp_factory_reset_gesture(void **state)
     command_processor_board_mode_event_handler(EVENT_BOARD_MODE_CHANGED, &data);
 }
 
-/* Button input is still ignored while booting / off / fault / locked */
+/* Button input is still ignored while booting / off / fault */
 static void test_vp_hold_ignored_when_off(void **state)
 {
     (void)state;
@@ -175,7 +175,24 @@ static void test_vp_hold_ignored_when_off(void **state)
     command_processor_button_event_handler(EVENT_BUTTON_HOLD, &data);
 }
 
+/* Locked: the hold still powers off (like Dado's firmware), clicks don't */
+static void test_vp_hold_shuts_down_locked(void **state)
+{
+    (void)state;
+
+    event_data_t data = cpvp_count(1);
+
+    will_return(board_mode_get, BOARD_MODE_DISABLED);
+    command_processor_button_event_handler(EVENT_BUTTON_CLICK, &data);
+
+    will_return(board_mode_get, BOARD_MODE_DISABLED);
+    expect_value(event_queue_push, event, EVENT_COMMAND_SHUTDOWN);
+    expect_any(event_queue_push, data);
+    command_processor_button_event_handler(EVENT_BUTTON_HOLD, &data);
+}
+
 const struct CMUnitTest command_processor_vp_tests[] = {
+    cmocka_unit_test_setup(test_vp_hold_shuts_down_locked, cpvp_setup),
     cmocka_unit_test_setup(test_vp_clicks_do_nothing, cpvp_setup),
     cmocka_unit_test_setup(test_vp_click_click_stock_level, cpvp_setup),
     cmocka_unit_test_setup(test_vp_hold_shuts_down, cpvp_setup),

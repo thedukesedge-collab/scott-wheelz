@@ -39,6 +39,9 @@ EVENT_HANDLER(board_mode, locked);
 
 // Timer handlers
 void board_mode_idle_timer_handler(uint32_t system_tick);
+#ifdef VP_LIGHT_CONTROL
+void board_mode_boot_timer_handler(uint32_t system_tick);
+#endif
 
 static board_mode_t board_mode = BOARD_MODE_UNKNOWN;
 static board_submode_t board_submode = BOARD_SUBMODE_UNDEFINED;
@@ -50,6 +53,7 @@ static timer_id_t board_mode_idle_timer_id = INVALID_TIMER_ID;
 // cleared (back to idle) as soon as it answers again
 static bool_t board_mode_comm_lost = false;
 static bool_t board_mode_comm_lost_quiet = false; // comm loss began while not riding
+static bool_t board_mode_locked = false; // the VESC reports the board locked
 #endif
 
 // Hysteresis values for RPM and duty cycle
@@ -75,6 +79,7 @@ lcm_status_t board_mode_init(void)
 #ifdef VP_LIGHT_CONTROL
     board_mode_comm_lost = false;
     board_mode_comm_lost_quiet = false;
+    board_mode_locked = false;
 #endif
 
     // Subscribe to events
@@ -288,6 +293,13 @@ EVENT_HANDLER(board_mode, command)
         if (board_mode == BOARD_MODE_OFF)
         {
             set_board_mode(BOARD_MODE_BOOTING, BOARD_SUBMODE_UNDEFINED);
+#ifdef VP_LIGHT_CONTROL
+            // Refloat Glow: booting ends after BOOT_TIMEOUT (4 s) even if
+            // the VESC never answers, like Dado's Floatwheel LCM firmware -
+            // so the normal hold-to-off always works (the button is
+            // ignored while booting). An earlier answer ends it sooner.
+            (void)set_timer(BOOT_TIMEOUT, board_mode_boot_timer_handler, false);
+#endif
         }
         // Else: Nothing to do in this mode
         break;
@@ -325,6 +337,14 @@ EVENT_HANDLER(board_mode, command)
         // Abort shutdown if the user releases the button
         if (board_mode == BOARD_MODE_IDLE && board_submode == BOARD_SUBMODE_IDLE_SHUTTING_DOWN)
         {
+#ifdef VP_LIGHT_CONTROL
+            // a hold-to-off begun while locked goes back to locked
+            if (board_mode_locked)
+            {
+                set_board_mode(BOARD_MODE_DISABLED, BOARD_SUBMODE_UNDEFINED);
+                break;
+            }
+#endif
             set_board_mode(BOARD_MODE_IDLE, BOARD_SUBMODE_IDLE_ACTIVE);
         }
         break;
@@ -382,6 +402,19 @@ EVENT_HANDLER(board_mode, command)
  *
  * @param system_tick The current system tick count.
  */
+#ifdef VP_LIGHT_CONTROL
+/**
+ * @brief Refloat Glow: booting ends after BOOT_TIMEOUT, VESC answer or not
+ */
+void board_mode_boot_timer_handler(uint32_t system_tick)
+{
+    if (board_mode == BOARD_MODE_BOOTING)
+    {
+        set_board_mode(BOARD_MODE_IDLE, BOARD_SUBMODE_IDLE_ACTIVE);
+    }
+}
+#endif
+
 void board_mode_idle_timer_handler(uint32_t system_tick)
 {
     if (board_mode == BOARD_MODE_IDLE)
@@ -593,6 +626,9 @@ EVENT_HANDLER(board_mode, fault)
  */
 EVENT_HANDLER(board_mode, locked)
 {
+#ifdef VP_LIGHT_CONTROL
+    board_mode_locked = data->enable;
+#endif
     if (data->enable)
     {
         set_board_mode(BOARD_MODE_DISABLED, BOARD_SUBMODE_UNDEFINED);

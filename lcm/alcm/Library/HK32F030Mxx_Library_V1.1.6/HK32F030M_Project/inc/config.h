@@ -36,6 +36,7 @@
 #define IDLE_DEFAULT_TIMEOUT (2 * 60 * 1000)  // Time before transitioning to dozing idle
 #define IDLE_DOZING_TIMEOUT (8 * 60 * 1000)   // Time before transitioning to shutting down
 #define IDLE_SHUTTING_DOWN_TIMEOUT (1 * 1000) // Time allowed to abort shutdown
+#define BOOT_TIMEOUT (4 * 1000)               // Refloat Glow (VP): booting ends after this, VESC or not
 
 //------------------------------------------------------------------------------
 // Ride mode configuration 
