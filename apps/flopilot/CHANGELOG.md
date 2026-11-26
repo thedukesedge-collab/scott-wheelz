@@ -228,5 +228,9 @@ the board's own settings and features the way RF Glow's screen does.
   what's shown on the home screen (speedo, its dial labels, TOP SPEED, TRIP /
   LIFE, Wh/mi -> Wh/km), the lock-screen card and the live values list. Kept
   in mph / miles inside, so records and settings don't change. Speed dial max
-  is set in the chosen unit. Still in mph for now: the max speed limiter,
-  haptic / pushback "at speed" and the free-spin limiter settings.
+  is set in the chosen unit. Still in mph for now: haptic / pushback "at
+  speed" and the free-spin limiter settings.
+- Build 59: the MAX SPEED limiter follows the unit too: its link, "Now",
+  the LIMIT stepper (40-75 mph = 65-120 km/h, 1 km/h steps), the ERPM note
+  and the board's confirmation. The limit read from the board isn't rounded
+  to whole mph any more, so a km/h limit reads back exactly.

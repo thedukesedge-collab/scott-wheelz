@@ -61,7 +61,7 @@ export class McConf {
   }
   get capMph() {
     const e = this.get('l_max_erpm'), k = this.erpmPerKmh;
-    return k && e > 0 && e < ERPM_NONE * 0.99 ? Math.round(e / k * 0.621371) : 0;
+    return k && e > 0 && e < ERPM_NONE * 0.99 ? e / k * 0.621371 : 0;  // not rounded: shown in mph or km/h
   }
 
   // write a patched copy (board stopped), then read back and check

@@ -1006,15 +1006,18 @@ const msPerMph = () => (1000 / 60) / (Math.PI * MS.d) * (MS.poles / 2) * MS.gear
 function renderMs() {
   if (P.msTarget === undefined || P.msTarget < 40) P.msTarget = 45;
   if (P.msCap && P.msCap < 40) P.msCap = 40;
-  $('msLink').textContent = P.msCap ? '\u26A0 MAX SPEED LIMIT: ' + P.msCap + ' MPH \u203A' : 'Max speed limiter \u203A';
+  $('msLink').textContent = P.msCap ? '\u26A0 MAX SPEED LIMIT: ' + spdTxt(P.msCap).toUpperCase() + ' \u203A' : 'Max speed limiter \u203A';
   rideNotes();
   $('msBadge').style.display = P.msCap ? '' : 'none'; $('msOffBadge').style.display = P.msCap ? 'none' : '';  // rf169 $('msBadge').textContent = '\u26A0 MAX ' + P.msCap + ' MPH';  // rf96: on the speedo
   $('msLink').style.color = P.msCap ? '#FFB300' : '#5c5470'; $('msLink').style.fontFamily = P.msCap ? 'Orbitron,monospace' : '';
   if (!$('msNow')) return;
-  $('msNow').textContent = (P.msCap ? 'Now: ' + P.msCap + ' mph (Max ERPM ' + Math.round(P.msCap * msPerMph()) + ')' : 'Now: no limit') + ' · wheel ' + Math.round(MS.d * 1000) + ' mm, ' + MS.poles + ' poles';
+  $('msNow').textContent = (P.msCap ? 'Now: ' + spdTxt(P.msCap) + ' (Max ERPM ' + Math.round(P.msCap * msPerMph()) + ')' : 'Now: no limit') + ' · wheel ' + Math.round(MS.d * 1000) + ' mm, ' + MS.poles + ' poles';
   $('msNow').style.color = P.msCap ? 'var(--green)' : '';
   $('msRemove').style.display = P.msCap ? '' : 'none';
-  $('msSteps').innerHTML = ''; cuStep('msSteps', 'LIMIT', () => P.msTarget, 40, 75, 1, v => v + ' mph', v => { P.msTarget = v; save(); renderMs(); });
+  $('msSteps').innerHTML = '';
+  // the limit in the chosen unit (kept in mph): 40-75 mph = 65-120 km/h
+  if (kmOn()) cuStep('msSteps', 'LIMIT', () => Math.round(P.msTarget * KPH), 65, 120, 1, v => v + ' km/h', v => { P.msTarget = v / KPH; save(); renderMs(); });
+  else cuStep('msSteps', 'LIMIT', () => Math.round(P.msTarget), 40, 75, 1, v => v + ' mph', v => { P.msTarget = v; save(); renderMs(); });
   $('msMath').textContent = '= ' + Math.round(P.msTarget * msPerMph()) + ' ERPM (wheel ' + Math.round(MS.d * 1000) + ' mm, ' + MS.poles + ' motor poles, gear ' + MS.gear.toFixed(2) + '). Check these match your board in VESC Tool: the speed on screen uses the same numbers.';
 }
 function msPanel() {
@@ -1024,7 +1027,7 @@ function msPanel() {
     + '<div class="btns"><button class="pri" data-close>CLOSE</button></div>');
   $('msSet').onclick = () => { if (window.RF_MAXSPEED && window.RF_MAXSPEED.set(P.msTarget, (t, ok) => { $('msVerify').style.color = ok ? 'var(--green)' : '#FFB300'; $('msVerify').textContent = t; renderMs(); })) return;  // FloPilot: the real board
     P.msCap = P.msTarget; save(); renderMs(); $('msVerify').style.color = '#FFB300'; $('msVerify').textContent = 'Checking the board\u2026';
-    setTimeout(() => { $('msVerify').style.color = 'var(--green)'; $('msVerify').textContent = '\u2714 Confirmed on the board: Max ERPM ' + Math.round(P.msCap * msPerMph()) + ' = ' + P.msCap + ' mph'; }, 1500); };
+    setTimeout(() => { $('msVerify').style.color = 'var(--green)'; $('msVerify').textContent = '\u2714 Confirmed on the board: Max ERPM ' + Math.round(P.msCap * msPerMph()) + ' = ' + spdTxt(P.msCap); }, 1500); };
   $('msRemove').onclick = () => { if (window.RF_MAXSPEED && window.RF_MAXSPEED.remove((t, ok) => { $('msVerify').style.color = ok ? 'var(--green)' : '#FFB300'; $('msVerify').textContent = t; renderMs(); })) return; P.msCap = 0; save(); renderMs(); toast('Max speed limit removed'); };
   renderMs();
 }
@@ -1033,7 +1036,7 @@ $('msLink').onclick = () => {
     + '<div style="text-align:center;font-weight:700;color:#FFB300;margin:12px 0 6px">\u26A0 VERIFY YOUR SPEED IS CORRECT</div>'
     + 'How it works: the limit is VESC\'s Max ERPM (motor electrical RPM), not a speed. The app turns your speed into ERPM with three values from VESC Tool › Motor Settings › Additional Info: wheel diameter, motor poles and gear ratio.<br><br>'
     + 'ERPM = wheel RPM × gear ratio × motor poles ÷ 2 (electrical RPM counts pole pairs: a 30-pole Hypercore has 15).<br><br>'
-    + 'Your board now: wheel ' + (MS.d * 39.3701).toFixed(1) + '" (' + Math.round(MS.d * 1000) + ' mm), ' + MS.poles + ' poles, gear ' + MS.gear.toFixed(2) + ' → 1 mph ≈ ' + Math.round(1.609344 * (1000 / 60) / (Math.PI * MS.d) * (MS.poles / 2) * MS.gear) + ' ERPM.<br><br>'
+    + 'Your board now: wheel ' + (MS.d * 39.3701).toFixed(1) + '" (' + Math.round(MS.d * 1000) + ' mm), ' + MS.poles + ' poles, gear ' + MS.gear.toFixed(2) + ' → 1 ' + spdL() + ' ≈ ' + Math.round((kmOn() ? 1 : 1.609344) * (1000 / 60) / (Math.PI * MS.d) * (MS.poles / 2) * MS.gear) + ' ERPM.<br><br>'
     + '<b style="color:#ff2b4f">If any of these is entered wrong, the app\'s speed is wrong too and the limit kicks in at a different real speed: the board can NOSEDIVE sooner than you expect.</b><br><br>'
     + 'Check it first: ride at a steady speed with a GPS speed app and compare it to the speed shown here. If they don\'t match, fix the values in VESC Tool before setting a limit.<br><br>Set it well above your fastest riding. Re-check after changing the wheel or tire. Ride at your own risk.</div>'
     + '<label style="display:flex;gap:8px;align-items:center;margin-top:10px;color:#ead6ff;font-size:13px"><input type="checkbox" id="msAck"> I understand and accept these terms</label>'
@@ -1363,6 +1366,9 @@ function spdU(v) { return kmOn() ? v * KPH : v; }
 function spdL() { return kmOn() ? 'km/h' : 'mph'; }
 function distU(v) { return kmOn() ? v * KPH : v; }
 function distL() { return kmOn() ? 'km' : 'mi'; }
+// a speed in mph, shown in the chosen unit, whole numbers ('45 mph' / '72 km/h')
+function spdTxt(mph) { return Math.round(spdU(mph)) + ' ' + spdL(); }
+window.RF_UNITS_TXT = spdTxt;
 function dialShown() { return kmOn() ? Math.max(4, Math.round(P.dialMax * KPH / 4) * 4) : P.dialMax; }
 window.RF_UNITS = { km: kmOn, spd: spdU, spdL: spdL, dist: distU, distL: distL };
 function resetPeaks() { P.peakSpeed = 0; P.peakDuty = 0; save(); toast('Top speed / max duty reset'); }

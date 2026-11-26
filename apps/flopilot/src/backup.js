@@ -36,7 +36,7 @@ export function initBackup(link, ledSync, toast) {
     set(mph, show) {
       if (!link.live) return false;
       show('Saving to the board…', false);
-      mc.setLimit(mph).then(e => { if (e) show(e, false); else { const p = P(); if (p) p.msCap = mc.capMph; show('✔ Confirmed on the board: Max ERPM ' + Math.round(mc.get('l_max_erpm')) + ' = ' + mc.capMph + ' mph', true); } });
+      mc.setLimit(mph).then(e => { if (e) show(e, false); else { const p = P(); if (p) p.msCap = mc.capMph; show('✔ Confirmed on the board: Max ERPM ' + Math.round(mc.get('l_max_erpm')) + ' = ' + (window.RF_UNITS_TXT ? window.RF_UNITS_TXT(mc.capMph) : Math.round(mc.capMph) + ' mph'), true); } });
       return true;
     },
     remove(show) {

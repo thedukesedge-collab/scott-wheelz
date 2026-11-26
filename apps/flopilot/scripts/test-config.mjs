@@ -115,7 +115,7 @@ const after = parseMcconf(mflash);
 const want = Math.round(45 / 0.621371 * (1000 / 60) / (Math.PI * 0.28) * 15);
 assert0(Math.abs(after.get('l_max_erpm') - want) < 2 && Math.abs(after.get('l_min_erpm') + want) < 2 && Math.abs(after.get('l_erpm_start') - 0.95) < 1e-4, 'Max / Min ERPM and ERPM start');
 assert0(Math.abs(after.get('l_current_max') - 60) < 1e-4, 'other motor settings untouched');
-assert0(mc.capMph === 45, 'cap reads back as 45 mph');
+assert0(Math.round(mc.capMph) === 45, 'cap reads back as 45 mph');
 mboard.pkgState = 3;
 assert0((await mc.removeLimit()).startsWith('Stop riding'), 'no motor writes while riding');
 mboard.pkgState = 2;
