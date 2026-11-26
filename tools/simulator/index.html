@@ -50,7 +50,7 @@
   #tiltTrack .fill { position: absolute; top: 50%; height: 4px; margin-top: -2px; background: var(--green); border-radius: 2px; }
   #tiltKnob { position: absolute; top: 50%; border-radius: 50%; border: 3px solid var(--green); background: var(--bg); }
   #tiltKnob.on { background: var(--green); }
-  #horn { position: relative; flex: none; border: 3px solid var(--purple); border-radius: 12px; background: #140a26; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 14px rgba(177,76,255,.35); touch-action: none; }
+  #horn { position: absolute; flex: none; border: 3px solid var(--purple); border-radius: 12px; background: #140a26; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 14px rgba(177,76,255,.35); touch-action: none; }
   #horn.honk { background: var(--purple); box-shadow: 0 0 22px rgba(177,76,255,.95); }
   #hornText { color: var(--purple); letter-spacing: .2em; padding-left: .2em; }
   #horn.honk #hornText { color: var(--bg); }
@@ -305,8 +305,10 @@
       <div id="tiltTrack"><div class="bar"></div><div class="fill" id="tiltFill"></div><div id="tiltKnob"></div></div>
       <div class="neonV" id="tiltV" style="text-align:right"></div>
     </div>
-    <div id="horn"><div id="hornText" class="nf">HORN</div><div id="hornGauge"></div></div>
   </div>
+  <!-- FloPilot: the HORN sits outside the HUD, pinned just above the swipe-up
+       window (applySheet), so nothing on the home screen can push it down -->
+  <div id="horn"><div id="hornText" class="nf">HORN</div><div id="hornGauge"></div></div>
 
   <div id="sheetDismiss" style="position:absolute;left:0;right:0;top:0;z-index:5;display:none"></div>
   <div id="sheetHint"><div class="lbl nf">TAP OR SWIPE UP HERE</div>
@@ -680,6 +682,7 @@ const css = (el, o) => Object.assign(el.style, o);
 const px = v => v + 'px';
 let ctxSpeedo, ctxFoot, ctxRoll, ctxPitch, ctxBc, speedoW, speedoH, footS, pitchS, halfW, hudRowH;
 
+let hornBlock = 0;  // the HORN's block below the HUD (layout)
 function layout() {
   const ph = $('phone');
   W = ph.clientWidth; H = ph.clientHeight;
@@ -699,7 +702,9 @@ function layout() {
   css($('ver'), { height: px(verH + 0.08 * u), fontSize: px(0.24 * u), lineHeight: px(verH + 0.08 * u), letterSpacing: '.03em' });
 
   const hudH = rootH - sheetMin - 0.1 * u;
-  css($('hud'), { width: px(rootW), height: px(hudH) });
+  // the HORN's block (1.75 + 0.15 + 0.35 units) is below the HUD, not in it
+  hornBlock = 2.25 * u;
+  css($('hud'), { width: px(rootW), height: px(hudH - hornBlock) });
   // battery
   css($('batt'), { height: px(0.8 * u) });
   css($('battPct'), { fontSize: px(0.8 * u * 0.62) });
@@ -770,7 +775,7 @@ function layout() {
   css($('tiltTrack'), { height: px(u) });
   css($('tiltKnob'), { width: px(0.6 * u), height: px(0.6 * u), marginTop: px(-0.3 * u), marginLeft: px(-0.3 * u) });
   // horn
-  css($('horn'), { height: px(hornH), margin: px(0.15 * u) + ' ' + px(0.15 * u) + ' ' + px(0.35 * u) });
+  css($('horn'), { height: px(hornH), left: px(5 + 0.15 * u), width: px(rootW - 0.3 * u) });
   css($('hornText'), { fontSize: px(0.75 * u) });
   // control page
   css($('moveTrack'), { height: px(3.2 * u) });
@@ -797,16 +802,22 @@ function applySheet() {
   const over = typeof window.RF_OVERLAP === 'function' && window.RF_OVERLAP();
   const full = rootH - sheetMin - 0.1 * u, avail = over ? full : rootH - h - 0.1 * u;
   $('mainBg').style.height = px(avail);
-  // rf182: on screens shorter for their width (e.g. the phone app inside the
-  // notch / home-bar safe area) the HUD's rows can need more than its height:
-  // scale them down so the HORN stays above the swipe-up window
-  const need = Math.max(full, $('hud').scrollHeight);
-  let sc = Math.min(1, avail / Math.max(1, full)) * (full / need);
+  // The HORN is pinned to the bottom of the free area (above the closed
+  // swipe-up window, or above the open one unless it overlaps), whatever the
+  // HUD above it holds. The HUD gets the rest; if its rows need more (short
+  // screens, MAX AIR, notes...) they scale down to fit - they never push the
+  // HORN.
+  // HUD and HORN scale together (as one screen) when the window above the
+  // swipe-up panel is shorter than they need.
+  const lim = over ? full : avail;
+  const fullRoom = Math.max(1, full - hornBlock);
+  const need = Math.max(fullRoom, $('hud').scrollHeight) + hornBlock;
+  const sc = Math.min(1, lim / need);
   $('hud').style.transform = 'scale(' + sc + ')';
-  // FloPilot: the HORN must end above the (closed) swipe-up window: shrink a
-  // bit more right here if it doesn't (no second pass, so nothing jumps)
-  { const hb = $('horn').offsetTop + $('horn').offsetHeight + 0.15 * u, lim = over ? full : avail;
-    if (hb * sc > lim && hb > 0) { sc = lim / hb; $('hud').style.transform = 'scale(' + sc + ')'; } }
+  const hn = $('horn');
+  hn.style.transformOrigin = '50% 100%';
+  hn.style.transform = 'scale(' + sc + ')';
+  hn.style.top = px(5 + lim - 0.35 * u * sc - hn.offsetHeight);  // bottom edge 0.35 u (scaled) above the panel
   if (typeof window.RF_AFTER_LAYOUT === 'function') window.RF_AFTER_LAYOUT();
   // rf81: with the sheet up, a tap on the main view above it puts it down
   $('sheetDismiss').style.height = px(Math.max(0, rootH - h));
@@ -816,15 +827,8 @@ function applySheet() {
   $('sheetHint').style.bottom = px(h + 2); sheetHintShow();
 }
 function setSheet(f) { sheetF = f; P.sheet = f; save(); $('sheet').classList.add('anim'); applySheet(); }
-// FloPilot: when something on the home screen changes size later (the fonts
-// arriving, notes, badges), fit it again so the HORN stays above the closed
-// swipe-up window - one pass, only when needed
+// FloPilot: fit the HUD again once the fonts have arrived
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => layout());
-setInterval(() => {
-  if (dragging || sheetF > 0.02 || Math.abs($('sheet').getBoundingClientRect().height - sheetMin) > 2) return;  // closed and settled
-  const hb = $('horn').getBoundingClientRect().bottom, st = $('sheet').getBoundingClientRect().top;
-  if (hb > st - 2) applySheet();
-}, 400);
 // rf156: SNOOZE (?) - the explanation in a window (the sim's VESC powers off after 10 min)
 $('snzHelp').onclick = e => { e.stopPropagation();
   const G = t => t, b = P.ledSnoozeMin;  // rf158: no highlighted words

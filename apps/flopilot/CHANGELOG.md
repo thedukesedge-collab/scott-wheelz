@@ -201,3 +201,13 @@ the board's own settings and features the way RF Glow's screen does.
   km/h, so it showed about 3.6x too high (TOP SPEED too); Refloat's duty is
   smoothed. Refloat's data stays as the fallback (km/h converted right).
   Old TOP SPEED records from before this build are too high: reset them.
+
+**HORN**
+- Build 56: the HORN no longer sits in the home screen's column. Before, it
+  was the last item in that column, so anything that made the column taller
+  (MAX AIR, notes, badges, fonts loading late, a shorter screen) pushed it
+  down under the swipe-up window; builds 45 / 52 only re-fitted it
+  afterwards. Now it's pinned just above the swipe-up window (or above the
+  open one when it doesn't overlap), and the readings above it scale down
+  to fit instead. The old 400 ms re-check is gone. Checked in a browser at
+  360x640 to 430x932 with an extra 120 px row added: the HORN stays put.
