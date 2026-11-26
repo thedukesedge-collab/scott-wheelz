@@ -222,3 +222,11 @@ the board's own settings and features the way RF Glow's screen does.
   4 deg at full slider (RF Glow's cap), same direction as before. If the
   board's Input Tilt angle limit or speed is 0, the app says so (it doesn't
   change the rider's settings). Tests added.
+
+**Units**
+- Build 58: Settings › PREFERENCES › UNITS: MPH · MI or KM/H · KM. Changes
+  what's shown on the home screen (speedo, its dial labels, TOP SPEED, TRIP /
+  LIFE, Wh/mi -> Wh/km), the lock-screen card and the live values list. Kept
+  in mph / miles inside, so records and settings don't change. Speed dial max
+  is set in the chosen unit. Still in mph for now: the max speed limiter,
+  haptic / pushback "at speed" and the free-spin limiter settings.

@@ -9,16 +9,20 @@ const MAX = 4;
 const isIOS = Capacitor.getPlatform() === 'ios';
 
 const tempU = P => (P && P.tempF ? '°F' : '°C');
+// speed / distance units: the app's setting (Settings › PREFERENCES)
+const km = P => !!(P && P.kph), KPH = 1.609344;
+const spd = (v, P) => (km(P) ? v * KPH : v), spdU = P => (km(P) ? 'km/h' : 'mph');
+const dst = (v, P) => (km(P) ? v * KPH : v), dstU = P => (km(P) ? 'km' : 'mi');
 const temp = (v, P) => Math.round(P && P.tempF ? v * 1.8 + 32 : v);
 export const FIELDS = {
-  speed: ['SPEED', (S) => Math.round(S.speed), () => 'mph'],
+  speed: ['SPEED', (S, P) => Math.round(spd(S.speed, P)), spdU],
   batt: ['BATTERY', (S) => Math.round(S.battPct), () => '%'],
   pkDuty: ['MAX DUTY', (S, P) => Math.round((P ? P.peakDuty : 0) * 100), () => '%'],
-  pkSpeed: ['TOP SPEED', (S, P) => (P ? P.peakSpeed : 0).toFixed(1), () => 'mph'],
-  trip: ['TRIP', (S) => S.trip.toFixed(1), () => 'mi'],
+  pkSpeed: ['TOP SPEED', (S, P) => spd(P ? P.peakSpeed : 0, P).toFixed(1), spdU],
+  trip: ['TRIP', (S, P) => dst(S.trip, P).toFixed(1), dstU],
   volts: ['VOLTAGE', (S) => S.volts.toFixed(1), () => 'V'],
   duty: ['DUTY', (S) => Math.round(S.duty * 100), () => '%'],
-  life: ['ODOMETER', (S) => Math.round(S.life), () => 'mi'],
+  life: ['ODOMETER', (S, P) => Math.round(dst(S.life, P)), dstU],
   motorT: ['MOTOR TEMP', (S, P) => temp(S.motorT, P), tempU],
   escT: ['CONTROLLER TEMP', (S, P) => temp(S.escT, P), tempU],
 };

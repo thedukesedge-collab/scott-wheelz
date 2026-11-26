@@ -1321,7 +1321,8 @@ $('btnSettings').onclick = () => {
     + '<div class="row"><div class="l">This board<small>none yet</small></div><span class="nb" data-t="Backed up (simulated)">BACKUP</span><span class="nb" data-t="View (simulated)">VIEW</span></div>'
     + '<div class="row"><div class="l">Shared<small>none yet</small></div><span class="nb" data-t="Backed up (simulated)">BACKUP</span><span class="nb" data-t="View (simulated)">VIEW</span></div></div></div>'
     + '<div data-pg="1" style="display:none;max-height:52vh;overflow:auto">'
-    + '<div class="card"><b>DASHBOARD</b><div class="row"><div class="l">Speed dial max (' + 'mph)</div><input type="number" id="mDial" min="10" max="200" style="width:80px"></div>' + sw('a', true, 'Show battery voltage') + sw('b', false, 'Battery voltage per cell') + sw('c', true, 'Log scale for the battery current bar') + '</div>'
+    + '<div class="card"><b>UNITS</b><div class="pills"><span class="pill" id="mUnitMph">MPH · MI</span><span class="pill" id="mUnitKm">KM/H · KM</span></div><p style="text-align:center">Speed, distance and Wh on the home screen, lock screen and DATA.</p></div>'
+    + '<div class="card"><b>DASHBOARD</b><div class="row"><div class="l">Speed dial max (<span id="mDialU">mph</span>)</div><input type="number" id="mDial" min="10" max="200" style="width:80px"></div>' + sw('a', true, 'Show battery voltage') + sw('b', false, 'Battery voltage per cell') + sw('c', true, 'Log scale for the battery current bar') + '</div>'
     + '<div class="card"><b>TUNES</b>' + sw('d', false, 'Show changed options count') + '</div>'
     + '<div class="card"><b>DATA &amp; APP</b>' + sw('e', true, 'Show Welcome dialog') + sw('f', true, 'Check for new package versions') + '<div style="text-align:center;margin-top:6px"><span class="nb" id="mTour">SHOW TIPS &amp; TRICKS</span></div></div></div>'
     + '<div data-pg="2" style="display:none;max-height:52vh;overflow:auto">'
@@ -1329,10 +1330,14 @@ $('btnSettings').onclick = () => {
     + '<div class="pills" style="align-items:center"><span class="pill" id="mFatal"></span><span id="mFatalQ" style="display:inline-block;width:22px;height:22px;line-height:19px;border:2px solid var(--purple);border-radius:50%;color:var(--green);font:13px Orbitron,monospace;cursor:pointer;box-sizing:border-box;text-align:center">?</span></div><p style="text-align:center">Keeps beeping after a fault until the board is power-cycled.</p></div>'
     + '<div class="card"><b>HAPTIC FEEDBACK</b><p>A warning tone through the motor at your duty or speed (Refloat\'s Haptic Feedback).</p><div style="text-align:center"><span class="nb" id="mHap"></span></div></div>'
     + '<div class="card"><b>PUSHBACK</b><p>When and how much the nose lifts to slow you down: duty, speed, battery voltage (Refloat\'s Pushback).</p><div style="text-align:center"><span class="nb" id="mPb">PUSHBACK SETTINGS ›</span></div></div></div>'
-    + '<div class="btns"><button class="pri" data-ok>CLOSE</button></div>', () => { P.dialMax = clamp(+$('mDial').value || 40, 10, 200); save(); });
-  $('mDial').value = P.dialMax;
+    + '<div class="btns"><button class="pri" data-ok>CLOSE</button></div>', () => { save(); });
+  const dialR = () => { $('mDial').value = dialShown(); $('mDialU').textContent = spdL(); };
+  const unitR = () => { $('mUnitMph').classList.toggle('on', !kmOn()); $('mUnitKm').classList.toggle('on', kmOn()); dialR(); };
+  unitR();
+  $('mUnitMph').onclick = () => { P.kph = false; save(); unitR(); toast('Speed in mph'); };
+  $('mUnitKm').onclick = () => { P.kph = true; save(); unitR(); toast('Speed in km/h'); };
   $('mDial').readOnly = true; $('mDial').style.color = 'var(--green)'; $('mDial').style.fontFamily = 'Orbitron,monospace';
-  $('mDial').onclick = () => numPad('Speed dial max', +$('mDial').value || 40, 10, 200, 'mph', v => { $('mDial').value = v; P.dialMax = v; save(); });
+  $('mDial').onclick = () => numPad('Speed dial max', dialShown(), 10, 200, spdL(), v => { P.dialMax = kmOn() ? Math.round(v / KPH) : v; save(); dialR(); });
   document.querySelectorAll('#modalBox [data-tab]').forEach(t => t.onclick = () => { document.querySelectorAll('#modalBox [data-tab]').forEach(x => x.classList.toggle('on', x === t)); document.querySelectorAll('#modalBox [data-pg]').forEach(g => g.style.display = g.dataset.pg === t.dataset.tab ? '' : 'none'); });
   document.querySelectorAll('#modalBox [data-sw]').forEach(x => x.onclick = () => x.classList.toggle('on'));
   $('mTour').onclick = () => { $('modal').classList.remove('on'); tourOpen(); };
@@ -1350,6 +1355,16 @@ $('btnSettings').onclick = () => {
 };
 
 // ---------- peaks ----------
+// FloPilot: speed units (Settings › PREFERENCES). Everything is kept in mph /
+// miles inside; these convert only what's shown.
+const KPH = 1.609344;
+function kmOn() { return !!(P && P.kph); }
+function spdU(v) { return kmOn() ? v * KPH : v; }
+function spdL() { return kmOn() ? 'km/h' : 'mph'; }
+function distU(v) { return kmOn() ? v * KPH : v; }
+function distL() { return kmOn() ? 'km' : 'mi'; }
+function dialShown() { return kmOn() ? Math.max(4, Math.round(P.dialMax * KPH / 4) * 4) : P.dialMax; }
+window.RF_UNITS = { km: kmOn, spd: spdU, spdL: spdL, dist: distU, distL: distL };
 function resetPeaks() { P.peakSpeed = 0; P.peakDuty = 0; save(); toast('Top speed / max duty reset'); }
 onHold($('pkSpeed'), resetPeaks); onHold($('pkDuty'), resetPeaks);
 
@@ -2844,7 +2859,7 @@ function drawSpeedo() {
   const cx = w / 2, cy = R * 1.08 + 0.05 * u;
   const start = Math.PI * 150 / 180, sweep = Math.PI * 240 / 180, n = 40;
   const t = R * 0.17, rSeg = R - t / 2, rDuty = R - t - R * 0.07, rLabel = rDuty - R * 0.14;
-  const frac = clamp(S.speed / P.dialMax, 0, 1), dim = '#1e1433';
+  const frac = clamp(spdU(S.speed) / dialShown(), 0, 1), dim = '#1e1433';
   // outer ring + ticks
   ctx.beginPath(); ctx.arc(cx, cy, R * 1.04, start, start + sweep); glowStroke(ctx, PURPLE, 1.5);
   ctx.beginPath();
@@ -2871,7 +2886,7 @@ function drawSpeedo() {
     ctx.beginPath(); ctx.arc(cx, cy, rDuty, start, start + sweep * d); ctx.stroke(); ctx.shadowBlur = 0;
   }
   // scale labels
-  for (let j = 0; j <= 4; j++) { const a = start + sweep * j / 4; ntext(ctx, String(Math.round(P.dialMax * j / 4)), cx + Math.cos(a) * rLabel, cy + Math.sin(a) * rLabel, Math.max(9, R * 0.1), '#7d68ab', { weight: '500', mono: true }); }
+  for (let j = 0; j <= 4; j++) { const a = start + sweep * j / 4; ntext(ctx, String(Math.round(dialShown() * j / 4)), cx + Math.cos(a) * rLabel, cy + Math.sin(a) * rLabel, Math.max(9, R * 0.1), '#7d68ab', { weight: '500', mono: true }); }
   // digits + unit + erpm + duty
   const digitsY = cy - R * 0.08;
   if (S.wheelslip) ntext(ctx, S.limiting ? 'SPIN LIMIT' : 'WHEELSLIP', cx, digitsY - R * 0.33, Math.max(9, R * 0.11), RED);
@@ -2879,13 +2894,13 @@ function drawSpeedo() {
     // trip / life minis, 75% opacity, above the digits
     const mw = R * 0.36, my = cy - R * 0.55, vs = Math.max(0.22 * u, R * 0.1), ls = Math.max(0.17 * u, R * 0.07);
     [[cx - R * 0.44 + mw / 2, S.trip, 'TRIP'], [cx + R * 0.08 + mw / 2, S.life, 'LIFE']].forEach(([x, v, l]) => {
-      ntext(ctx, fx1(v) + 'mi', x, my + vs * 0.6, vs, '#ead6ff', { outline: '#6a22b8', alpha: 0.75 });
+      ntext(ctx, fx1(distU(v)) + distL(), x, my + vs * 0.6, vs, '#ead6ff', { outline: '#6a22b8', alpha: 0.75 });
       ntext(ctx, l, x, my + vs * 1.2 + ls * 0.6, ls, '#c98bff', { alpha: 0.75 });
     });
   }
-  ntext(ctx, String(Math.round(S.speed)), cx, digitsY, R * 0.5, '#d6ffe4', { glow: GREEN, blur: R * 0.12 });
+  ntext(ctx, String(Math.round(spdU(S.speed))), cx, digitsY, R * 0.5, '#d6ffe4', { glow: GREEN, blur: R * 0.12 });
   let ly = digitsY + R * 0.3;
-  ntext(ctx, 'MPH', cx, ly, Math.max(9, R * 0.12), GREEN, { weight: '500' }); ly += R * 0.13;
+  ntext(ctx, kmOn() ? 'KM/H' : 'MPH', cx, ly, Math.max(9, R * 0.12), GREEN, { weight: '500' }); ly += R * 0.13;
   ntext(ctx, Math.round(S.erpm) + ' ERPM', cx, ly, Math.max(8, R * 0.095), '#7d68ab', { mono: true, weight: '500' }); ly += R * 0.11;
   const dcol = S.duty >= 0.9 ? RED : S.duty >= 0.8 ? ORANGE : PURPLE;
   ntext(ctx, 'DUTY ' + Math.round(S.duty * 100) + '%', cx, ly, Math.max(8, R * 0.095), dcol, { mono: true, weight: '500' });
@@ -3179,7 +3194,7 @@ function updateDom() {
   $('battV').textContent = S.volts.toFixed(1) + 'V';
   $('boardName').textContent = window.RF_LINK && window.RF_LINK.displayName ? window.RF_LINK.displayName(P.name) : P.name;  // FloPilot app
   // peaks
-  $('pkSpeed').querySelector('.v').textContent = fx1(P.peakSpeed) + 'mph';
+  $('pkSpeed').querySelector('.v').textContent = fx1(spdU(P.peakSpeed)) + spdL();
   // shrink a peak readout's text to fit its box (e.g. 50.0mph); back to full size when it fits
   for (const id of ['pkSpeed', 'pkDuty', 'pkAir']) {
     const v = $(id) && $(id).querySelector('.v'); if (!v || !v.offsetWidth) continue;
@@ -3193,7 +3208,7 @@ function updateDom() {
   $('pkDuty').querySelector('.v').textContent = fx1(P.peakDuty * 100) + '%';
   $('pkDuty').classList.toggle('warn', P.peakDuty >= 0.9);
   // stats
-  $('whmiV').textContent = fx1(S.whmi); $('whmiL').textContent = 'WH/MI';
+  $('whmiV').textContent = fx1(kmOn() ? S.whmi / KPH : S.whmi); $('whmiL').textContent = kmOn() ? 'WH/KM' : 'WH/MI';
   $('bcV').textContent = fx1(S.battA);
   const bc = ctxBc, bw = 2.8 * u, bh = 0.14 * u; bc.clearRect(0, 0, bw, bh);
   bc.fillStyle = '#24123f'; bc.fillRect(0, 0, bw, bh);
@@ -3238,7 +3253,7 @@ function updateDom() {
   // data page
   if ($('pgData').classList.contains('on') && plotMode) drawPlot();
   if ($('pgData').classList.contains('on') && !plotMode) {
-    const rows = [['Speed', fx1(S.speed) + ' mph'], ['ERPM', Math.round(S.erpm)], ['Duty', (S.duty * 100).toFixed(1) + ' %'], ['Motor current', fx1(S.motorA) + ' A'], ['Battery current', fx1(S.battA) + ' A'], ['Battery voltage', S.volts.toFixed(1) + ' V'], ['Pitch', fx1(S.pitch) + '°'], ['Balance pitch', fx1(S.balance) + '°'], ['Roll', fx1(S.roll) + '°'], ['Setpoint', fx1(S.setpoint) + '°'], ['Footpads', (S.fpL ? 'L' : '-') + (S.fpR ? 'R' : '-')], ['Wheelslip', S.wheelslip ? 'YES' : 'no'], ['Motor temp', fx1(P.tempF ? S.motorT * 1.8 + 32 : S.motorT) + (P.tempF ? ' °F' : ' °C')], ['ESC temp', fx1(P.tempF ? S.escT * 1.8 + 32 : S.escT) + (P.tempF ? ' °F' : ' °C')], ['Trip', S.trip.toFixed(2) + ' mi'], ['Lifetime', S.life.toFixed(1) + ' mi']];
+    const rows = [['Speed', fx1(spdU(S.speed)) + ' ' + spdL()], ['ERPM', Math.round(S.erpm)], ['Duty', (S.duty * 100).toFixed(1) + ' %'], ['Motor current', fx1(S.motorA) + ' A'], ['Battery current', fx1(S.battA) + ' A'], ['Battery voltage', S.volts.toFixed(1) + ' V'], ['Pitch', fx1(S.pitch) + '°'], ['Balance pitch', fx1(S.balance) + '°'], ['Roll', fx1(S.roll) + '°'], ['Setpoint', fx1(S.setpoint) + '°'], ['Footpads', (S.fpL ? 'L' : '-') + (S.fpR ? 'R' : '-')], ['Wheelslip', S.wheelslip ? 'YES' : 'no'], ['Motor temp', fx1(P.tempF ? S.motorT * 1.8 + 32 : S.motorT) + (P.tempF ? ' °F' : ' °C')], ['ESC temp', fx1(P.tempF ? S.escT * 1.8 + 32 : S.escT) + (P.tempF ? ' °F' : ' °C')], ['Trip', distU(S.trip).toFixed(2) + ' ' + distL()], ['Lifetime', distU(S.life).toFixed(1) + ' ' + distL()]];
     $('dataList').innerHTML = rows.map(r => '<div class="datarow"><span>' + r[0] + '</span><span>' + r[1] + '</span></div>').join('');
   }
   syncSliders();
