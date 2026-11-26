@@ -45,7 +45,7 @@ answer([Comm.customAppData, Rf.pkgId, Rf.realtimeData, 1, 0, 0, 0, 0, 1, (Rf.mNo
 assert.ok(board.live);
 board.apply(S);
 assert.equal(S.mode, 'running');
-assert.ok(Math.abs(S.speed - 5 * 2.23694) < 0.01);
+assert.ok(Math.abs(S.speed - 5 * 0.621371) < 0.01);  // Refloat's motor.speed is km/h (no VESC values yet)
 assert.equal(S.duty, 0.5);
 assert.equal(S.pitch, 3);
 assert.equal(S.roll, -2);

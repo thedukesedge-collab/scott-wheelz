@@ -193,3 +193,11 @@ the board's own settings and features the way RF Glow's screen does.
   the lock-screen card and WATCHDOG phone notifications (in-app alerts
   work). Signed with a public test key (apps/flopilot/android-dev-signing)
   until a private one is set up. Not tested on a phone yet.
+
+**Dashboard**
+- Build 54 (tester report: speed and duty off, right in Floaty): speed and
+  duty now come from the VESC's own values (what VESC Tool and Floaty show).
+  Speed was read from Refloat's realtime data as m/s, but Refloat sends it in
+  km/h, so it showed about 3.6x too high (TOP SPEED too); Refloat's duty is
+  smoothed. Refloat's data stays as the fallback (km/h converted right).
+  Old TOP SPEED records from before this build are too high: reset them.

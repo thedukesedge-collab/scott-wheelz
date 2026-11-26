@@ -4,6 +4,7 @@
 import { Comm, Rf, Reader, encodePacket, PacketDecoder, parseValuesSetup, cString } from './vesc.js';
 
 const MPS_TO_MPH = 2.23694;
+const KMH_TO_MPH = 0.621371;
 const HW_VESC = 0, HW_CUSTOM_MODULE = 2;  // VESC Tool HW_TYPE
 
 // COMM_FW_VERSION reply: major, minor, hw name, uuid (12), paired, test fw, hw type
@@ -217,9 +218,14 @@ export class Board {
     const rt = this.rt, v = this.vals || {};
     const num = (x, d = 0) => (Number.isFinite(x) ? x : d);
     S.mode = this.pkgMode === Rf.mFlywheel ? 'flywheel' : this.pkgState === Rf.sRunning ? 'running' : 'ready';
-    S.speed = Math.abs(num(rt['motor.speed'], num(v.speedMs))) * MPS_TO_MPH;
+    // speed and duty: the VESC's own values (COMM_GET_VALUES_SETUP, m/s and
+    // raw duty - what VESC Tool and Floaty show); Refloat's realtime data only
+    // as a fallback - its motor.speed is km/h (mc_get_speed() * 3.6), and
+    // its duty is smoothed
+    S.speed = Number.isFinite(v.speedMs) ? Math.abs(v.speedMs) * MPS_TO_MPH
+      : Math.abs(num(rt['motor.speed'])) * KMH_TO_MPH;
     S.erpm = num(rt['motor.erpm'], num(v.rpm));
-    S.duty = Math.abs(num(rt['motor.duty_cycle'], num(v.duty)));
+    S.duty = Math.abs(Number.isFinite(v.duty) ? v.duty : num(rt['motor.duty_cycle']));
     S.motorA = num(rt['motor.current'], num(v.currentMotor));
     S.battA = num(rt['motor.batt_current'], num(v.currentIn));
     S.volts = num(rt['motor.batt_voltage'], num(v.vIn, S.volts));
