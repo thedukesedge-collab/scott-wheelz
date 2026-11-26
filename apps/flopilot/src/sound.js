@@ -27,6 +27,7 @@
 import { Comm, cString } from './vesc.js';
 
 const RF_GLOW = 'Refloat Glow';  // RF Glow's package name on the board
+const TILT_MAX_DEG = 4;          // tilt slider at full: degrees on every board
 const LIVE_TONE = 125;           // RF Glow COMMAND_LIVE_TONE
 export const mixLive = () => { try { return localStorage.getItem('fpMixLive') || 'board'; } catch (e) { return 'board'; } };
 export const REPL_GAP = 600;  // ms between REPL commands (firmware drops < 500 ms)
@@ -199,12 +200,30 @@ export class Sound {
     }
   }
 
-  // tilt slider: Refloat's remote input (only used while engaged and moving);
-  // 4 deg at full slider. Sent when it changes, refreshed every REPL_GAP, and the
-  // return to 0 is repeated so it can't be lost. Needs no install / memory.
+  // tilt slider: Refloat's remote input (only used while engaged and moving).
+  // The same on every board: up to TILT_MAX_DEG (4 deg, RF Glow's cap) at
+  // full slider, whatever the board's Input Tilt settings - the value sent
+  // undoes its Tiltback Angle Limit, deadband and Invert (Refloat:
+  // angle = invert(deadband(input)) x limit). Sent when it changes, refreshed
+  // every REPL_GAP, and the return to 0 is repeated so it can't be lost.
+  // Needs no install / memory.
+  tiltValue(S) {
+    const t = Math.max(-1, Math.min(1, (S && S.tilt) || 0));
+    if (!t) return 0;
+    const g = n => { try { return this.ledSync ? this.ledSync.get(n) : undefined; } catch (e) { return undefined; } };
+    const num = (v, d) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+    const lim = num(g('inputtilt_angle_limit'), 10), dead = Math.max(0, Math.min(0.9, num(g('inputtilt_deadband'), 0.1)));
+    const inv = g('inputtilt_invert_throttle');
+    if (!(lim > 0)) return 0;
+    const v = Math.min(1, Math.abs(t) * TILT_MAX_DEG / lim);       // after Refloat's deadband
+    const raw = Math.min(1, dead + v * (1 - dead)) * Math.sign(t);  // before it
+    // direction as before on Refloat's default (Invert on)
+    return inv === false || inv === 0 ? -raw : raw;
+  }
+
   sendTilt(S, now) {
     if (now < this.busyUntil || now < this.melUntil || this.waitReply) return;
-    const tilt = Math.max(-1, Math.min(1, ((S && S.tilt) || 0) * 0.4));
+    const tilt = this.tiltValue(S);
     const key = tilt.toFixed(3);
     // Refloat drops a remote input older than 1 s: refresh every slot while tilted
     if (key !== this.tiltSent || (tilt !== 0 && now - this.tiltAt >= REPL_GAP) || (tilt === 0 && this.tiltZeros < 3)) {

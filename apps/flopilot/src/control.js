@@ -219,6 +219,9 @@ export function initControl(link, ledSync, toast) {
     const b = link.board, S = link.S || window.__sim;
     if (!b || !link.live || !S || !S.tilt || tiltDone === b || !ledSync.cfg) return;
     tiltDone = b;
+    // settings that would stop it on this board (they're the rider's tune: say so, don't change them)
+    if (!(ledSync.get('inputtilt_angle_limit') > 0)) { toast("Tilt: Refloat's Input Tilt angle limit is 0 on this board (Refloat Cfg › Input Tilt)"); return; }
+    if (!(ledSync.get('inputtilt_speed') > 0)) { toast("Tilt: Refloat's Input Tilt speed is 0 on this board (Refloat Cfg › Input Tilt)"); return; }
     if (ledSync.get('inputtilt_remote_type') === 1) { toast('Tilt works while riding (Refloat only uses it when engaged)'); return; }
     const e = ledSync.writeValues({ inputtilt_remote_type: 1 }, "Remote tilt turned on in Refloat. It works while riding");
     if (e) { tiltDone = null; toast('Tilt: ' + e); }

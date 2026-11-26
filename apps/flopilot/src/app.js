@@ -57,6 +57,7 @@ const ledSync = new LedSync({
 setInterval(() => ledSync.tick(link.live && !link.installing), 1000);
 // horn / melodies / MIXER tiles through the motor (VESC firmware tones)
 const sound = new Sound(link, m => toastMsg(m));
+sound.ledSync = ledSync;  // the tilt slider reads the board's Input Tilt settings
 window.RF_SOUND = sound;
 // ALL LIGHTS / HEAD-TAIL with a board: Refloat's own LIGHTS_CONTROL (stock
 // 1.2.3 too): bit 0 = lights on, bit 1 = headlights on

@@ -211,3 +211,14 @@ the board's own settings and features the way RF Glow's screen does.
   open one when it doesn't overlap), and the readings above it scale down
   to fit instead. The old 400 ms re-check is gone. Checked in a browser at
   360x640 to 430x932 with an extra 120 px row added: the HORN stays put.
+
+**TILT slider**
+- Build 57 (tester report: remote tilt didn't work the same between
+  boards): the slider sent a fixed remote value (0.4 x slider), and Refloat
+  turns that into an angle with each board's own Input Tilt settings
+  (Tiltback Angle Limit, deadband, Invert). So it gave different angles per
+  board, and none at all with a deadband of 0.4 or more. Now the app reads
+  those settings and sends the value that gives the same tilt everywhere:
+  4 deg at full slider (RF Glow's cap), same direction as before. If the
+  board's Input Tilt angle limit or speed is 0, the app says so (it doesn't
+  change the rider's settings). Tests added.

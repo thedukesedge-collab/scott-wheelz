@@ -125,7 +125,7 @@ assert.deepEqual(repl(), ["(fp-m 2.50 '(3 10 0 5 0 10 10 100))"]);
 S.tilt = 0.5; run(snd, 900);
 assert.equal(repl().length, 1, 'REPL left alone while the melody plays');
 run(snd, 2500);
-assert.ok(repl().some(e => e.startsWith('(set-remote-state 0.200')));
+assert.ok(repl().some(e => e.startsWith('(set-remote-state 0.280')));
 // tilt back to 0 is sent (and repeated)
 sent.length = 0; S.tilt = 0; run(snd, 3000);
 assert.ok(repl().filter(e => e === '(set-remote-state 0.000 0 0 0 0)').length >= 2);
@@ -212,3 +212,28 @@ assert.equal(board.lcmName, 'VPBL-r37');
 }
 
 console.log('protocol tests passed');
+
+// tilt slider: the same angle on every board (Refloat: angle = invert(deadband(input)) x limit)
+{
+  const { Sound } = await import('../src/sound.js');
+  const s = new Sound({}, () => {});
+  clearInterval(s.timer);
+  const angle = (cfg, t) => {
+    s.ledSync = { get: n => cfg[n] };
+    const raw = s.tiltValue({ tilt: t });
+    let v = Math.abs(raw) < cfg.inputtilt_deadband ? 0 : Math.sign(raw) * (Math.abs(raw) - cfg.inputtilt_deadband) / (1 - cfg.inputtilt_deadband);
+    if (cfg.inputtilt_invert_throttle) v = -v;
+    return v * cfg.inputtilt_angle_limit;
+  };
+  const stock = { inputtilt_angle_limit: 10, inputtilt_deadband: 0.1, inputtilt_invert_throttle: true };
+  for (const cfg of [stock, { inputtilt_angle_limit: 5, inputtilt_deadband: 0.5, inputtilt_invert_throttle: false },
+    { inputtilt_angle_limit: 20, inputtilt_deadband: 0, inputtilt_invert_throttle: 1 }]) {
+    assert.ok(Math.abs(angle(cfg, 1) - angle(stock, 1)) < 1e-6, 'same angle at full slider');
+    assert.ok(Math.abs(Math.abs(angle(cfg, 1)) - 4) < 1e-6, '4 deg at full slider');
+    assert.ok(Math.abs(angle(cfg, -0.5) + angle(cfg, 0.5)) < 1e-6);
+  }
+  assert.ok(angle(stock, 1) < 0, 'direction as before on stock settings');
+  s.ledSync = null;
+  assert.equal(s.tiltValue({ tilt: 0 }), 0);
+}
+console.log('tilt slider tests passed');
