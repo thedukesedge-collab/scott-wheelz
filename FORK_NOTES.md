@@ -2252,3 +2252,19 @@ UI only (ui.qml.in + simulator); no firmware change.
   (lcm-latest is the rider release and can be older than a DEV package's
   SLCM).
 - Onboarding Tour checked: no page shows this switch; unchanged.
+
+### SLCM r38: room for every timer (v1.2.3-rf192)
+- Bench (user, r37): the status bar stayed on the battery gauge; the idle
+  animation never came, whatever was picked; FLASH LCM got no answer from
+  the bootloader (LCM didn't hand over, lights unchanged).
+- Cause (likely): the timer table holds 8 timers and r36's 4 s boot timer
+  is one more at boot (boot animation, headlights, beeper, serial poll,
+  button, boot timer, then the idle and footpad timers when the VESC
+  answers). A full table fails silently (set_timer returns
+  INVALID_TIMER_ID), so the idle timer that ends IDLE_ACTIVE (battery
+  gauge) after 4 s was never set - no idle animation - and other timers
+  (footpad sampling) can be lost the same way.
+- Fix: MAX_TIMERS 12 (64 bytes of RAM, no flash). Sizes: BL app 14692 of
+  14720 bytes, RAM 1084 of 2048 bytes before the stack.
+- The update hand-over is unchanged; to be re-tested with this build (it
+  may have failed for the same reason). Hardware: NOT VERIFIED.

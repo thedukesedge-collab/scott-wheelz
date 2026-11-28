@@ -63,7 +63,11 @@
 // Currently all 21 are in use (48 subscriptions across 27 distinct events);
 // exceeding this faults loudly at init with EMERGENCY_FAULT_OVERFLOW.
 #define MAX_SUBSCRIPTIONS 21U
-#define MAX_TIMERS 8U         // Maximum number of system timers
+// Refloat Glow (r38): 12, was 8 - r36's 4 s boot timer made a 9th at boot;
+// a full table fails silently (set_timer returns INVALID_TIMER_ID), which
+// left the idle timer unset: stuck in IDLE_ACTIVE (battery, no idle
+// animation). 16 bytes of RAM each, no flash.
+#define MAX_TIMERS 12U        // Maximum number of system timers
 
 // Headlights configuration
 #define HEADLIGHTS_ENABLE_DOZING 1          // Enable dozing animation for headlights
