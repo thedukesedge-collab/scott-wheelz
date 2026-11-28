@@ -576,7 +576,11 @@ void lcm_vp_unpack(LcmData *lcm, const uint32_t words[LCM_VP_EEPROM_WORDS]) {
     // an old horn melody)
     const bool style = (words[7] >> 24) == 0x53;
     const uint32_t rows[5] = {
-        words[7] & 0xFFFF, words[8] >> 16, words[8] & 0xFFFF, words[9] >> 16, words[9] & 0xFFFF,
+        words[7] & 0xFFFF,
+        words[8] >> 16,
+        words[8] & 0xFFFF,
+        words[9] >> 16,
+        words[9] & 0xFFFF,
     };
     for (int i = 0; i < 5; ++i) {
         uint32_t r = style ? rows[i] : 0;
