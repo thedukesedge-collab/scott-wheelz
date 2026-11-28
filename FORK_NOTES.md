@@ -2228,3 +2228,18 @@ UI only (ui.qml.in + simulator); no firmware change.
   has already set it, or right after reset with the default).
 - Size: BL app 14692 of 14720 bytes; bootloader host tests and the hex
   parser check pass. Hardware: NOT VERIFIED (bench test of SLCM.hex next).
+
+### SLCM boards keep the SLCM light windows with LED Mode External (v1.2.3-rf190)
+- Bug (user, board with SLCM r37): LEDS › HEAD/TAIL LIGHTS showed the RGB
+  controller view (SOLID / WHITE, KNIGHT RIDER / RED) instead of the SLCM
+  one; Floatwheel kits have no RGB head/tail lights.
+- Cause: the RGB view (`rgbAvail`) and Refloat's status strip options
+  (`rfStatusAvail`) were shown whenever Refloat's LED Mode wasn't OFF and
+  a strip count was set, including EXTERNAL, where a light module runs the
+  lights and the controller drives no LEDs. That turned off `slcmPresets`.
+- Fix: both need LED Mode INTERNAL or BOTH (bit 0). EXTERNAL / OFF with an
+  SLCM: the SLCM windows (HEADLIGHTS ON/OFF, RIDING / RUNNING LIGHTS,
+  SNOOZE BREATHING) as before. Controller LED boards (INTERNAL / BOTH)
+  unchanged. No config writes, no SLCM firmware change.
+- Onboarding Tour checked: no page changes (names, places and pictures
+  unchanged). Hardware: NOT VERIFIED.

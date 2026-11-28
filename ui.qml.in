@@ -635,7 +635,7 @@ Item {
         // Thor's): the four Refloat light bars. HEAD/TAIL play with the
         // headlights on, FRONT/REAR (running lights) with them off; Refloat
         // swaps front and rear when riding backwards. Only shown when Refloat's
-        // LEDs are set up (hardware.leds.mode not off, a front or rear strip).
+        // LEDs drive strips (hardware.leds.mode INTERNAL or BOTH, a front or rear strip).
         readonly property var rgbBars: ["headlights", "taillights", "front", "rear"]
         readonly property var rgbBarNames: ["HEAD", "TAIL", "FRONT", "REAR"]
         property var rgb: [{}, {}, {}, {}]  // {mode, c1, c2, speed, bri}
@@ -836,7 +836,10 @@ Item {
             rgb = r;
             rgbSnap = r.slice();
             rgbLifted = rgbLiftedSnap = c.getParamBool("leds.lights_off_when_lifted");
-            rgbAvail = c.getParamEnum("hardware.leds.mode") !== 0
+            // rf190: only LEDs the controller drives itself (INTERNAL or BOTH);
+            // EXTERNAL = a light module runs them (SLCM / stock LCM), so an
+            // SLCM board keeps its own HEAD/TAIL and STATUS BAR windows
+            rgbAvail = (c.getParamEnum("hardware.leds.mode") & 1) !== 0
                 && (c.getParamInt("hardware.leds.front.count") > 0 || c.getParamInt("hardware.leds.rear.count") > 0);
             rgbLoaded = true;
             rfMode = c.getParamEnum("leds.status_idle.mode");
@@ -854,7 +857,7 @@ Item {
             if (!swSettings.snzAdvanced) {
                 swSettings.snzC1 = rfColor1; swSettings.snzC2 = rfColor2; swSettings.snzSpeed = rfSpeed;
             }
-            rfStatusAvail = c.getParamEnum("hardware.leds.mode") !== 0 && c.getParamInt("hardware.leds.status.count") > 0;
+            rfStatusAvail = (c.getParamEnum("hardware.leds.mode") & 1) !== 0 && c.getParamInt("hardware.leds.status.count") > 0;
             lcmModule = (c.getParamEnum("hardware.leds.mode") & 2) !== 0;
             rfLoaded = true;
             if (changedAny) send();  // only goes out once the LEDS tab has been used
