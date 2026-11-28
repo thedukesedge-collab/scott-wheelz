@@ -75,11 +75,25 @@ and 13 = the idle headlight %):
 | 21 | boot animation |
 | 22 | shutdown animation |
 | 23-24 | personal color, degrees (0-359), big endian |
+| 25 | battery % from the package's curve, `0xFF` = use the VESC's |
+| 26-33 | CUSTOM animation (SLCM r19-r40; still sent to r41+, which ignore it - the layout never moves) |
+| 34-48 | SLCM r41+: own colors / speed per animation, 3 bytes each for idle, riding, snooze, boot, shutdown: hue 1 / 2, hue 2 / 2, speed in tenths (10 = normal); speed 0 = the animation's built-in colors and speed |
+| 49 | SLCM r41+: riding duty bar from this % (1-85), 0 = 70 % |
+
+The package sends each part only to an SLCM whose revision (from its name,
+`VPBL-r<N>-...`) understands it; an SLCM accepts shorter replies. See
+CLAUDE.md "SLCM update rules".
 
 Animation numbers (`animation_option_t`, all animations enabled):
 0 none, 1 rainbow scan, 2 rainbow mirror, 3 knight rider, 4 rainbow bar,
 5 the fuzz, 6 fire, 7 expanding pulse, 8 imploding pulse, 9 120 scroll,
-10 complementary wave, 11 floatwheel classic, 12 personal scan.
+10 complementary wave, 11 floatwheel classic, 12 personal scan, 13 battery
+gauge (r16+); 14 was CUSTOM (r19-r40).
+
+With own colors (r41+), color 1 is the RGB color of the single-color
+animations (knight rider, personal scan, floatwheel classic) and colors
+1..2 are the hue range of the others; speed runs the whole animation faster
+or slower.
 
 ## Building
 

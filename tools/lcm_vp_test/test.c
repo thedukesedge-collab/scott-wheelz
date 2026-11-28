@@ -120,6 +120,45 @@ int main(void){
         assert(lcm_vp_set(&lcm, cus, 20));
         lcm.leds_cfg = NULL;
     }
+    /* rf195: SLCM r41+ get per-animation colors / speed + the duty bar start
+       (after the CUSTOM block, which stays); "follow Refloat" -> battery */
+    {
+        CfgLeds cl; memset(&cl, 0, sizeof cl); cl.status.duty_threshold = 0.5f;
+        lcm.leds_cfg = &cl;
+        uint8_t n41[] = "VPBL-r41-abcdef0"; lcm_poll_request(&lcm, n41, sizeof n41 - 1);
+        uint8_t sty[45]; memset(sty, 0, sizeof sty); memcpy(sty, cus, 20);
+        sty[4] = LCM_VP_ANIM_REFLOAT;
+        sty[30] = COLOR_RED; sty[31] = COLOR_BLUE; sty[32] = 20;   /* idle: red..blue, 2.0x */
+        sty[42] = 99; sty[43] = 0; sty[44] = 60;                    /* clamped: 31, 50 */
+        assert(lcm_vp_set(&lcm, sty, 45));
+        assert(lcm.vp.style[12] == 31 && lcm.vp.style[14] == 50);
+        lcm_poll_response(&lcm, &st, 0, &md, 0);
+        assert(sent_len == 49);                                     /* 50 at the LCM */
+        assert(sent[17] == 13);                                     /* battery gauge */
+        assert(sent[25] == 0x13);                                   /* CUSTOM block still there */
+        assert(sent[33] == 0 && sent[34] == 120 && sent[35] == 20); /* idle row as hues / 2 */
+        assert(sent[36] == 0 && sent[38] == 0);                     /* riding: built-in */
+        assert(sent[45] == 170 && sent[46] == 0 && sent[47] == 50); /* shutdown row */
+        assert(sent[48] == 50);                                     /* duty bar from 50 % */
+        cl.status.duty_threshold = 1.0f; lcm_poll_response(&lcm, &st, 0, &md, 0);
+        assert(sent[48] == 85);                                     /* capped below danger */
+        /* EEPROM round trip */
+        uint32_t w[LCM_VP_EEPROM_WORDS]; lcm_vp_pack(&lcm, w);
+        assert((w[7] >> 24) == 0x53);
+        LcmData l2; memset(&l2, 0, sizeof l2); lcm_init(&l2, &hw); lcm_vp_unpack(&l2, w);
+        assert(memcmp(l2.vp.style, lcm.vp.style, LCM_VP_STYLE_LENGTH) == 0);
+        w[7] = 0xB1000000; LcmData l3; memset(&l3, 0, sizeof l3); lcm_init(&l3, &hw);
+        lcm_vp_unpack(&l3, w);                                      /* old horn word: no rows */
+        assert(l3.vp.style[0] == 0 && l3.vp.style[2] == 0);
+        /* an older app's command keeps the rows */
+        assert(lcm_vp_set(&lcm, cus, 20) && lcm.vp.style[2] == 20);
+        /* r40 and older: exactly as before */
+        uint8_t n40[] = "VPBL-r40-619ef53"; lcm_poll_request(&lcm, n40, sizeof n40 - 1);
+        lcm_poll_response(&lcm, &st, 0, &md, 0);
+        assert(sent_len == 33);
+        lcm_poll_request(&lcm, n19, sizeof n19 - 1);
+        lcm.leds_cfg = NULL;
+    }
     /* rf77: the power-off bit (0x40) is never sent, idle or riding */
     {
         lcm_poll_response(&lcm, &st, 0, &md, 0);

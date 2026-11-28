@@ -175,7 +175,16 @@ void animation_start(animation_tick_t callback)
     if (callback != NULL)
     {
         timer_callback = callback;
+#ifdef VP_LIGHT_CONTROL
+        // r41: a status bar row's own speed (tenths, 10 = normal) runs the
+        // whole animation faster / slower: 25 ms * 10 / speed per tick
+        uint32_t delay = (animation_row_style.speed != 0U)
+                             ? (ANIMATION_DELAY * 10U) / animation_row_style.speed
+                             : ANIMATION_DELAY;
+        animation_timer = set_timer(delay, TIMER_CALLBACK_NAME(animation, tick), true);
+#else
         animation_timer = set_timer(ANIMATION_DELAY, TIMER_CALLBACK_NAME(animation, tick), true);
+#endif
     }
     else
     {
@@ -441,6 +450,15 @@ uint8_t next_brightness(brightness_animation_t *brightness_animation)
 void color_init(color_animation_t *color_animation, color_mode_t color_mode, fixed16_t hue_min,
                 fixed16_t hue_max, uint32_t color_speed, const status_leds_color_t *rgb)
 {
+#ifdef VP_LIGHT_CONTROL
+    // r41: a status bar row's own colors (see animation_row_style_t)
+    if (animation_row_style.speed != 0U)
+    {
+        hue_min = animation_row_style.hue_a;
+        hue_max = animation_row_style.hue_b;
+        rgb = &animation_row_style.rgb;
+    }
+#endif
     if (color_animation != NULL)
     {
         color_animation->mode = color_mode;
@@ -791,6 +809,10 @@ void fire_animation_tick(uint32_t tick)
 /**
  * @brief Initializes the scan animation with the specified parameters.
  */
+#ifdef VP_LIGHT_CONTROL
+animation_row_style_t animation_row_style;
+#endif
+
 uint16_t scan_animation_setup(status_leds_color_t *buffer, scan_direction_t direction,
                               color_mode_t color_mode, uint32_t movement_speed,
                               fixed16_t hue_min, fixed16_t hue_max, uint32_t color_speed,

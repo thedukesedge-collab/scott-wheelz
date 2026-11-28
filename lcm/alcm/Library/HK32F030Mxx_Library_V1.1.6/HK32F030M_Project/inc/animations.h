@@ -106,6 +106,24 @@ typedef enum
  */
 typedef void (*animation_callback_t)(void);
 
+#ifdef VP_LIGHT_CONTROL
+/**
+ * @brief r41: a status bar row's own colors / speed (settings_t.row_style),
+ * set by status_leds_start_animation_option() around the setup call. While
+ * speed is not 0, color_init() uses hue_a..hue_b as the hue range and rgb as
+ * the RGB color, and animation_start() ticks every 25 ms * 10 / speed.
+ */
+typedef struct
+{
+    uint8_t speed; // tenths, 0 = off (built-in colors and speed)
+    fixed16_t hue_a;
+    fixed16_t hue_b;
+    status_leds_color_t rgb;
+} animation_row_style_t;
+
+extern animation_row_style_t animation_row_style;
+#endif
+
 /**
  * @brief Sets up a scan animation.
  *

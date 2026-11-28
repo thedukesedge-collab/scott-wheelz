@@ -2305,3 +2305,41 @@ UI only (ui.qml.in + simulator); no firmware change.
   fields, sent by SLCM revision); every new SLCM bench-tested by app update
   before it's called ready. CI checks lcm/bootloader against
   FROZEN.sha256.
+
+### SLCM r41: STATUS BAR rework - CUSTOM removed, own colors / speed per animation (v1.2.3-rf195)
+- User request (2026-11-27): remove CUSTOM completely; remove the IDLE
+  choice "STATUS BAR" (it made the SLCM follow Refloat's own Status Idle
+  animation - confusing as an animation name); keep the SIMPLE look with the
+  SLCM's own animations and add ADVANCED with COLOR 1 / COLOR 2 / SPEED for
+  every row (IDLE, RIDING, SNOOZE, BOOT, SHUTDOWN) and DUTY BAR FROM;
+  defaults IDLE = BATTERY LEVEL, SNOOZE = KNIGHT RIDER.
+- SLCM r41: CUSTOM animation gone (enum value 14 is now invalid and
+  ignored). settings_t: custom_anim[8] -> row_style[5][3] (hue 1 / 2, hue
+  2 / 2, speed in tenths; speed 0 = the animation's built-in look) +
+  duty_from; settings magic 0xbeef0003 (one reset to defaults after the
+  update; the package resends everything within a second). Defaults (VP):
+  idle BATTERY, dozing KNIGHT RIDER. A row's colors / speed apply in two
+  shared places, color_init() (hue range = color 1..2, RGB color = color 1)
+  and animation_start() (tick 25 ms x 10 / speed), set around the setup by
+  START_ROW in status_leds.c and cleared after. Riding duty bar from
+  duty_from (1-85 %, never above the danger floor so the danger submode is
+  always covered; 0 = 70 % as before). Poll reply: MAX_PACKET_LENGTH 52;
+  bytes 34-49 appended after the CUSTOM block (which stays in the layout).
+  Size: BL app 14704 of 14720 bytes (16 free), RAM +16 bytes.
+- Package: LcmVpSettings.style[15] from COMMAND_LCM_VP_SETTINGS bytes 30-44
+  (older apps keep the stored values); EEPROM words 122-124 (magic 'S',
+  16 bits per row); sent only to SLCM r41+ as hues / 2 plus Refloat's
+  leds.status.duty_threshold (1-85 %); idle "follow Refloat" (128) sent as
+  BATTERY LEVEL to r41+; r40 and older get exactly the old reply. Host
+  tests (tools/lcm_vp_test) cover r41 / r40 replies, clamping and the
+  EEPROM round trip.
+- App + simulator: STATUS BAR ANIMATIONS window SIMPLE / ADVANCED; CUSTOM
+  designer and the IDLE "STATUS BAR" choice removed; saved 128 / 14 values
+  shown and sent as BATTERY LEVEL / the row's default; colors offered are
+  the curated hue colors; DUTY BAR FROM writes Refloat's own setting
+  (stopped only, as every Refloat config write).
+- Onboarding Tour checked: "STATUS BAR: idle and riding animations" still
+  accurate; no page changes.
+- Hardware: NOT VERIFIED. Bench checklist: app update r40 -> r41 (and
+  back), idle BATTERY, snooze KNIGHT RIDER, ADVANCED colors / speed per
+  row, duty bar from 50 %, power on / off.

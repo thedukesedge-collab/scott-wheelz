@@ -56,9 +56,8 @@ typedef enum
     // Refloat Glow (SLCM r16+): the battery gauge as an animation
     // choice, for any context (riding, snooze, boot, ...)
     ANIMATION_OPTION_BATTERY,
-    // SLCM r19+: an animation designed in the app (settings_t.custom_anim):
-    // the fill / scan engines with the app's colors, pattern and speeds
-    ANIMATION_OPTION_CUSTOM,
+    // (SLCM r19-r40: ANIMATION_OPTION_CUSTOM = 14, removed in r41 - the
+    // per-animation colors / speed in settings_t.row_style replace it)
 #endif
     ANIMATION_OPTION_COUNT
 } animation_option_t;

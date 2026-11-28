@@ -340,7 +340,45 @@ Item {
 
         readonly property var animNames: ["STANDARD", "RAINBOW SCAN", "RAINBOW MIRROR", "KNIGHT RIDER",
             "RAINBOW BAR", "THE FUZZ", "FIRE", "PULSE OUT", "PULSE IN", "120 SCROLL", "COMP. WAVE",
-            "CLASSIC", "COLOR SCAN", "BATTERY LEVEL", "CUSTOM"]
+            "CLASSIC", "COLOR SCAN", "BATTERY LEVEL"]  // rf195: 14 CUSTOM removed (user)
+
+        // rf195: the animation a row plays (0 idle, 1 riding, 2 snooze, 3 boot,
+        // 4 shutdown). Saved values from before: 128 (follow Refloat's Status
+        // Idle, removed) = BATTERY LEVEL, 14 (CUSTOM, removed) = the row's default.
+        readonly property var animDefaults: [13, 0, 3, 11, 0]
+        function animVal(ctx) {
+            var v = swSettings[animContexts[ctx][1]];
+            return v === 128 ? 13 : (v === 14 || v < 0 || v > 13) ? animDefaults[ctx] : v;
+        }
+        // rf195: SLCM ADVANCED: own COLOR 1 / COLOR 2 (Refloat color index) /
+        // SPEED (x 10) per row, 15 numbers (JSON); sent with speed 0 (= the
+        // animation's own look) in SIMPLE
+        function slcmStyle() {
+            try {
+                var c = JSON.parse(swSettings.slcmStyle);
+                if (Array.isArray(c) && c.length === 15) return c;
+            } catch (e) {}
+            return [4, 25, 10, 4, 25, 10, 4, 25, 10, 4, 25, 10, 4, 25, 10];
+        }
+        function setSlcmStyle(i, v) {
+            var c = slcmStyle();
+            c[i] = Math.round(v);
+            swSettings.slcmStyle = JSON.stringify(c);
+            changed();
+        }
+        // colors with a hue only (no black / whites: the SLCM animations need a hue)
+        function slcmColorNext(cur, dir) {
+            var l = rfColorSet;
+            if (dir > 0) {
+                for (var i = 0; i < l.length; i++) if (l[i] > cur && rfHue[l[i]] >= 0) return l[i];
+            } else {
+                for (var j = l.length - 1; j >= 0; j--) if (l[j] < cur && rfHue[l[j]] >= 0) return l[j];
+            }
+            return cur;
+        }
+        // which rows' animations use colors / speed
+        function animHasColors(v) { return v > 0 && v !== 6 && v !== 13; }
+        function animHasSpeed(v) { return v > 0 && v !== 13; }
 
         // CUSTOM animation (SLCM r19+): 8 bytes, see the SLCM's status_leds.c
         // [0] bit0 engine (0 fill, 1 scan), bits1-3 colors, bits4-6 pattern;
@@ -378,7 +416,7 @@ Item {
         readonly property var animContexts: [["IDLE", "ledAnimIdle", "STANDARD"], ["RIDING", "ledAnimRide", "OFF"],
             ["SNOOZE", "ledAnimDoze", "OFF"], ["BOOT", "ledAnimBoot", "STANDARD"], ["SHUTDOWN", "ledAnimShutdown", "STANDARD"]]
         function animLabel(ctx, v) {
-            return v === 128 || v === 15 ? "STATUS BAR" : v === 0 ? animContexts[ctx][2] : (animNames[v] || "");
+            return v === 128 ? animNames[13] : v === 0 ? animContexts[ctx][2] : (animNames[v] || "");
         }
 
         // ---- Refloat's own Status Idle animation (rf72): the one idle
@@ -450,17 +488,13 @@ Item {
 
         function send() {
             if (!swSettings.ledConfigured) return;
-            var data = commands.createData(32, commands.c_LCM_VP_SETTINGS);
+            var data = commands.createData(47, commands.c_LCM_VP_SETTINGS);
             data.setUint8(2, (swSettings.ledHeadlights ? 1 : 0) | (swSettings.ledStatusBar ? 2 : 0) | (swSettings.ledBeep ? 4 : 0)
                 | (swSettings.ledSnoozeStyle === 2 ? 0x20 : 0));  // rf97: DARK snooze
             data.setUint8(3, swSettings.ledHeadlightPct);
             data.setUint8(4, swSettings.ledStatusIdlePct);
             data.setUint8(5, swSettings.ledStatusRidePct);
-            data.setUint8(6, swSettings.ledAnimIdle);
-            data.setUint8(7, swSettings.ledAnimRide);
-            data.setUint8(8, swSettings.ledAnimDoze);
-            data.setUint8(9, swSettings.ledAnimBoot);
-            data.setUint8(10, swSettings.ledAnimShutdown);
+            for (var ai = 0; ai < 5; ai++) data.setUint8(6 + ai, animVal(ai));  // rf195
             data.setUint16(11, swSettings.ledColor);
             data.setUint8(13, swSettings.ledHeadlightIdlePct);
             var cu = custom();
@@ -476,6 +510,11 @@ Item {
             data.setUint8(29, swSettings.snzC1);
             data.setUint8(30, swSettings.snzC2);
             data.setUint8(31, swSettings.snzAdvanced ? Math.round(swSettings.snzSpeed * 10) : 0);
+            // rf195: SLCM r41+ own colors / speed per row (idle, riding, snooze,
+            // boot, shutdown); SIMPLE: speed 0 = each animation's own look
+            var st = slcmStyle();
+            for (var si = 0; si < 15; si++)
+                data.setUint8(32 + si, si % 3 === 2 && !swSettings.slcmAdvanced ? 0 : st[si]);
             vescCommands.sendCustomAppData(data.buffer);
         }
 
@@ -2635,9 +2674,11 @@ Item {
         property string batCustom: ""  // my cell: {name, size, points, ir, cap}
         property int ledStatusIdlePct: 80
         property int ledStatusRidePct: 80
-        property int ledAnimIdle: 0  // rf117: STANDARD (128: Refloat's Status Idle animation, rf72)
+        property int ledAnimIdle: 13  // rf195: BATTERY LEVEL (user; was 0 STANDARD; 128 = removed "follow Refloat")
         property int ledAnimRide: 0
-        property int ledAnimDoze: 0
+        property int ledAnimDoze: 3  // rf195: KNIGHT RIDER (user; was 0)
+        property string slcmStyle: ""  // rf195: SLCM own colors / speed per row, see ledSender.slcmStyle()
+        property bool slcmAdvanced: false  // rf195: SLCM STATUS BAR ANIMATIONS: ADVANCED
         property bool ledDozeBreath: true  // headlights breathe in snooze (SLCM; off = dark)
         property bool hideDisclaimer: false  // rf93 (unused since rf104)
         property string hideDisclaimerVer: ""  // rf104: "don't show again" for this package version only
@@ -10244,7 +10285,7 @@ Item {
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
         property string section: "head"
-        readonly property var titles: ({"head": "HEAD/TAIL LIGHTS", "bar": "STATUS BAR", "anim": "STATUS BAR ANIMATIONS", "sound": "BEEPER", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "custom": "CUSTOM ANIMATION", "updates": "UPDATES", "rgb": "HEAD/TAIL LIGHTS"})
+        readonly property var titles: ({"head": "HEAD/TAIL LIGHTS", "bar": "STATUS BAR", "anim": "STATUS BAR ANIMATIONS", "sound": "BEEPER", "battery": "BATTERY GAUGE", "fw": "LCM FIRMWARE", "updates": "UPDATES", "rgb": "HEAD/TAIL LIGHTS"})
 
         function show(which) {
             section = which;
@@ -10274,7 +10315,7 @@ Item {
                 SwPill {
                     minWidth: 1.8 * unit
                     label: "\u2039 BACK"
-                    onClicked: ledWindow.section === "custom" ? ledWindow.show("anim") : ledWindow.close()
+                    onClicked: ledWindow.close()
                 }
 
                 SwNeonLabel {
@@ -11010,7 +11051,7 @@ Item {
                                 + "an SLCM plays the closest SLCM animation (r19+). "
                                 + "BATTERY = battery level. BATTERY FOR: controller-driven LEDs only."
                                 + (slcmDetect.present && !ledSender.idleFollows
-                                    ? " Right now the SLCM plays " + ledSender.animLabel(0, swSettings.ledAnimIdle) + " from SLCM EXTRAS \u203A ANIMATIONS instead; change anything here to follow this again."
+                                    ? " Right now the SLCM plays " + ledSender.animLabel(0, ledSender.animVal(0)) + " from SLCM EXTRAS \u203A ANIMATIONS instead; change anything here to follow this again."
                                     : "")
                         }
 
@@ -11151,24 +11192,80 @@ Item {
                             text: "Status bar only (SLCM). XRV / GTV / Pint V head and tail lights are plain strips."
                         }
 
+                        // rf195: SIMPLE (animations + one COLOR) / ADVANCED (own
+                        // COLOR 1 / COLOR 2 / SPEED per row, DUTY BAR FROM)
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 0.15 * unit
+                            SwPill {
+                                minWidth: 2.4 * unit
+                                label: "SIMPLE"
+                                lit: !swSettings.slcmAdvanced
+                                onClicked: { swSettings.slcmAdvanced = false; ledSender.changed(); }
+                            }
+                            SwPill {
+                                minWidth: 2.8 * unit
+                                label: "ADVANCED ›"
+                                lit: swSettings.slcmAdvanced
+                                onClicked: { swSettings.slcmAdvanced = true; ledSender.changed(); }
+                            }
+                        }
+
                         Repeater {
                             model: ledSender.animContexts
 
-                            SwStepper {
+                            Column {
+                                id: animRow
                                 width: ledWindowCol.width
-                                label: modelData[0]
-                                valueWidth: 3.6 * unit
-                                animName: true
-                                // IDLE: one more choice at the end, STATUS BAR = Refloat's
-                                // Status Idle animation (stored as 128)
-                                value: index === 0 && swSettings.ledAnimIdle === 128 ? 15 : swSettings[modelData[1]]
-                                from: 0; to: ledSender.animNames.length - (index === 0 ? 0 : 1); step: 1
-                                valueText: ledSender.animLabel(index, value)
-                                onMoved: { swSettings[modelData[1]] = index === 0 && newValue === 15 ? 128 : newValue; ledSender.changed(); }
+                                spacing: 0.1 * unit
+                                readonly property int anim: { swSettings[modelData[1]]; return ledSender.animVal(index); }
+                                readonly property var st: { swSettings.slcmStyle; return ledSender.slcmStyle(); }
+                                readonly property bool adv: swSettings.slcmAdvanced
+
+                                SwStepper {
+                                    width: ledWindowCol.width
+                                    label: modelData[0]
+                                    valueWidth: 3.6 * unit
+                                    animName: true
+                                    value: animRow.anim
+                                    from: 0; to: ledSender.animNames.length - 1; step: 1
+                                    valueText: ledSender.animLabel(index, value)
+                                    onMoved: { swSettings[modelData[1]] = newValue; ledSender.changed(); }
+                                }
+                                SwStepper {
+                                    visible: animRow.adv && ledSender.animHasColors(animRow.anim)
+                                    label: "  COLOR 1"
+                                    valueWidth: 3.2 * unit
+                                    value: animRow.st[3 * index]
+                                    from: 4; to: 31; step: 1
+                                    valueText: ledSender.rfColors[value]
+                                    valueColor: ledSender.rfTextColor(value)
+                                    sideArrows: true
+                                    onMoved: ledSender.setSlcmStyle(3 * index, ledSender.slcmColorNext(value, newValue > value ? 1 : -1))
+                                }
+                                SwStepper {
+                                    visible: animRow.adv && ledSender.animHasColors(animRow.anim)
+                                    label: "  COLOR 2"
+                                    valueWidth: 3.2 * unit
+                                    value: animRow.st[3 * index + 1]
+                                    from: 4; to: 31; step: 1
+                                    valueText: ledSender.rfColors[value]
+                                    valueColor: ledSender.rfTextColor(value)
+                                    sideArrows: true
+                                    onMoved: ledSender.setSlcmStyle(3 * index + 1, ledSender.slcmColorNext(value, newValue > value ? 1 : -1))
+                                }
+                                SwStepper {
+                                    visible: animRow.adv && ledSender.animHasSpeed(animRow.anim)
+                                    label: "  SPEED"
+                                    value: animRow.st[3 * index + 2] / 10
+                                    from: 0.1; to: 5; step: 0.1; decimals: 1; suffix: "x"
+                                    onMoved: ledSender.setSlcmStyle(3 * index + 2, Math.round(newValue * 10))
+                                }
                             }
                         }
 
                         SwStepper {
+                            visible: !swSettings.slcmAdvanced
                             label: "COLOR"
                             value: swSettings.ledColor
                             from: 0; to: 350; step: 10; suffix: "\u00B0"
@@ -11177,6 +11274,7 @@ Item {
 
                         // personal color (used by the CLASSIC / COLOR SCAN / PULSE / WAVE animations)
                         Rectangle {
+                            visible: !swSettings.slcmAdvanced
                             anchors.horizontalCenter: parent.horizontalCenter
                             width: parent.width * 0.7
                             height: 0.18 * unit
@@ -11184,155 +11282,28 @@ Item {
                             color: Qt.hsla(swSettings.ledColor / 360, 1.0, 0.5, 1.0)
                         }
 
-                        SwLText {
-                            width: parent.width
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: fontSizeSmall
-                            text: "OFF = nothing (riding still warns on low battery). STANDARD = battery, footpad sensors when stepped on. "
-                                + "BATTERY LEVEL: the battery gauge (live when riding; needs this package's SLCM). "
-                                + "IDLE STATUS BAR = Refloat's Status Idle animation, closest SLCM look."
-                        }
-
-                        SwPill {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            minWidth: 4.6 * unit
-                            label: "DESIGN CUSTOM \u203A"
-                            lit: true
-                            onClicked: ledWindow.show("custom")
-                        }
-                    }
-
-                    // Refloat Glow: CUSTOM animation designer (SLCM r19+).
-                    // The light module runs it itself (stored there too, so it
-                    // also plays with the package off).
-                    Column {
-                        width: parent.width
-                        spacing: 0.14 * unit
-                        visible: ledWindow.section === "custom"
-
-                        AnimName {
-                            width: parent.width
-                            height: 0.9 * unit
-                            anim: 14
-                            text: "CUSTOM PREVIEW"
-                            hue: swSettings.ledColor
-                            basePixelSize: 0.4 * unit
-                        }
-
-                        LedHeading { text: "Style" }
-                        Row {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 0.15 * unit
-                            Repeater {
-                                model: ["FILL", "SCANNER"]
-                                SwPill {
-                                    minWidth: 2.8 * unit
-                                    label: modelData
-                                    lit: { swSettings.ledCustom; return ledSender.customField(0) === index; }
-                                    onClicked: ledSender.setCustomField(0, index)
-                                }
-                            }
-                        }
-
-                        LedHeading { text: "Colors" }
-                        Flow {
-                            width: parent.width
-                            spacing: 0.12 * unit
-                            Repeater {
-                                model: ["RAINBOW \u2192", "RAINBOW \u2190", "WAVE A\u2194B", "FLIP A/B", "MY COLOR"]
-                                SwPill {
-                                    minWidth: 2.2 * unit
-                                    label: modelData
-                                    lit: { swSettings.ledCustom; return ledSender.customField(1) === index; }
-                                    onClicked: ledSender.setCustomField(1, index)
-                                }
-                            }
-                        }
-
-                        LedHeading { text: "Pattern" }
-                        Flow {
-                            width: parent.width
-                            spacing: 0.12 * unit
-                            Repeater {
-                                model: { swSettings.ledCustom; return ledSender.customField(0) === 1
-                                    ? ["LEFT \u2192 RIGHT", "RIGHT \u2192 LEFT", "MIRROR OUT", "MIRROR IN", "FILL \u2192", "FILL \u2190", "BOUNCE"]
-                                    : ["SOLID", "GRADIENT", "MIRROR"]; }
-                                SwPill {
-                                    minWidth: 2.2 * unit
-                                    label: modelData
-                                    lit: { swSettings.ledCustom; return ledSender.customField(2) === index; }
-                                    onClicked: ledSender.setCustomField(2, index)
-                                }
-                            }
-                        }
-
+                        // rf195: Refloat's own leds.status.duty_threshold (written when
+                        // stopped, like every Refloat setting); the SLCM caps it at 85 %
                         SwStepper {
-                            label: "COLOR A"
-                            value: { swSettings.ledCustom; return ledSender.custom()[2] * 2; }
-                            from: 0; to: 358; step: 6; suffix: "\u00B0"
-                            onMoved: ledSender.setCustom(2, newValue / 2)
-                        }
-                        Rectangle {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            width: parent.width * 0.7; height: 0.14 * unit; radius: height / 2
-                            gradient: Gradient {
-                                orientation: Gradient.Horizontal
-                                GradientStop { position: 0; color: { swSettings.ledCustom; return Qt.hsla(ledSender.custom()[2] * 2 / 360, 1, 0.5, 1); } }
-                                GradientStop { position: 1; color: { swSettings.ledCustom; return Qt.hsla(ledSender.custom()[3] * 2 / 360, 1, 0.5, 1); } }
-                            }
-                        }
-                        SwStepper {
-                            label: "COLOR B"
-                            value: { swSettings.ledCustom; return ledSender.custom()[3] * 2; }
-                            from: 0; to: 358; step: 6; suffix: "\u00B0"
-                            onMoved: ledSender.setCustom(3, newValue / 2)
-                        }
-                        SwStepper {
-                            label: "COLOR SPEED"
-                            value: { swSettings.ledCustom; return ledSender.custom()[4]; }
-                            from: 0; to: 255; step: 1
-                            valueText: ((value + 1) * 0.05).toFixed(2) + " s"
-                            onMoved: ledSender.setCustom(4, newValue)
-                        }
-                        SwStepper {
-                            label: { swSettings.ledCustom; return ledSender.customField(0) === 1 ? "SCAN SPEED" : "PULSE SPEED"; }
-                            value: { swSettings.ledCustom; return ledSender.custom()[5]; }
-                            from: 0; to: 255; step: 1
-                            valueText: ((value + 1) * 0.05).toFixed(2) + " s"
-                            onMoved: ledSender.setCustom(5, newValue)
-                        }
-
-                        LedHeading { visible: ledSender.customField(0) === 0; text: "Brightness" }
-                        Row {
-                            visible: { swSettings.ledCustom; return ledSender.customField(0) === 0; }
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            spacing: 0.15 * unit
-                            Repeater {
-                                model: ["STEADY", "BREATHE", "FLASH"]
-                                SwPill {
-                                    minWidth: 2.2 * unit
-                                    label: modelData
-                                    lit: { swSettings.ledCustom; return ledSender.custom()[1] === index; }
-                                    onClicked: ledSender.setCustom(1, index)
-                                }
-                            }
-                        }
-                        SwStepper {
-                            visible: { swSettings.ledCustom; return ledSender.customField(0) === 0 && ledSender.custom()[1] > 0; }
-                            label: "LOWEST BRIGHTNESS"
-                            value: { swSettings.ledCustom; return Math.round(ledSender.custom()[6] / 2.55); }
-                            from: 0; to: 100; step: 5; suffix: "%"
-                            onMoved: ledSender.setCustom(6, newValue * 2.55)
+                            visible: swSettings.slcmAdvanced
+                            label: "DUTY BAR FROM"
+                            value: Math.min(85, Math.max(15, Math.round(ledSender.rfDutyTh * 20) * 5))
+                            from: 15; to: 85; step: 5; suffix: "%"
+                            onMoved: { if (!ledSender.rfLoaded) ledSender.fromConfig(); ledSender.rfDutyTh = newValue / 100; ledSender.changed(); }
                         }
 
                         SwLText {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: "Pick CUSTOM for IDLE / RIDING / SNOOZE / BOOT / SHUTDOWN in ANIMATIONS. The light module keeps it, even with the package off. "
-                                + "MY COLOR uses the COLOR from ANIMATIONS. Needs SLCM r19 or newer (CHECK LCM)."
+                            text: swSettings.slcmAdvanced
+                                ? "COLOR 1 = the color of one-color animations; COLOR 1 to COLOR 2 = the color range of the others. "
+                                    + "SPEED 1.0x = normal. DUTY BAR FROM: riding shows the duty bar from this duty. Needs SLCM r41 or newer."
+                                : "OFF = nothing (riding still warns on low battery). STANDARD = battery, footpad sensors when stepped on. "
+                                    + "BATTERY LEVEL: the battery gauge (live when riding). COLOR: for CLASSIC, COLOR SCAN, PULSE and WAVE."
                         }
                     }
+
                     Column {
                         width: parent.width
                         spacing: 0.14 * unit
@@ -18502,7 +18473,7 @@ Item {
                                 Layout.columnSpan: 2  // rf98: full width under HEAD/TAIL LIGHTS
                                 lit: swSettings.ledStatusBar
                                 summary: swSettings.ledStatusBar
-                                    ? "ON \u00B7 RIDE " + swSettings.ledStatusRidePct + "% \u00B7 " + (ledSender.slcmPresets ? "IDLE " + ledSender.animLabel(0, swSettings.ledAnimIdle === 128 ? 15 : swSettings.ledAnimIdle) : ledSender.rfSummary)
+                                    ? "ON \u00B7 RIDE " + swSettings.ledStatusRidePct + "% \u00B7 " + (ledSender.slcmPresets ? "IDLE " + ledSender.animLabel(0, ledSender.animVal(0)) : ledSender.rfSummary)
                                     : "OFF"
                                 onClicked: ledWindow.show("bar")
                             }
@@ -18620,8 +18591,8 @@ Item {
                                 glyph: "\u2726"
                                 lit: true
                                 swatch: Qt.hsla(swSettings.ledColor / 360, 1.0, 0.5, 1.0)
-                                summary: "IDLE " + ledSender.animLabel(0, swSettings.ledAnimIdle) + " \u00B7 RIDE "
-                                    + ledSender.animLabel(1, swSettings.ledAnimRide)
+                                summary: "IDLE " + ledSender.animLabel(0, ledSender.animVal(0)) + " \u00B7 RIDE "
+                                    + ledSender.animLabel(1, ledSender.animVal(1))
                                 onClicked: ledWindow.show("anim")
                             }
                             LedTile {

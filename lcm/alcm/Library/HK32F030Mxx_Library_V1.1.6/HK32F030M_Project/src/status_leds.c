@@ -131,11 +131,38 @@ lcm_status_t status_leds_init(void)
 
 void display_battery(int16_t battery_level);
 
+#ifdef VP_LIGHT_CONTROL
+static uint8_t status_leds_row_now; // r41: row of the animation being started
+/* r41: start a row's animation (0 idle, 1 riding, 2 snooze, 3 boot,
+ * 4 shutdown) with that row's own colors / speed */
+#define START_ROW(row, field)                                                                      \
+    (status_leds_row_now = (row), status_leds_start_animation_option(status_leds_settings->field))
+#else
+#define START_ROW(row, field) status_leds_start_animation_option(status_leds_settings->field)
+#endif
+
 uint16_t status_leds_start_animation_option(animation_option_t option)
 {
     uint16_t animation_id = 0U;
     uint8_t first_led = 0U;
     uint8_t last_led = STATUS_LEDS_COUNT - 1U;
+#ifdef VP_LIGHT_CONTROL
+    {
+        // r41: the row's own colors / speed for the setup below (color 1 =
+        // RGB color, colors 1..2 = hue range; see animation_row_style_t)
+        const uint8_t *st = status_leds_settings->row_style[status_leds_row_now];
+        uint16_t a = (uint16_t)st[0] * 2U, b = (uint16_t)st[1] * 2U;
+
+        animation_row_style.speed = st[2];
+        if (st[2] != 0U)
+        {
+            animation_row_style.hue_a = degrees_to_fixed16(MIN(a, b));
+            animation_row_style.hue_b = degrees_to_fixed16(MAX(a, b));
+            hsl_to_rgb(degrees_to_fixed16(a), SATURATION_DEFAULT, LIGHTNESS_DEFAULT,
+                       &animation_row_style.rgb);
+        }
+    }
+#endif
 
 #ifdef ENABLE_IMU_EVENTS
         if (vesc_serial_get_imu_roll() < 0)
@@ -296,40 +323,6 @@ uint16_t status_leds_start_animation_option(animation_option_t option)
     case ANIMATION_OPTION_BATTERY:
         display_battery(vesc_serial_get_battery_level());
         break;
-    case ANIMATION_OPTION_CUSTOM: {
-        // c[0] bit0 engine (0 fill, 1 scan), bits1-3 color mode, bits4-6
-        // pattern (fill mode / scan direction); c[1] brightness mode (fill);
-        // c[2], c[3] hues / 2; c[4] color speed, c[5] motion / brightness
-        // speed ((n + 1) * 50 ms); c[6] lowest brightness (fill)
-        const uint8_t *c = status_leds_settings->custom_anim;
-        uint8_t cm = (c[0] >> 1) & 7U, pattern = (c[0] >> 4) & 7U;
-        fixed16_t hue_a = degrees_to_fixed16((uint16_t)c[2] * 2U);
-        fixed16_t hue_b = degrees_to_fixed16((uint16_t)c[3] * 2U);
-        uint32_t color_ms = ((uint32_t)c[4] + 1U) * 50U;
-        uint32_t move_ms = ((uint32_t)c[5] + 1U) * 50U;
-        if (cm > (uint8_t)COLOR_MODE_RGB)
-        {
-            cm = (uint8_t)COLOR_MODE_RGB;
-        }
-        if ((c[0] & 1U) != 0U)
-        {
-            animation_id = scan_animation_setup(
-                status_leds_buffer,
-                (scan_direction_t)(pattern > (uint8_t)SCAN_DIRECTION_SINE ? 0U : pattern),
-                (color_mode_t)cm, move_ms, hue_a, hue_b, color_ms, SCAN_START_DEFAULT,
-                SCAN_END_NEVER, FIXED16(0.0), &custom_color);
-        }
-        else
-        {
-            animation_id = fill_animation_setup(
-                status_leds_buffer, (color_mode_t)cm,
-                (brightness_mode_t)(c[1] > (uint8_t)BRIGHTNESS_MODE_FLASH ? 0U : c[1]),
-                (fill_mode_t)(pattern > (uint8_t)FILL_MODE_HSV_GRADIENT_MIRROR ? 0U : pattern),
-                first_led, last_led, hue_a, hue_b, color_ms, frac8_to_fixed16(c[6]),
-                FIXED16(1.0), move_ms, 0U, &custom_color);
-        }
-        break;
-    }
 #endif
     case ANIMATION_OPTION_NONE:
         // Fade out the lights and then disable
@@ -343,6 +336,9 @@ uint16_t status_leds_start_animation_option(animation_option_t option)
         break;
     }
 
+#ifdef VP_LIGHT_CONTROL
+    animation_row_style.speed = 0U; // other displays keep their own look
+#endif
     return animation_id;
 }
 
@@ -519,27 +515,27 @@ void status_leds_disable_beeper_callback(void)
 
 void status_leds_boot_callback(void)
 {
-    status_leds_start_animation_option(status_leds_settings->boot_animation);
+    START_ROW(3U, boot_animation);
 }
 
 void status_leds_shutdown_callback(void)
 {
-    status_leds_start_animation_option(status_leds_settings->shutdown_animation);
+    START_ROW(4U, shutdown_animation);
 }
 
 void status_leds_idle_dozing_callback(void)
 {
-    status_leds_start_animation_option(status_leds_settings->dozing_animation);
+    START_ROW(2U, dozing_animation);
 }
 
 void status_leds_idle_default_callback(void)
 {
-    status_leds_start_animation_option(status_leds_settings->idle_animation);
+    START_ROW(0U, idle_animation);
 }
 
 void status_leds_riding_callback(void)
 {
-    status_leds_start_animation_option(status_leds_settings->ride_animation);
+    START_ROW(1U, ride_animation);
 }
 
 void status_leds_color_callback(void)
@@ -575,7 +571,7 @@ void status_leds_handle_booting(event_type_t event)
 {
     if (event == EVENT_BOARD_MODE_CHANGED)
     {
-        status_leds_start_animation_option(status_leds_settings->boot_animation);
+        START_ROW(3U, boot_animation);
     }
     // No else needed, no other events to handle in this state
 }
@@ -648,7 +644,7 @@ void status_leds_handle_idle_shutting_down(event_type_t event)
     case EVENT_COMMAND_TOGGLE_LIGHTS:
         // Fall through intentional
     case EVENT_COMMAND_TOGGLE_BEEPER:
-        status_leds_start_animation_option(status_leds_settings->shutdown_animation);
+        START_ROW(4U, shutdown_animation);
         break;
     default:
         // If there is no shutdown animation, do the same as idle active
@@ -675,7 +671,7 @@ void status_leds_handle_idle_default(event_type_t event)
         if ((event == EVENT_BOARD_MODE_CHANGED) || (event == EVENT_COMMAND_TOGGLE_LIGHTS) ||
             (event == EVENT_COMMAND_TOGGLE_BEEPER))
         {
-            status_leds_start_animation_option(status_leds_settings->idle_animation);
+            START_ROW(0U, idle_animation);
         }
     }
 }
@@ -689,7 +685,7 @@ void status_leds_handle_idle_dozing(event_type_t event)
     case EVENT_COMMAND_TOGGLE_LIGHTS:
         // Fall through intentional
     case EVENT_COMMAND_TOGGLE_BEEPER:
-        status_leds_start_animation_option(status_leds_settings->dozing_animation);
+        START_ROW(2U, dozing_animation);
         break;
     default:
         // Do nothing
@@ -807,7 +803,7 @@ void status_leds_handle_riding_normal(event_type_t event)
         {
             // Start the ride animation
             ride_animation_id =
-                status_leds_start_animation_option(status_leds_settings->ride_animation);
+                START_ROW(1U, ride_animation);
         }
         else
         {
@@ -881,7 +877,17 @@ void update_display(event_type_t event)
         // battery/ride display. BOARD_SUBMODE_RIDING_DANGER's hysteresis
         // floor is always above the gauge threshold, so that submode is
         // always covered by this branch.
-        if (duty_cycle >= DUTY_CYCLE_GAUGE_THRESHOLD)
+#ifdef VP_LIGHT_CONTROL
+        // r41: the rider's start (duty_from %, 1-85; 0 / other = 70 %),
+        // never above the danger hysteresis floor (85 %), so the danger
+        // submode below is always covered by the gauge
+        uint8_t from = status_leds_settings->duty_from;
+        int16_t gauge_from = ((uint8_t)(from - 1U) < 85U) ? (int16_t)(from * 10U)
+                                                           : (int16_t)DUTY_CYCLE_GAUGE_THRESHOLD;
+#else
+        int16_t gauge_from = DUTY_CYCLE_GAUGE_THRESHOLD;
+#endif
+        if (duty_cycle >= gauge_from)
         {
             display_duty_cycle(duty_cycle);
         }
@@ -1183,19 +1189,19 @@ EVENT_HANDLER(status_leds, command)
             break;
 #ifndef VP_LIGHT_CONTROL // animation previews are config-mode only
         case COMMAND_PROCESSOR_CONTEXT_BOOT_ANIMATION:
-            status_leds_start_animation_option(status_leds_settings->boot_animation);
+            START_ROW(3U, boot_animation);
             break;
         case COMMAND_PROCESSOR_CONTEXT_IDLE_ANIMATION:
-            status_leds_start_animation_option(status_leds_settings->idle_animation);
+            START_ROW(0U, idle_animation);
             break;
         case COMMAND_PROCESSOR_CONTEXT_DOZING_ANIMATION:
-            status_leds_start_animation_option(status_leds_settings->dozing_animation);
+            START_ROW(2U, dozing_animation);
             break;
         case COMMAND_PROCESSOR_CONTEXT_SHUTDOWN_ANIMATION:
-            status_leds_start_animation_option(status_leds_settings->shutdown_animation);
+            START_ROW(4U, shutdown_animation);
             break;
         case COMMAND_PROCESSOR_CONTEXT_RIDING_ANIMATION:
-            status_leds_start_animation_option(status_leds_settings->ride_animation);
+            START_ROW(1U, ride_animation);
             break;
 #endif
         case COMMAND_PROCESSOR_CONTEXT_PERSONAL_COLOR:

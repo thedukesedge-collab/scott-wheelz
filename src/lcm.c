@@ -27,6 +27,7 @@
 #include <string.h>
 
 static uint8_t refloat_idle_anim(const LcmData *lcm, uint8_t custom[LCM_VP_CUSTOM_LENGTH]);
+static uint8_t refloat_hue(LedColor c);
 
 void lcm_init(LcmData *lcm, CfgHwLeds *hw_cfg) {
     lcm->enabled = hw_cfg->mode & LED_MODE_EXTERNAL;
@@ -185,7 +186,9 @@ void lcm_poll_response(
             const int rev = lcm_slcm_rev(lcm);
             for (int i = 0; i < LCM_VP_ANIMATIONS; ++i) {
                 uint8_t anim = vp->animations[i];
-                if (anim == LCM_VP_ANIM_REFLOAT) {
+                if (anim == LCM_VP_ANIM_REFLOAT && rev >= LCM_SLCM_STYLE_REV) {
+                    anim = 13;  // rf195: "follow Refloat" removed: battery gauge (user)
+                } else if (anim == LCM_VP_ANIM_REFLOAT) {
                     // riding: the rider's own CUSTOM animation stays in the
                     // block (the SLCM has one), the idle one isn't playing
                     uint8_t idle_custom[LCM_VP_CUSTOM_LENGTH];
@@ -205,6 +208,20 @@ void lcm_poll_response(
                 for (int i = 0; i < LCM_VP_CUSTOM_LENGTH; ++i) {
                     buffer[ind++] = custom[i];
                 }
+            }
+            // rf195 / SLCM r41+: own colors / speed per animation (hue / 2,
+            // hue / 2, speed in tenths, 0 = built-in) and the riding duty bar
+            // start (Refloat's leds.status.duty_threshold, 1-85 %); 50 bytes
+            if (rev >= LCM_SLCM_STYLE_REV) {
+                for (int i = 0; i < LCM_VP_STYLE_LENGTH; i += 3) {
+                    uint8_t a = refloat_hue((LedColor) vp->style[i]);
+                    uint8_t b = refloat_hue((LedColor) vp->style[i + 1]);
+                    buffer[ind++] = a == 0xFF ? 0 : a;  // black / white: red
+                    buffer[ind++] = b == 0xFF ? 0 : b;
+                    buffer[ind++] = vp->style[i + 2];
+                }
+                float th = lcm->leds_cfg ? lcm->leds_cfg->status.duty_threshold * 100.0f : 70.0f;
+                buffer[ind++] = (uint8_t) fminf(fmaxf(th + 0.5f, 1.0f), 85.0f);
             }
             lcm->payload_size = 0;
         } else {
@@ -464,6 +481,13 @@ bool lcm_vp_set(LcmData *lcm, const uint8_t *buffer, int len) {
         vp.snooze_c2 = lcm->vp.snooze_c2;
         vp.snooze_speed = lcm->vp.snooze_speed;
     }
+    if (len >= x + 10 + LCM_VP_STYLE_LENGTH) {
+        for (int i = 0; i < LCM_VP_STYLE_LENGTH; ++i) {
+            vp.style[i] = clamp_u8(buffer[x + 10 + i], i % 3 == 2 ? LCM_VP_RF_SPEED_MAX : 31);
+        }
+    } else {
+        memcpy(vp.style, lcm->vp.style, LCM_VP_STYLE_LENGTH);
+    }
 
     // both copies start from memset(0) (vp above, lcm->vp in data_init) and
     // are only ever copied whole, so the padding compares equal too
@@ -500,13 +524,23 @@ void lcm_vp_pack(const LcmData *lcm, uint32_t words[LCM_VP_EEPROM_WORDS]) {
     words[6] = ((uint32_t) vp->ride_c1 << 27) | ((uint32_t) vp->ride_c2 << 22) |
         ((uint32_t) vp->ride_speed << 16) | ((uint32_t) vp->snooze_c1 << 11) |
         ((uint32_t) vp->snooze_c2 << 6) | vp->snooze_speed;
+    // words 7-9 (rf195): SLCM rows, 16 bits each (color 1: 5, color 2: 5,
+    // speed: 6); word 7 = magic 0x53 ('S'), row 0; 8 = rows 1, 2; 9 = rows 3, 4
+    uint32_t r[5];
+    for (int i = 0; i < 5; ++i) {
+        r[i] = ((uint32_t) vp->style[3 * i] << 11) | ((uint32_t) vp->style[3 * i + 1] << 6) |
+            vp->style[3 * i + 2];
+    }
+    words[7] = (0x53u << 24) | r[0];
+    words[8] = (r[1] << 16) | r[2];
+    words[9] = (r[3] << 16) | r[4];
 }
 
 void lcm_vp_unpack(LcmData *lcm, const uint32_t words[LCM_VP_EEPROM_WORDS]) {
     if ((words[0] >> 24) != 0x4C) {
         return;
     }
-    uint8_t buffer[LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH + 10] = {
+    uint8_t buffer[LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH + 10 + LCM_VP_STYLE_LENGTH] = {
         (words[0] >> 16) & 0xFF,
         (words[0] >> 8) & 0xFF,
         words[0] & 0xFF,
@@ -538,10 +572,24 @@ void lcm_vp_unpack(LcmData *lcm, const uint32_t words[LCM_VP_EEPROM_WORDS]) {
         (words[6] >> 6) & 0x1F,
         words[6] & 0x3F,
     };
+    // rf195: SLCM rows (words 7-9, only with their magic: 122-124 may hold
+    // an old horn melody)
+    const bool style = (words[7] >> 24) == 0x53;
+    const uint32_t rows[5] = {
+        words[7] & 0xFFFF, words[8] >> 16, words[8] & 0xFFFF, words[9] >> 16, words[9] & 0xFFFF,
+    };
+    for (int i = 0; i < 5; ++i) {
+        uint32_t r = style ? rows[i] : 0;
+        uint8_t *o = &buffer[LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH + 10 + 3 * i];
+        o[0] = (r >> 11) & 0x1F;
+        o[1] = (r >> 6) & 0x1F;
+        o[2] = r & 0x3F;
+    }
     // saved before the idle headlight level existed: idle = riding (and no
     // CUSTOM animation yet either)
-    int len = (words[3] >> 24) == 0x49 ? LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH + 10
-                                       : LCM_VP_SETTINGS_LENGTH - 1;
+    int len = (words[3] >> 24) == 0x49
+        ? LCM_VP_SETTINGS_LENGTH + LCM_VP_CUSTOM_LENGTH + 10 + LCM_VP_STYLE_LENGTH
+        : LCM_VP_SETTINGS_LENGTH - 1;
     lcm_vp_set(lcm, buffer, len);
 }
 

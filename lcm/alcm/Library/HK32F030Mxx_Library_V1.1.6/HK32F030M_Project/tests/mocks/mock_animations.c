@@ -113,3 +113,8 @@ uint16_t get_animation_id(void) {
     function_called();
     return mock_type(uint16_t);
 }
+#ifdef VP_LIGHT_CONTROL
+// Refloat Glow (SLCM r41): a status bar row's own colors / speed, set by
+// status_leds_start_animation_option() (defined in animations.c)
+animation_row_style_t animation_row_style;
+#endif

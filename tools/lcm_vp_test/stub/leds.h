@@ -13,7 +13,7 @@ typedef enum { LED_ANIM_SOLID = 0, LED_ANIM_FADE, LED_ANIM_PULSE, LED_ANIM_STROB
     LED_ANIM_RAINBOW_ROLL } LedAnimMode;
 /* same field names as src/conf/datatypes.h */
 typedef struct { float brightness; LedColor color1, color2; LedAnimMode mode; float speed; } LedBar;
-typedef struct { uint16_t idle_timeout; float brightness_headlights_on, brightness_headlights_off; } StatusBar;
+typedef struct { uint16_t idle_timeout; float duty_threshold; float brightness_headlights_on, brightness_headlights_off; } StatusBar;
 typedef struct { LedBar headlights, front; StatusBar status; LedBar status_idle; bool lights_off_when_lifted; } CfgLeds;
 typedef struct { bool enabled, headlights_enabled; } LedsRuntimeStatus;
 typedef struct { const CfgLeds *cfg; LedsRuntimeStatus rs; } Leds;

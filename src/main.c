@@ -1489,10 +1489,11 @@ static void horn_settings_queue_save(Data *d, uint32_t w0, uint32_t w1) {
 // words (80-83, right after the 80-word config). Saved like the horn
 // settings: 2 s after the last change, never while riding.
 #define LCM_VP_EEPROM_ADDR 80  // 4 words: 80-83
-// rf71: + 2 words for the CUSTOM animation, 125-126 (122-124 were the B1
-// horn layout, migrated long ago; 127 left free)
+// rf71: + 2 words for the CUSTOM animation, 125-126, rf114: 127 colors;
+// rf195: 122-124 SLCM per-animation colors / speed (122-124 were the B1 horn
+// layout, migrated at load long ago; the words carry their own magic)
 static int lcm_vp_eeprom_addr(int i) {
-    return i < 4 ? LCM_VP_EEPROM_ADDR + i : 125 + i - 4;
+    return i < 4 ? LCM_VP_EEPROM_ADDR + i : i < 7 ? 125 + i - 4 : 122 + i - 7;
 }
 
 static void lcm_vp_load(Data *d) {

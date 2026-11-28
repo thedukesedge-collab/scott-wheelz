@@ -43,7 +43,11 @@ typedef struct
 #ifdef VP_LIGHT_CONTROL
     // Refloat Glow (SLCM r19+): kept on the LCM, so they also apply
     // with the package off
-    uint8_t custom_anim[8]; // CUSTOM animation, see status_leds.c
+    // r41: own colors / speed per animation row (idle, riding, snooze,
+    // boot, shutdown): hue 1 / 2, hue 2 / 2, speed in tenths (10 = the
+    // built-in speed); speed 0 = the animation's built-in colors and speed
+    uint8_t row_style[5][3];
+    uint8_t duty_from;      // r41: riding duty bar from this %, 0 = 70 %
     uint8_t doze_dark;      // headlights dark in snooze (no breathing)
 #endif
 } settings_t;

@@ -56,6 +56,11 @@ typedef enum {
 #define LCM_VP_SETTINGS_LENGTH 12  // bytes in COMMAND_LCM_VP_SETTINGS (11 accepted)
 #define LCM_VP_CUSTOM_LENGTH 8  // + CUSTOM animation parameters (20 bytes, rf71+)
 #define LCM_SLCM_CUSTOM_REV 19  // SLCM builds from r19 take the CUSTOM block
+// rf195: SLCM builds from r41 take the per-animation colors / speed and the
+// duty bar start (15 + 1 bytes after the CUSTOM block, which they ignore -
+// CUSTOM was removed in r41 - but which is still sent: the layout never moves)
+#define LCM_SLCM_STYLE_REV 41
+#define LCM_VP_STYLE_LENGTH 15  // 5 rows (idle, riding, snooze, boot, shutdown) x c1, c2, speed
 // idle animation value: follow Refloat's own Status Idle animation (mode,
 // colors, speed, timeout) - translated for the SLCM in each poll reply, so
 // changes in VESC Tool's Refloat Cfg reach the LCM too (rf72)
@@ -66,7 +71,9 @@ typedef enum {
 #define LCM_VP_SNOOZE_STYLES 3  // rf97: 0 breathe, 1 dim, 2 dark
 // rf109: 0 breathe, 1 dim, 2 dark, 3 normal; rf111: 4-12 = Refloat animation + 4
 #define LCM_VP_STATUS_SNOOZE 13
-#define LCM_VP_EEPROM_WORDS 7  // 80-83 + 125-126 (CUSTOM animation) + 127 (rf114 colors)
+// 80-83 + 125-126 (CUSTOM animation) + 127 (rf114 colors) + 122-124 (rf195
+// SLCM per-animation colors / speed; 122-124 were the B1 horn layout, migrated)
+#define LCM_VP_EEPROM_WORDS 10
 #define LCM_VP_RF_SPEED_MAX 50  // rf114: speed in 0.1/s (0 = use the Status Idle colors / speed)
 
 typedef struct {
@@ -96,6 +103,11 @@ typedef struct {
     // use the Status Idle colors and speed)
     uint8_t ride_c1, ride_c2, ride_speed;
     uint8_t snooze_c1, snooze_c2, snooze_speed;
+    // rf195: bytes 30-44: the SLCM's own colors / speed per animation, rows
+    // idle, riding, snooze, boot, shutdown: color 1, color 2 (Refloat color
+    // index 0-31), speed (1-50 = 0.1-5.0 x, 0 = the animation's own colors
+    // and speed); sent to SLCM r41+ as hues (see lcm_poll_response)
+    uint8_t style[LCM_VP_STYLE_LENGTH];
 } LcmVpSettings;
 
 typedef struct {

@@ -98,16 +98,22 @@
  *   25  battery % from the package's battery curve (0-100), 0xFF = none:
  *       use the VESC's (optional, newer packages)
  *
- *   26-33 CUSTOM animation parameters (package rf71+, to SLCM r19+ only)
+ *   26-33 CUSTOM animation parameters (package rf71+, to SLCM r19+ only;
+ *       ignored from r41 - CUSTOM removed - but still sent, never reused)
+ *   34-48 r41+: own colors / speed per animation, 3 bytes each in the
+ *       order of 18-22 (idle, riding, snooze, boot, shutdown): hue 1 / 2,
+ *       hue 2 / 2, speed in tenths (10 = built-in); speed 0 = built-in
+ *       colors and speed (package rf195+, to SLCM r41+ only)
+ *   49  r41+: riding duty bar from this %, 0 = 70 %
  *
- * The whole reply is 25 (26) bytes, 33 (34) with the CUSTOM block, inside
- * MAX_PACKET_LENGTH (40; 32 before r19). */
+ * The whole reply is 25 (26) bytes, 33 (34) with the CUSTOM block, 50 with
+ * the r41 block, inside MAX_PACKET_LENGTH (52; 40 r19-r40, 32 before). */
 #define VP_BLOCK_OFFSET 15U
 #define VP_BLOCK_MAGIC 0x56U
 #define VP_BLOCK_VERSION 1U
 #define VP_REPLY_MIN_LENGTH 25U
 #define VP_BATTERY_OFFSET 25U
-#define VP_CUSTOM_OFFSET 26U // 8 bytes: CUSTOM animation (reply 34 bytes)
+#define VP_STYLE_OFFSET 34U // r41: 15 bytes row_style + duty_from (reply 50 bytes)
 #define VP_FLAG_HEADLIGHTS 0x01U
 #define VP_FLAG_STATUS_LEDS 0x02U
 #define VP_FLAG_BEEP 0x04U
@@ -127,7 +133,7 @@
 
 #define START_BYTE 0x02
 #define END_BYTE 0x03
-#define MAX_PACKET_LENGTH 40 // VP reply with the CUSTOM block: 34
+#define MAX_PACKET_LENGTH 52 // VP reply with the r41 block: 50
 #define MAX_OUTSTANDING_PACKETS 5
 // Millidegrees - 0.02 degrees was the original float threshold.
 #define SIGNIFICANT_CHANGE(x, y) ((((x) > (y)) ? ((x) - (y)) : ((y) - (x))) > 20)
@@ -1000,13 +1006,15 @@ void process_comm_custom_app_data(const uint8_t *payload, uint8_t packet_length)
                             COMMAND_PROCESSOR_CONTEXT_STATUS_BAR_BRIGHTNESS);
         vp_apply_block(&payload[VP_BLOCK_OFFSET], settings);
 
-        // CUSTOM animation parameters (package rf71+)
-        if ((packet_length >= VP_CUSTOM_OFFSET + sizeof(settings->custom_anim)) &&
-            (memcmp(settings->custom_anim, &payload[VP_CUSTOM_OFFSET],
-                    sizeof(settings->custom_anim)) != 0))
+        // r41: own colors / speed per animation + duty bar start (row_style
+        // and duty_from are next to each other in settings_t); older
+        // packages don't send them: kept as they are
+        if ((packet_length >= VP_STYLE_OFFSET + sizeof(settings->row_style) + 1U) &&
+            (memcmp(settings->row_style, &payload[VP_STYLE_OFFSET],
+                    sizeof(settings->row_style) + 1U) != 0))
         {
-            memcpy(settings->custom_anim, &payload[VP_CUSTOM_OFFSET],
-                   sizeof(settings->custom_anim));
+            memcpy(settings->row_style, &payload[VP_STYLE_OFFSET],
+                   sizeof(settings->row_style) + 1U);
             vp_save_countdown = VP_SAVE_POLLS;
             event_queue_push(EVENT_COMMAND_TOGGLE_LIGHTS, NULL);
         }

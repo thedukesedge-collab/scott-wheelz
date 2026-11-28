@@ -36,7 +36,9 @@
 // byte-content-only, agnostic to how the bytes are now interpreted), so the
 // magic bump is what forces a reset to defaults instead of silently
 // reinterpreting old float bit patterns as the new integer types.
-#define MAGIC_NUMBER 0xbeef0002
+// 0xbeef0003 (SLCM r41): CUSTOM animation bytes replaced by the
+// per-row colors / speed - start from the defaults once.
+#define MAGIC_NUMBER 0xbeef0003
 
 /**
  * @brief      Structure to represent the settings in the EEPROM.
@@ -72,8 +74,15 @@ void settings_reset(void)
     eeprom.settings.enable_headlights = true;
     eeprom.settings.enable_status_leds = true;
     eeprom.settings.boot_animation = ANIMATION_OPTION_FLOATWHEEL_CLASSIC;
+#ifdef VP_LIGHT_CONTROL
+    // Refloat Glow (user, r41): battery gauge when idle, knight rider
+    // while snoozing
+    eeprom.settings.idle_animation = ANIMATION_OPTION_BATTERY;
+    eeprom.settings.dozing_animation = ANIMATION_OPTION_KNIGHT_RIDER;
+#else
     eeprom.settings.idle_animation = ANIMATION_OPTION_NONE;
     eeprom.settings.dozing_animation = ANIMATION_OPTION_NONE;
+#endif
     eeprom.settings.shutdown_animation = ANIMATION_OPTION_NONE;
     eeprom.settings.ride_animation = ANIMATION_OPTION_NONE;
     eeprom.settings.headlight_brightness = 204U; // 0.8 * 255
