@@ -114,7 +114,16 @@ void SystemInit(void)
 		while ((RCC->CR & RCC_CR_HSIRDY) == 0u)
 		{
 		}
-		RCC->CFGR &= 0xF8FFB81Cu; /* SW = HSI, HCLK = PCLK = SYSCLK */
+		/* SW = HSI, HCLK = PCLK = SYSCLK: the vendor mask 0xF8FFB81C keeps
+		 * HPRE bit 0 (0x10 = HCLK / 6 on this chip); SetSysClockToHSI_32M()
+		 * clears the whole HPRE field after it, so do the same here (r36
+		 * ran at ~1/6 speed on some chips: slow power-off, wrong baud). */
+		RCC->CFGR &= 0xF8FFB80Cu;
+		RCC->CFGR3 &= 0xFFFFFFECu; /* USART1 / I2C clock = PCLK, as the vendor code */
+		RCC->CIR = 0u;
+		while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI)
+		{
+		}
 	}
 #endif
 

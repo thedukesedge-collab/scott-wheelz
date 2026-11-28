@@ -2208,3 +2208,23 @@ UI only (ui.qml.in + simulator); no firmware change.
   shared board mode tests shift by the boot timer; all 15 suites pass.
 - Hardware: NOT VERIFIED.
 - (Publish re-run after a GitHub API error deleting the old dev releases.)
+
+### SLCM r37: full speed on every chip with the bootloader (v1.2.3-rf189)
+- Bench result (user, r36): SLCM.hex (bootloader build) took ~10 s of
+  holding to power off, with 3 slow beeps, and sent no light data; the same
+  r36 code as ALCM_VP.hex (no bootloader) worked perfectly: normal power
+  on/off with beeps, "SLCM Detected" in RF Glow, full light control.
+- Cause: the bootloader build's compact SystemInit (and the bootloader's
+  bl_hw_init) cleared RCC_CFGR with the vendor mask 0xF8FFB81C, which keeps
+  HPRE bit 0. HPRE = 0x10 is HCLK / 6 on the HK32F030M; the vendor
+  SetSysClockToHSI_32M() clears the whole HPRE field afterwards, the compact
+  copy didn't. A chip that comes up with that bit set ran at ~5.3 MHz:
+  every timer ~6x slow (0.5 s hold + 1 s shutdown -> ~9 s) and the UART
+  baud ~6x off (no VESC link).
+- Fix: mask 0xF8FFB80C (whole HPRE cleared) in both; the app's SystemInit
+  also resets the USART1 clock source (CFGR3) and RCC->CIR and waits for
+  SWS = HSI, as the vendor code does. The bootloader keeps 1532 of 1536
+  bytes (the CFGR3 line didn't fit; its update link only runs after the app
+  has already set it, or right after reset with the default).
+- Size: BL app 14692 of 14720 bytes; bootloader host tests and the hex
+  parser check pass. Hardware: NOT VERIFIED (bench test of SLCM.hex next).

@@ -77,7 +77,9 @@ static inline void bl_hw_init(void)
     while ((RCC->CR & RCC_CR_HSIRDY) == 0u)
     {
     }
-    RCC->CFGR &= 0xF8FFB81Cu; /* SW = HSI, HCLK = PCLK = SYSCLK */
+    /* SW = HSI, HCLK = PCLK = SYSCLK: the whole HPRE field cleared (the
+     * vendor mask 0xF8FFB81C keeps HPRE bit 0 = HCLK / 6) */
+    RCC->CFGR &= 0xF8FFB80Cu;
     FLASH->INT_VEC_OFFSET = 0;
 
     /* PC3 button input with pull-up; PD1/PD6 USART1 TX/RX (AF1) */
