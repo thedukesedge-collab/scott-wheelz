@@ -2282,3 +2282,17 @@ UI only (ui.qml.in + simulator); no firmware change.
   power-up. Beep = the request arrives but is refused; no beep and no
   blinking = the request never arrives. 8 bytes; BL app 14700 of 14720.
 - Hardware: NOT VERIFIED.
+
+### SLCM r40: find the bootloader with the vector offset at 0 (v1.2.3-rf194)
+- Bench (user, r39, idle): FLASH LCM -> two quick beeps (r39's NACK) =
+  the update request reaches the LCM, which refuses it while idle, i.e.
+  it found no bootloader entry in vector slot 7 (0x0800001C).
+- Likely cause: the vendor vector offset register (FLASH->INT_VEC_OFFSET =
+  0x600, SystemInit, bootloader build) also moves reads of the first flash
+  bytes, so the slot read back as the app's own reserved one (0).
+- r40: interrupts off, offset 0, then read the entry and jump (the
+  bootloader runs with offset 0 anyway; going back to the app goes through
+  its reset, which sets 0x600 again). No bootloader found: offset back to
+  0x600, interrupts on. Beeps now tell why: two short = not idle, one long
+  = no bootloader found. BL app 14716 of 14720 bytes.
+- Hardware: NOT VERIFIED.

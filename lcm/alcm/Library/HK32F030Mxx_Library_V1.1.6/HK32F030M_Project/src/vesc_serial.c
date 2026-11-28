@@ -780,13 +780,21 @@ static bool_t vp_apply_animation(animation_option_t *setting, uint8_t value)
  */
 static void vp_enter_bootloader(void)
 {
-    uint32_t entry = *(volatile const uint32_t *)0x0800001CU;
+    uint32_t entry;
 
+    // r40: the vector table offset (0x600, set in SystemInit) also moves
+    // reads of the first flash bytes on this chip, so slot 7 read back as
+    // the app's own (empty) one: "no bootloader". Read it - and enter the
+    // bootloader - with the offset back at 0, interrupts off.
+    __disable_irq();
+    FLASH->INT_VEC_OFFSET = 0U;
+    entry = *(volatile const uint32_t *)0x0800001CU;
     if (((entry & 1U) == 0U) || (entry < 0x08000000U) || (entry >= 0x08000600U))
     {
+        FLASH->INT_VEC_OFFSET = VECT_TAB_OFFSET;
+        __enable_irq();
         return; // no bootloader on this LCM
     }
-    __disable_irq();
     headlights_hw_set_brightness(0U);
     buzzer_off();
     // Stop our 1 ms tick and drop a tick that may already be pending: the
@@ -872,16 +880,19 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
     {
         static bool_t vp_update_nack = false;
 
+        event_type_t why = EVENT_COMMAND_NACK; // two short beeps: not idle
+
         if (board_mode_get() == BOARD_MODE_IDLE)
         {
             vp_enter_bootloader(); // returns only without a bootloader
+            why = EVENT_COMMAND_ACK;  // one long beep: no bootloader found
         }
-        // r39 (bench diagnostic): asked to update but didn't hand over (not
-        // idle, or no bootloader found) - one error beep per power-up
+        // r39/r40 (bench diagnostic): asked to update but didn't hand over -
+        // one beep per power-up, telling why
         if (!vp_update_nack)
         {
             vp_update_nack = true;
-            event_queue_push(EVENT_COMMAND_NACK, NULL);
+            event_queue_push(why, NULL);
         }
     }
 #endif
