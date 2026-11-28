@@ -868,9 +868,21 @@ static void vp_apply_block(const uint8_t *block, settings_t *settings)
 #ifdef LCM_BOOTLOADER
     // Update staged (the package only sets this while the board isn't
     // running); only taken while idle - never while riding or booting
-    if (((flags & VP_FLAG_UPDATE) != 0U) && (board_mode_get() == BOARD_MODE_IDLE))
+    if ((flags & VP_FLAG_UPDATE) != 0U)
     {
-        vp_enter_bootloader();
+        static bool_t vp_update_nack = false;
+
+        if (board_mode_get() == BOARD_MODE_IDLE)
+        {
+            vp_enter_bootloader(); // returns only without a bootloader
+        }
+        // r39 (bench diagnostic): asked to update but didn't hand over (not
+        // idle, or no bootloader found) - one error beep per power-up
+        if (!vp_update_nack)
+        {
+            vp_update_nack = true;
+            event_queue_push(EVENT_COMMAND_NACK, NULL);
+        }
     }
 #endif
 

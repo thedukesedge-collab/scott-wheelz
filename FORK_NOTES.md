@@ -2268,3 +2268,17 @@ UI only (ui.qml.in + simulator); no firmware change.
   14720 bytes, RAM 1084 of 2048 bytes before the stack.
 - The update hand-over is unchanged; to be re-tested with this build (it
   may have failed for the same reason). Hardware: NOT VERIFIED.
+
+### SLCM r39: update hand-over diagnostic beep (v1.2.3-rf193)
+- Bench (user, r37, motor plugged in, idle animation showing): FLASH LCM
+  still ends with "no bootloader" after 15 s and the lights don't change,
+  so the LCM never hands over to its bootloader.
+- Found along the way: with the motor unplugged the speed reading is noise,
+  so the LCM stays in riding mode (battery gauge, no idle animation, the
+  normal hold-to-off ignored; the 3 s backstop still powers off). Bench
+  tests with the LCM: motor plugged in.
+- r39: when the update flag arrives and the LCM does not hand over (not
+  idle, or no bootloader found at 0x0800001C) it plays one error beep per
+  power-up. Beep = the request arrives but is refused; no beep and no
+  blinking = the request never arrives. 8 bytes; BL app 14700 of 14720.
+- Hardware: NOT VERIFIED.
