@@ -2343,3 +2343,15 @@ UI only (ui.qml.in + simulator); no firmware change.
 - Hardware: NOT VERIFIED. Bench checklist: app update r40 -> r41 (and
   back), idle BATTERY, snooze KNIGHT RIDER, ADVANCED colors / speed per
   row, duty bar from 50 %, power on / off.
+
+### BEFORE YOU START opens by itself after every update (v1.2.3-rf196)
+- User: the start notice didn't show when first opening Refloat Glow after
+  an update. Since rf170 it ignored the Refloat Glow page if that page was
+  already showing when the package loaded (as right after an install /
+  update) and waited for a tab change or a first touch.
+- Now it opens as soon as the Refloat Glow tab is the selected one and on
+  screen, load time included (still never over another VESC Tool tab).
+  "Don't show again" is stored with the package version (rf104), so it
+  holds only until the next update; the Onboarding Tour still follows the
+  notice (rf178). The first-touch watcher is removed. UI only.
+- Onboarding Tour checked: unchanged (it follows the notice as before).

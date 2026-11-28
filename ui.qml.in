@@ -7465,25 +7465,15 @@ Item {
     // and comes back when you return, until you press CONTINUE.
     property bool startNoticeDone: false
     // rf170: VESC Tool (mobile) hosts this UI in a page of its main SwipeView
-    // and hands us that SwipeView (uiApp.swipeViewItem). The notice waits
-    // until the rider actually SELECTS this tab: it has to be seen not
-    // selected first (e.g. still on VESC Packages right after installing)
-    // and then selected, or the rider touches this UI. Being the current
-    // page right when the package loads doesn't count. Desktop VESC Tool (no
-    // SwipeView handed over): on screen + a touch.
-    property bool tabLeftOnce: false
-    property bool touchedOnce: false
+    // and hands us that SwipeView (uiApp.swipeViewItem): the notice shows
+    // while this tab is the selected one and on screen (rf196: also when it
+    // already was at load, e.g. right after an install / update). Desktop
+    // VESC Tool (no SwipeView handed over): on screen.
     function hostSelected() {
         var host = mainItem.parent;
         if (host && host.swipeViewItem && host.parent)
             return host.swipeViewItem.currentItem === host.parent && mainItem.packageOnScreen();
         return mainItem.packageOnScreen();
-    }
-    MouseArea {  // rf170: notices the first touch, passes it on untouched
-        anchors.fill: parent
-        z: 1000
-        enabled: !mainItem.touchedOnce && !mainItem.startNoticeDone
-        onPressed: function (mouse) { mainItem.touchedOnce = true; mouse.accepted = false; }
     }
     function packageOnScreen() {
         if (!mainItem.visible || mainItem.width <= 0 || mainItem.height <= 0) return false;
@@ -7502,9 +7492,10 @@ Item {
                 stop();
                 return;
             }
-            var sel = mainItem.hostSelected();
-            if (!sel) mainItem.tabLeftOnce = true;
-            var on = sel && (mainItem.tabLeftOnce || mainItem.touchedOnce);
+            // rf196 (user): opens by itself as soon as the Refloat Glow page
+            // is the one showing, also right after an install or update
+            // (rf170 waited for a tab change or a touch first)
+            var on = mainItem.hostSelected();
             seen = on ? seen + 1 : 0;
             if (disclaimerDialog.visible) {
                 if (!on) disclaimerDialog.close();
