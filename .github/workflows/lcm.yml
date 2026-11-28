@@ -43,6 +43,9 @@ jobs:
         if: always()
         working-directory: lcm/bootloader
         run: |
+          # frozen since r40 (CLAUDE.md "SLCM update rules"): riders' LCMs
+          # keep the bootloader they were flashed with
+          sha256sum -c FROZEN.sha256
           sh tests/run.sh
           make
 

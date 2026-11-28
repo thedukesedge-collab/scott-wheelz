@@ -2296,3 +2296,12 @@ UI only (ui.qml.in + simulator); no firmware change.
   0x600, interrupts on. Beeps now tell why: two short = not idle, one long
   = no bootloader found. BL app 14716 of 14720 bytes.
 - Hardware: NOT VERIFIED.
+
+### App updates of the SLCM verified; SLCM update rules (2026-11-27)
+- Bench (user): SLCM r40 + package rf194 - FLASH LCM from the app worked,
+  twice in a row. First end-to-end hardware pass of the bootloader update.
+- CLAUDE.md "SLCM update rules": bootloader, hand-over path and update
+  protocol frozen; package <-> SLCM link compatible both ways (append-only
+  fields, sent by SLCM revision); every new SLCM bench-tested by app update
+  before it's called ready. CI checks lcm/bootloader against
+  FROZEN.sha256.

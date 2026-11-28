@@ -226,6 +226,46 @@ Do not begin changing safety-critical firmware behavior as part of this naming a
   No hardware is connected to this environment: hardware tests are always
   NOT VERIFIED unless the user reports them.
 
+## SLCM update rules (user, 2026-11-27 - strict, every SLCM / package change)
+
+App updates of the SLCM were first verified end to end with **SLCM r40 +
+package rf194** (user flashed twice in a row from the app). From here on:
+
+1. **Bootloader frozen.** `lcm/bootloader/` (bootloader.c, bl_hw.h,
+   bootloader.ld, Makefile) must not change; CI checks it against
+   `lcm/bootloader/FROZEN.sha256`. Riders' LCMs keep the bootloader they
+   were flashed with, so a change could only ever reach new ST-Link
+   installs and would split the fleet. Any change needs the user's explicit
+   OK, a new FROZEN.sha256 and a full bench test incl. recovery.
+2. **Hand-over path frozen** (the r40 path that works): the app's
+   `vp_enter_bootloader()` (interrupts off, `FLASH->INT_VEC_OFFSET = 0`,
+   entry from vector slot 7 at 0x0800001C), the update flag (VP flags bit
+   0x10, only while idle), the flash map (bootloader 0x08000000-0x080005FF,
+   app at 0x08000600, battery LUT page 0x08003F80), `VECT_TAB_OFFSET`
+   0x600, `app_bl.ld`, and the BL-build clock setup in SystemInit (whole
+   HPRE field cleared, r37). Don't touch them for size or tidiness.
+3. **Update protocol frozen:** COMMAND_LCM_FW (128) and its sub-commands
+   (START / DATA / STATUS / CANCEL / REQ 0x10 / DONE 0x11), page size 128,
+   CRC16-CCITT, the package's 15 s / 10 s timeouts, `src/lcm_fw.c`.
+4. **Package <-> SLCM link stays compatible both ways.** Every package
+   must work with every SLCM from r40 on, and every SLCM with older
+   packages (and with stock Refloat / no package, as before):
+   - the poll reply layout up to and incl. the VP block is never moved or
+     reused; new fields are only appended, and only sent to an SLCM whose
+     revision (from its name) understands them;
+   - an SLCM must accept shorter replies (fields missing = keep current
+     behavior / defaults) and ignore bytes it doesn't know;
+   - the SLCM name format "VPBL-r<N>-<hash>" / "VP-r<N>-<hash>" stays.
+5. **Every new SLCM must be updatable from the app**: before it's called
+   ready, bench-test FLASH LCM from the previous SLCM to the new one and
+   back (motor plugged in, board idle). Hardware results come only from the
+   user; otherwise NOT VERIFIED.
+6. **Bench setup:** motor plugged in for LCM tests (without it the speed
+   reading is noise and the LCM stays in riding mode: no idle animation,
+   no update, hold-to-off ignored). ST-Link kept at hand as the backup.
+7. Keep at least ~16 bytes of SLCM app flash free (limit 14720) so a fix
+   always fits.
+
 ## Standing working rules (from the user)
 
 - After every update send only: the simulator link, the dev .vescpkg link and a
@@ -246,5 +286,7 @@ Do not begin changing safety-critical firmware behavior as part of this naming a
 - Don't touch the balance code; config writes only when the board is stopped.
 - New LED features only in the Refloat (controller-driven LED) view; the SLCM
   side stays as it is, tied to the latest SLCM firmware, unless the user says so.
+  (2026-11-27: the user asked for the SLCM STATUS BAR rework - CUSTOM removed,
+  per-row colors / speed, duty bar from %.)
 - No copyrighted song melodies in the package (public-domain or original only).
 - The user takes no credit and makes no money from this project.
