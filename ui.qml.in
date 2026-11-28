@@ -10326,7 +10326,7 @@ Item {
                         SwPill {
                             anchors.horizontalCenter: parent.horizontalCenter
                             minWidth: 3.4 * unit
-                            label: swSettings.ledHeadlights ? "HEADLIGHTS ON" : "HEADLIGHTS OFF"
+                            label: swSettings.ledHeadlights ? "HEAD/TAIL LIGHTS ON" : "HEAD/TAIL LIGHTS OFF"
                             lit: swSettings.ledHeadlights
                             onClicked: ledSender.setHead(!swSettings.ledHeadlights)
                         }
@@ -10360,7 +10360,7 @@ Item {
                             width: parent.width
                             wrapMode: Text.WordWrap
                             font.pixelSize: fontSizeSmall
-                            text: "HEADLIGHTS OFF = always off. RIDING LIGHTS while engaged, RUNNING LIGHTS otherwise; 0% = off. "
+                            text: "HEAD/TAIL LIGHTS OFF = always off. RIDING LIGHTS while engaged, RUNNING LIGHTS otherwise; 0% = off. "
                                 + "Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). "
                                 + "SNOOZE BREATHING: lights slowly breathe while snoozing; off = dark."
                         }
@@ -11829,7 +11829,7 @@ Item {
                                     + (lcmFw.pkgVer && lcmFw.picked.slcm && lcmFw.parseVer(lcmFw.picked.slcm).hash !== lcmFw.pkgVer.hash ? " Note: this package goes with SLCM " + lcmFw.verText(lcmFw.pkgVer) + "." : "")
                                 : (lcmFw.builtinImage
                                     ? "Built into this package: SLCM build " + lcmFw.builtin.version + " (" + lcmFw.builtin.size + " bytes)."
-                                    : "Get the latest SLCM in UPDATES, or download SLCM.hex (github.com/thedukesedge-collab/scott-wheelz, release lcm-latest) and PICK .HEX FILE."
+                                    : "Get the latest SLCM in UPDATES, or download SLCM.hex (github.com/thedukesedge-collab/scott-wheelz: release lcm-dev with a DEV package, lcm-latest otherwise) and PICK .HEX FILE."
                                         + (lcmFw.pkgVer ? " This package goes with SLCM " + lcmFw.verText(lcmFw.pkgVer) + "." : ""))
                         }
 

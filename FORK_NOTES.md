@@ -2243,3 +2243,12 @@ UI only (ui.qml.in + simulator); no firmware change.
   unchanged. No config writes, no SLCM firmware change.
 - Onboarding Tour checked: no page changes (names, places and pictures
   unchanged). Hardware: NOT VERIFIED.
+
+### SLCM head/tail toggle wording (v1.2.3-rf191)
+- SLCM HEAD/TAIL LIGHTS window: the switch reads "HEAD/TAIL LIGHTS ON / OFF"
+  (was "HEADLIGHTS ON / OFF"; the SLCM switches head and tail lights
+  together), hint text to match; simulator the same (user).
+- LCM firmware tools: the PICK .HEX hint names lcm-dev for DEV packages
+  (lcm-latest is the rider release and can be older than a DEV package's
+  SLCM).
+- Onboarding Tour checked: no page shows this switch; unchanged.

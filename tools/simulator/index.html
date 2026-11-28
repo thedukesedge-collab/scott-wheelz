@@ -431,7 +431,7 @@
         <div id="rgbInHead"></div>
         <div id="ledHeadSteps"></div>
         <div class="ledCard" id="headSnzTitle"><div class="cardT">SNOOZE LOOK</div><div id="headSnzSteps"></div><div id="ledBreathBox"></div></div><div class="pills"><div class="pill" id="ledBreathPill" style="display:none"></div></div>
-        <p class="ledHint" id="headHintSlcm">HEADLIGHTS OFF = always off. RIDING LIGHTS while engaged, RUNNING LIGHTS otherwise; 0% = off. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). SNOOZE BREATHING: lights slowly breathe while snoozing; off = dark.</p>
+        <p class="ledHint" id="headHintSlcm">HEAD/TAIL LIGHTS OFF = always off. RIDING LIGHTS while engaged, RUNNING LIGHTS otherwise; 0% = off. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). SNOOZE BREATHING: lights slowly breathe while snoozing; off = dark.</p>
         <p class="ledHint" id="headHintRf">RIDING: while engaged. IDLE: otherwise. 0% = off; HEAD/TAIL LIGHTS OFF = always off. Same as Refloat's Headlight Brightness (riding) and Front Brightness (idle). SNOOZE uses VESC's power-off idle clock: riding or rolling the wheel restarts it and wakes the lights. When to snooze is set on the LEDS page (SNOOZE). BREATHE: a slow breath; DIM: a steady low glow; DARK: off. An SLCM light module snoozes by itself; this is for controller-driven LEDs (e.g. Thor).</p>
       </div>
       <div class="ledSec" data-s="bar">
@@ -1918,7 +1918,7 @@ function renderLedsSoft() {
     : !slcm ? "Using an LCM? Set Refloat Cfg \u25B8 Hardware \u25B8 LED Mode to External (or Internal and External) and write the config."
     : P.ledCfg ? 'SLCM settings are stored on the board, so they apply even without the phone.' : 'SLCM settings are only sent once you change one here; until then the light module keeps its own.';
   const pill = (id, on, txt) => { $(id).textContent = txt + (on ? ' ON' : ' OFF'); $(id).classList.toggle('on', on); };
-  pill('ledHeadPill', P.ledHead, (P.simSetup || 'slcm') === 'slcm' ? 'HEADLIGHTS' : 'HEAD/TAIL LIGHTS'); pill('ledBreathPill', P.ledBreath !== false, 'SNOOZE BREATHING'); pill('ledBarPill', P.ledBar, 'STATUS BAR'); pill('ledBeepPill', P.ledBeep, 'LCM BEEPER');
+  pill('ledHeadPill', P.ledHead, 'HEAD/TAIL LIGHTS'); pill('ledBreathPill', P.ledBreath !== false, 'SNOOZE BREATHING'); pill('ledBarPill', P.ledBar, 'STATUS BAR'); pill('ledBeepPill', P.ledBeep, 'LCM BEEPER');
   $('ledSwatch').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
   $('ltSw').style.background = 'hsl(' + P.ledColor + ',100%,50%)';
   $('ltHead').textContent = P.ledHead ? 'ON · ' + 'RIDE ' + P.ledHeadPct + '% · IDLE ' + P.ledHeadIdlePct + '%' : 'OFF';
